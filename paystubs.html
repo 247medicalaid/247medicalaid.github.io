@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprobantes de Pago — 24/7 Medical Aid</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:   #0F2645;
+  --blue:   #1E5FAD;
+  --sky:    #3B82F6;
+  --green:  #0F7A47;
+  --mint:   #DCFCE7;
+  --red:    #B91C1C;
+  --cream:  #F8F6F1;
+  --stone:  #E8E4DC;
+  --ink:    #1A1A1A;
+  --muted:  #6B7280;
+  --white:  #FFFFFF;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  min-height: 100vh;
+  color: var(--ink);
+}
+
+/* ── GRID LAYOUT ─────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: 100vh;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sidebar {
+  background: var(--navy);
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.logo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: var(--sky);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.logo-text h1 {
+  color: var(--white);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.logo-text p {
+  color: rgba(255,255,255,0.45);
+  font-size: 0.72rem;
+  margin-top: 2px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Steps */
+.steps { display: flex; flex-direction: column; gap: 6px; }
+
+.step-item {
+  border-radius: 12px;
+  padding: 16px 18px;
+  transition: background .2s;
+}
+.step-item.active { background: rgba(255,255,255,0.07); }
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.step-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all .3s;
+}
+.step-item.done .step-num  { background: var(--green); border-color: var(--green); color: white; }
+.step-item.active .step-num { background: var(--sky); border-color: var(--sky); color: white; }
+
+.step-label {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.step-item.active .step-label,
+.step-item.done .step-label { color: rgba(255,255,255,0.9); }
+
+/* Drop zone */
+.dropzone {
+  border: 1.5px dashed rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: rgba(255,255,255,0.03);
+  position: relative;
+}
+.dropzone:hover, .dropzone.over {
+  border-color: var(--sky);
+  background: rgba(59,130,246,0.08);
+}
+.dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.dz-icon { font-size: 1.8rem; margin-bottom: 6px; }
+.dz-text { color: rgba(255,255,255,0.5); font-size: 0.8rem; }
+.dz-text span { color: var(--sky); }
+.file-tag {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59,130,246,0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: #90C5FF;
+  font-family: 'DM Mono', monospace;
+}
+.file-tag.show { display: flex; }
+
+/* Select */
+.period-select-wrap { display: none; }
+.period-select-wrap.show { display: block; }
+
+select {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.4)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+select:focus { outline: none; border-color: var(--sky); }
+select option { background: #1a2e4a; color: white; }
+select optgroup { background: #0F2645; color: #7EB3FF; font-weight: 700; font-style: normal; }
+
+/* Button */
+.gen-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.gen-btn:hover:not(:disabled) { background: #0a5c35; transform: translateY(-1px); }
+.gen-btn:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; transform: none; }
+
+/* Progress */
+.prog-wrap { display: none; }
+.prog-wrap.show { display: block; }
+.prog-bar-bg { background: rgba(255,255,255,0.08); border-radius: 6px; height: 6px; overflow: hidden; margin-bottom: 6px; }
+.prog-bar { height: 100%; background: linear-gradient(90deg, var(--sky), var(--green)); border-radius: 6px; width: 0%; transition: width .3s; }
+.prog-text { color: rgba(255,255,255,0.45); font-size: 0.75rem; font-family: 'DM Mono', monospace; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.25);
+  font-size: 0.7rem;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.6;
+}
+
+/* ── MAIN PANEL ──────────────────────────────────────────────── */
+.main {
+  padding: 48px 52px;
+  overflow-y: auto;
+}
+
+.main-header {
+  margin-bottom: 40px;
+}
+.main-header h2 {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.03em;
+}
+.main-header p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  gap: 12px;
+}
+.empty-icon {
+  width: 80px; height: 80px;
+  background: var(--stone);
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+}
+.empty-state h3 { font-size: 1.1rem; font-weight: 600; color: var(--navy); }
+.empty-state p  { color: var(--muted); font-size: 0.85rem; max-width: 300px; }
+
+/* Error */
+.error-banner {
+  display: none;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: var(--red);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+.error-banner.show { display: block; }
+
+/* Results */
+.results { display: none; }
+.results.show { display: block; }
+
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: gap;
+  gap: 12px;
+}
+.results-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+.badge {
+  background: var(--mint);
+  color: var(--green);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--navy);
+  color: white;
+  border: none;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .2s;
+}
+.dl-btn:hover { background: var(--blue); }
+
+/* Table */
+.table-wrap {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--stone);
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--navy);
+  color: rgba(255,255,255,0.7);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 12px 16px;
+  text-align: left;
+}
+thead th:last-child { text-align: right; }
+
+tbody tr { border-bottom: 1px solid #F3F0EB; transition: background .15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #FAFAF8; }
+
+td {
+  padding: 13px 16px;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+.td-name { font-weight: 600; color: var(--navy); }
+.td-team {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+.td-hours { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--blue); }
+.td-usd   { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--muted); }
+.td-tasa  { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: #92400E; font-weight: 600; }
+.td-reteica { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--red); text-align: right; }
+.td-neto  { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 0.88rem; color: var(--green); text-align: right; }
+
+.badge-exempt {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.badge-manual {
+  background: #FFF7ED;
+  color: #C2410C;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.dl-btn-secondary {
+  background: var(--blue);
+}
+
+.dl-ind-btn {
+  background: var(--navy);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background .15s;
+  white-space: nowrap;
+}
+.dl-ind-btn:hover { background: var(--blue); }
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .main { padding: 28px 20px; }
+}
+
+/* ── MODAL ───────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  width: 560px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal h3 { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.modal p  { color: var(--muted); font-size: 0.83rem; margin-bottom: 20px; }
+.modal-emp-name {
+  background: var(--cream);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select {
+  padding: 9px 12px;
+  border: 1.5px solid var(--stone);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  color: var(--ink);
+  transition: border .2s;
+  background: white;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--sky); }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+.btn-cancel { padding: 10px 20px; background: var(--stone); border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; color: var(--ink); }
+.btn-save   { padding: 10px 22px; background: var(--green); border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 700; cursor: pointer; color: white; }
+.missing-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.missing-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #FEF9EC; border: 1px solid #FDE68A;
+  border-radius: 8px; padding: 8px 12px;
+  font-size: 0.83rem;
+}
+.missing-item span { font-weight: 600; color: var(--navy); }
+.btn-add-info { padding: 5px 12px; background: var(--blue); color: white; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+.banco-ok { color: var(--green); font-size: 0.75rem; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── SIDEBAR ──────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🏥</div>
+    <div class="logo-text">
+      <h1>24/7 Medical Aid Call Center</h1>
+      <p>Payroll Generator</p>
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="steps">
+    <div class="step-item active" id="step1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <span class="step-label">Subir archivo Excel</span>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept=".xlsx,.xls">
+        <div class="dz-icon">📂</div>
+        <div class="dz-text">Arrastra o <span>haz clic</span> para seleccionar</div>
+      </div>
+      <div class="file-tag" id="file-tag">📄 <span id="file-name"></span></div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step-item" id="step2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <span class="step-label">Elegir quincena</span>
+      </div>
+      <div class="period-select-wrap" id="period-wrap">
+        <select id="period-select">
+          <option value="">— Selecciona el período —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step-item" id="step3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <span class="step-label">Generar comprobantes</span>
+      </div>
+      <div class="prog-wrap" id="prog-wrap">
+        <div class="prog-bar-bg"><div class="prog-bar" id="prog-bar"></div></div>
+        <div class="prog-text" id="prog-text">Procesando...</div>
+      </div>
+      <button class="gen-btn" id="gen-btn" disabled onclick="generate()">
+        <span id="btn-icon">⚡</span>
+        <span id="btn-label">Generar Comprobantes</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    ReteICA: 9.5 / 1,000<br>
+    Moneda: Pesos Colombianos (COP)<br>
+    Horas = Registradas + Días adicionales
+  </div>
+</aside>
+
+<!-- ── MAIN PANEL ────────────────────────────────────────────────── -->
+<main class="main">
+  <div class="main-header">
+    <h2>Comprobantes de Pago</h2>
+    <p>Sube el archivo Excel, elige la quincena y genera los PDFs al instante.</p>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>Ningún período seleccionado</h3>
+    <p>Sube tu archivo de nómina y selecciona la quincena para ver los comprobantes aquí.</p>
+  </div>
+
+  <div class="results" id="results">
+    <div class="results-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <h3 id="results-title">Resultados</h3>
+        <span class="badge" id="results-badge">0 empleados</span>
+        <span class="badge tasa-badge" id="tasa-badge" style="display:none; background:#FEF9EC; color:#92400E;">💱 USD $ — COP</span>
+        <span class="badge total-badge" id="total-badge" style="display:none; background:#DCFCE7; color:#0F7A47;">💵 Total USD $ —</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="dl-btn dl-btn-secondary" id="dl-all-ind-btn" onclick="downloadAllIndividual()">
+          ⬇️ Descargar Todos Individuales
+        </button>
+        <button class="dl-btn dl-btn-secondary" onclick="downloadSummaryPDF()">
+          📋 Descargar Resumen
+        </button>
+        <button class="dl-btn dl-btn-secondary" onclick="generarPlantillaBanco()" style="background:#0F7A47;">
+          🏦 Plantilla Banco
+        </button>
+        <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">
+          ⬇️ Descargar PDF — Todos juntos
+        </button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Empleado</th>
+            <th>Horas</th>
+            <th>Bruto USD</th>
+            <th>Tasa USD</th>
+            <th>ReteICA</th>
+            <th>Aportes</th>
+            <th>Neto COP</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────────
+let workbook = null;
+let periodos = [];
+let empleados = [];
+let pdfBytes = null;
+
+const RETEICA = 9.5 / 1000;
+
+// ── HELPERS ─────────────────────────────────────────────────────
+const fmtCOP = n => `$ ${Math.round(n).toLocaleString('es-CO')}`;
+const fmtUSD = n => `USD ${parseFloat(n).toFixed(2)}`;
+
+function parseHours(str) {
+  if (!str) return 0;
+  const s = String(str).trim();
+  const parts = s.split(':');
+  if (parts.length < 2) return parseFloat(s) || 0;
+  return parseInt(parts[0]) + parseInt(parts[1]) / 60;
+}
+
+function decToHHMM(dec) {
+  const totalMin = Math.round(dec * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+function sf(val, d = 0) {
+  const v = parseFloat(val);
+  return isNaN(v) ? d : v;
+}
+
+function ss(val) {
+  if (val === undefined || val === null) return '';
+  const s = String(val).trim();
+  return (s === 'nan' || s === 'NaN' || s === 'undefined') ? '' : s;
+}
+
+// ── EXCEL PARSING ───────────────────────────────────────────────
+function detectarPeriodos(wb) {
+  // Scan ALL sheets in the workbook — works with any sheet name
+  // (original 'PAY ROLL 2026', mirror 'Sheet1', or any future copy).
+  // Sheets whose name contains 'pay roll' are scanned first so the
+  // original file keeps its usual period ordering.
+  const allSheets = [...wb.SheetNames];
+  allSheets.sort((a, b) => {
+    const ap = a.toLowerCase().includes('pay roll') ? 0 : 1;
+    const bp = b.toLowerCase().includes('pay roll') ? 0 : 1;
+    return ap - bp;
+  });
+
+  const found = [];
+  for (const sheetName of allSheets) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+    for (let i = 0; i < data.length - 1; i++) {
+      const val0 = String(data[i][0] || '').trim();
+      const next0 = String(data[i+1][0] || '').trim().toLowerCase();
+      if (val0 && /\d{4}/.test(val0) && val0.includes('/') && next0.includes('first name')) {
+        found.push({ sheet: sheetName, periodo: val0, headerRow: i + 1 });
+      }
+    }
+  }
+  return found;
+}
+
+function cargarEmpleados(wb, sheetName, headerRow) {
+  const ws = wb.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+
+  // Period label = row just before the header row
+  const periodoStr = String(raw[headerRow - 1][0] || '').trim();
+
+  // Derive the canonical end date from the period name (e.g. "FEBRUARY 28/2026" → "02/28/2026")
+  // This is more reliable than the Excel cell which sometimes shows day-1
+  const MONTHS = {JANUARY:1,FEBRUARY:2,MARCH:3,APRIL:4,MAY:5,JUNE:6,
+                  JULY:7,AUGUST:8,SEPTEMBER:9,OCTOBER:10,NOVEMBER:11,DECEMBER:12};
+  function endDateFromPeriodo(str) {
+    // Format: "MONTH DAY/YEAR"  e.g. "FEBRUARY 28/2026"
+    const m = str.match(/([A-Z]+)\s+(\d+)\/(\d{4})/);
+    if (!m) return '';
+    const mo = MONTHS[m[1]];
+    if (!mo) return '';
+    return `${String(mo).padStart(2,'0')}/${m[2].padStart(2,'0')}/${m[3]}`;
+  }
+  const periodoEndDate = endDateFromPeriodo(periodoStr);
+
+  // Find end of this period block (next period header)
+  let endRow = raw.length;
+  for (let i = headerRow + 2; i < raw.length; i++) {
+    const v0 = String(raw[i][0] || '').trim();
+    if (v0 && /\d{4}/.test(v0) && v0.includes('/')) {
+      const nv = String((raw[i+1] || [''])[0] || '').trim().toLowerCase();
+      if (nv.includes('first name')) { endRow = i; break; }
+    }
+  }
+
+  // Build column index map from named headers
+  const headers = raw[headerRow];
+  const colIdx = {};
+  headers.forEach((h, i) => {
+    const hs = String(h || '').trim().replace(/\n/g, ' ');
+    if (hs) colIdx[hs] = i;
+  });
+
+  const getCol = (row, name, def = '') => {
+    const i = colIdx[name];
+    return i !== undefined ? (row[i] !== undefined ? row[i] : def) : def;
+  };
+
+  // Find add-day column (ADD 1 DAY / ADD 2 DAY / ADD 0 DAY)
+  let addColIdx = -1;
+  headers.forEach((h, i) => {
+    const hs = String(h || '').toLowerCase();
+    if (hs.includes('add') && hs.includes('day')) addColIdx = i;
+  });
+
+  // ── KEY COLUMN POSITIONS (fixed by position, not header name) ──────────────
+  // col 12 = TOTAL (always USD)
+  // col 13 = PAY — in JAN15 this is USD, from JAN31 onwards this is COP
+  // col 20 = COP bruto (always, all periods)
+  // col 21 = RETE ICA already calculated (JAN31 onwards; absent in JAN15)
+  // col 22 = either NETO (until APR 30) or APORTES PLANILLA Y (from MAY 15)
+  // col 23 = NETO after ReteICA + Aportes (only when col22 = Aportes)
+  const COL_TOTAL_USD = 12;
+  const COL_COP_BRUTO = 20;
+  const COL_RETEICA   = 21;
+
+  // Detect if this period has pre-calculated ReteICA (col21 header = 'RETE ICA')
+  const hasReteICACol = String(headers[COL_RETEICA] || '').toLowerCase().includes('rete');
+
+  // Detect APORTES PLANILLA column (added from MAY 15 onwards).
+  // When present: col22 = APORTES PLANILLA, col23 = NETO
+  // When absent:  col22 = NETO
+  const col22Hdr   = String(headers[22] || '').toLowerCase();
+  const hasAportes = col22Hdr.includes('aporte') || col22Hdr.includes('planilla');
+  const COL_APORTES = hasAportes ? 22 : -1;
+  const COL_NETO    = hasAportes ? 23 : 22;
+
+  // Helper: format date value — could be a string "01/01/2026", a Date object,
+  // Format a date value that can be:
+  //   - string "01/16/2026" or "2026-02-01" (Jan periods)
+  //   - JS Date object (Feb periods, from SheetJS cellDates)
+  //   - Excel serial number like 46069
+  function formatDate(val) {
+    if (!val && val !== 0) return '';
+
+    // JS Date object — SheetJS returns these for actual date cells
+    if (val instanceof Date) {
+      const mo = String(val.getMonth() + 1).padStart(2, '0');
+      const dy = String(val.getDate()).padStart(2, '0');
+      return `${mo}/${dy}/${val.getFullYear()}`;
+    }
+
+    // Already a clean MM/DD/YYYY string
+    if (typeof val === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val.trim())) {
+      return val.trim();
+    }
+
+    // ISO string like "2026-02-01T00:00:00.000Z"
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+      const parts = val.slice(0, 10).split('-');
+      return `${parts[1]}/${parts[2]}/${parts[0]}`;
+    }
+
+    // Excel serial number (e.g. 46069 = Feb 16 2026)
+    const n = parseFloat(val);
+    if (!isNaN(n) && n > 40000 && n < 55000) {
+      // Excel epoch is Dec 30 1899; subtract 25569 days to get Unix epoch days
+      const ms = Math.round((n - 25569) * 86400 * 1000);
+      const d  = new Date(ms);
+      const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dy = String(d.getUTCDate()).padStart(2, '0');
+      return `${mo}/${dy}/${d.getUTCFullYear()}`;
+    }
+
+    return String(val);
+  }
+
+  const emps = [];
+  for (let r = headerRow + 1; r < endRow; r++) {
+    const row = raw[r];
+    const fname = ss(row[0]);
+    const lname = ss(row[1]);
+    // Skip empty rows, separator rows, and header repeats
+    if (!fname || ['nan','NaN','0','0.0','First name'].includes(fname)) continue;
+    if (!isNaN(parseFloat(fname)) && isFinite(fname)) continue;
+
+    const rate     = sf(getCol(row, 'Hourly rate (USD)'));
+    const hoursRaw = ss(getCol(row, 'Total paid hours'));
+    const otRaw    = ss(getCol(row, 'Overtime')) || '—';
+    const addUSD   = addColIdx >= 0 ? sf(row[addColIdx]) : 0;
+    const bonusUSD = sf(getCol(row, 'BONUS'));
+
+    // Total USD: always col12 (TOTAL column, always USD < 10000)
+    const totalUSD = sf(row[COL_TOTAL_USD]);
+
+    // Total hours = registered hours + add-day hours (addUSD / rate)
+    const addHours = (rate > 0 && addUSD > 0) ? addUSD / rate : 0;
+    const totalHoursStr = decToHHMM(parseHours(hoursRaw) + addHours);
+
+    // COP bruto: always col20
+    const copBruto = Math.round(sf(row[COL_COP_BRUTO])) || Math.round(totalUSD * 4000);
+
+    // ── RETEICA, APORTES & NETO ───────────────────────────────────────────────
+    // Cases:
+    // 1. Exempt agents: col21 is blank/nan OR col21 == 0  → reteica=0, aportes=0, neto=copBruto
+    // 2. Laura Katalina / Claudia Calle: neto is manually set in col_neto,
+    //    regardless of COP bruto and aportes
+    // 3. Normal agents: reteica from col21, aportes from col22 (if present), neto from col_neto
+    let reteica = 0;
+    let aportes = 0;
+    let netoCOP  = copBruto;
+    let isExempt = false;
+    let isManual = false;
+
+    const nombreFull = `${fname} ${lname}`.trim().toUpperCase();
+    const isSpecial  = nombreFull.includes('LAURA KATALINA') || nombreFull.includes('CLAUDIA CALLE');
+
+    if (hasReteICACol) {
+      const rawRete   = row[COL_RETEICA];
+      const rawNeto   = row[COL_NETO];
+      const rawAport  = COL_APORTES >= 0 ? row[COL_APORTES] : '';
+      const reteVal   = sf(rawRete);
+      const netoVal   = sf(rawNeto);
+      const aportVal  = sf(rawAport);
+
+      if (isSpecial && netoVal > 0) {
+        // Manual neto: use NETO column directly regardless of reteica/aportes
+        isManual = true;
+        reteica  = Math.round(reteVal);
+        aportes  = Math.round(aportVal);
+        netoCOP  = Math.round(netoVal);
+      } else if (!rawRete || rawRete === '' || reteVal === 0) {
+        // Exempt: blank or explicitly 0 in col21
+        isExempt = true;
+        reteica  = 0;
+        aportes  = 0;  // Exempt agents don't have aportes either
+        netoCOP  = netoVal > 0 ? Math.round(netoVal) : copBruto;
+      } else {
+        // Normal: use pre-calculated values from Excel
+        reteica = Math.round(reteVal);
+        aportes = aportVal > 0 ? Math.round(aportVal) : 0;
+        netoCOP = netoVal > 0 ? Math.round(netoVal) : (copBruto - reteica - aportes);
+      }
+    } else {
+      // JAN15 period has no ReteICA col — calculate manually
+      reteica = Math.round(copBruto * RETEICA);
+      netoCOP = copBruto - reteica;
+    }
+
+    // Exchange rate: COP bruto / Total USD (rounded to nearest integer)
+    const tasaCambio = (totalUSD > 0 && copBruto > 0) ? Math.round(copBruto / totalUSD) : 0;
+
+    emps.push({
+      nombre:     `${fname} ${lname}`.trim(),
+      team:       ss(getCol(row, 'Team')),
+      job:        ss(getCol(row, 'Job')),
+      start:      formatDate(row[2]),
+      end:        periodoEndDate || formatDate(row[3]),
+      rateUSD:    rate,
+      hoursStr:   totalHoursStr,
+      otStr:      otRaw,
+      bonusUSD:   bonusUSD,
+      totalUSD:   totalUSD,
+      tasaCambio: tasaCambio,
+      copBruto:   copBruto,
+      reteica:    reteica,
+      aportes:    aportes,
+      netoCOP:    netoCOP,
+      isExempt:   isExempt,
+      isManual:   isManual,
+      periodo:    periodoStr,
+    });
+  }
+  return emps;
+}
+
+// ── PDF GENERATION ──────────────────────────────────────────────
+function mmToPt(mm) { return mm * 2.8346; }
+
+function buildPaystubPDF(empList) {
+  const { jsPDF } = window.jspdf;
+  const W = 215.9, H = 279.4; // letter mm
+  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+
+  const NAVY   = [15,  38,  69];
+  const BLUE   = [30,  95, 173];
+  const SKY    = [59, 130, 246];
+  const GREEN  = [15, 122,  71];
+  const LTBLUE = [235,242,251];
+  const LTGRN  = [220,252,231];
+  const REDC   = [185, 28,  28];
+  const LTRED  = [254,242,242];
+  const LGRAY  = [240,244,248];
+  const MGRAY  = [107,114,128];
+  const INK    = [26,  26,  26];
+
+  empList.forEach((emp, idx) => {
+    if (idx > 0) doc.addPage();
+
+    const ML = 12, MR = W - 12, mid = W / 2, COL2 = mid + 5;
+    const BW = mid - ML - 4;
+
+    // ── HEADER ──────────────────────────────────────────────────
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 30, 'F');
+
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.text(emp.isExempt ? 'Call Center Paystub' : '24/7 Medical Aid Call Center', ML, 11);
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(180,210,255);
+    doc.text('Pay Stub  /  Comprobante de Pago', ML, 18);
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(168,212,255);
+    doc.text(emp.periodo, MR, 11, { align: 'right' });
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.text(`${emp.start}  -  ${emp.end}`, MR, 18, { align: 'right' });
+
+    // ── NAME BAR ────────────────────────────────────────────────
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 30, W, 13, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255,255,255);
+    doc.text(emp.nombre.toUpperCase(), ML, 39.5);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(200,230,255);
+    doc.text(emp.team, MR, 39.5, { align: 'right' });
+
+    // ── HELPERS ─────────────────────────────────────────────────
+    let yL = 52, yR = 52;
+
+    function secTitle(txt, y, x, w) {
+      doc.setFillColor(...BLUE);
+      doc.rect(x, y, w, 7, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(7);
+      doc.setTextColor(255,255,255);
+      doc.text(txt.toUpperCase(), x + 2, y + 5);
+      return y + 10;
+    }
+
+    function row(label, val, x, y, alt, w) {
+      w = w || BW;
+      if (alt) {
+        doc.setFillColor(...LTBLUE);
+        doc.rect(x, y, w, 7, 'F');
+      }
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...INK);
+      doc.text(label, x + 2, y + 5);
+      doc.setFont('helvetica','bold');
+      doc.text(val, x + w - 2, y + 5, { align: 'right' });
+      return y + 8;
+    }
+
+    // ── LEFT COL ────────────────────────────────────────────────
+    yL = secTitle('Horas Trabajadas / Work Hours', yL, ML, BW);
+    yL = row('Total horas trabajadas', emp.hoursStr,          ML, yL, true,  BW);
+    yL = row('Horas extra (Overtime)', emp.otStr,             ML, yL, false, BW);
+    yL = row('Tarifa por hora',        `USD ${emp.rateUSD.toFixed(2)}`, ML, yL, true, BW);
+    yL = secTitle('Pago / Payment',    yL, ML, BW);
+    yL = row('Total bruto USD',        fmtUSD(emp.totalUSD),  ML, yL, true,  BW);
+    if (emp.tasaCambio > 0)
+      yL = row('Tasa de cambio (USD)', `$ ${emp.tasaCambio.toLocaleString('es-CO')} COP`, ML, yL, false, BW);
+    if (emp.bonusUSD > 0)
+      yL = row('Bono / Bonus',         fmtUSD(emp.bonusUSD), ML, yL, true,  BW);
+
+    // ── RIGHT COL ───────────────────────────────────────────────
+    yR = secTitle('Periodo / Period',   yR, COL2, BW);
+    yR = row('Quincena',  emp.periodo,  COL2, yR, true,  BW);
+    yR = row('Inicio',    emp.start,    COL2, yR, false, BW);
+    yR = row('Fin',       emp.end,      COL2, yR, true,  BW);
+    yR = secTitle('Empleado / Employee', yR, COL2, BW);
+    yR = row('Departamento', emp.team,  COL2, yR, true,  BW);
+    if (emp.job && emp.job !== emp.team)
+      yR = row('Cargo',   emp.job,      COL2, yR, false, BW);
+
+    // ── DEDUCTIONS BOX ──────────────────────────────────────────
+    const topRet = Math.max(yL, yR) + 5;
+    // Box height grows if Aportes Planilla applies
+    const hasAportes = emp.aportes > 0 && !emp.isExempt && !emp.isManual;
+    const retH = hasAportes ? 28 : 22;
+
+    if (emp.isExempt) {
+      // Exempt: smaller box with just one row — no ReteICA mention at all
+      doc.setFillColor(...LTBLUE);
+      doc.roundedRect(ML, topRet, W - 2*ML, retH, 2, 2, 'F');
+      doc.setDrawColor(180,210,255);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(ML, topRet, W - 2*ML, retH, 2, 2, 'S');
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLUE);
+      doc.text('PAGO / PAYMENT', ML + 4, topRet + 6);
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...INK);
+      doc.text('Valor Nomina', ML + 4, topRet + 13);
+      doc.setFont('helvetica','bold');
+      doc.text(fmtCOP(emp.netoCOP), MR - 4, topRet + 13, { align: 'right' });
+
+      // Empty second row so layout stays consistent
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(180,180,180);
+      doc.setFontSize(7);
+
+    } else {
+      doc.setFillColor(...LTRED);
+      doc.roundedRect(ML, topRet, W - 2*ML, retH, 2, 2, 'F');
+      doc.setDrawColor(255,180,180);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(ML, topRet, W - 2*ML, retH, 2, 2, 'S');
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...REDC);
+      doc.text('RETENCIONES / DEDUCTIONS', ML + 4, topRet + 6);
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...INK);
+      doc.text('Pago bruto en COP', ML + 4, topRet + 13);
+      doc.setFont('helvetica','bold');
+      doc.text(fmtCOP(emp.copBruto), MR - 4, topRet + 13, { align: 'right' });
+
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(...REDC);
+      if (emp.isManual) {
+        doc.text('Nomina asignada manualmente', ML + 4, topRet + 19);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...INK);
+        doc.text(fmtCOP(emp.netoCOP), MR - 4, topRet + 19, { align: 'right' });
+      } else {
+        // ReteICA line
+        doc.text('ReteICA  (9.5 por 1,000)', ML + 4, topRet + 19);
+        doc.setFont('helvetica','bold');
+        doc.text(`- ${fmtCOP(emp.reteica)}`, MR - 4, topRet + 19, { align: 'right' });
+
+        // Aportes Planilla line (only if applicable)
+        if (hasAportes) {
+          doc.setFont('helvetica','normal');
+          doc.setTextColor(...REDC);
+          doc.text('Aportes Planilla', ML + 4, topRet + 25);
+          doc.setFont('helvetica','bold');
+          doc.text(`- ${fmtCOP(emp.aportes)}`, MR - 4, topRet + 25, { align: 'right' });
+        }
+      }
+    }
+
+    // ── NET PAY ─────────────────────────────────────────────────
+    const topNet = topRet + retH + 4;
+    const netH = 18;
+    doc.setFillColor(...GREEN);
+    doc.roundedRect(ML, topNet, W - 2*ML, netH, 3, 3, 'F');
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255,255,255);
+    doc.text('TOTAL NETO A PAGAR  /  NET PAY', ML + 5, topNet + 7);
+
+    doc.setFontSize(16);
+    doc.text(fmtCOP(emp.netoCOP), MR - 5, topNet + 13, { align: 'right' });
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...LTGRN);
+    const netoLabel = emp.isExempt ? 'Pesos Colombianos (COP)'
+                    : emp.isManual ? 'Pesos Colombianos (COP) - Valor asignado manualmente'
+                    : hasAportes   ? 'Pesos Colombianos (COP) - despues de ReteICA y Aportes Planilla'
+                    : 'Pesos Colombianos (COP) - despues de ReteICA';
+    doc.text(netoLabel, ML + 5, topNet + 14);
+
+    // ── SIGNATURE LINES ─────────────────────────────────────────
+    const sy = topNet + netH + 14;
+    doc.setDrawColor(180,180,180);
+    doc.setLineWidth(0.4);
+    doc.line(ML + 5,  sy, mid - 8, sy);
+    doc.line(mid + 8, sy, MR - 5,  sy);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...MGRAY);
+    doc.text('Firma Empleado / Employee Signature', (ML + mid) / 2, sy + 4, { align: 'center' });
+    doc.text('Firma Empleador / Employer Signature', (mid + MR) / 2, sy + 4, { align: 'center' });
+
+    // ── FOOTER ──────────────────────────────────────────────────
+    doc.setFillColor(...LGRAY);
+    doc.rect(0, H - 12, W, 12, 'F');
+    doc.setDrawColor(...BLUE);
+    doc.setLineWidth(0.6);
+    doc.line(0, H - 12, W, H - 12);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MGRAY);
+    doc.text(emp.isExempt ? 'Comprobante oficial - Call Center Paystub' : 'Comprobante oficial - 24/7 Medical Aid Call Center', ML, H - 5);
+    const today = new Date().toISOString().slice(0,10);
+    doc.text(`Generado: ${today}`, MR, H - 5, { align: 'right' });
+  });
+
+  return doc.output('arraybuffer');
+}
+
+// ── UI FLOW ─────────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => handleFile(e.target.files[0]));
+
+function handleFile(file) {
+  if (!file) return;
+  clearError();
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-tag').classList.add('show');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      workbook = XLSX.read(e.target.result, { type: 'array', cellDates: true, raw: false });
+      periodos = detectarPeriodos(workbook);
+      if (!periodos.length) {
+        showError('No se encontraron períodos de nómina. Verifica que sea el archivo correcto.');
+        return;
+      }
+      const sel = document.getElementById('period-select');
+      sel.innerHTML = '<option value="">— Selecciona el período —</option>';
+
+      // Parse each period's date to sort newest → oldest
+      const MESES = {JANUARY:1,FEBRUARY:2,MARCH:3,APRIL:4,MAY:5,JUNE:6,
+                     JULY:7,AUGUST:8,SEPTEMBER:9,OCTOBER:10,NOVEMBER:11,DECEMBER:12};
+      function fechaPeriodo(str) {
+        // "MAY 31/2026" → sortable number 20260531
+        const m = str.match(/([A-Z]+)\s+(\d+)\/(\d{4})/);
+        if (!m || !MESES[m[1]]) return 0;
+        return parseInt(m[3]) * 10000 + MESES[m[1]] * 100 + parseInt(m[2]);
+      }
+
+      // Build sorted index list (keep original index as option value)
+      const ordenados = periodos
+        .map((p, i) => ({ p, i, fecha: fechaPeriodo(p.periodo) }))
+        .sort((a, b) => b.fecha - a.fecha);
+
+      // Group by year with <optgroup> separators
+      let currentGroup = null;
+      let currentYear  = null;
+      ordenados.forEach(({ p, i, fecha }) => {
+        const yr = fecha > 0 ? Math.floor(fecha / 10000) : 'Otros';
+        if (yr !== currentYear) {
+          currentYear = yr;
+          currentGroup = document.createElement('optgroup');
+          currentGroup.label = `── ${yr} ──`;
+          sel.appendChild(currentGroup);
+        }
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = fecha > 0 ? p.periodo : `${p.periodo}  (${p.sheet})`;
+        currentGroup.appendChild(opt);
+      });
+      document.getElementById('period-wrap').classList.add('show');
+      setStep(1, 'done'); setStep(2, 'active');
+    } catch(err) {
+      showError('Error leyendo el archivo: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('period-select').addEventListener('change', function() {
+  document.getElementById('gen-btn').disabled = !this.value;
+  if (this.value) { setStep(2, 'done'); setStep(3, 'active'); }
+  clearResults();
+});
+
+async function generate() {
+  const sel = document.getElementById('period-select');
+  if (!sel.value) return;
+  const p = periodos[parseInt(sel.value)];
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('btn-icon').innerHTML = '<span class="spinner"></span>';
+  document.getElementById('btn-label').textContent = 'Generando...';
+  document.getElementById('prog-wrap').classList.add('show');
+  clearError(); clearResults();
+
+  // Animate progress
+  let pct = 5;
+  const bar = document.getElementById('prog-bar');
+  const ptxt = document.getElementById('prog-text');
+  bar.style.width = '5%';
+  ptxt.textContent = 'Leyendo datos del Excel...';
+
+  await sleep(80);
+  empleados = cargarEmpleados(workbook, p.sheet, p.headerRow);
+
+  if (!empleados.length) {
+    showError('No se encontraron empleados para este período.');
+    resetBtn(); return;
+  }
+
+  bar.style.width = '40%';
+  ptxt.textContent = `Generando ${empleados.length} comprobantes...`;
+  await sleep(80);
+
+  try {
+    pdfBytes = buildPaystubPDF(empleados);
+    bar.style.width = '100%';
+    ptxt.textContent = `✅ ${empleados.length} comprobantes listos`;
+
+    // Render table
+    const tbody = document.getElementById('results-tbody');
+    tbody.innerHTML = empleados.map((e, idx) => {
+      const reteDisplay = e.isExempt
+        ? '<span class="badge-exempt">EXENTO</span>'
+        : e.isManual
+        ? '<span class="badge-manual">MANUAL</span>'
+        : `- ${fmtCOP(e.reteica)}`;
+      const aporteDisplay = (e.isExempt || e.isManual)
+        ? '<span style="color:#9CA3AF;">—</span>'
+        : e.aportes > 0
+        ? `- ${fmtCOP(e.aportes)}`
+        : '<span style="color:#9CA3AF;">—</span>';
+      return `
+      <tr>
+        <td><div class="td-name">${e.nombre}</div><div class="td-team">${e.team}</div></td>
+        <td class="td-hours">${e.hoursStr}</td>
+        <td class="td-usd">${fmtUSD(e.totalUSD)}</td>
+        <td class="td-tasa">$ ${e.tasaCambio.toLocaleString('es-CO')}</td>
+        <td class="td-reteica">${reteDisplay}</td>
+        <td class="td-reteica">${aporteDisplay}</td>
+        <td class="td-neto">${fmtCOP(e.netoCOP)}</td>
+        <td><button class="dl-ind-btn" onclick="downloadIndividual(${idx})" title="Descargar PDF">⬇️</button></td>
+      </tr>`;
+    }).join('');
+
+    // Period tasa: exclude employees with manual neto (their COP is not USD × rate).
+    // Then use the MODE (most frequent value) rather than the mean,
+    // since the bank pays everyone at the same rate.
+    const tasasValidas = empleados
+      .filter(e => !e.isManual && e.tasaCambio > 0)
+      .map(e => e.tasaCambio);
+
+    let tasaPeriodo = 0;
+    if (tasasValidas.length > 0) {
+      // Find the most frequent tasa
+      const counts = {};
+      tasasValidas.forEach(t => counts[t] = (counts[t] || 0) + 1);
+      tasaPeriodo = parseInt(Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b));
+    }
+
+    // Total USD of the whole payroll
+    const totalUSDNomina = empleados.reduce((s, e) => s + (e.totalUSD || 0), 0);
+
+    document.getElementById('results-title').textContent = p.periodo;
+    document.getElementById('results-badge').textContent = `${empleados.length} empleados`;
+    document.getElementById('tasa-badge').textContent = `💱 USD $ ${tasaPeriodo.toLocaleString('es-CO')} COP`;
+    document.getElementById('tasa-badge').style.display = tasaPeriodo > 0 ? 'inline-flex' : 'none';
+    document.getElementById('total-badge').textContent = `💵 Total USD $ ${totalUSDNomina.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('total-badge').style.display = totalUSDNomina > 0 ? 'inline-flex' : 'none';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results').classList.add('show');
+
+  } catch(err) {
+    showError('Error generando los PDFs: ' + err.message);
+  }
+  resetBtn();
+}
+
+function buildSummaryPDF(empList, periodo) {
+  const { jsPDF } = window.jspdf;
+  const W = 215.9, H = 279.4;
+  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+
+  const NAVY  = [15,  38,  69];
+  const BLUE  = [30,  95, 173];
+  const GREEN = [15, 122,  71];
+  const REDC  = [185, 28,  28];
+  const MGRAY = [107,114,128];
+  const INK   = [26,  26,  26];
+  const LTBLU = [235,242,251];
+  const LTGRN = [220,252,231];
+  const STONE = [245,244,240];
+
+  const ML = 12, MR = W - 12;
+  const today = new Date().toISOString().slice(0,10);
+
+  // Split employees into two groups
+  const normales = empList.filter(e => !e.isExempt);
+  const exentos  = empList.filter(e =>  e.isExempt);
+
+  function drawHeader() {
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 22, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255,255,255);
+    doc.text('24/7 Medical Aid Call Center', ML, 10);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(180,210,255);
+    doc.text('Resumen de Nomina / Payroll Summary', ML, 17);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(168,212,255);
+    doc.text(periodo, MR, 10, { align: 'right' });
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.text(`Generado: ${today}`, MR, 17, { align: 'right' });
+  }
+
+  function drawSectionTitle(txt, color, y) {
+    doc.setFillColor(...color);
+    doc.rect(ML, y, W - 2*ML, 8, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255,255,255);
+    doc.text(txt.toUpperCase(), ML + 3, y + 5.5);
+    return y + 8;
+  }
+
+  // Column right-edges (191mm usable). Squeezed slightly to fit APORTES.
+  // EMPLEADO: left from ML+2, spans ~62mm
+  // HORAS:    right edge at ML+72
+  // BRUTO USD:right edge at ML+97
+  // TASA:     right edge at ML+118
+  // RETEICA:  right edge at ML+143
+  // APORTES:  right edge at ML+168
+  // NETO COP: right edge at MR-2
+  const C_HORAS  = ML + 72;
+  const C_BUSD   = ML + 97;
+  const C_TASA   = ML + 118;
+  const C_RETE   = ML + 143;
+  const C_APORT  = ML + 168;
+  const C_NETO   = MR - 2;
+
+  function drawTableHeader(y) {
+    doc.setFillColor(...NAVY);
+    doc.rect(ML, y, W - 2*ML, 7, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(200,220,255);
+    doc.text('EMPLEADO',  ML + 2,  y + 5);
+    doc.text('HORAS',     C_HORAS,  y + 5, { align: 'right' });
+    doc.text('BRUTO USD', C_BUSD,   y + 5, { align: 'right' });
+    doc.text('TASA',      C_TASA,   y + 5, { align: 'right' });
+    doc.text('RETEICA',   C_RETE,   y + 5, { align: 'right' });
+    doc.text('APORTES',   C_APORT,  y + 5, { align: 'right' });
+    doc.text('NETO COP',  C_NETO,   y + 5, { align: 'right' });
+    return y + 7;
+  }
+
+  function drawEmployeeRow(emp, y, alt) {
+    if (alt) {
+      doc.setFillColor(...STONE);
+      doc.rect(ML, y, W - 2*ML, 7, 'F');
+    }
+
+    // Name (truncate if too long)
+    const nombre = emp.nombre.length > 26 ? emp.nombre.slice(0,25) + '.' : emp.nombre;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...INK);
+    doc.text(nombre, ML + 2, y + 5);
+
+    // Hours
+    doc.setTextColor(30, 95, 173);
+    doc.text(emp.hoursStr, C_HORAS, y + 5, { align: 'right' });
+
+    // Bruto USD
+    doc.setTextColor(...MGRAY);
+    doc.text(fmtUSD(emp.totalUSD), C_BUSD, y + 5, { align: 'right' });
+
+    // Tasa
+    doc.setFont('helvetica','bold');
+    doc.setTextColor(146, 64, 14);
+    doc.text(`$${emp.tasaCambio.toLocaleString('es-CO')}`, C_TASA, y + 5, { align: 'right' });
+
+    // ReteICA
+    doc.setFont('helvetica','normal');
+    if (emp.isExempt) {
+      doc.setTextColor(29, 78, 216);
+      doc.text('EXENTO', C_RETE, y + 5, { align: 'right' });
+    } else if (emp.isManual) {
+      doc.setTextColor(194, 65, 12);
+      doc.text('MANUAL', C_RETE, y + 5, { align: 'right' });
+    } else {
+      doc.setTextColor(...REDC);
+      doc.text(`-${fmtCOP(emp.reteica)}`, C_RETE, y + 5, { align: 'right' });
+    }
+
+    // Aportes Planilla
+    doc.setFont('helvetica','normal');
+    if (emp.isExempt || emp.isManual) {
+      doc.setTextColor(160, 160, 160);
+      doc.text('—', C_APORT, y + 5, { align: 'right' });
+    } else if (emp.aportes > 0) {
+      doc.setTextColor(...REDC);
+      doc.text(`-${fmtCOP(emp.aportes)}`, C_APORT, y + 5, { align: 'right' });
+    } else {
+      doc.setTextColor(160, 160, 160);
+      doc.text('—', C_APORT, y + 5, { align: 'right' });
+    }
+
+    // Neto COP
+    doc.setFont('helvetica','bold');
+    doc.setTextColor(...GREEN);
+    doc.text(fmtCOP(emp.netoCOP), C_NETO, y + 5, { align: 'right' });
+
+    return y + 7;
+  }
+
+  function drawTotalsRow(list, y) {
+    const totalNeto  = list.reduce((s, e) => s + e.netoCOP, 0);
+    const totalRete  = list.filter(e => !e.isExempt).reduce((s, e) => s + e.reteica, 0);
+    const totalAport = list.filter(e => !e.isExempt && !e.isManual).reduce((s, e) => s + (e.aportes || 0), 0);
+    doc.setFillColor(...NAVY);
+    doc.rect(ML, y, W - 2*ML, 8, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255,255,255);
+    doc.text(`TOTAL  (${list.length} empleados)`, ML + 2, y + 5.5);
+    if (totalRete > 0) {
+      doc.setTextColor(255,180,180);
+      doc.text(`-${fmtCOP(totalRete)}`, C_RETE, y + 5.5, { align: 'right' });
+    }
+    if (totalAport > 0) {
+      doc.setTextColor(255,180,180);
+      doc.text(`-${fmtCOP(totalAport)}`, C_APORT, y + 5.5, { align: 'right' });
+    }
+    doc.setTextColor(180,255,200);
+    doc.text(fmtCOP(totalNeto), C_NETO, y + 5.5, { align: 'right' });
+    return y + 8;
+  }
+
+  // ── PAGE 1 ─────────────────────────────────────────────────────
+  drawHeader();
+  let y = 28;
+
+  // Section 1: Pagos por 24/7
+  y = drawSectionTitle('Pagos por 24/7', BLUE, y);
+  y += 2;
+  y = drawTableHeader(y);
+
+  normales.forEach((emp, i) => {
+    // New page if needed
+    if (y > H - 30) {
+      doc.addPage();
+      drawHeader();
+      y = 28;
+      y = drawSectionTitle('Pagos por 24/7 (cont.)', BLUE, y);
+      y += 2;
+      y = drawTableHeader(y);
+    }
+    y = drawEmployeeRow(emp, y, i % 2 === 0);
+  });
+
+  y = drawTotalsRow(normales, y);
+  y += 8;
+
+  // Section 2: Pagos Cuenta Personal
+  if (exentos.length > 0) {
+    if (y > H - 50) {
+      doc.addPage();
+      drawHeader();
+      y = 28;
+    }
+
+    y = drawSectionTitle('Pagos Cuenta Personal', GREEN, y);
+    y += 2;
+    y = drawTableHeader(y);
+
+    exentos.forEach((emp, i) => {
+      if (y > H - 30) {
+        doc.addPage();
+        drawHeader();
+        y = 28;
+        y = drawSectionTitle('Pagos Cuenta Personal (cont.)', GREEN, y);
+        y += 2;
+        y = drawTableHeader(y);
+      }
+      y = drawEmployeeRow(emp, y, i % 2 === 0);
+    });
+
+    y = drawTotalsRow(exentos, y);
+    y += 8;
+
+    // Grand total
+    if (y > H - 20) { doc.addPage(); drawHeader(); y = 28; }
+    const grandTotal = empList.reduce((s, e) => s + e.netoCOP, 0);
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(ML, y, W - 2*ML, 10, 2, 2, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255,255,255);
+    doc.text(`TOTAL GENERAL  (${empList.length} empleados)`, ML + 3, y + 6.5);
+    doc.setTextColor(180,255,200);
+    doc.text(fmtCOP(grandTotal), MR - 2, y + 6.5, { align: 'right' });
+  }
+
+  // Footer on each page
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(240,244,248);
+    doc.rect(0, H - 10, W, 10, 'F');
+    doc.setDrawColor(...BLUE);
+    doc.setLineWidth(0.5);
+    doc.line(0, H - 10, W, H - 10);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MGRAY);
+    doc.text('24/7 Medical Aid Call Center - Resumen de Nomina', ML, H - 4);
+    doc.text(`Pagina ${p} de ${totalPages}`, MR, H - 4, { align: 'right' });
+  }
+
+  return doc.output('arraybuffer');
+}
+
+function downloadSummaryPDF() {
+  if (!empleados.length) return;
+  const sel = document.getElementById('period-select');
+  const p = periodos[parseInt(sel.value)];
+  const bytes = buildSummaryPDF(empleados, p.periodo);
+  const blob  = new Blob([bytes], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Resumen_${p.periodo.replace(/ /g,'_').replace(/\//g,'-')}.pdf`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadPDF() {
+  if (!pdfBytes) return;
+  const sel = document.getElementById('period-select');
+  const p = periodos[parseInt(sel.value)];
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Paystubs_${p.periodo.replace(/ /g,'_').replace(/\//g,'_')}.pdf`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadIndividual(idx) {
+  const emp = empleados[idx];
+  if (!emp) return;
+  // Filename: "NOMBRE APELLIDO_MM-DD-YYYY.pdf"
+  const fechaFin = emp.end.replace(/\//g, '-');
+  const nombre   = emp.nombre.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+  const filename = `${nombre}_${fechaFin}.pdf`;
+  const bytes = buildPaystubPDF([emp]);
+  const blob  = new Blob([bytes], { type: 'application/pdf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadAllIndividual() {
+  if (!empleados.length) return;
+  const btn = document.getElementById('dl-all-ind-btn');
+  btn.disabled = true;
+  for (let i = 0; i < empleados.length; i++) {
+    btn.textContent = `⏳ ${i + 1} / ${empleados.length}...`;
+    downloadIndividual(i);
+    await sleep(400); // small delay so browser doesn't block rapid downloads
+  }
+  btn.textContent = `✅ ${empleados.length} descargados`;
+  await sleep(2200);
+  btn.textContent = '⬇️ Descargar Todos Individuales';
+  btn.disabled = false;
+}
+
+// ── HELPERS ─────────────────────────────────────────────────────
+function setStep(n, state) {
+  const el = document.getElementById(`step${n}`);
+  el.className = `step-item ${state}`;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  b.textContent = '⚠️  ' + msg;
+  b.classList.add('show');
+}
+function clearError() { document.getElementById('error-banner').classList.remove('show'); }
+function clearResults() {
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('prog-wrap').classList.remove('show');
+  document.getElementById('prog-bar').style.width = '0%';
+  pdfBytes = null;
+}
+function resetBtn() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = false;
+  document.getElementById('btn-icon').textContent = '⚡';
+  document.getElementById('btn-label').textContent = 'Generar Comprobantes';
+}
+</script>
+
+<!-- ── MODAL BANCO ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-banco">
+  <div class="modal">
+    <h3>🏦 Informacion Bancaria Faltante</h3>
+    <p>Los siguientes empleados no tienen informacion bancaria registrada. Agregala para incluirlos en la plantilla.</p>
+    <div class="missing-list" id="missing-list"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModalBanco()">Cerrar</button>
+      <button class="btn-save" id="btn-generar-xlsx" onclick="generarXLSX()">Generar Plantilla Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL AGREGAR EMPLEADO ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-emp">
+  <div class="modal">
+    <h3>Agregar Informacion Bancaria</h3>
+    <div class="modal-emp-name" id="modal-emp-nombre"></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo de Identificacion</label>
+        <select id="f-tipoId">
+          <option value="1">1 - Cedula de Ciudadania</option>
+          <option value="2">2 - Cedula de Extranjeria</option>
+          <option value="3">3 - NIT</option>
+          <option value="4">4 - Pasaporte</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Numero de Identificacion</label>
+        <input type="text" id="f-numId" placeholder="Ej: 1006203373">
+      </div>
+      <div class="form-group">
+        <label>Codigo del Banco</label>
+        <select id="f-codBanco">
+          <option value="7">7 - Bancolombia</option>
+          <option value="1">1 - Banco de Bogota</option>
+          <option value="2">2 - Banco Popular</option>
+          <option value="6">6 - Banco Itau</option>
+          <option value="9">9 - Citibank</option>
+          <option value="13">13 - BBVA</option>
+          <option value="19">19 - Scotiabank Colpatria</option>
+          <option value="23">23 - Banco de Occidente</option>
+          <option value="32">32 - Banco Caja Social</option>
+          <option value="40">40 - Banco Agrario</option>
+          <option value="51">51 - Davivienda</option>
+          <option value="52">52 - Banco AV Villas</option>
+          <option value="53">53 - Banco W</option>
+          <option value="58">58 - Banco CrediCoop</option>
+          <option value="62">62 - Bancoomeva</option>
+          <option value="63">63 - Banco Finandina</option>
+          <option value="66">66 - Banco Cooperativo Coopcentral</option>
+          <option value="83">83 - Compensar</option>
+          <option value="121">121 - Nequi</option>
+          <option value="507">507 - Nequi Bancolombia</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipo de Producto</label>
+        <select id="f-tipoProd">
+          <option value="CA">CA - Cuenta de Ahorros</option>
+          <option value="CC">CC - Cuenta Corriente</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Numero de Cuenta</label>
+        <input type="text" id="f-numCuenta" placeholder="Ej: 76276272442">
+      </div>
+      <div class="form-group full">
+        <label>Correo Electronico (Opcional)</label>
+        <input type="email" id="f-email" placeholder="correo@ejemplo.com">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModalEmp()">Cancelar</button>
+      <button class="btn-save" onclick="guardarEmp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── BANCO DB ─────────────────────────────────────────────────────
+const BANCO_DB_INICIAL = {
+  "LINDA YAISURI TORRES RIASCOS": { tipoId: 1, numId: "1006203373", codBanco: 7, tipoProd: "CA", numCuenta: "76276272442", email: "yasuritorres899@gmail.com" },
+  "MARIANA ARIZA LONDONO": { tipoId: 1, numId: "1029220794", codBanco: 7, tipoProd: "CA", numCuenta: "91268340250", email: "mal04062718@gmail.com" },
+  "LAURA ACEVEDO": { tipoId: 1, numId: "1109661412", codBanco: 7, tipoProd: "CA", numCuenta: "51466830597", email: "Lacevedo942@outlook.com" },
+  "LAURA KATALINA ACEVEDO": { tipoId: 1, numId: "1109661412", codBanco: 7, tipoProd: "CA", numCuenta: "51466830597", email: "Lacevedo942@outlook.com" },
+  "HEILING NICOLE DIAZ MARTINEZ": { tipoId: 1, numId: "1111752077", codBanco: 7, tipoProd: "CA", numCuenta: "87473668384", email: "heilingdiaz3@gmail.com" },
+  "CLAUDIA CALLE": { tipoId: 1, numId: "1116250765", codBanco: 7, tipoProd: "CA", numCuenta: "91263320650", email: "claudia-052791@hotmail.com" },
+  "ALEJANDRA OSORIO": { tipoId: 1, numId: "1006494058", codBanco: 7, tipoProd: "CA", numCuenta: "87446117589", email: "alejandraosorio240@gmail.com" },
+  "JUAN DAVID LENIS": { tipoId: 1, numId: "1144099500", codBanco: 7, tipoProd: "CA", numCuenta: "6000050731", email: "juandavid.lenis@hotmail.com" },
+  "ANA ISABEL VELASQUEZ": { tipoId: 1, numId: "31988993", codBanco: 7, tipoProd: "CA", numCuenta: "80800006535", email: "Anisvel69@hotmail.com" },
+  "EDUARDO YUNIS": { tipoId: 1, numId: "94539812", codBanco: 7, tipoProd: "CA", numCuenta: "83676315155", email: "edoyunis@gmail.com" },
+  "SONIA GONZALEZ RODRIGUEZ": { tipoId: 1, numId: "31891232", codBanco: 7, tipoProd: "CA", numCuenta: "82978854393", email: null },
+  "SERGIO ALEJANDRO SANCHEZ MARTINEZ": { tipoId: 1, numId: "1117015370", codBanco: 7, tipoProd: "CA", numCuenta: "91275837330", email: "Sergiomar29082005@gmail.com" },
+  "LAURA ISABEL NINO": { tipoId: 1, numId: "1112476081", codBanco: 7, tipoProd: "CA", numCuenta: "60500013507", email: "lauranino725@gmail.com" },
+  "LADY JOANA HERRERA REYES": { tipoId: 1, numId: "1114894826", codBanco: 7, tipoProd: "CA", numCuenta: "91238135643", email: "dorelly-8@hotmail.com" },
+  "DIANA PATRICIA ARISTIZABAL": { tipoId: 1, numId: "66761644", codBanco: 7, tipoProd: "CA", numCuenta: "18500014675", email: "diarve01@gmail.com" },
+  "SEBASTIAN CRUZ OVIEDO": { tipoId: 1, numId: "1143876243", codBanco: 7, tipoProd: "CA", numCuenta: "91272686535", email: "sebascrov@gmail.com" },
+  "DANA FIGUEROA URREGO": { tipoId: 1, numId: "1005785220", codBanco: 7, tipoProd: "CA", numCuenta: "91286923246", email: "danafigueroau@gmail.com" },
+  "SAORI MORIBE": { tipoId: 1, numId: "1110363202", codBanco: 7, tipoProd: "CA", numCuenta: "91270149486", email: "Saorimoribe15@gmail.com" },
+  "MARIA JOSE VASQUEZ": { tipoId: 1, numId: "1034987532", codBanco: 7, tipoProd: "CA", numCuenta: "23034389161", email: "Mariavasquezmillan1228@gmail.com" },
+  "HEBERT ALEJANDRO HURTADO FIGUEROA": { tipoId: 1, numId: "1113678395", codBanco: 7, tipoProd: "CA", numCuenta: "91288217748", email: "rap0296@hotmail.com" },
+  "VANESSA BUSTAMANTE": { tipoId: 1, numId: "1144135335", codBanco: 7, tipoProd: "CA", numCuenta: "74900004279", email: "Vanessabustamantevalencia@gmail.com" },
+  "JEREMY ESCOBAR": { tipoId: 1, numId: "1114238142", codBanco: 7, tipoProd: "CA", numCuenta: "91293531507", email: "jeremyandrewescobar@gmail.com" },
+  "DANIELA GUAPACHA CORREA": { tipoId: 1, numId: "1115079345", codBanco: 51, tipoProd: "CA", numCuenta: "488471641149", email: "Danicorrea1022@gmail.com" },
+  "ALEJANDRA VILLAN VINASCO": { tipoId: 1, numId: "1192782422", codBanco: 19, tipoProd: "CA", numCuenta: "5852013675", email: "alejavillan28@gmail.com" },
+};
+
+// ── GOOGLE SHEETS WEB APP ────────────────────────────────────────
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzoXhS7y66S-VjnF0zeEf_FDsJYU0LQ0lLzZxw319i2N-c4UqPhy2rq2H6sLPW20k0w/exec';
+
+// Load DB from Google Sheets (returns promise)
+async function getBancoDB() {
+  try {
+    const res = await fetch(`${WEBAPP_URL}?action=getAll`);
+    const data = await res.json();
+    if (data.ok) return { ...BANCO_DB_INICIAL, ...data.db };
+  } catch(e) { console.warn('Error cargando BancoDB desde Sheets:', e); }
+  return { ...BANCO_DB_INICIAL };
+}
+
+// Save one employee to Google Sheets
+async function saveBancoDB(nombre, info) {
+  try {
+    await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save', nombre, info }),
+    });
+  } catch(e) { console.warn('Error guardando en Sheets:', e); }
+}
+
+// Find bank info for an employee — try exact match then fuzzy (first word of name)
+function buscarBanco(nombre) {
+  const db = getBancoDB();
+  const key = nombre.trim().toUpperCase();
+  if (db[key]) return db[key];
+  // Try partial match (name may differ slightly)
+  for (const [k, v] of Object.entries(db)) {
+    if (k.includes(key) || key.includes(k)) return v;
+  }
+  return null;
+}
+
+// ── PLANTILLA BANCO FLOW ─────────────────────────────────────────
+let empPendienteNombre = null;
+let sessionDB = {};  // temporary additions this session
+
+async function generarPlantillaBanco() {
+  if (!empleados.length) return;
+  // Show loading state on button
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Cargando...'; btn.disabled = true;
+  sessionDB = await getBancoDB();
+  btn.textContent = orig; btn.disabled = false;
+
+  // Check which employees are missing bank info
+  const faltantes = empleados.filter(e => !e.isExempt && !buscarBancoLocal(e.nombre, sessionDB));
+
+  if (faltantes.length === 0) {
+    generarXLSX();
+    return;
+  }
+
+  // Show modal with missing employees
+  const list = document.getElementById('missing-list');
+  list.innerHTML = faltantes.map(e => `
+    <div class="missing-item" id="missing-${normKey(e.nombre)}">
+      <span>${e.nombre}</span>
+      <button class="btn-add-info" onclick="abrirModalEmp('${e.nombre.replace(/'/g,"\\'")}')">+ Agregar info</button>
+    </div>`).join('');
+
+  document.getElementById('modal-banco').classList.add('show');
+}
+
+function buscarBancoLocal(nombre, db) {
+  const key = nombre.trim().toUpperCase();
+  if (db[key]) return db[key];
+  for (const [k, v] of Object.entries(db)) {
+    if (k.includes(key) || key.includes(k)) return v;
+  }
+  return null;
+}
+
+function normKey(str) {
+  return str.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function cerrarModalBanco() {
+  document.getElementById('modal-banco').classList.remove('show');
+}
+
+// ── AGREGAR EMPLEADO ─────────────────────────────────────────────
+function abrirModalEmp(nombre) {
+  empPendienteNombre = nombre;
+  document.getElementById('modal-emp-nombre').textContent = nombre;
+  // Clear fields
+  document.getElementById('f-tipoId').value = '1';
+  document.getElementById('f-numId').value = '';
+  document.getElementById('f-codBanco').value = '7';
+  document.getElementById('f-tipoProd').value = 'CA';
+  document.getElementById('f-numCuenta').value = '';
+  document.getElementById('f-email').value = '';
+  document.getElementById('modal-emp').classList.add('show');
+}
+
+function cerrarModalEmp() {
+  document.getElementById('modal-emp').classList.remove('show');
+  empPendienteNombre = null;
+}
+
+async function guardarEmp() {
+  const numId     = document.getElementById('f-numId').value.trim();
+  const numCuenta = document.getElementById('f-numCuenta').value.trim();
+  if (!numId || !numCuenta) {
+    alert('Por favor completa al menos el Numero de Identificacion y el Numero de Cuenta.');
+    return;
+  }
+  const key = empPendienteNombre.trim().toUpperCase();
+  sessionDB[key] = {
+    tipoId:    parseInt(document.getElementById('f-tipoId').value),
+    numId:     numId,
+    codBanco:  parseInt(document.getElementById('f-codBanco').value),
+    tipoProd:  document.getElementById('f-tipoProd').value,
+    numCuenta: numCuenta,
+    email:     document.getElementById('f-email').value.trim() || null,
+  };
+  // Persist to Google Sheets
+  await saveBancoDB(key, sessionDB[key]);
+
+  // Update modal row to show OK
+  const row = document.getElementById(`missing-${normKey(empPendienteNombre)}`);
+  if (row) row.innerHTML = `<span>${empPendienteNombre}</span><span class="banco-ok">✅ Guardado</span>`;
+
+  cerrarModalEmp();
+}
+
+// ── GENERATE XLSX ─────────────────────────────────────────────────
+function generarXLSX() {
+  cerrarModalBanco();
+  const sel = document.getElementById('period-select');
+  const p   = periodos[parseInt(sel.value)];
+  // Format: NOMINA MM-DD-YYYY
+  const fechaFin = p.periodo; // e.g. "APRIL 15/2026"
+  // Convert to MM-DD-YYYY from periodoEndDate format in employees
+  const endDate  = empleados[0]?.end || '';       // "04/15/2026"
+  const descDate = endDate.replace(/\//g, '-');    // "04-15-2026"
+  const descripcion = `NOMINA ${descDate}`;
+  const filename    = `Plantilla-Pagos-Nomina_${descDate}.xlsx`;
+
+  // Build rows
+  const headers = [
+    'Tipo de Identificación',
+    'Número de Identificación',
+    'Nombre',
+    'Apellido',
+    'Código del Banco',
+    'Tipo de Producto o Servicio',
+    'Número del Producto o Servicio',
+    'Valor del pago o de la recarga',
+    'Referencia (Opcional)',
+    'Correo Electronico (Opcional)',
+    'Descripción o Detalle (Opcional)',
+  ];
+
+  const rows = [headers];
+  const sinInfo = [];
+
+  for (const emp of empleados.filter(e => !e.isExempt)) {
+    const banco = buscarBancoLocal(emp.nombre, sessionDB);
+    if (!banco) { sinInfo.push(emp.nombre); continue; }
+
+    // Split nombre into nombre + apellido
+    // Strategy: first word(s) = nombre, rest = apellido
+    const parts = emp.nombre.trim().split(' ');
+    let nombre, apellido;
+    if (parts.length === 1) { nombre = parts[0]; apellido = ''; }
+    else if (parts.length === 2) { nombre = parts[0]; apellido = parts[1]; }
+    else { nombre = parts.slice(0, 2).join(' '); apellido = parts.slice(2).join(' '); }
+
+    rows.push([
+      banco.tipoId,
+      banco.numId,
+      nombre,
+      apellido,
+      banco.codBanco,
+      banco.tipoProd,
+      banco.numCuenta,
+      emp.netoCOP,
+      null,
+      banco.email || null,
+      descripcion,
+    ]);
+  }
+
+  // Build xlsx binary using SheetJS
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:22},{wch:22},{wch:20},{wch:22},{wch:16},
+    {wch:24},{wch:26},{wch:24},{wch:14},{wch:30},{wch:22}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+  const xlsxBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([xlsxBytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  if (sinInfo.length) {
+    showError(`Plantilla generada. Sin informacion bancaria (omitidos): ${sinInfo.join(', ')}`);
+  }
+}
+</script>
+</body>
+</html>
