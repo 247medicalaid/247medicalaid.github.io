@@ -18,7 +18,6 @@
   --cardio:#1a4a7a;--cardio-bg:#e8f0fa;
   --gastro:#1d6e40;--gastro-bg:#e8f5ee;
   --mab:#7a1a4a;--mab-bg:#fae8f0;
-  --access:#7a5a1a;--access-bg:#fef6e8;
   --advantage:#1a5a5a;--advantage-bg:#e8f5f5;
   --alonso:#7a3a1a;--alonso-bg:#f7ece4;
 }
@@ -64,9 +63,6 @@ input[type=file]{display:none;}
 .ctrl-btn.mab{border-color:var(--mab);color:var(--mab);background:var(--mab-bg);}
 .ctrl-btn.mab:hover{background:var(--mab);color:#fff;}
 .ctrl-btn.mab.active{background:var(--mab);color:#fff;border-color:var(--mab);}
-.ctrl-btn.access{border-color:var(--access);color:var(--access);background:var(--access-bg);}
-.ctrl-btn.access:hover{background:var(--access);color:#fff;}
-.ctrl-btn.access.active{background:var(--access);color:#fff;border-color:var(--access);}
 .ctrl-btn.advantage{border-color:var(--advantage);color:var(--advantage);background:var(--advantage-bg);}
 .ctrl-btn.advantage:hover{background:var(--advantage);color:#fff;}
 .ctrl-btn.advantage.active{background:var(--advantage);color:#fff;border-color:var(--advantage);}
@@ -118,8 +114,6 @@ input[type=file]{display:none;}
 .cardio .practice-dot{background:var(--cardio);}
 .gastro .practice-dot{background:var(--gastro);}
 .mab .practice-dot{background:var(--mab);}
-.access .practice-dot{background:var(--access);}
-.access .practice-name{color:var(--access);}
 .advantage .practice-dot{background:var(--advantage);}
 .advantage .practice-name{color:var(--advantage);}
 .alonso .practice-dot{background:var(--alonso);}
@@ -261,7 +255,6 @@ tr:hover td{background:var(--surface2);}
 .ai-card-header.cardio{background:var(--cardio-bg);}
 .ai-card-header.gastro{background:var(--gastro-bg);}
 .ai-card-header.mab{background:var(--mab-bg);}
-.ai-card-header.access{background:var(--access-bg);}
 .ai-card-header.advantage{background:var(--advantage-bg);}
 .ai-card-header.alonso{background:var(--alonso-bg);}
 .ai-card-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;flex:1;}
@@ -337,27 +330,6 @@ tr:hover td{background:var(--surface2);}
     <div class="uz-sub" id="fo-sub">Ext 103 Diana · Ext 104 Angela</div>
   </div>
 
-  <div class="upload-group" style="--group-color:var(--access);">
-    <div class="upload-group-label" style="color:var(--access);">ACCESS MEDICAL</div>
-    <div style="position:relative;">
-      <div class="upload-zone" id="zone-access" ondragover="drag(event,'access')" ondragleave="dleave(event,'access')" ondrop="drop(event,'access')"" onclick="document.getElementById('fa').click()" style="border:1px dashed var(--access);border-radius:6px;">
-        <div class="uz-platform" style="color:var(--access)">LLAMADAS ATENDIDAS</div>
-        <div class="uz-icon">🏥</div>
-        <div class="uz-title" id="fa-title">Subir CSV de Nextiva</div>
-        <div class="uz-sub" id="fa-sub">Linda · Amaranta · Sara · Whitney</div>
-      </div>
-      <button onclick="event.stopPropagation();resetAccess('access')" title="Limpiar histórico" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;font-size:13px;opacity:0.5;padding:2px 4px;" id="reset-access-btn">✕</button>
-    </div>
-    <div style="position:relative;">
-      <div class="upload-zone" id="zone-accessAll" ondragover="drag(event,'accessAll')" ondragleave="dleave(event,'accessAll')" ondrop="drop(event,'accessAll')"" onclick="document.getElementById('faa').click()" style="border:1px dashed var(--access);border-radius:6px;">
-        <div class="uz-platform" style="color:var(--access)">TODAS LAS LLAMADAS</div>
-        <div class="uz-icon">📵</div>
-        <div class="uz-title" id="faa-title">Subir CSV Ext 4003 4004</div>
-        <div class="uz-sub" id="faa-sub">Para calcular abandonadas</div>
-      </div>
-      <button onclick="event.stopPropagation();resetAccess('accessAll')" title="Limpiar histórico" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;font-size:13px;opacity:0.5;padding:2px 4px;" id="reset-accessAll-btn">✕</button>
-    </div>
-  </div>
 
   <div class="upload-group">
     <div class="upload-group-label">VOIP3 · ADVANTAGE MEDICAL</div>
@@ -383,14 +355,19 @@ tr:hover td{background:var(--surface2);}
       <div class="uz-title" id="fal-title">Subir CSV de Weave</div>
       <div class="uz-sub" id="fal-sub">Contestadas · abandonadas · perdidas</div>
     </div>
+    <div class="upload-zone" id="zone-alonsoSms" ondragover="drag(event,'alonsoSms')" ondragleave="dleave(event,'alonsoSms')" ondrop="drop(event,'alonsoSms')" onclick="document.getElementById('fals').click()" style="border:1px dashed var(--alonso);border-radius:6px;">
+      <div class="uz-platform" style="color:var(--alonso)">REPORTE DE SMS</div>
+      <div class="uz-icon">💬</div>
+      <div class="uz-title" id="fals-title">Subir CSV de SMS de Weave</div>
+      <div class="uz-sub" id="fals-sub">Mensajes manuales por agente</div>
+    </div>
     </div>
   <input type="file" id="fn" accept=".csv" onchange="loadFile(event,'nextiva')">
   <input type="file" id="fna" accept=".csv" onchange="loadFile(event,'nextivaAll')">
   <input type="file" id="fo" accept=".csv" onchange="loadFile(event,'ooma')">
-  <input type="file" id="fa" accept=".csv" onchange="loadFile(event,'access')">
-  <input type="file" id="faa" accept=".csv" onchange="loadFile(event,'accessAll')">
   <input type="file" id="fv" accept=".xlsx,.csv" onchange="loadFile(event,'advantage')">
   <input type="file" id="fva" accept=".xlsx,.csv" onchange="loadFile(event,'advantage-abandoned')">
+  <input type="file" id="fals" accept=".csv" onchange="loadFile(event,'alonsoSms')">
   <input type="file" id="fal" accept=".csv" onchange="loadFile(event,'alonso')">
 </div>
 
@@ -400,7 +377,6 @@ tr:hover td{background:var(--surface2);}
   <button class="ctrl-btn cardio" onclick="setFilter('Cardiovascular',this)">Cardiovascular</button>
   <button class="ctrl-btn gastro" onclick="setFilter('Gastroenterology',this)">Gastroenterology</button>
   <button class="ctrl-btn mab" onclick="setFilter('MAB Pulmonary',this)">MAB Pulmonary</button>
-    <button class="ctrl-btn access" onclick="setFilter('Access Medical',this)">Access Medical</button>
     <button class="ctrl-btn advantage" onclick="setFilter('Advantage Medical',this)">Advantage Medical</button>
     <button class="ctrl-btn alonso" onclick="setFilter('Alonso Medical',this)">Alonso Medical</button>
   <span class="ctrl-label" style="margin-left:10px;">ORDENAR:</span>
@@ -443,7 +419,6 @@ const SCHEDULES = {
   'Cardiovascular':   {start_h:8,start_m:0,end_h:16,end_m:45,lunch_mins:45,available_min:480,break_mins:30,label:'8:00am-4:45pm · 45m lunch · 2x15m break',dynamic:false},
   'Gastroenterology': {start_h:8,start_m:0,end_h:16,end_m:45,lunch_mins:45,available_min:480,break_mins:30,label:'8:00am-4:45pm · 45m lunch · 2x15m break',dynamic:false},
   'MAB Pulmonary':    {start_h:8,start_m:0,end_h:17,end_m:0, lunch_mins:60,available_min:480,break_mins:30,label:'8:00am-5:00pm · 60m lunch · 2x15m break',dynamic:false},
-  'Access Medical':    {lunch_mins:30,shift_mins:480,available_min:450,break_mins:30,label:'Turno dinamico · 30m lunch · 2x15m break',dynamic:true},
   'Advantage Medical': {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
   'Alonso Medical':    {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
 };
@@ -478,8 +453,6 @@ const NEXTIVA_PRACTICES = {
   'Cardiovascular': ['claudia','juan','alejandra','isabela','isabella'],
   'Gastroenterology': ['ana','maria','sergio','laura','stefania','isabel']
 };
-// Access agents identified by "CC Agent" suffix in name
-const ACCESS_AGENTS = ['linda torres','amaranta rodriguez','sara valenzuela','whitney anzola'];
 
 const OOMA_EXT = { '1003':'Diana', '1004':'Angela' };
 // Display names for Ooma agents (no parentheses)
@@ -540,7 +513,7 @@ if(window.ChartDataLabels){ Chart.defaults.set('plugins.datalabels',{display:fal
 
 
 function isNoAgent(name){ return name==='No Agent'; }
-const state = { nextiva:null, nextivaAll:null, access:null, accessAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _accessAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null };
+const state = { nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null };
 // Agents to fully exclude from all analysis
 const EXCLUDED_AGENTS = ['eduardo'];
 
@@ -563,6 +536,37 @@ function parseCSV(text) {
 }
 
 // Fines de semana no se contabilizan como llamadas perdidas o abandonadas
+// RFC-4180 CSV parser: soporta campos entre comillas con saltos de linea y comillas escapadas ("")
+// Necesario para el reporte de SMS de Weave, cuyo campo "Sms Text" es multilinea.
+function parseCSVMultiline(text){
+  const rows=[]; let row=[], cur='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){
+        if(text[i+1]==='"'){ cur+='"'; i++; }
+        else inQ=false;
+      } else cur+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n'||c==='\r'){
+        if(c==='\r'&&text[i+1]==='\n') i++;
+        row.push(cur); cur='';
+        if(row.length>1||row[0]!=='') rows.push(row);
+        row=[];
+      }
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){ row.push(cur); if(row.length>1||row[0]!=='') rows.push(row); }
+  if(!rows.length) return [];
+  const headers=rows[0].map(h=>h.trim());
+  return rows.slice(1).map(vals=>{
+    const o={}; headers.forEach((h,i)=>o[h]=(vals[i]||'').trim()); return o;
+  });
+}
+
 function isWeekend(date){ const d = date ? date.getDay() : -1; return d === 0 || d === 6; }
 
 function parseNextivaDur(d){
@@ -653,7 +657,6 @@ function getPractice(name){
   for(const[prac,names] of Object.entries(NEXTIVA_PRACTICES)){
     if(names.some(n=>low.includes(n))) return prac;
   }
-  if(ACCESS_AGENTS.some(n=>low.includes(n))||low.includes('cc agent')) return 'Access Medical';
   return 'Nextiva (Otro)';
 }
 
@@ -1135,147 +1138,6 @@ function analyzeOoma(rows){
   return Object.values(agents).map(a=>({...a,dead_gaps:computeDeadGaps(a.callList,a.practice)}));
 }
 
-// ─── ANALYZE ACCESS (NEXTIVA CSV — different field names) ──────────────
-function analyzeAccess(rows, allRows){
-  const agents={};
-  rows.forEach(r=>{
-    const rawName=(r['User Name']||'').trim();
-    if(!rawName) return;
-    const name=cleanAgentName(rawName);
-    // Exclude Eduardo from all analysis
-    if(EXCLUDED_AGENTS.some(ex=>name.toLowerCase().includes(ex))) return;
-    const practice='Access Medical';
-    if(!agents[name]) agents[name]={
-      name,platform:'nextiva',practice,
-      calls_in:0,calls_out:0,calls_answered:0,calls_missed:0,
-      total_duration:0,callList:[],byDay:{}
-    };
-    const a=agents[name];
-    const dur=parseNextivaDur(r['Duration']);
-    const t=parseNextivaTime(r['Time']);
-    const ans=r['Answered'];
-    const isInbound2 = (r['Direction']||'').toLowerCase()==='terminating';
-    const isAns2      = ans==='Yes';
-    const isForwarded2 = ans==='Yes - Forwarded';
-    const wknd2 = isWeekend(t);
-    if(isInbound2 && isAns2)                      { a.calls_answered++; a.calls_in++; }
-    else if(!isInbound2 && isAns2 && dur>=10)      { a.calls_out++; }
-    else if(isInbound2 && !isAns2 && !wknd2)       { a.calls_missed++; a.calls_in++; }
-    a.total_duration+=dur;
-    if(t){
-      const dir2=(r['Direction']||'').toLowerCase()==='originating'?'out':'in';
-      if(!(!isInbound2 && isAns2 && dur<10) && !(isInbound2 && !isAns2 && wknd2)){
-        a.callList.push({time:t,duration:dur,direction:dir2,answered:isAns2&&!isForwarded2});
-      }
-      const dk=dayKey(t);
-      if(!a.byDay[dk]) a.byDay[dk]={label:dayLabel(t),count:0,in:0,out:0,missed:0};
-      a.byDay[dk].count++;
-      if(isInbound2 && isAns2) a.byDay[dk].in++;
-      else if(!isInbound2 && isAns2 && dur>=10) a.byDay[dk].out++;
-      else if(isInbound2 && !isAns2 && !wknd2) a.byDay[dk].missed++;
-    }
-  });
-  // Compute abandoned stats from "Todas" CSV if provided
-  if(allRows && allRows.length){
-    state._accessAbandoned = computeAccessAbandoned(rows, allRows);
-  } else {
-    state._accessAbandoned = null;
-  }
-  return Object.values(agents).map(a=>({...a,dead_gaps:computeDeadGaps(a.callList,a.practice)}));
-}
-
-// ─── ACCESS ABANDONED (compare Todas vs Atendidas) ─────────────────────────
-function computeAccessAbandoned(attendedRows, allRows){
-  if(!allRows || !allRows.length) return null;
-  const parseT = t => { try{ return parseNextivaTime(t); }catch{ return null; } };
-
-  // Attended: inbound + answered=Yes
-  const attended = [];
-  attendedRows.forEach((r,i)=>{
-    if((r['Direction']||'').toLowerCase()==='terminating' && r['Answered']==='Yes'){
-      const t = parseT(r['Time']);
-      const agentName = cleanAgentName((r['User Name']||'').trim());
-      if(t) attended.push({ phone:(r['From']||'').trim(), time:t, idx:i, agent:agentName });
-    }
-  });
-  attended.sort((a,b)=>a.time-b.time);
-
-  // All inbound from "Todas"
-  const allInbound = [];
-  allRows.forEach(r=>{
-    if(r['Call Type']==='Inbound call'){
-      const t = parseT(r['Time']);
-      if(t) allInbound.push({ phone:(r['From']||'').trim(), time:t });
-    }
-  });
-  allInbound.sort((a,b)=>a.time-b.time);
-
-  // Group attended by phone
-  const attByPhone = {};
-  attended.forEach(a=>{
-    if(!attByPhone[a.phone]) attByPhone[a.phone]=[];
-    attByPhone[a.phone].push(a);
-  });
-
-  // 1-to-1 greedy match within 10-minute window
-  const usedIdx = new Set();
-  const results = [];
-  allInbound.forEach(c=>{
-    const cands = attByPhone[c.phone]||[];
-    let best=null, bestDiff=Infinity;
-    for(const a of cands){
-      if(usedIdx.has(a.idx)) continue;
-      const diff=(a.time-c.time)/1000;
-      if(diff>=0 && diff<=600 && diff<bestDiff){ bestDiff=diff; best=a; }
-    }
-    if(best){ usedIdx.add(best.idx); }
-    results.push({ time:c.time, matched: best!==null, agent: best ? best.agent : null });
-  });
-
-  const total = results.length;
-  const abandoned = results.filter(r=>!r.matched).length;
-
-  // By month
-  const byMonth={};
-  results.forEach(r=>{
-    const k=monthKey(r.time);
-    if(!byMonth[k]) byMonth[k]={total:0,abandoned:0};
-    byMonth[k].total++;
-    if(!r.matched) byMonth[k].abandoned++;
-  });
-
-  // By agent by month: contestadas por agente derivadas del match
-  const byAgentMonth={};
-  results.forEach(r=>{
-    if(r.matched && r.agent){
-      const mk=monthKey(r.time);
-      if(!byAgentMonth[r.agent]) byAgentMonth[r.agent]={};
-      if(!byAgentMonth[r.agent][mk]) byAgentMonth[r.agent][mk]=0;
-      byAgentMonth[r.agent][mk]++;
-    }
-  });
-
-  // Last 5 business days
-  const byDay={};
-  results.forEach(r=>{
-    const dk=dayKey(r.time);
-    if(!byDay[dk]) byDay[dk]={total:0,abandoned:0};
-    byDay[dk].total++;
-    if(!r.matched) byDay[dk].abandoned++;
-  });
-  const dayNames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const monthNamesShort=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const weekdayKeys = Object.keys(byDay).sort().filter(k=>{ const d=new Date(k+'T12:00:00').getDay(); return d>=1&&d<=5; });
-  const last5Keys = weekdayKeys.slice(-5);
-  const byDailyLastWeek = last5Keys.map(k=>{
-    const d=byDay[k], dt=new Date(k+'T12:00:00');
-    const label=dayNames[dt.getDay()]+' '+dt.getDate()+' '+monthNamesShort[dt.getMonth()];
-    return { label, abandoned:d.abandoned, total:d.total, tasa: d.total?Math.round(d.abandoned/d.total*100):0 };
-  });
-
-  return { total, abandoned, byMonth, byDay, byDailyLastWeek, byAgentMonth };
-}
-
 // ─── ANALYZE ADVANTAGE (XLSX) ───────────────────────────────────
 const ADVANTAGE_AGENTS=['heiling diaz','laura katalina','mariana ariza','santiago erazo'];
 const ADVANTAGE_REGULAR=['heiling diaz','laura katalina','mariana ariza'];
@@ -1559,8 +1421,9 @@ function weaveAgentName(email){
     return p.charAt(0).toUpperCase()+p.slice(1);
   }).join(' ').trim() || email;
 }
-function analyzeAlonso(rows){
-  if(!rows || !rows.length) return [];
+function analyzeAlonso(rows, smsRows){
+  rows = rows || [];
+  if(!rows.length && !(smsRows && smsRows.length)) return [];
   const agents={};
   // Map normalized email -> canonical display name (first one seen wins)
   const nameMap={};
@@ -1628,6 +1491,35 @@ function analyzeAlonso(rows){
     // isMissedOH (after-hours voicemail) and weekend abandoned are ignored — same policy as Advantage.
   });
 
+  // ── SMS MANUALES POR AGENTE ─────────────────────────────────────────────
+  // Del reporte de SMS de Weave solo cuentan los mensajes ESCRITOS por un agente:
+  //   SMS Type = Outbound + Message Category = manual-messages + Sender Name presente.
+  // Los automáticos (missed-call, birthday, missed-text, messaging-preferences)
+  // no tienen remitente y se ignoran — no son trabajo del agente.
+  // El remitente usa el mismo email que Office User en llamadas → weaveAgentName.
+  // Un agente que solo envió SMS (sin llamadas) también se crea aquí.
+  if(smsRows && smsRows.length){
+    smsRows.forEach(r=>{
+      if(String(r['SMS Type']||'').trim().toLowerCase()!=='outbound') return;
+      if(String(r['Message Category']||'').trim().toLowerCase()!=='manual-messages') return;
+      const senderRaw=String(r['Sender Name']||'').trim();
+      if(!senderRaw) return;
+      const t=parseWeaveTime(r['Date/ Time']||r['Date/Time']);
+      if(!t) return;
+      const key=senderRaw.toLowerCase();
+      if(!nameMap[key]) nameMap[key]=weaveAgentName(senderRaw);
+      const name=nameMap[key];
+      if(!agents[name]) agents[name]={
+        name, platform:'weave', practice:'Alonso Medical',
+        calls_in:0, calls_out:0, calls_answered:0, calls_missed:0,
+        total_duration:0, callList:[], byDay:{}
+      };
+      const a=agents[name];
+      if(!a.smsList) a.smsList=[];
+      a.smsList.push({time:t});
+    });
+  }
+
   // ── Build agentList ────────────────────────────────────────────────────
   // Las llamadas contestadas que Weave registró sin Office User (cola/auto-attendant
   // o llamadas que el sistema no pudo atribuir) se exponen como una fila aparte
@@ -1638,9 +1530,13 @@ function analyzeAlonso(rows){
   const NOAGENT_DISPLAY = 'Sin agente asignado';
   const agentList = [];
   Object.values(agents).forEach(a => {
-    if(!a.callList.length) return;
+    const hasSms = a.smsList && a.smsList.length > 0;
+    if(!a.callList.length && !hasSms) return;
     if(!isNoAgent(a.name)){
-      agentList.push({...a, dead_gaps: computeDeadGaps(a.callList,a.practice)});
+      const out = {...a, dead_gaps: a.callList.length ? computeDeadGaps(a.callList,a.practice) : []};
+      out.smsList = a.smsList || [];
+      out.sms_sent = out.smsList.length;
+      agentList.push(out);
       return;
     }
     // Bucket "No Agent": solo se incluye si tiene contestadas reales.
@@ -1664,6 +1560,8 @@ function analyzeAlonso(rows){
       total_duration: ansOnly.reduce((s,c)=>s+(c.duration||0),0),
       callList: ansOnly,
       byDay,
+      smsList: [],
+      sms_sent: 0,
       dead_gaps: []
     });
   });
@@ -1793,7 +1691,7 @@ async function exportPDF(){
 
   const pColors = {
     'Cardiovascular':[26,74,122],'Gastroenterology':[29,110,64],
-    'MAB Pulmonary':[122,26,74],'Access Medical':[122,90,26],'Advantage Medical':[26,90,90],
+    'MAB Pulmonary':[122,26,74],'Advantage Medical':[26,90,90],
     'Alonso Medical':[122,58,26]
   };
 
@@ -1949,10 +1847,6 @@ async function exportPDF(){
     const f = state.filter;
     if(f==='all'||f==='Cardiovascular'||f==='Gastroenterology') abSections.push({label:'CARDIO & GASTRO',ab:state._nextivaAbandoned,color:[26,74,122]});
   }
-  if(state._accessAbandoned){
-    const f = state.filter;
-    if(f==='all'||f==='Access Medical') abSections.push({label:'ACCESS MEDICAL',ab:state._accessAbandoned,color:[122,90,26]});
-  }
   if(state._advantageAbandoned){
     const f = state.filter;
     if(f==='all'||f==='Advantage Medical') abSections.push({label:'ADVANTAGE MEDICAL',ab:state._advantageAbandoned,color:[26,90,90]});
@@ -2000,20 +1894,17 @@ async function exportPDF(){
     // Add abandoned charts — monthly and weekly, stacked, larger
     const monthCanvasMap = {
       'CARDIO & GASTRO': 'abMonthChart',
-      'ACCESS MEDICAL':  'acMonthChart',
       'ADVANTAGE MEDICAL': 'advMonthChart',
       'ALONSO MEDICAL': 'alMonthChart'
     };
     const weekCanvasId_cg = state.filter==='Gastroenterology' ? 'abWeekChartGastro' : 'abWeekChartCardio';
     const weekCanvasMap = {
       'CARDIO & GASTRO': weekCanvasId_cg,
-      'ACCESS MEDICAL':  'acWeekChart',
       'ADVANTAGE MEDICAL': 'advWeekChart',
       'ALONSO MEDICAL': 'alWeekChart'
     };
     const weekTitleMap = {
       'CARDIO & GASTRO': state.filter==='Gastroenterology' ? 'GASTROENTEROLOGY' : state.filter==='Cardiovascular' ? 'CARDIOVASCULAR' : 'CARDIO & GASTRO',
-      'ACCESS MEDICAL':  'ACCESS MEDICAL',
       'ADVANTAGE MEDICAL': 'ADVANTAGE MEDICAL',
       'ALONSO MEDICAL': 'ALONSO MEDICAL'
     };
@@ -2056,34 +1947,32 @@ async function exportPDF(){
     // Monthly agent table — para todas las prácticas
     {
       const practiceFilter = {
-        'ACCESS MEDICAL':  a => a.practice==='Access Medical',
         'CARDIO & GASTRO': a => a.practice==='Cardiovascular'||a.practice==='Gastroenterology',
         'ADVANTAGE MEDICAL': a => a.practice==='Advantage Medical',
         'ALONSO MEDICAL': a => a.practice==='Alonso Medical'
       };
       const practiceTitle = {
-        'ACCESS MEDICAL':  'DETALLE MENSUAL DE CONTESTADAS POR AGENTE — ACCESS MEDICAL',
         'CARDIO & GASTRO': 'DETALLE MENSUAL DE CONTESTADAS POR AGENTE — CARDIO & GASTRO',
         'ADVANTAGE MEDICAL': 'DETALLE MENSUAL DE CONTESTADAS POR AGENTE — ADVANTAGE MEDICAL',
         'ALONSO MEDICAL': 'DETALLE MENSUAL DE CONTESTADAS POR AGENTE — ALONSO MEDICAL'
       };
       const filterFn = practiceFilter[label];
       if(filterFn){
-      const accessAgentsPDF = agents.filter(filterFn);
+      const practiceAgentsPDF = agents.filter(filterFn);
       const pdfMonthKeys = Object.keys(ab.byMonth).sort();
       const pdfMonthLabels = pdfMonthKeys.map(m=>{
         const [yr,mo]=m.split('-');
         const ns=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         return ns[+mo]+"'"+(yr.slice(2));
       });
-      if(accessAgentsPDF.length > 0 && pdfMonthKeys.length > 0){
+      if(practiceAgentsPDF.length > 0 && pdfMonthKeys.length > 0){
         if(y + 60 > PH - MT - 10){ doc.addPage(); y = MT; }
         // Section title
         doc.setTextColor(...color); doc.setFontSize(8); doc.setFont('helvetica','bold');
         doc.text(practiceTitle[label]||'DETALLE MENSUAL DE CONTESTADAS POR AGENTE', ML, y); y+=4;
         // Build per-agent data: usar byAgentMonth (histórico completo del match Todas vs Atendidas)
         // Fallback a byDay solo si no hay byAgentMonth
-        const pdfAgentData = accessAgentsPDF.map(agent => {
+        const pdfAgentData = practiceAgentsPDF.map(agent => {
           const byM = {};
           pdfMonthKeys.forEach(mk => byM[mk] = 0);
           if(ab.byAgentMonth && ab.byAgentMonth[agent.name]){
@@ -2211,7 +2100,7 @@ function loadFile(e,p){
   const file=e.target.files[0]; if(!file) return;
   const isXlsx=file.name.toLowerCase().endsWith('.xlsx');
   const zoneId = `zone-${p}`;
-  const idMap = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',access:'fa',accessAll:'faa',advantage:'fv','advantage-abandoned':'fva',alonso:'fal'};
+  const idMap = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',advantage:'fv','advantage-abandoned':'fva',alonso:'fal',alonsoSms:'fals'};
   const elId = idMap[p] || `f${p[0]}`;
   const titleId = `${elId}-title`;
   const subId   = `${elId}-sub`;
@@ -2236,9 +2125,9 @@ function loadFile(e,p){
   } else {
     const r=new FileReader();
     r.onload=ev=>{
-      const newRows = parseCSV(ev.target.result);
-      // Acumular CSVs de access, accessAll, nextiva y nextivaAll para mantener histórico multi-mes
-      const accumulateKeys = ['access','accessAll','nextiva','nextivaAll'];
+      const newRows = stateKey==='alonsoSms' ? parseCSVMultiline(ev.target.result) : parseCSV(ev.target.result);
+      // Acumular CSVs de nextiva y nextivaAll para mantener histórico multi-mes
+      const accumulateKeys = ['nextiva','nextivaAll'];
       if(accumulateKeys.includes(stateKey) && Array.isArray(state[stateKey]) && state[stateKey].length>0){
         // parseCSV retorna array de objetos {key:val}
         // Combinar todos — las keys de cada objeto identifican el mes por fecha
@@ -2268,17 +2157,6 @@ function loadFile(e,p){
 }
 
 // ─── DRAG & DROP ────────────────────────────────────────────────────────────
-function resetAccess(key){
-  state[key]=null;
-  const elId = key==='access'?'fa':'faa';
-  const titleId=`${elId}-title`, subId=`${elId}-sub`;
-  const zoneId=`zone-${key}`;
-  document.getElementById(zoneId).classList.remove('loaded');
-  document.getElementById(titleId).textContent = key==='access'?'Subir CSV de Nextiva':'Subir CSV Ext 4003 4004';
-  document.getElementById(subId).textContent = key==='access'?'Linda · Amaranta · Sara · Whitney':'Para calcular abandonadas';
-  document.getElementById(`${elId}`).value='';
-  analyze();
-}
 function drag(e,p){e.preventDefault();document.getElementById(`zone-${p}`).classList.add('loaded');}
 function dleave(e,p){
   const sk = p==='advantage-abandoned' ? 'advantageAbandoned' : p;
@@ -2338,7 +2216,10 @@ function weekLabel(isoKey){
 // Get all distinct weeks from agents callList
 function detectWeeks(agents){
   const wks=new Set();
-  agents.forEach(a=>a.callList.forEach(c=>wks.add(weekKey(c.time))));
+  agents.forEach(a=>{
+    a.callList.forEach(c=>wks.add(weekKey(c.time)));
+    (a.smsList||[]).forEach(m=>wks.add(weekKey(m.time)));
+  });
   return [...wks].sort();
 }
 
@@ -2346,7 +2227,8 @@ function detectWeeks(agents){
 function filterAgentsByWeek(agents, wk){
   return agents.map(a=>{
     const calls=a.callList.filter(c=>weekKey(c.time)===wk);
-    if(!calls.length) return null;
+    const sms=(a.smsList||[]).filter(m=>weekKey(m.time)===wk);
+    if(!calls.length && !sms.length) return null;
     // Recompute stats for this week only
     let calls_in=0,calls_out=0,calls_answered=0,calls_missed=0,calls_abandoned=0,total_duration=0;
     const byDay={};
@@ -2366,22 +2248,20 @@ function filterAgentsByWeek(agents, wk){
       else if(c.direction==='out' && c.answered) calls_out++;
       else if(c.direction==='in' && !c.answered){ calls_missed++; if(c.abandoned) calls_abandoned++; }
     });
-    const dead_gaps=computeDeadGaps(calls,a.practice);
-    return {...a,calls_in,calls_out,calls_answered,calls_missed,calls_abandoned,total_duration,byDay,callList:calls,dead_gaps};
+    const dead_gaps=calls.length?computeDeadGaps(calls,a.practice):[];
+    return {...a,calls_in,calls_out,calls_answered,calls_missed,calls_abandoned,total_duration,byDay,callList:calls,dead_gaps,smsList:sms,sms_sent:sms.length};
   }).filter(Boolean);
 }
 
 function analyze(){
   state._nextivaAbandoned = null;
-  state._accessAbandoned = null;
   state._advantageAbandoned = null;
   state._alonsoAbandoned = null;
   state._oomaAbandoned = null;
   let agents=[];
   if(state.nextiva)   agents=agents.concat(analyzeNextiva(state.nextiva, state.nextivaAll));
-  if(state.access)    agents=agents.concat(analyzeAccess(state.access, state.accessAll));
   if(state.advantage||state.advantageAbandoned) agents=agents.concat(analyzeAdvantage(state.advantage, state.advantageAbandoned));
-  if(state.alonso)    agents=agents.concat(analyzeAlonso(state.alonso));
+  if(state.alonso||state.alonsoSms) agents=agents.concat(analyzeAlonso(state.alonso, state.alonsoSms));
   if(state.ooma)      agents=agents.concat(analyzeOoma(state.ooma));
   state.allAgents=agents;
   state.weeks=detectWeeks(agents);
@@ -2390,7 +2270,7 @@ function analyze(){
   state.weekB=state.weeks.length>0?state.weeks[state.weeks.length-1]:null;
   state.compareMode=false;
   state.agents=state.weeks.length>0?filterAgentsByWeek(agents,state.weeks[state.weekIdx]):agents;
-  const total=(state.nextiva?.length||0)+(state.nextivaAll?.length||0)+(state.access?.length||0)+(state.accessAll?.length||0)+(state.advantage?.length||0)+(state.advantageAbandoned?.length||0)+(state.alonso?.length||0)+(state.ooma?.length||0);
+  const total=(state.nextiva?.length||0)+(state.nextivaAll?.length||0)+(state.advantage?.length||0)+(state.advantageAbandoned?.length||0)+(state.alonso?.length||0)+(state.alonsoSms?.length||0)+(state.ooma?.length||0);
   document.getElementById('headerMeta').textContent=`${agents.length} AGENTES · ${total.toLocaleString()} REGISTROS`;
   renderAll();
 }
@@ -2427,9 +2307,9 @@ function renderAll(){
     renderWeeklySummary(main,agents);
     renderCharts(main,agents);
     renderAbandonedPanel(main, agents);
-    renderAccessAbandonedPanel(main, agents);
     renderAdvantageAbandonedPanel(main, agents);
     renderAlonsoAbandonedPanel(main, agents);
+    renderAlonsoSmsPanel(main);
   } catch(err) {
     const errDiv = document.createElement('div');
     errDiv.style.cssText = 'padding:20px;background:#fdeaea;color:#b83232;border-radius:5px;margin:16px 0;font-size:12px;';
@@ -2440,7 +2320,7 @@ function renderAll(){
 
   // Group by practice
   const practices=[...new Set(agents.map(a=>a.practice))];
-  const practiceClass={'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Access Medical':'access','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  const practiceClass={'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
 
   practices.forEach(prac=>{
     const pAgents=agents.filter(a=>a.practice===prac);
@@ -2461,7 +2341,6 @@ function renderKPIs(container,agents){
   // Use abandoned panel week data for accurate inbound totals if available
   // This corrects for CSVs that only contain answered calls
   const abNextiva = state._nextivaAbandoned ? getAbandonedForWeek(state._nextivaAbandoned) : null;
-  const abAccess  = state._accessAbandoned  ? getAbandonedForWeek(state._accessAbandoned)  : null;
   const abAdvantage = state._advantageAbandoned ? getAbandonedForWeek(state._advantageAbandoned) : null;
   const abAlonso  = state._alonsoAbandoned  ? getAbandonedForWeek(state._alonsoAbandoned)  : null;
   const abOoma    = state._oomaAbandoned    ? getAbandonedForWeek(state._oomaAbandoned)    : null;
@@ -2476,15 +2355,15 @@ function renderKPIs(container,agents){
   } else if(f==='Gastroenterology' && state._nextivaAbandoned){
     const w = getAbandonedForWeekByPractice(state._nextivaAbandoned,'gastro');
     totalInbound = w.total > 0 ? w.total : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
-  } else if(f==='Access Medical' && state._accessAbandoned){
-    const w = getAbandonedForWeek(state._accessAbandoned);
-    totalInbound = w.total > 0 ? w.total : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
   } else if(f==='Advantage Medical' && state._advantageAbandoned){
     const w = getAbandonedForWeek(state._advantageAbandoned);
     totalInbound = w.total > 0 ? w.total : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
   } else if(f==='Alonso Medical' && state._alonsoAbandoned){
     const w = getAbandonedForWeek(state._alonsoAbandoned);
-    totalInbound = w.total > 0 ? w.total : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
+    // El panel excluye las abandonadas que llegaron a un agente (perdidas del agente);
+    // se suman aquí para que Entrantes = con agente + sin agente + perdidas + abandonadas.
+    const alonsoMissed = agents.reduce((s,a)=>s+a.calls_missed,0);
+    totalInbound = w.total > 0 ? w.total + alonsoMissed : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
   } else if(f==='MAB Pulmonary' && state._oomaAbandoned){
     const w = getAbandonedForWeek(state._oomaAbandoned);
     totalInbound = w.total > 0 ? w.total : agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
@@ -2494,15 +2373,12 @@ function renderKPIs(container,agents){
     tot += state._nextivaAbandoned
       ? getAbandonedForWeek(state._nextivaAbandoned).total
       : agents.filter(a=>a.practice==='Cardiovascular'||a.practice==='Gastroenterology').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
-    tot += state._accessAbandoned
-      ? getAbandonedForWeek(state._accessAbandoned).total
-      : agents.filter(a=>a.practice==='Access Medical').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
     tot += state._advantageAbandoned
       ? getAbandonedForWeek(state._advantageAbandoned).total
       : agents.filter(a=>a.practice==='Advantage Medical').reduce((s,a)=>s+a.calls_answered,0);
     tot += state._alonsoAbandoned
-      ? getAbandonedForWeek(state._alonsoAbandoned).total
-      : agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_answered,0);
+      ? getAbandonedForWeek(state._alonsoAbandoned).total + agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_missed,0)
+      : agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
     tot += state._oomaAbandoned
       ? getAbandonedForWeek(state._oomaAbandoned).total
       : agents.filter(a=>a.practice==='MAB Pulmonary').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
@@ -2515,16 +2391,15 @@ function renderKPIs(container,agents){
 
   const totalOut = agents.reduce((s,a)=>s+a.calls_out,0);
   const abWeekNextiva   = state._nextivaAbandoned   ? getAbandonedForWeek(state._nextivaAbandoned)   : null;
-  const abWeekAccess    = state._accessAbandoned     ? getAbandonedForWeek(state._accessAbandoned)    : null;
   const abWeekAdvantage = state._advantageAbandoned  ? getAbandonedForWeek(state._advantageAbandoned) : null;
   const abWeekAlonso    = state._alonsoAbandoned     ? getAbandonedForWeek(state._alonsoAbandoned)    : null;
   const abWeekOoma      = state._oomaAbandoned       ? getAbandonedForWeek(state._oomaAbandoned)      : null;
-  // For Advantage/Alonso, calls_missed in agents ARE the abandoned calls (already in totalAbandonedWeek)
-  // Only exclude those practices' missed when their own panel data is available.
-  // MAB Pulmonary's calls_missed are DIFFERENT from abandoned: missed = voicemails ext 2015
-  // attributed to agents, while abandoned = Call Unanswered (no agent). So MAB missed must stay.
+  // Advantage: calls_missed de agentes SON las abandonadas del panel → se excluyen (evita doble conteo).
+  // Alonso: sus abandonadas CON agente cuentan como perdidas del agente y están EXCLUIDAS del panel
+  //   de abandonadas → deben INCLUIRSE aquí como perdidas.
+  // MAB: calls_missed = voicemails ext 2015 (distintas de sus abandonadas Call Unanswered) → se incluyen.
   const totalMissed = agents
-    .filter(a => a.practice !== 'Advantage Medical' && a.practice !== 'Alonso Medical')
+    .filter(a => a.practice !== 'Advantage Medical')
     .reduce((s,a) => s + a.calls_missed, 0);
   // Use same abandoned data as the panels — ensures KPI bar and panel are consistent
   let totalAbandonedWeek = 0;
@@ -2532,8 +2407,6 @@ function renderKPIs(container,agents){
     totalAbandonedWeek = getAbandonedForWeekByPractice(state._nextivaAbandoned,'cardio').abandoned;
   } else if(f==='Gastroenterology' && state._nextivaAbandoned){
     totalAbandonedWeek = getAbandonedForWeekByPractice(state._nextivaAbandoned,'gastro').abandoned;
-  } else if(f==='Access Medical' && state._accessAbandoned){
-    totalAbandonedWeek = getAbandonedForWeek(state._accessAbandoned).abandoned;
   } else if(f==='Advantage Medical' && state._advantageAbandoned){
     totalAbandonedWeek = getAbandonedForWeek(state._advantageAbandoned).abandoned;
   } else if(f==='Alonso Medical' && state._alonsoAbandoned){
@@ -2543,7 +2416,6 @@ function renderKPIs(container,agents){
   } else {
     // "Todas" — sum all panels
     totalAbandonedWeek = (abWeekNextiva?.abandoned||0)
-      + (state._accessAbandoned   ? getAbandonedForWeek(state._accessAbandoned).abandoned   : 0)
       + (state._advantageAbandoned? getAbandonedForWeek(state._advantageAbandoned).abandoned: 0)
       + (state._alonsoAbandoned   ? getAbandonedForWeek(state._alonsoAbandoned).abandoned   : 0)
       + (state._oomaAbandoned     ? getAbandonedForWeek(state._oomaAbandoned).abandoned     : 0);
@@ -2551,11 +2423,10 @@ function renderKPIs(container,agents){
 
   // Contestadas: if Todas CSV loaded use derived value, otherwise use agents answered directly
   const hasTodas = (f==='Cardiovascular'||f==='Gastroenterology') ? (abNextiva && abNextiva.total > 0)
-                 : (f==='Access Medical') ? (abAccess && abAccess.total > 0)
                  : (f==='Advantage Medical') ? (abAdvantage && abAdvantage.total > 0)
                  : (f==='Alonso Medical') ? (abAlonso && abAlonso.total > 0)
                  : (f==='MAB Pulmonary') ? (abOoma && abOoma.total > 0)
-                 : ((abNextiva||abAccess||abAdvantage||abAlonso||abOoma) && totalAbandonedWeek > 0);
+                 : ((abNextiva||abAdvantage||abAlonso||abOoma) && totalAbandonedWeek > 0);
   const displayAnswered = hasTodas
     ? Math.max(0, totalInbound - totalMissed - totalAbandonedWeek)
     : answered;
@@ -2585,60 +2456,55 @@ function renderKPIs(container,agents){
   // Llamadas Totales = Entrantes + Salientes
   const grandTotal = totalInbound + totalOut;
 
+  // Total de SMS manuales de la semana (columna sms_sent de agentes filtrados)
+  const totalSms = agents.reduce((s,a)=>s+(a.sms_sent||0),0);
+  const smsLoaded = !!(state.alonsoSms && state.alonsoSms.length);
+
   const row=document.createElement('div');
   row.className='kpi-row';
-  row.style.cssText='grid-template-columns:1fr 2fr 1fr 1fr 1.5fr;';
+  row.style.cssText='grid-template-columns:1fr 2fr 1fr 1fr 1fr;';
   row.innerHTML=`
-    <div class="kpi" style="background:var(--blue-bg);border-color:var(--blue);">
-      <div class="kpi-lbl" style="color:var(--blue)">LLAMADAS TOTALES</div>
-      <div class="kpi-val" style="color:var(--blue)">${grandTotal.toLocaleString()}</div>
-      <div class="kpi-sub">${agents.length} agentes</div>
+    <div class="kpi" style="background:linear-gradient(135deg,#1565FF,#0d47a1);border:none;box-shadow:0 4px 12px rgba(21,101,255,0.3);">
+      <div class="kpi-lbl" style="color:rgba(255,255,255,0.85)">LLAMADAS TOTALES</div>
+      <div class="kpi-val" style="color:#fff;font-size:38px;">${grandTotal.toLocaleString()}</div>
+      <div class="kpi-sub" style="color:rgba(255,255,255,0.75)">${agents.length} agentes</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="border:2px solid var(--border);">
       <div class="kpi-lbl" style="text-align:center">LLAMADAS ENTRANTES</div>
-      <div class="kpi-val" style="text-align:center;font-size:32px;">${totalInbound.toLocaleString()}</div>
+      <div class="kpi-val" style="text-align:center;font-size:40px;">${totalInbound.toLocaleString()}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:8px;">
-        <div style="background:var(--green-bg);border-radius:4px;padding:6px 4px;text-align:center;">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--green);margin-bottom:3px;">CON AGENTE</div>
-          <div style="font-size:15px;font-weight:600;color:var(--green);">${displayAssigned.toLocaleString()}</div>
+        <div style="background:linear-gradient(135deg,#1e9e50,#136b35);border-radius:5px;padding:8px 4px;text-align:center;box-shadow:0 2px 6px rgba(30,158,80,0.35);">
+          <div style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);margin-bottom:3px;">CON AGENTE</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;">${displayAssigned.toLocaleString()}</div>
         </div>
-        <div style="background:var(--green-bg);border-radius:4px;padding:6px 4px;text-align:center;opacity:0.75;">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--green);margin-bottom:3px;">SIN AGENTE</div>
-          <div style="font-size:15px;font-weight:600;color:var(--green);">${displayUnassigned.toLocaleString()}</div>
+        <div style="background:linear-gradient(135deg,#52b788,#2d7a52);border-radius:5px;padding:8px 4px;text-align:center;box-shadow:0 2px 6px rgba(82,183,136,0.35);">
+          <div style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);margin-bottom:3px;">SIN AGENTE</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;">${displayUnassigned.toLocaleString()}</div>
         </div>
-        <div style="background:var(--yellow-bg);border-radius:4px;padding:6px 4px;text-align:center;">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--yellow);margin-bottom:3px;">PERDIDAS</div>
-          <div style="font-size:15px;font-weight:600;color:var(--yellow);">${totalMissed.toLocaleString()}</div>
+        <div style="background:linear-gradient(135deg,#f2a516,#c07d08);border-radius:5px;padding:8px 4px;text-align:center;box-shadow:0 2px 6px rgba(242,165,22,0.35);">
+          <div style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.9);margin-bottom:3px;">PERDIDAS</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;">${totalMissed.toLocaleString()}</div>
         </div>
-        <div style="background:var(--red-bg);border-radius:4px;padding:6px 4px;text-align:center;">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--red);margin-bottom:3px;">ABANDONADAS</div>
-          <div style="font-size:15px;font-weight:600;color:var(--red);">${totalAbandonedWeek.toLocaleString()}</div>
-        </div>
-      </div>
-    </div>
-    <div class="kpi" style="background:var(--purple-bg);border-color:var(--purple);">
-      <div class="kpi-lbl" style="color:var(--purple)">LLAMADAS SALIENTES</div>
-      <div class="kpi-val" style="color:var(--purple)">${totalOut.toLocaleString()}</div>
-      <div class="kpi-sub">realizadas</div>
-    </div>
-    <div class="kpi ${ansRate>=80?'good':'alert'}">
-      <div class="kpi-lbl">TASA DE RESPUESTA</div>
-      <div class="kpi-val">${ansRate}%</div>
-      <div class="kpi-sub">${displayAnswered.toLocaleString()} de ${totalInbound.toLocaleString()}</div>
-    </div>
-    <div class="kpi ${deadMins>500?'alert':'warn'}">
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <div class="kpi-lbl">TIEMPO EN LÍNEA</div>
-          <div class="kpi-val" style="font-size:18px;">${fmtDur(duration)}</div>
-        </div>
-        <div style="width:1px;background:var(--border);"></div>
-        <div style="flex:1;">
-          <div class="kpi-lbl">TIEMPO MUERTO</div>
-          <div class="kpi-val" style="font-size:18px;${deadMins>500?'color:var(--red)':''}">${fmtMins(deadMins)}</div>
-          <div class="kpi-sub">${deadTotal} gaps</div>
+        <div style="background:linear-gradient(135deg,#e5383b,#a4161a);border-radius:5px;padding:8px 4px;text-align:center;box-shadow:0 2px 6px rgba(229,56,59,0.35);">
+          <div style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.85);margin-bottom:3px;">ABANDONADAS</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;">${totalAbandonedWeek.toLocaleString()}</div>
         </div>
       </div>
+    </div>
+    <div class="kpi" style="background:linear-gradient(135deg,#8338ec,#5a189a);border:none;box-shadow:0 4px 12px rgba(131,56,236,0.3);">
+      <div class="kpi-lbl" style="color:rgba(255,255,255,0.85)">LLAMADAS SALIENTES</div>
+      <div class="kpi-val" style="color:#fff;font-size:38px;">${totalOut.toLocaleString()}</div>
+      <div class="kpi-sub" style="color:rgba(255,255,255,0.75)">realizadas</div>
+    </div>
+    <div class="kpi" style="background:${ansRate>=80?'linear-gradient(135deg,#1e9e50,#136b35)':'linear-gradient(135deg,#e5383b,#a4161a)'};border:none;box-shadow:0 4px 12px ${ansRate>=80?'rgba(30,158,80,0.3)':'rgba(229,56,59,0.3)'};">
+      <div class="kpi-lbl" style="color:rgba(255,255,255,0.85)">TASA DE RESPUESTA</div>
+      <div class="kpi-val" style="color:#fff;font-size:38px;">${ansRate}%</div>
+      <div class="kpi-sub" style="color:rgba(255,255,255,0.75)">${displayAnswered.toLocaleString()} de ${totalInbound.toLocaleString()}</div>
+    </div>
+    <div class="kpi" style="background:linear-gradient(135deg,#a34d22,#7a3a1a);border:none;box-shadow:0 4px 12px rgba(122,58,26,0.3);">
+      <div class="kpi-lbl" style="color:rgba(255,255,255,0.85)">TOTAL SMS</div>
+      <div class="kpi-val" style="color:#fff;font-size:38px;">${totalSms.toLocaleString()}</div>
+      <div class="kpi-sub" style="color:rgba(255,255,255,0.75)">${smsLoaded?'mensajes manuales':'sin reporte SMS cargado'}</div>
     </div>
   `;
   container.appendChild(row);
@@ -2779,44 +2645,56 @@ function renderWeeklySummary(container, agents){
   const wrap = document.createElement('div');
   wrap.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:5px;overflow:hidden;';
 
-  const sorted = sortAgents(agents.filter(a=>!isNoAgent(a.name)));
-  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Access Medical':'access','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  // Orden: mayor a menor por promedio total de llamadas/día (empate: SMS/día)
+  const sorted = agents.filter(a=>!isNoAgent(a.name)).map(a=>{
+    const dset = new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
+    const d = dset.size || 1;
+    return {a, _avgT:(a.calls_answered+a.calls_out)/d, _avgS:(a.sms_sent||0)/d};
+  }).sort((x,y)=> y._avgT-x._avgT || y._avgS-x._avgS).map(x=>x.a);
+  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
 
   const table = document.createElement('table');
+  const thS = 'style="text-align:right;background:#2b2b26;color:#fff;line-height:1.5;padding:7px 10px;"';
   table.innerHTML = `<thead><tr>
-    <th>AGENTE</th>
-    <th>PRÁCTICA</th>
-    <th style="text-align:right">PROM. TOTAL/DÍA</th>
-    <th style="text-align:right">PROM. CONTESTADAS/DÍA</th>
-    <th style="text-align:right">PROM. REALIZADAS/DÍA</th>
-    <th style="text-align:right">PROM. PERDIDAS/DÍA</th>
-    <th style="text-align:right">PROM. TIEMPO EN LLAMADA/DÍA</th>
-    <th style="text-align:right">PROM. TIEMPO MUERTO/DÍA</th>
-    <th style="text-align:right">DÍAS</th>
+    <th style="background:#2b2b26;color:#fff;padding:7px 10px;">AGENTE</th>
+    <th style="background:#2b2b26;color:#fff;padding:7px 10px;">PRÁCTICA</th>
+    <th style="text-align:right;background:linear-gradient(135deg,#1565FF,#0d47a1);color:#fff;line-height:1.5;padding:7px 10px;">PROM. TOTAL<br>CALL / DÍA</th>
+    <th style="text-align:right;background:linear-gradient(135deg,#a34d22,#7a3a1a);color:#fff;line-height:1.5;padding:7px 10px;">PROM. SMS<br>/ DÍA</th>
+    <th ${thS}>PROM.<br>CONTESTADAS / DÍA</th>
+    <th ${thS}>PROM.<br>REALIZADAS / DÍA</th>
+    <th ${thS}>PROM.<br>PERDIDAS / DÍA</th>
+    <th ${thS}>PROM. TIEMPO<br>EN LLAMADA / DÍA</th>
+    <th ${thS}>PROM. TIEMPO<br>MUERTO / DÍA</th>
+    <th ${thS}>DÍAS</th>
   </tr></thead>`;
 
   const tbody = document.createElement('tbody');
 
   sorted.forEach(a => {
-    const days = Object.keys(a.byDay).length || 1;
+    // Días activos = días con llamadas O con SMS (para agentes/semanas solo-SMS)
+    const activeDaySet = new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
+    const days = activeDaySet.size || 1;
     const avgTotal     = (a.calls_answered + a.calls_out) / days;  // Total = Contestadas + Realizadas
     const avgAnswered  = a.calls_answered / days;
     const avgMade      = a.calls_out / days;
     const avgMissed    = a.calls_missed / days;
+    const avgSms       = (a.sms_sent||0) / days;
     const avgTalkSecs  = a.total_duration / days;
     const totalDeadMins = a.dead_gaps.reduce((s,g) => s+g.minutes, 0);
     const avgDeadMins  = totalDeadMins / days;
 
     // Previous week stats for this agent
-    let pAvgTotal=null, pAvgAns=null, pAvgMade=null, pAvgMissed=null, pAvgTalk=null, pAvgDead=null;
+    let pAvgTotal=null, pAvgAns=null, pAvgMade=null, pAvgMissed=null, pAvgSms=null, pAvgTalk=null, pAvgDead=null;
     if(prevAgents){
       const prev = prevAgents.find(p => p.name === a.name);
       if(prev){
-        const pDays = Object.keys(prev.byDay).length || 1;
+        const pDaySet = new Set([...Object.keys(prev.byDay), ...((prev.smsList||[]).map(m=>dayKey(m.time)))]);
+        const pDays = pDaySet.size || 1;
         pAvgTotal = (prev.calls_answered + prev.calls_out) / pDays;
         pAvgAns   = prev.calls_answered / pDays;
         pAvgMade  = prev.calls_out / pDays;
         pAvgMissed= prev.calls_missed / pDays;
+        pAvgSms   = (prev.sms_sent||0) / pDays;
         pAvgTalk  = prev.total_duration / pDays;
         pAvgDead  = prev.dead_gaps.reduce((s,g)=>s+g.minutes,0) / pDays;
       }
@@ -2826,8 +2704,8 @@ function renderWeeklySummary(container, agents){
     const ansColor  = avgTotal >= GOAL_EXCELLENT ? 'var(--green)' : avgTotal >= GOAL_GOOD ? 'var(--blue)' : avgTotal >= GOAL_MIN ? 'var(--yellow)' : avgTotal >= GOAL_LOW ? 'var(--orange)' : 'var(--red)';
     const deadColor = avgDeadMins > 120 ? 'var(--red)' : avgDeadMins > 60 ? 'var(--yellow)' : 'var(--green)';
     const cls = practiceClass[a.practice] || 'cardio';
-    const pracColor = cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='access'?'var(--access)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
-    const pracBg    = cls==='cardio'?'var(--cardio-bg)':cls==='gastro'?'var(--gastro-bg)':cls==='mab'?'var(--mab-bg)':cls==='access'?'var(--access-bg)':cls==='advantage'?'var(--advantage-bg)':cls==='alonso'?'var(--alonso-bg)':'var(--advantage-bg)';
+    const pracColor = cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
+    const pracBg    = cls==='cardio'?'var(--cardio-bg)':cls==='gastro'?'var(--gastro-bg)':cls==='mab'?'var(--mab-bg)':cls==='advantage'?'var(--advantage-bg)':cls==='alonso'?'var(--alonso-bg)':'var(--advantage-bg)';
 
     const rowCls = avgTotal >= GOAL_EXCELLENT ? 'row-ideal' : avgTotal >= GOAL_GOOD ? 'row-good' : avgTotal >= GOAL_MIN ? 'row-min' : avgTotal >= GOAL_LOW ? 'row-low' : 'row-alert';
     const isCoverage = a.name.toLowerCase().includes('santiago');
@@ -2838,14 +2716,15 @@ function renderWeeklySummary(container, agents){
     const tr = document.createElement('tr');
     tr.className = rowCls;
     tr.innerHTML = `
-      <td style="font-weight:500">${nameCellHtml}</td>
-      <td><span style="font-size:10px;padding:2px 8px;border-radius:2px;background:${pracBg};color:${pracColor}">${a.practice}</span></td>
-      <td style="text-align:right;font-weight:700;font-size:14px">${avgTotal.toFixed(1)} ${getDelta(avgTotal, pAvgTotal)}</td>
-      <td style="text-align:right;font-weight:500;font-size:12px">${avgAnswered.toFixed(1)} ${getDelta(avgAnswered, pAvgAns)}</td>
-      <td style="text-align:right">${avgMade.toFixed(1)} ${getDelta(avgMade, pAvgMade)}</td>
-      <td style="text-align:right;color:${avgMissed>5?'var(--red)':'var(--ink2)'}">${avgMissed.toFixed(1)} ${getDelta(avgMissed, pAvgMissed, true)}</td>
-      <td style="text-align:right;font-weight:600;color:var(--blue)">${fmtDur(Math.round(avgTalkSecs))} ${getDeltaMins(avgTalkSecs/60, pAvgTalk?pAvgTalk/60:null)}</td>
-      <td style="text-align:right;font-weight:600;color:${deadColor}">${fmtMins(Math.round(avgDeadMins))} ${getDeltaMins(avgDeadMins, pAvgDead, true)}</td>
+      <td style="font-weight:600">${nameCellHtml}</td>
+      <td><span style="font-size:10px;padding:3px 9px;border-radius:3px;background:${pracColor};color:#fff;font-weight:600;">${a.practice}</span></td>
+      <td style="text-align:right;font-weight:800;font-size:16px;color:#0d47a1;background:rgba(21,101,255,0.09);">${avgTotal.toFixed(1)} ${getDelta(avgTotal, pAvgTotal)}</td>
+      <td style="text-align:right;font-weight:800;font-size:15px;color:#a34d22;background:rgba(163,77,34,0.07);">${avgSms.toFixed(1)} ${getDelta(avgSms, pAvgSms)}</td>
+      <td style="text-align:right;font-weight:600;font-size:13px;color:var(--ink);">${avgAnswered.toFixed(1)} ${getDelta(avgAnswered, pAvgAns)}</td>
+      <td style="text-align:right;font-weight:600;color:var(--ink);">${avgMade.toFixed(1)} ${getDelta(avgMade, pAvgMade)}</td>
+      <td style="text-align:right;font-weight:600;color:var(--ink);">${avgMissed.toFixed(1)} ${getDelta(avgMissed, pAvgMissed, true)}</td>
+      <td style="text-align:right;font-weight:600;color:#1565FF">${fmtDur(Math.round(avgTalkSecs))} ${getDeltaMins(avgTalkSecs/60, pAvgTalk?pAvgTalk/60:null)}</td>
+      <td style="text-align:right;font-weight:600;color:var(--ink);">${fmtMins(Math.round(avgDeadMins))} ${getDeltaMins(avgDeadMins, pAvgDead, true)}</td>
       <td style="text-align:right;color:var(--muted)">${days}</td>
     `;
     tbody.appendChild(tr);
@@ -2892,6 +2771,7 @@ function renderWeeklySummary(container, agents){
         </td>
         <td><span style="font-size:10px;padding:2px 8px;border-radius:2px;background:${pracBg};color:${pracColor}">${na.practice}</span></td>
         <td style="text-align:right;font-weight:700;font-size:14px;color:var(--red)">${avgAb}</td>
+        <td style="text-align:right;color:var(--muted)">—</td>
         <td style="text-align:right;color:var(--muted)">—</td>
         <td style="text-align:right;color:var(--muted)">—</td>
         <td style="text-align:right;font-weight:600;color:var(--red)">${avgAb}</td>
@@ -3196,12 +3076,17 @@ function renderPracticeSection(container,prac,agents,cls){
   const wrap=document.createElement('div');
   wrap.className='table-wrap';
 
+  // La columna SMS aparece siempre que el CSV de SMS esté cargado para la práctica
+  // (aunque la semana seleccionada no tenga mensajes — se muestran ceros).
+  const hasSms = (prac==='Alonso Medical' && !!(state.alonsoSms && state.alonsoSms.length))
+    || agents.some(a => (a.sms_sent||0) > 0 || (a.smsList && a.smsList.length));
   const table=document.createElement('table');
   table.innerHTML=`<thead><tr>
     <th>AGENTE</th>
     <th>LLAMADAS / DÍA</th>
     <th>CONTESTADAS</th>
     <th>SALIENTES</th>
+    ${hasSms?'<th>SMS ENVIADOS</th>':''}
     <th>PERDIDAS</th>
     <th>TIEMPO EN LÍNEA</th>
     <th>TIEMPO MUERTO</th>
@@ -3223,7 +3108,7 @@ function renderPracticeSection(container,prac,agents,cls){
     const deadPct=Math.round(deadMins/maxDead*100);
     const missRate=total?Math.round(a.calls_missed/total*100):0;
     const shortName=a.name;
-    const barColor=cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='access'?'var(--access)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
+    const barColor=cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
     const platTag=isNoAgent(a.name)
       ?`<span class="aplat" style="background:#eee;color:#888;font-style:italic;">SIN AGENTE</span>`
       :a.platform==='nextiva'
@@ -3234,9 +3119,17 @@ function renderPracticeSection(container,prac,agents,cls){
       ?`<span class="aplat tag-weave">WEAVE</span>`
       :`<span class="aplat tag-ooma">OOMA</span>`;
 
-    // Build day breakdown rows
-    const days=Object.entries(a.byDay).sort(([x],[y])=>x.localeCompare(y));
-    const dayRows=days.map(([,d])=>{
+    // SMS por día (solo cuando hay datos de SMS en la práctica)
+    const smsByDay = {};
+    (a.smsList||[]).forEach(m => {
+      const dk = dayKey(m.time);
+      if(!smsByDay[dk]) smsByDay[dk] = {label: dayLabel(m.time), count: 0};
+      smsByDay[dk].count++;
+    });
+    // Combinar días de llamadas y de SMS (un agente puede tener SMS un día sin llamadas)
+    const allDayKeys = [...new Set([...Object.keys(a.byDay), ...(hasSms?Object.keys(smsByDay):[])])].sort();
+    const days = allDayKeys.map(dk => [dk, a.byDay[dk] || {label: smsByDay[dk].label, count:0, in:0, out:0, missed:0}]);
+    const dayRows=days.map(([dk,d])=>{
       const dayTotal= isNoAgent(a.name) ? (d.missed||0) : (d.in||0)+(d.out||0);
       const cls2=isNoAgent(a.name)?'day-low':dayTotal>=GOAL_EXCELLENT?'day-ideal':dayTotal>=GOAL_GOOD?'day-good':dayTotal>=GOAL_MIN?'day-min':dayTotal>=GOAL_LOW?'day-low':'day-alert';
       return `<tr>
@@ -3244,6 +3137,7 @@ function renderPracticeSection(container,prac,agents,cls){
         <td><span class="day-pill ${cls2}" style="display:inline-block">${dayTotal}</span></td>
         <td>${d.in||0}</td>
         <td>${d.out||0}</td>
+        ${hasSms?`<td style="color:var(--alonso);">${smsByDay[dk]?.count||0}</td>`:''}
         <td style="color:${(d.missed||0)>0?'var(--red)':'var(--ink2)'}">${d.missed||0}</td>
       </tr>`;
     }).join('');
@@ -3255,8 +3149,9 @@ function renderPracticeSection(container,prac,agents,cls){
       return `<span class="day-pill ${cls2}">${d.label}: ${dayTotal}</span>`;
     }).join('');
 
-    // Days worked (needed for avg and efficiency)
-    const daysWorked = Object.keys(a.byDay).length || 1;
+    // Days worked (needed for avg and efficiency) — incluye días con solo SMS
+    const daysWorkedSet = new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
+    const daysWorked = daysWorkedSet.size || 1;
 
     // Main agent row (clickable)
     const tr=document.createElement('tr');
@@ -3276,6 +3171,7 @@ function renderPracticeSection(container,prac,agents,cls){
       </td>
       <td>${a.calls_answered}</td>
       <td>${a.calls_out}</td>
+      ${hasSms?`<td style="color:var(--alonso);font-weight:600;">${(a.sms_sent||0).toLocaleString()}</td>`:''}
       <td style="color:${missRate>20?'var(--red)':'var(--ink2)'}">
         ${a.calls_missed} <span style="font-size:10px;color:var(--muted)">(${missRate}%)</span>
       </td>
@@ -3309,7 +3205,7 @@ function renderPracticeSection(container,prac,agents,cls){
     const detailTr = document.createElement('tr');
     detailTr.style.display = 'none';
     const detailTd = document.createElement('td');
-    detailTd.colSpan = 8;
+    detailTd.colSpan = hasSms ? 9 : 8;
     detailTd.style.padding = '0';
     detailTd.innerHTML = `
       <table class="day-breakdown">
@@ -3318,6 +3214,7 @@ function renderPracticeSection(container,prac,agents,cls){
           <th>TOTAL LLAMADAS</th>
           <th>CONTESTADAS</th>
           <th>REALIZADAS</th>
+          ${hasSms?'<th>SMS</th>':''}
           <th>PERDIDAS</th>
         </tr></thead>
         <tbody>
@@ -3327,6 +3224,7 @@ function renderPracticeSection(container,prac,agents,cls){
             <td class="dbd-total">${total}</td>
             <td class="dbd-total">${a.calls_answered}</td>
             <td class="dbd-total">${a.calls_out}</td>
+            ${hasSms?`<td class="dbd-total" style="color:var(--alonso);">${a.sms_sent||0}</td>`:''}
             <td class="dbd-total" style="color:${a.calls_missed>0?'var(--red)':'var(--ink)'}">${a.calls_missed}</td>
           </tr>
         </tbody>
@@ -3727,206 +3625,6 @@ function renderAbandonedPanel(container, agents){
     if(showGastro) makeWeekChart('abWeekChartGastro', wkDayLabels, wkContestG, wkAbandG, wkTasaG);
 
   }, 50);
-}
-
-// ─── ACCESS ABANDONED PANEL ─────────────────────────────────────────────────
-function renderAccessAbandonedPanel(container, agents){
-  const ab = state._accessAbandoned;
-  if(!ab) return;
-  const f = state.filter;
-  if(f !== 'all' && f !== 'Access Medical') return;
-
-  const abWeek = getAbandonedForWeek(ab);
-  const weekMissedAC = agents ? agents.filter(a=>a.practice==='Access Medical').reduce((s,a)=>s+a.calls_missed,0) : 0;
-  const sec = document.createElement('div');
-  sec.style.cssText = 'margin-bottom:32px;';
-
-  const tasa = abWeek.total ? Math.round(abWeek.abandoned/abWeek.total*100) : 0;
-  const selWeekLbl = state.weeks && state.weeks.length ? weekLabel(state.weeks[state.weekIdx]) : '';
-
-  // Section header
-  const hdr = document.createElement('div');
-  hdr.className = 'section-hdr';
-  hdr.innerHTML = 'LLAMADAS ABANDONADAS — ACCESS MEDICAL <span style="font-size:10px;padding:2px 8px;border-radius:2px;background:var(--access-bg);color:var(--access);margin-left:8px;">' + abWeek.abandoned.toLocaleString() + ' no contestadas · ' + selWeekLbl + '</span>';
-  sec.appendChild(hdr);
-
-  // KPI row
-  const kRow = document.createElement('div');
-  kRow.className = 'kpi-row';
-  kRow.innerHTML = `
-    <div class="kpi">
-      <div class="kpi-lbl">TOTAL ENTRANTES</div>
-      <div class="kpi-val">${abWeek.total.toLocaleString()}</div>
-      <div class="kpi-sub">Semana seleccionada</div>
-    </div>
-    <div class="kpi good">
-      <div class="kpi-lbl">CONTESTADAS</div>
-      <div class="kpi-val">${Math.max(0,abWeek.total-abWeek.abandoned-weekMissedAC).toLocaleString()}</div>
-      <div class="kpi-sub">${Math.round(Math.max(0,abWeek.total-abWeek.abandoned-weekMissedAC)/abWeek.total*100)||0}% del total</div>
-    </div>
-    <div class="kpi alert">
-      <div class="kpi-lbl">ABANDONADAS</div>
-      <div class="kpi-val">${abWeek.abandoned.toLocaleString()}</div>
-      <div class="kpi-sub">${tasa}% no contestadas</div>
-    </div>
-    <div class="kpi ${tasa>50?'alert':tasa>35?'warn':'good'}">
-      <div class="kpi-lbl">TASA DE ABANDONO</div>
-      <div class="kpi-val">${tasa}%</div>
-      <div class="kpi-sub">Ventana matching: 10 min</div>
-    </div>
-  `;
-  sec.appendChild(kRow);
-
-  // Charts row
-  const chartRow = document.createElement('div');
-  chartRow.className = 'chart-row';
-
-  // Monthly grouped bars
-  const monthCard = document.createElement('div');
-  monthCard.className = 'chart-card';
-  monthCard.innerHTML = `
-    <div class="chart-title">ACCESS MEDICAL — TENDENCIA MENSUAL CONTESTADAS VS ABANDONADAS</div>
-    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:10px;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#1565FF;display:inline-block;"></span>Contestadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#b83232;display:inline-block;"></span>Abandonadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:3px;background:#92600a;display:inline-block;border-radius:1px;"></span>Tasa %</span>
-    </div>
-    <div style="position:relative;height:200px;"><canvas id="acMonthChart"></canvas></div>`;
-  chartRow.appendChild(monthCard);
-
-  // Last 5 days
-  const selWeekLbl2 = state.weeks && state.weeks.length ? weekLabel(state.weeks[state.weekIdx]) : '';
-  const weekCard = document.createElement('div');
-  weekCard.className = 'chart-card';
-  weekCard.innerHTML = `
-    <div class="chart-title">ACCESS MEDICAL — SEMANA DEL ${selWeekLbl2} · CONTESTADAS VS ABANDONADAS POR DÍA</div>
-    <div style="display:flex;gap:16px;margin-bottom:8px;font-size:10px;align-items:center;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#1565FF;display:inline-block;"></span>Contestadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#b83232;display:inline-block;"></span>Abandonadas</span>
-    </div>
-    <div style="position:relative;height:210px;"><canvas id="acWeekChart"></canvas></div>`;
-  chartRow.appendChild(weekCard);
-  sec.appendChild(chartRow);
-  container.appendChild(sec);
-
-  // Data
-  const months = Object.keys(ab.byMonth).sort();
-  const monthLabels = months.map(m=>{
-    const [y,mo]=m.split('-');
-    const names=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    return names[+mo]+" '"+(y.slice(2));
-  });
-  const mContest = months.map(m=> ab.byMonth[m].total - ab.byMonth[m].abandoned);
-  const mAband   = months.map(m=> ab.byMonth[m].abandoned);
-  const mTasa    = months.map(m=> ab.byMonth[m].total ? Math.round(ab.byMonth[m].abandoned/ab.byMonth[m].total*100) : 0);
-
-  const wkLabels = [], wkAband = [], wkTasa2 = [], wkContest2 = [];
-  if(ab.byDay){
-    const dayNames2=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    const mNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
-    let dayKeys5 = [];
-    if(selWeek){
-      const mon = new Date(selWeek+'T12:00:00');
-      for(let i=0;i<5;i++){
-        const d=new Date(mon); d.setDate(mon.getDate()+i);
-        dayKeys5.push(d.toISOString().slice(0,10));
-      }
-    } else {
-      const allWkKeys=Object.keys(ab.byDay).sort().filter(k=>{ const d=new Date(k+'T12:00:00').getDay(); return d>=1&&d<=5; });
-      dayKeys5=allWkKeys.slice(-5);
-    }
-    dayKeys5.forEach(k=>{
-      const d=ab.byDay[k]; if(!d) return;
-      const dt=new Date(k+'T12:00:00');
-      wkLabels.push(dayNames2[dt.getDay()]+' '+dt.getDate()+' '+mNames[dt.getMonth()]);
-      wkAband.push(d.abandoned);
-      wkTasa2.push(d.total ? Math.round(d.abandoned/d.total*100) : 0);
-      wkContest2.push(Math.max(0, d.total - d.abandoned));
-    });
-  }
-
-  const textC='#9a9a92', gridC='rgba(0,0,0,0.06)';
-  const DAY_COLORS=['#1565FF','#b83232','#1a5a7a','#7a1a4a','#92600a'];
-
-  setTimeout(()=>{
-    // Monthly grouped bar + tasa line
-    const mc = document.getElementById('acMonthChart');
-    if(mc){
-      chartInstances.push(new Chart(mc,{
-        type:'bar',
-        data:{
-          labels:monthLabels,
-          datasets:[
-            { label:'Contestadas', data:mContest, backgroundColor:'#1565FF', borderRadius:3, barPercentage:0.4, categoryPercentage:0.8 },
-            { label:'Abandonadas', data:mAband,   backgroundColor:'#b83232', borderRadius:3, barPercentage:0.4, categoryPercentage:0.8 },
-            { label:'Tasa %', data:mTasa, type:'line', yAxisID:'y2', borderColor:'#92600a', backgroundColor:'transparent',
-              borderWidth:2, pointBackgroundColor:'#92600a', pointRadius:4, tension:0.3, order:0 }
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='Tasa %'?` ${ctx.raw}%`:` ${ctx.raw.toLocaleString()}`}} },
-          scales:{
-            x:{ ticks:{color:textC,font:{size:10}}, grid:{display:false} },
-            y:{ ticks:{color:textC,font:{size:10},callback:v=>v.toLocaleString()}, grid:{color:gridC} },
-            y2:{ position:'right', min:0, max:100, ticks:{color:'#92600a',font:{size:10},callback:v=>v+'%'}, grid:{display:false} }
-          }
-        }
-      }));
-    }
-
-    // Last 5 days colored bars with value+% labels
-    const wc = document.getElementById('acWeekChart');
-    if(wc && wkLabels.length){
-      const barColors = wkLabels.map((_,i)=>DAY_COLORS[i%DAY_COLORS.length]);
-      chartInstances.push(new Chart(wc,{
-        type:'bar',
-        data:{
-          labels:wkLabels,
-          datasets:[
-            { label:'Contestadas', data:wkContest2, backgroundColor:'#1565FF', borderRadius:4, barPercentage:0.45, categoryPercentage:0.75 },
-            { label:'Abandonadas', data:wkAband, backgroundColor:'#b83232', borderRadius:4, barPercentage:0.45, categoryPercentage:0.75 }
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{
-            legend:{display:false},
-            tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='Abandonadas'?`${ctx.raw.toLocaleString()} abandonadas (${wkTasa2[ctx.dataIndex]}%)`:`${ctx.raw.toLocaleString()} contestadas`}},
-            datalabels:{
-              display:true, anchor:'end', align:'end',
-              color:ctx=>DAY_COLORS[ctx.dataIndex%DAY_COLORS.length],
-              font:{size:12,weight:'bold',family:"'DM Mono', monospace"},
-              formatter:(v,ctx)=>ctx.dataset.label==='Abandonadas'?v.toLocaleString()+'\n'+wkTasa2[ctx.dataIndex]+'%':v.toLocaleString(),
-              textAlign:'center', padding:{bottom:2}
-            }
-          },
-          layout:{ padding:{ top:40 } },
-          scales:{
-            x:{ ticks:{color:textC,font:{size:11}}, grid:{display:false} },
-            y:{ display:false }
-          }
-        },
-        plugins: window.ChartDataLabels ? [ChartDataLabels] : []
-      }));
-    }
-  }, 50);
-
-  // ── TABLA MENSUAL POR AGENTE — ACCESS ──────────────────────────────────────
-  const acMonthKeys = Object.keys(ab.byMonth).sort();
-  const acMonthLabels = acMonthKeys.map(m=>{
-    const [y,mo]=m.split('-');
-    const ns=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    return ns[+mo]+"'"+(y.slice(2));
-  });
-  const accessAgents = agents.filter(a=>a.practice==='Access Medical');
-  if(accessAgents.length > 0 && acMonthKeys.length > 0){
-    const tableCard = buildMonthlyAgentTable(accessAgents, acMonthKeys, acMonthLabels, ab, [30,144,100]);
-    tableCard.id = 'acAgentMonthTable';
-    tableCard.querySelector('div').textContent = 'DETALLE MENSUAL POR AGENTE — ACCESS MEDICAL';
-    sec.appendChild(tableCard);
-  }
 }
 
 // ─── MONTHLY AGENT TABLE HELPER ─────────────────────────────────────────────
@@ -4392,6 +4090,117 @@ function renderAlonsoAbandonedPanel(container, agents){
   }, 50);
 }
 
+// ─── ALONSO SMS PANEL ────────────────────────────────────────────────────────
+// Sección dedicada al reporte de mensajes de texto manuales enviados por agentes.
+function renderAlonsoSmsPanel(container){
+  if(!state.alonsoSms || !state.alonsoSms.length) return;
+  const f = state.filter;
+  if(f !== 'all' && f !== 'Alonso Medical') return;
+
+  // Agentes de Alonso — usar allAgents (histórico completo, sin filtro semanal).
+  // Se incluyen agentes con llamadas O con SMS para la tabla unificada.
+  const alonsoAll = state.allAgents.filter(a => a.practice==='Alonso Medical');
+  const agentsAll = alonsoAll.filter(a => a.smsList && a.smsList.length);
+  if(!alonsoAll.length) return;
+
+  const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
+  const selWeekLbl = selWeek ? weekLabel(selWeek) : '';
+
+  // Días Lun-Vie de la semana seleccionada
+  const dayKeys5 = [];
+  if(selWeek){
+    const mon = new Date(selWeek+'T12:00:00');
+    for(let i=0;i<5;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); dayKeys5.push(d.toISOString().slice(0,10)); }
+  }
+  const dayN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dayHeaders = dayKeys5.map(k=>{ const dt=new Date(k+'T12:00:00'); return dayN[dt.getDay()]+' '+dt.getDate(); });
+
+  // Conteos por agente: llamadas totales (contestadas + realizadas) y SMS,
+  // por día de la semana seleccionada, con total de semana y total del reporte SMS.
+  const rowsData = alonsoAll.map(a=>{
+    const smsL = a.smsList || [];
+    const perDayCalls = dayKeys5.map(k => a.callList.filter(c => dayKey(c.time)===k && (c.direction==='out' || (c.direction==='in' && c.answered))).length);
+    const perDaySms   = dayKeys5.map(k => smsL.filter(m => dayKey(m.time)===k).length);
+    const weekCalls = perDayCalls.reduce((x,y)=>x+y,0);
+    const weekSms   = perDaySms.reduce((x,y)=>x+y,0);
+    return { name:a.name, perDayCalls, perDaySms, weekCalls, weekSms, allSms:smsL.length };
+  }).filter(r => r.weekCalls>0 || r.weekSms>0 || r.allSms>0)
+    .sort((x,y)=> (y.weekCalls+y.weekSms)-(x.weekCalls+x.weekSms) || y.allSms-x.allSms);
+
+  const weekTotalAll  = rowsData.reduce((s,r)=>s+r.weekSms,0);
+  const grandTotalAll = rowsData.reduce((s,r)=>s+r.allSms,0);
+  const weekCallsAll  = rowsData.reduce((s,r)=>s+r.weekCalls,0);
+
+  const sec = document.createElement('div');
+  sec.style.cssText = 'margin-bottom:32px;';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'section-hdr';
+  hdr.innerHTML = 'REPORTE DE MENSAJES Y LLAMADAS — ALONSO MEDICAL <span style="font-size:10px;padding:2px 8px;border-radius:2px;background:var(--alonso-bg);color:var(--alonso);margin-left:8px;">' + weekTotalAll.toLocaleString() + ' SMS · ' + selWeekLbl + '</span>';
+  sec.appendChild(hdr);
+
+  // Nota si la semana seleccionada no tiene SMS pero el reporte sí
+  if(weekTotalAll === 0 && grandTotalAll > 0){
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:10px;font-family:\'DM Mono\',monospace;';
+    note.textContent = 'La semana seleccionada no tiene SMS. El reporte cargado contiene ' + grandTotalAll.toLocaleString() + ' mensajes en otras fechas — navega a esas semanas para ver el detalle diario.';
+    sec.appendChild(note);
+  }
+
+  // ── Tabla UNIFICADA: llamadas totales (izquierda) + SMS (derecha) ──
+  // Columna de agentes compartida; encabezado agrupado en dos niveles.
+  const BLUE_G = 'linear-gradient(135deg,#1565FF,#0d47a1)';
+  const TERRA_G = 'linear-gradient(135deg,#a34d22,#7a3a1a)';
+  const tableRow = document.createElement('div');
+  tableRow.style.cssText = 'margin-bottom:14px;';
+  const tableCard = document.createElement('div');
+  tableCard.className = 'chart-card';
+  const nDays = dayKeys5.length;
+  let tHtml = '<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:\'DM Mono\',monospace;">';
+  // Nivel 1: grupos
+  tHtml += '<tr>';
+  tHtml += '<th rowspan="2" style="text-align:left;padding:6px 10px;font-size:9px;letter-spacing:1px;font-weight:700;background:#2b2b26;color:#fff;vertical-align:middle;">AGENTE</th>';
+  tHtml += '<th colspan="'+(nDays+1)+'" style="text-align:center;padding:7px 6px;font-size:10px;letter-spacing:2px;font-weight:700;background:'+BLUE_G+';color:#fff;">LLAMADAS TOTALES · '+weekCallsAll.toLocaleString()+'</th>';
+  tHtml += '<th colspan="'+(nDays+1)+'" style="text-align:center;padding:7px 6px;font-size:10px;letter-spacing:2px;font-weight:700;background:'+TERRA_G+';color:#fff;">SMS ENVIADOS · '+weekTotalAll.toLocaleString()+'</th>';
+  tHtml += '</tr>';
+  // Nivel 2: días
+  tHtml += '<tr>';
+  dayHeaders.forEach(h => tHtml += '<th style="text-align:center;padding:5px 6px;font-size:9px;letter-spacing:1px;font-weight:600;background:#e3edff;color:#0d47a1;">'+h.toUpperCase()+'</th>');
+  tHtml += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:700;background:#c9dcff;color:#0d47a1;">SEMANA</th>';
+  dayHeaders.forEach(h => tHtml += '<th style="text-align:center;padding:5px 6px;font-size:9px;letter-spacing:1px;font-weight:600;background:#f4e3d7;color:#7a3a1a;">'+h.toUpperCase()+'</th>');
+  tHtml += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:700;background:#ecd0bc;color:#7a3a1a;">SEMANA</th>';
+  tHtml += '</tr>';
+  // Filas de agentes
+  rowsData.forEach((r,i)=>{
+    tHtml += '<tr style="background:'+(i%2?'#faf7f3':'transparent')+';">';
+    tHtml += '<td style="padding:5px 10px;font-weight:600;border-right:2px solid #2b2b26;">'+r.name+'</td>';
+    r.perDayCalls.forEach(n => tHtml += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'#1565FF':'var(--muted)')+';">'+n+'</td>');
+    tHtml += '<td style="text-align:center;padding:5px 8px;font-weight:700;font-size:12px;color:#0d47a1;background:rgba(21,101,255,0.08);">'+r.weekCalls+'</td>';
+    r.perDaySms.forEach(n => tHtml += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'#a34d22':'var(--muted)')+';">'+n+'</td>');
+    tHtml += '<td style="text-align:center;padding:5px 8px;font-weight:700;font-size:12px;color:#7a3a1a;background:rgba(122,58,26,0.08);">'+r.weekSms+'</td></tr>';
+  });
+  // Fila TOTAL
+  tHtml += '<tr style="border-top:2px solid #2b2b26;font-weight:700;background:#f1ede7;">';
+  tHtml += '<td style="padding:6px 10px;border-right:2px solid #2b2b26;">TOTAL</td>';
+  dayKeys5.forEach((k,idx)=>{
+    const dTot = rowsData.reduce((s,r)=>s+r.perDayCalls[idx],0);
+    tHtml += '<td style="text-align:center;padding:6px 6px;color:#0d47a1;">'+dTot+'</td>';
+  });
+  tHtml += '<td style="text-align:center;padding:6px 8px;font-size:12px;color:#fff;background:'+BLUE_G+';">'+weekCallsAll.toLocaleString()+'</td>';
+  dayKeys5.forEach((k,idx)=>{
+    const dTot = rowsData.reduce((s,r)=>s+r.perDaySms[idx],0);
+    tHtml += '<td style="text-align:center;padding:6px 6px;color:#7a3a1a;">'+dTot+'</td>';
+  });
+  tHtml += '<td style="text-align:center;padding:6px 8px;font-size:12px;color:#fff;background:'+TERRA_G+';">'+weekTotalAll.toLocaleString()+'</td></tr>';
+  tHtml += '</table>';
+  tableCard.innerHTML = tHtml;
+  tableRow.appendChild(tableCard);
+  sec.appendChild(tableRow);
+
+  container.appendChild(sec);
+
+}
+
 // ─── DEAD TIME DETAIL ──────────────────────────────────────────────────────
 function renderDeadTime(container,agents){
   const withDead=agents.filter(a=>a.dead_gaps.length>0 && !isNoAgent(a.name));
@@ -4533,15 +4342,13 @@ async function _generateAIReportInner(mode, agents, practiceLabel, apiKey, btn, 
   } else if(f_ai==='Gastroenterology' && state._nextivaAbandoned){
     const w = getAbandonedForWeekByPractice(state._nextivaAbandoned,'gastro');
     teamTotalInbound = w.total; teamTotalAbandoned = w.abandoned;
-  } else if(f_ai==='Access Medical' && state._accessAbandoned){
-    const w = getAbandonedForWeek(state._accessAbandoned);
-    teamTotalInbound = w.total; teamTotalAbandoned = w.abandoned;
   } else if(f_ai==='Advantage Medical' && state._advantageAbandoned){
     const w = getAbandonedForWeek(state._advantageAbandoned);
     teamTotalInbound = w.total; teamTotalAbandoned = w.abandoned;
   } else if(f_ai==='Alonso Medical' && state._alonsoAbandoned){
     const w = getAbandonedForWeek(state._alonsoAbandoned);
-    teamTotalInbound = w.total; teamTotalAbandoned = w.abandoned;
+    teamTotalInbound = w.total + agents.reduce((s,a)=>s+a.calls_missed,0);
+    teamTotalAbandoned = w.abandoned;
   } else if(f_ai==='MAB Pulmonary' && state._oomaAbandoned){
     const w = getAbandonedForWeek(state._oomaAbandoned);
     teamTotalInbound = w.total; teamTotalAbandoned = w.abandoned;
@@ -4549,19 +4356,17 @@ async function _generateAIReportInner(mode, agents, practiceLabel, apiKey, btn, 
     let tot=0, abn=0;
     if(state._nextivaAbandoned){ const w=getAbandonedForWeek(state._nextivaAbandoned); tot+=w.total; abn+=w.abandoned; }
     else { tot+=agents.filter(a=>a.practice==='Cardiovascular'||a.practice==='Gastroenterology').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0); }
-    if(state._accessAbandoned){ const w=getAbandonedForWeek(state._accessAbandoned); tot+=w.total; abn+=w.abandoned; }
-    else { tot+=agents.filter(a=>a.practice==='Access Medical').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0); }
     if(state._advantageAbandoned){ const w=getAbandonedForWeek(state._advantageAbandoned); tot+=w.total; abn+=w.abandoned; }
     else { tot+=agents.filter(a=>a.practice==='Advantage Medical').reduce((s,a)=>s+a.calls_answered,0); }
-    if(state._alonsoAbandoned){ const w=getAbandonedForWeek(state._alonsoAbandoned); tot+=w.total; abn+=w.abandoned; }
-    else { tot+=agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_answered,0); }
+    if(state._alonsoAbandoned){ const w=getAbandonedForWeek(state._alonsoAbandoned); tot+=w.total+agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_missed,0); abn+=w.abandoned; }
+    else { tot+=agents.filter(a=>a.practice==='Alonso Medical').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0); }
     if(state._oomaAbandoned){ const w=getAbandonedForWeek(state._oomaAbandoned); tot+=w.total; abn+=w.abandoned; }
     else { tot+=agents.filter(a=>a.practice==='MAB Pulmonary').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0); }
     teamTotalInbound=tot; teamTotalAbandoned=abn;
   }
 
-  // Missed = inbound that rang but weren't answered (not abandoned) — exclude Advantage & Alonso
-  const teamMissed = agents.filter(a=>a.practice!=='Advantage Medical'&&a.practice!=='Alonso Medical').reduce((s,a)=>s+a.calls_missed,0);
+  // Missed = inbound que timbraron sin respuesta. Solo Advantage se excluye (sus missed = panel abandonadas).
+  const teamMissed = agents.filter(a=>a.practice!=='Advantage Medical').reduce((s,a)=>s+a.calls_missed,0);
   const teamAnswered = Math.max(0, teamTotalInbound - teamMissed - teamTotalAbandoned);
   const teamAbandonRate = teamTotalInbound > 0 ? Math.round(teamTotalAbandoned/teamTotalInbound*100) : 0;
   const totalCallsAllPractices = teamTotalInbound + agents.reduce((s,a)=>s+a.calls_out,0);
@@ -5097,7 +4902,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
   const existing = document.getElementById('ai-report-panel');
   if(existing) existing.remove();
 
-  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Access Medical':'access','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
   const main  = document.getElementById('main');
   const panel = document.createElement('div');
   panel.id = 'ai-report-panel';
@@ -5413,7 +5218,7 @@ function exportAIPDF(){
   const yellow = [160,110,20],  orange = [180,80,20];
   const practiceColors = {
     'Cardiovascular':  [26,74,122], 'Gastroenterology': [29,110,64],
-    'MAB Pulmonary':   [122,26,74], 'Access Medical':   [122,90,26],
+    'MAB Pulmonary':   [122,26,74],
     'Advantage Medical':[26,90,90], 'Alonso Medical':   [122,58,26]
   };
   const ratingColors = {
