@@ -572,6 +572,9 @@ td {
         <button class="dl-btn dl-btn-secondary" onclick="generarPlantillaBanco()" style="background:#0F7A47;">
           🏦 Plantilla Banco
         </button>
+        <button class="dl-btn dl-btn-secondary" onclick="abrirEditorBancos()" style="background:#6D28D9;">
+          ✏️ Datos Bancarios
+        </button>
         <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">
           ⬇️ Descargar PDF — Todos juntos
         </button>
@@ -717,6 +720,19 @@ function cargarEmpleados(wb, sheetName, headerRow) {
     const hs = String(h || '').toLowerCase();
     if (hs.includes('add') && hs.includes('day')) addColIdx = i;
   });
+
+  // ── Columnas NOMINA 247 / NOMINA PERSONAL (detección de pago doble) ──
+  let col247 = -1, colPersonal = -1;
+  headers.forEach((h, i) => {
+    const hs = String(h || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (hs === 'NOMINA 247' || hs === 'NOMINA 24/7') col247 = i;
+    if (hs === 'NOMINA PERSONAL') colPersonal = i;
+  });
+  const numVal = v => {
+    if (v === null || v === undefined || v === '') return 0;
+    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
 
   // ── KEY COLUMN POSITIONS (fixed by position, not header name) ──────────────
   // col 12 = TOTAL (always USD)
@@ -874,6 +890,11 @@ function cargarEmpleados(wb, sheetName, headerRow) {
       isExempt:   isExempt,
       isManual:   isManual,
       periodo:    periodoStr,
+      monto247:      col247 >= 0 ? numVal(row[col247]) : 0,
+      montoPersonal: colPersonal >= 0 ? numVal(row[colPersonal]) : 0,
+      empresa:    (col247 >= 0 && numVal(row[col247]) > 0) ? '24/7 Medical Aid - Call Center S.A.S.'
+                : (colPersonal >= 0 && numVal(row[colPersonal]) > 0) ? '24/7 Medical Aid - Call Center LLC - USA'
+                : (isExempt ? '24/7 Medical Aid - Call Center LLC - USA' : '24/7 Medical Aid - Call Center S.A.S.'),
     });
   }
   return emps;
@@ -912,7 +933,7 @@ function buildPaystubPDF(empList) {
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold');
     doc.setFontSize(13);
-    doc.text(emp.isExempt ? 'Call Center Paystub' : '24/7 Medical Aid Call Center', ML, 11);
+    doc.text(emp.empresa || '24/7 Medical Aid Call Center', ML, 11);
 
     doc.setFont('helvetica','normal');
     doc.setFontSize(8);
@@ -976,8 +997,12 @@ function buildPaystubPDF(empList) {
     yL = row('Total bruto USD',        fmtUSD(emp.totalUSD),  ML, yL, true,  BW);
     if (emp.tasaCambio > 0)
       yL = row('Tasa de cambio (USD)', `$ ${emp.tasaCambio.toLocaleString('es-CO')} COP`, ML, yL, false, BW);
-    if (emp.bonusUSD > 0)
+    if (emp.bonusUSD > 0) {
       yL = row('Bono / Bonus',         fmtUSD(emp.bonusUSD), ML, yL, true,  BW);
+    } else if (emp.bonusUSD < 0) {
+      // Bonus negativo = préstamo o descuento
+      yL = row('Prestamos o Descuentos', `- ${fmtUSD(Math.abs(emp.bonusUSD))}`, ML, yL, true, BW);
+    }
 
     // ── RIGHT COL ───────────────────────────────────────────────
     yR = secTitle('Periodo / Period',   yR, COL2, BW);
@@ -1107,7 +1132,7 @@ function buildPaystubPDF(empList) {
     doc.setFont('helvetica','normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...MGRAY);
-    doc.text(emp.isExempt ? 'Comprobante oficial - Call Center Paystub' : 'Comprobante oficial - 24/7 Medical Aid Call Center', ML, H - 5);
+    doc.text(`Comprobante oficial - ${emp.empresa || '24/7 Medical Aid Call Center'}`, ML, H - 5);
     const today = new Date().toISOString().slice(0,10);
     doc.text(`Generado: ${today}`, MR, H - 5, { align: 'right' });
   });
@@ -1207,6 +1232,10 @@ async function generate() {
 
   await sleep(80);
   empleados = cargarEmpleados(workbook, p.sheet, p.headerRow);
+  setTimeout(() => {
+    const dup = detectarNominaDoble();
+    if (dup.length) alert('\u26a0\ufe0f ATENCI\u00d3N \u2014 PAGO DOBLE DETECTADO\n\n' + dup.join('\n') + '\n\nEstos agentes tienen monto en NOMINA 24/7 y en NOMINA PERSONAL a la vez.\nCorrige el Excel antes de generar comprobantes o la plantilla del banco.');
+  }, 300);
 
   if (!empleados.length) {
     showError('No se encontraron empleados para este período.');
@@ -1531,7 +1560,21 @@ function buildSummaryPDF(empList, periodo) {
   return doc.output('arraybuffer');
 }
 
+// ── Detección de agentes con nómina 24/7 Y cuenta personal a la vez ──
+function detectarNominaDoble(){
+  // Pago doble = el agente tiene monto en NOMINA 247 y en NOMINA PERSONAL en el mismo período
+  return empleados
+    .filter(e => (e.monto247 || 0) > 0 && (e.montoPersonal || 0) > 0)
+    .map(e => e.nombre + '  (24/7: $' + Math.round(e.monto247).toLocaleString('es-CO') + ' + Personal: $' + Math.round(e.montoPersonal).toLocaleString('es-CO') + ')');
+}
+function verificarNominaDoble(){
+  const dup = detectarNominaDoble();
+  if(!dup.length) return true;
+  return confirm('\u26a0\ufe0f ALERTA DE PAGO DOBLE\n\nEstos agentes tienen valor en NOMINA 24/7 Y en NOMINA PERSONAL al mismo tiempo en este per\u00edodo:\n\n\u2022 ' + dup.join('\n\u2022 ') + '\n\nCorrige el archivo de Excel (deja el monto solo en una de las dos columnas) y vuelve a cargarlo.\n\n\u00bfDeseas continuar de todos modos?');
+}
+
 function downloadSummaryPDF() {
+  if(!verificarNominaDoble()) return;
   if (!empleados.length) return;
   const sel = document.getElementById('period-select');
   const p = periodos[parseInt(sel.value)];
@@ -1545,6 +1588,7 @@ function downloadSummaryPDF() {
 }
 
 function downloadPDF() {
+  if(!verificarNominaDoble()) return;
   if (!pdfBytes) return;
   const sel = document.getElementById('period-select');
   const p = periodos[parseInt(sel.value)];
@@ -1573,6 +1617,7 @@ function downloadIndividual(idx) {
 }
 
 async function downloadAllIndividual() {
+  if(!verificarNominaDoble()) return;
   if (!empleados.length) return;
   const btn = document.getElementById('dl-all-ind-btn');
   btn.disabled = true;
@@ -1628,6 +1673,18 @@ function resetBtn() {
 </div>
 
 <!-- ── MODAL AGREGAR EMPLEADO ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-bancos-edit">
+  <div class="modal" style="max-width:640px;">
+    <h3 style="margin-top:0;">✏️ Datos Bancarios de Agentes</h3>
+    <input type="text" id="be-buscar" placeholder="Buscar agente…" oninput="refrescarEditorBancos()"
+      style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:10px;font-size:0.9rem;">
+    <div id="be-lista" style="max-height:340px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;"></div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn-cancel" onclick="document.getElementById('modal-bancos-edit').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-emp">
   <div class="modal">
     <h3>Agregar Informacion Bancaria</h3>
@@ -1649,26 +1706,58 @@ function resetBtn() {
       <div class="form-group">
         <label>Codigo del Banco</label>
         <select id="f-codBanco">
-          <option value="7">7 - Bancolombia</option>
-          <option value="1">1 - Banco de Bogota</option>
+          <option value="1">1 - Banco de Bogotá</option>
           <option value="2">2 - Banco Popular</option>
-          <option value="6">6 - Banco Itau</option>
+          <option value="6">6 - Itaú (antes CorpBanca)</option>
+          <option value="7" selected>7 - Bancolombia</option>
           <option value="9">9 - Citibank</option>
-          <option value="13">13 - BBVA</option>
-          <option value="19">19 - Scotiabank Colpatria</option>
+          <option value="12">12 - Banco GNB Sudameris</option>
+          <option value="13">13 - BBVA Colombia</option>
+          <option value="14">14 - Helm Bank</option>
+          <option value="19">19 - Scotiabank Colpatria S.A.</option>
+          <option value="21">21 - Financiera Juriscoop S.A. Compañía de Financiamiento</option>
           <option value="23">23 - Banco de Occidente</option>
-          <option value="32">32 - Banco Caja Social</option>
+          <option value="31">31 - Bancóldex S.A.</option>
+          <option value="32">32 - Banco Caja Social BCSC S.A.</option>
           <option value="40">40 - Banco Agrario</option>
-          <option value="51">51 - Davivienda</option>
+          <option value="42">42 - BNP Paribas</option>
+          <option value="47">47 - Mundo Mujer</option>
+          <option value="51">51 - Davivienda - Daviplata</option>
           <option value="52">52 - Banco AV Villas</option>
-          <option value="53">53 - Banco W</option>
-          <option value="58">58 - Banco CrediCoop</option>
-          <option value="62">62 - Bancoomeva</option>
+          <option value="53">53 - Banco W S.A.</option>
+          <option value="59">59 - Bancamía S.A.</option>
+          <option value="60">60 - Banco Pichincha</option>
+          <option value="61">61 - Bancoomeva</option>
+          <option value="62">62 - Banco Falabella S.A.</option>
           <option value="63">63 - Banco Finandina</option>
+          <option value="65">65 - Banco Santander de Negocios Colombia S.A.</option>
           <option value="66">66 - Banco Cooperativo Coopcentral</option>
-          <option value="83">83 - Compensar</option>
-          <option value="121">121 - Nequi</option>
-          <option value="507">507 - Nequi Bancolombia</option>
+          <option value="67">67 - Mi Banco</option>
+          <option value="69">69 - Banco Serfinanza</option>
+          <option value="70">70 - Lulo Bank</option>
+          <option value="71">71 - Banco J.P. Morgan Colombia S.A.</option>
+          <option value="283">283 - Cooperativa Financiera de Antioquia CFA</option>
+          <option value="286">286 - JFK Cooperativa Financiera</option>
+          <option value="289">289 - Cootrafa Cooperativa Financiera</option>
+          <option value="291">291 - Cofinep Cooperativa Financiera</option>
+          <option value="292">292 - Confiar Cooperativa Financiera</option>
+          <option value="303">303 - Banco Unión (antes Giros y Finanzas)</option>
+          <option value="370">370 - Coltefinaciera S.A.</option>
+          <option value="507">507 - Nequi</option>
+          <option value="558">558 - Ban100</option>
+          <option value="560">560 - Pibank</option>
+          <option value="637">637 - IRIS (Dann Regional)</option>
+          <option value="801">801 - MOVii</option>
+          <option value="802">802 - DING Tecnipagos S.A.</option>
+          <option value="803">803 - Powwi</option>
+          <option value="804">804 - Bancar Tecnología Ualá</option>
+          <option value="805">805 - BTG Pactual</option>
+          <option value="808">808 - BOLD CF</option>
+          <option value="809">809 - Nubank</option>
+          <option value="811">811 - RappiPay</option>
+          <option value="812">812 - Coink S.A.</option>
+          <option value="813">813 - Santander Consumer</option>
+          <option value="814">814 - Global66</option>
         </select>
       </div>
       <div class="form-group">
@@ -1803,11 +1892,62 @@ function normKey(str) {
   return str.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+function setCodBancoSeguro(cod){
+  var sel=document.getElementById('f-codBanco');
+  var v=String(cod||'7');
+  if(![...sel.options].some(function(o){return o.value===v;})){
+    var op=document.createElement('option');
+    op.value=v; op.textContent=v+' - (código no vigente, actualizar)';
+    sel.appendChild(op);
+  }
+  sel.value=v;
+}
 function cerrarModalBanco() {
   document.getElementById('modal-banco').classList.remove('show');
 }
 
 // ── AGREGAR EMPLEADO ─────────────────────────────────────────────
+// ── EDITOR DE DATOS BANCARIOS ──
+function _nombreBancoDe(cod){
+  const sel = document.getElementById('f-codBanco');
+  const op = [...sel.options].find(o => o.value === String(cod));
+  return op ? op.textContent : cod + ' - ?';
+}
+async function abrirEditorBancos(){
+  document.getElementById('be-lista').innerHTML = '<div style="padding:16px;color:#6b7280;">⏳ Cargando…</div>';
+  document.getElementById('modal-bancos-edit').classList.add('show');
+  sessionDB = await getBancoDB();
+  refrescarEditorBancos();
+}
+function refrescarEditorBancos(){
+  const q = (document.getElementById('be-buscar').value || '').trim().toUpperCase();
+  const entradas = Object.entries(sessionDB || {})
+    .filter(([k]) => !q || k.includes(q))
+    .sort((a,b) => a[0].localeCompare(b[0]));
+  document.getElementById('be-lista').innerHTML = entradas.map(([k,v]) => {
+    const cta = String(v.numCuenta||'');
+    const ctaMask = cta.length > 4 ? '\u2022\u2022\u2022\u2022' + cta.slice(-4) : cta;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f3f4f6;">' +
+      '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + k + '</div>' +
+      '<div style="font-size:0.75rem;color:#6b7280;">' + _nombreBancoDe(v.codBanco) + ' \u00b7 ' + (v.tipoProd||'') + ' ' + ctaMask + '</div></div>' +
+      '<button class="btn-add-info" onclick="editarBanco(\'' + k.replace(/'/g,"\\'") + '\')">Editar</button>' +
+    '</div>';
+  }).join('') || '<div style="padding:16px;color:#6b7280;">Sin resultados.</div>';
+}
+function editarBanco(key){
+  const v = sessionDB[key];
+  if(!v) return;
+  empPendienteNombre = key;
+  document.getElementById('modal-emp-nombre').textContent = key + '  (editando)';
+  document.getElementById('f-tipoId').value = String(v.tipoId || '1');
+  document.getElementById('f-numId').value = v.numId || '';
+  setCodBancoSeguro(v.codBanco);
+  document.getElementById('f-tipoProd').value = v.tipoProd || 'CA';
+  document.getElementById('f-numCuenta').value = v.numCuenta || '';
+  document.getElementById('f-email').value = v.email || '';
+  document.getElementById('modal-emp').classList.add('show');
+}
+
 function abrirModalEmp(nombre) {
   empPendienteNombre = nombre;
   document.getElementById('modal-emp-nombre').textContent = nombre;
@@ -1815,6 +1955,7 @@ function abrirModalEmp(nombre) {
   document.getElementById('f-tipoId').value = '1';
   document.getElementById('f-numId').value = '';
   document.getElementById('f-codBanco').value = '7';
+  // (los códigos provienen de la Tabla de Bancos oficial de Davivienda)
   document.getElementById('f-tipoProd').value = 'CA';
   document.getElementById('f-numCuenta').value = '';
   document.getElementById('f-email').value = '';
@@ -1850,6 +1991,7 @@ async function guardarEmp() {
   if (row) row.innerHTML = `<span>${empPendienteNombre}</span><span class="banco-ok">✅ Guardado</span>`;
 
   cerrarModalEmp();
+  if (document.getElementById('modal-bancos-edit').classList.contains('show')) refrescarEditorBancos();
 }
 
 // ── GENERATE XLSX ─────────────────────────────────────────────────
