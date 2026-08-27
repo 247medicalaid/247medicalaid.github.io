@@ -20,6 +20,7 @@
   --mab:#7a1a4a;--mab-bg:#fae8f0;
   --advantage:#1a5a5a;--advantage-bg:#e8f5f5;
   --alonso:#7a3a1a;--alonso-bg:#f7ece4;
+  --tsm:#4a2a7a;--tsm-bg:#efe8fa;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-height:100vh;}
@@ -31,7 +32,7 @@ body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-h
 .header-meta{font-size:11px;opacity:.6;letter-spacing:1px;color:#fff;}
 
 /* ─── UPLOAD ─── */
-.upload-row{display:grid;grid-template-columns:2fr 1fr 2fr 2fr;gap:14px;padding:24px 32px;border-bottom:1px solid var(--border);}
+.upload-row{display:grid;grid-template-columns:2fr 1fr 2fr 2fr 1fr;gap:14px;padding:24px 32px;border-bottom:1px solid var(--border);}
 .upload-row input[type=file]{display:none;}
 .upload-group{display:flex;flex-direction:row;gap:8px;border:2px solid var(--group-color,var(--advantage));border-radius:10px;padding:8px;position:relative;}
 .upload-group-label{position:absolute;top:-10px;left:12px;background:var(--bg);padding:0 6px;font-size:10px;font-family:'DM Mono',monospace;font-weight:700;color:var(--group-color,var(--advantage));letter-spacing:.08em;}
@@ -68,6 +69,8 @@ input[type=file]{display:none;}
 .ctrl-btn.advantage.active{background:var(--advantage);color:#fff;border-color:var(--advantage);}
 .ctrl-btn.alonso{border-color:var(--alonso);color:var(--alonso);background:var(--alonso-bg);}
 .ctrl-btn.alonso:hover{background:var(--alonso);color:#fff;}
+.ctrl-btn.tsm{border-color:var(--tsm);color:var(--tsm);background:var(--tsm-bg);}
+.ctrl-btn.tsm:hover{background:var(--tsm);color:#fff;}
 .ctrl-btn.alonso.active{background:var(--alonso);color:#fff;border-color:var(--alonso);}
 .pdf-btn{padding:8px 18px;background:#fff;color:#1565FF;border:1.5px solid #1565FF;border-radius:3px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
 .pdf-btn:hover{background:#1565FF;color:#fff;}
@@ -118,6 +121,9 @@ input[type=file]{display:none;}
 .advantage .practice-name{color:var(--advantage);}
 .alonso .practice-dot{background:var(--alonso);}
 .alonso .practice-name{color:var(--alonso);}
+.tsm .practice-dot{background:var(--tsm);}
+.tsm .practice-name{color:var(--tsm);}
+.practice-header.tsm{background:var(--tsm-bg);border-color:var(--tsm);}
 .practice-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;}
 .cardio .practice-name{color:var(--cardio);}
 .gastro .practice-name{color:var(--gastro);}
@@ -362,12 +368,23 @@ tr:hover td{background:var(--surface2);}
       <div class="uz-sub" id="fals-sub">Mensajes manuales por agente</div>
     </div>
     </div>
+
+  <div class="upload-group" style="--group-color:var(--tsm);">
+    <div class="upload-group-label" style="color:var(--tsm);">RINGCENTRAL · TOTAL SLEEP</div>
+    <div class="upload-zone" id="zone-tsm" ondragover="drag(event,'tsm')" ondragleave="dleave(event,'tsm')" ondrop="drop(event,'tsm')" onclick="document.getElementById('fts').click()" style="border:1px dashed var(--tsm);border-radius:6px;">
+      <div class="uz-platform" style="color:var(--tsm)">CALL RECORDS</div>
+      <div class="uz-icon">😴</div>
+      <div class="uz-title" id="fts-title">Subir XLSX Call Records</div>
+      <div class="uz-sub" id="fts-sub">Scheduling · Inlab · Externos</div>
+    </div>
+  </div>
   <input type="file" id="fn" accept=".csv" onchange="loadFile(event,'nextiva')">
   <input type="file" id="fna" accept=".csv" onchange="loadFile(event,'nextivaAll')">
   <input type="file" id="fo" accept=".csv" onchange="loadFile(event,'ooma')">
   <input type="file" id="fv" accept=".xlsx,.csv" onchange="loadFile(event,'advantage')">
   <input type="file" id="fva" accept=".xlsx,.csv" onchange="loadFile(event,'advantage-abandoned')">
   <input type="file" id="fals" accept=".csv" onchange="loadFile(event,'alonsoSms')">
+  <input type="file" id="fts" accept=".xlsx" onchange="loadFile(event,'tsm')">
   <input type="file" id="fal" accept=".csv" onchange="loadFile(event,'alonso')">
 </div>
 
@@ -379,6 +396,7 @@ tr:hover td{background:var(--surface2);}
   <button class="ctrl-btn mab" onclick="setFilter('MAB Pulmonary',this)">MAB Pulmonary</button>
     <button class="ctrl-btn advantage" onclick="setFilter('Advantage Medical',this)">Advantage Medical</button>
     <button class="ctrl-btn alonso" onclick="setFilter('Alonso Medical',this)">Alonso Medical</button>
+    <button class="ctrl-btn tsm" onclick="setFilter('Total Sleep',this)">Total Sleep</button>
   <span class="ctrl-label" style="margin-left:10px;">ORDENAR:</span>
   <button class="ctrl-btn active" id="sort-calls" onclick="setSort('calls',this)">Llamadas</button>
   <button class="ctrl-btn" id="sort-dur" onclick="setSort('duration',this)">Duración</button>
@@ -421,6 +439,9 @@ const SCHEDULES = {
   'MAB Pulmonary':    {start_h:8,start_m:0,end_h:17,end_m:0, lunch_mins:60,available_min:480,break_mins:30,label:'8:00am-5:00pm · 60m lunch · 2x15m break',dynamic:false},
   'Advantage Medical': {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
   'Alonso Medical':    {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
+  'Total Sleep · Scheduling': {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
+  'Total Sleep · Inlab':      {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Turno dinamico · 60m lunch · 2x15m break',dynamic:true},
+  'Total Sleep · Externos':   {lunch_mins:60,shift_mins:480,available_min:480,break_mins:30,label:'Agentes de la practica (comparativo)',dynamic:true},
 };
 function getSched(p){ return SCHEDULES[p]||SCHEDULES['Cardiovascular']; }
 function gapMinsAdj(gf,gt,sc,shiftStart){
@@ -461,6 +482,15 @@ const OOMA_DISPLAY = { '1003':'Diana — Ext 103', '1004':'Angela — Ext 104' }
 // Aceptamos tanto "CC Lady" (reportes históricos) como "CC Angela" (nuevos)
 const OOMA_LOCALNAME = { 'CC Diana':'Diana — Ext 103', 'CC Lady':'Angela — Ext 104', 'CC Angela':'Angela — Ext 104' };
 const OOMA_PRACTICE = 'MAB Pulmonary';
+
+// ─── TOTAL SLEEP MANAGEMENT ────────────────────────────────────────────────
+const TSM_TEAMS = {
+  'Total Sleep · Scheduling': ['dana urrego','alejandro hurtado','isabella lopez','paola hurtado'],
+  'Total Sleep · Inlab':      ['sebastian cruz','saori hoyos','maria jose vazquez']
+};
+const TSM_EXT_PRACTICE = 'Total Sleep · Externos';
+const TSM_QUEUES = ['scheduling center','hst scheduling','inlab scheduling','customer service','intake','insurance','wireless caller','voicemail','park','billing'];
+const TSM_MIN_EXT = 30; // umbral de llamadas para mostrar un agente externo
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
 // Register datalabels plugin
@@ -513,7 +543,7 @@ if(window.ChartDataLabels){ Chart.defaults.set('plugins.datalabels',{display:fal
 
 
 function isNoAgent(name){ return name==='No Agent'; }
-const state = { nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null };
+const state = {periodMode:'week', nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null };
 // Agents to fully exclude from all analysis
 const EXCLUDED_AGENTS = ['eduardo'];
 
@@ -1421,6 +1451,92 @@ function weaveAgentName(email){
     return p.charAt(0).toUpperCase()+p.slice(1);
   }).join(' ').trim() || email;
 }
+// ─── TOTAL SLEEP MANAGEMENT (export Call Records de RingCentral) ───────────
+function parseTsmTime(v){
+  if(!v) return null;
+  if(v instanceof Date) return isNaN(v)?null:v;
+  const m=String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2}):(\d{2})/);
+  if(!m) return null;
+  const d=new Date(+m[3], +m[1]-1, +m[2], +m[4], +m[5], +m[6]);
+  return isNaN(d)?null:d;
+}
+function parseTsmDur(v){
+  if(v===null||v===undefined||v==='') return 0;
+  // SheetJS entrega los tiempos de Excel como fracción de día (0.000232 = 20s)
+  if(typeof v==='number') return isNaN(v)?0:Math.round(v<1.01 ? v*86400 : v);
+  if(v instanceof Date) return v.getUTCHours()*3600+v.getUTCMinutes()*60+v.getUTCSeconds();
+  const p=String(v).split(':');
+  if(p.length>=3){
+    const sec=(+p[0])*3600+(+p[1])*60+parseFloat(p[2]||0);
+    return isNaN(sec)?0:Math.round(sec);
+  }
+  const n=parseFloat(v);
+  return isNaN(n)?0:Math.round(n<1.01 ? n*86400 : n);
+}
+function analyzeTSM(rows){
+  if(!rows||rows.length<2) return [];
+  // El export trae filas de metadatos arriba; buscar la fila de encabezados real
+  let hIdx=-1;
+  for(let i=0;i<Math.min(rows.length,25);i++){
+    const r=(rows[i]||[]).map(x=>String(x||'').trim());
+    if(r.includes('From Name')&&r.includes('Direction')){hIdx=i;break;}
+  }
+  if(hIdx<0) return [];
+  const h=rows[hIdx].map(x=>String(x||'').trim());
+  const ci={from:h.indexOf('From Name'),to:h.indexOf('To Name'),dt:h.indexOf('Date-Time'),
+            len:h.indexOf('Length'),dir:h.indexOf('Direction'),resp:h.indexOf('Call Response'),res:h.indexOf('Result')};
+  const teamOf=low=>{
+    for(const prac in TSM_TEAMS) if(TSM_TEAMS[prac].some(n=>low.includes(n))) return prac;
+    return null;
+  };
+  const agents={};
+  rows.slice(hIdx+1).forEach(r=>{
+    if(!r) return;
+    const t=parseTsmTime(r[ci.dt]); if(!t) return;
+    const dir=String(r[ci.dir]||'').toLowerCase();
+    const isOut=dir.includes('out');
+    // El agente es el destino en entrantes y el origen en salientes
+    const rawName=String((isOut?r[ci.from]:r[ci.to])||'').trim();
+    if(!rawName) return;
+    const low=rawName.toLowerCase();
+    if(TSM_QUEUES.some(q=>low.includes(q))) return;              // colas y buzones, no agentes
+    if(EXCLUDED_AGENTS.some(ex=>low.includes(ex))) return;
+    const res=String(r[ci.res]||'').toLowerCase();
+    if(res.includes('elsewhere')) return;                        // la contestó otro agente (evitar doble conteo)
+    const resp=String(r[ci.resp]||'').toLowerCase();
+    // Entrantes: "Answered"/"Not Answered" · Salientes: "Connected"/"Not Connected"
+    const answered=(resp.includes('answered')||resp.includes('connected'))&&!resp.startsWith('not');
+    const missed=res.includes('missed')||res.includes('abandon');
+    const prac=teamOf(low)||TSM_EXT_PRACTICE;
+    const dur=parseTsmDur(r[ci.len]);
+    if(!agents[rawName]) agents[rawName]={
+      name:rawName,platform:'ringcentral',practice:prac,
+      calls_in:0,calls_out:0,calls_answered:0,calls_missed:0,
+      total_duration:0,callList:[],byDay:{}
+    };
+    const a=agents[rawName];
+    const wknd=isWeekend(t);
+    if(isOut&&answered){ a.calls_out++; }
+    else if(!isOut&&answered){ a.calls_in++; a.calls_answered++; }
+    else if(!isOut&&missed&&!wknd){ a.calls_missed++; }
+    else return; // otras combinaciones (Not Answered sin missed, etc.) no cuentan
+    a.total_duration+=answered?dur:0;
+    a.callList.push({time:t,duration:answered?dur:0,direction:isOut?'out':'in',answered});
+    const dk=dayKey(t);
+    if(!a.byDay[dk]) a.byDay[dk]={label:dayLabel(t),count:0,in:0,out:0,missed:0};
+    a.byDay[dk].count++;
+    if(!isOut&&answered) a.byDay[dk].in++;
+    else if(isOut) a.byDay[dk].out++;
+    else a.byDay[dk].missed++;
+  });
+  // Externos: dejar solo los de volumen relevante para la comparación
+  const orden=[...Object.keys(TSM_TEAMS), TSM_EXT_PRACTICE];
+  return Object.values(agents)
+    .filter(a=>a.practice!==TSM_EXT_PRACTICE || (a.calls_in+a.calls_out+a.calls_missed)>=TSM_MIN_EXT)
+    .sort((x,y)=>orden.indexOf(x.practice)-orden.indexOf(y.practice)
+               ||(y.calls_in+y.calls_out)-(x.calls_in+x.calls_out));
+}
+
 function analyzeAlonso(rows, smsRows){
   rows = rows || [];
   if(!rows.length && !(smsRows && smsRows.length)) return [];
@@ -2100,7 +2216,7 @@ function loadFile(e,p){
   const file=e.target.files[0]; if(!file) return;
   const isXlsx=file.name.toLowerCase().endsWith('.xlsx');
   const zoneId = `zone-${p}`;
-  const idMap = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',advantage:'fv','advantage-abandoned':'fva',alonso:'fal',alonsoSms:'fals'};
+  const idMap = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',advantage:'fv','advantage-abandoned':'fva',alonso:'fal',alonsoSms:'fals',tsm:'fts'};
   const elId = idMap[p] || `f${p[0]}`;
   const titleId = `${elId}-title`;
   const subId   = `${elId}-sub`;
@@ -2206,7 +2322,14 @@ function getMonday(d){
   dt.setDate(diff); return dt;
 }
 function weekKey(d){ return getMonday(d).toISOString().slice(0,10); }
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function periodKey(d){ return state.periodMode==='month' ? monthKey(d) : weekKey(d); }
 function weekLabel(isoKey){
+  if(/^\d{4}-\d{2}$/.test(isoKey)){
+    const parts=isoKey.split('-');
+    const lbl=new Date(+parts[0], +parts[1]-1, 1).toLocaleDateString('es',{month:'long',year:'numeric'});
+    return lbl.charAt(0).toUpperCase()+lbl.slice(1);
+  }
   const d=new Date(isoKey+'T00:00:00');
   const end=new Date(d); end.setDate(end.getDate()+4);
   const fmt=dt=>dt.toLocaleDateString('es',{month:'short',day:'numeric'});
@@ -2217,8 +2340,8 @@ function weekLabel(isoKey){
 function detectWeeks(agents){
   const wks=new Set();
   agents.forEach(a=>{
-    a.callList.forEach(c=>wks.add(weekKey(c.time)));
-    (a.smsList||[]).forEach(m=>wks.add(weekKey(m.time)));
+    a.callList.forEach(c=>wks.add(periodKey(c.time)));
+    (a.smsList||[]).forEach(m=>wks.add(periodKey(m.time)));
   });
   return [...wks].sort();
 }
@@ -2226,8 +2349,8 @@ function detectWeeks(agents){
 // Filter agents data to a specific week ISO key
 function filterAgentsByWeek(agents, wk){
   return agents.map(a=>{
-    const calls=a.callList.filter(c=>weekKey(c.time)===wk);
-    const sms=(a.smsList||[]).filter(m=>weekKey(m.time)===wk);
+    const calls=a.callList.filter(c=>periodKey(c.time)===wk);
+    const sms=(a.smsList||[]).filter(m=>periodKey(m.time)===wk);
     if(!calls.length && !sms.length) return null;
     // Recompute stats for this week only
     let calls_in=0,calls_out=0,calls_answered=0,calls_missed=0,calls_abandoned=0,total_duration=0;
@@ -2263,6 +2386,7 @@ function analyze(){
   if(state.advantage||state.advantageAbandoned) agents=agents.concat(analyzeAdvantage(state.advantage, state.advantageAbandoned));
   if(state.alonso||state.alonsoSms) agents=agents.concat(analyzeAlonso(state.alonso, state.alonsoSms));
   if(state.ooma)      agents=agents.concat(analyzeOoma(state.ooma));
+  if(state.tsm)       agents=agents.concat(analyzeTSM(state.tsm));
   state.allAgents=agents;
   state.weeks=detectWeeks(agents);
   state.weekIdx=state.weeks.length>0?state.weeks.length-1:0;
@@ -2270,11 +2394,22 @@ function analyze(){
   state.weekB=state.weeks.length>0?state.weeks[state.weeks.length-1]:null;
   state.compareMode=false;
   state.agents=state.weeks.length>0?filterAgentsByWeek(agents,state.weeks[state.weekIdx]):agents;
-  const total=(state.nextiva?.length||0)+(state.nextivaAll?.length||0)+(state.advantage?.length||0)+(state.advantageAbandoned?.length||0)+(state.alonso?.length||0)+(state.alonsoSms?.length||0)+(state.ooma?.length||0);
+  const total=(state.nextiva?.length||0)+(state.nextivaAll?.length||0)+(state.advantage?.length||0)+(state.advantageAbandoned?.length||0)+(state.alonso?.length||0)+(state.alonsoSms?.length||0)+(state.ooma?.length||0)+(state.tsm?.length||0);
   document.getElementById('headerMeta').textContent=`${agents.length} AGENTES · ${total.toLocaleString()} REGISTROS`;
   renderAll();
 }
 
+function setPeriodMode(mode){
+  if(state.periodMode===mode) return;
+  state.periodMode=mode;
+  state.weeks=detectWeeks(state.allAgents||[]);
+  state.weekIdx=state.weeks.length>0?state.weeks.length-1:0;
+  state.weekA=state.weeks.length>1?state.weeks[0]:null;
+  state.weekB=state.weeks.length>0?state.weeks[state.weeks.length-1]:null;
+  state.compareMode=false;
+  state.agents=state.weeks.length>0?filterAgentsByWeek(state.allAgents,state.weeks[state.weekIdx]):(state.allAgents||[]);
+  renderAll();
+}
 function goWeek(dir){
   const newIdx=state.weekIdx+dir;
   if(newIdx<0||newIdx>=state.weeks.length) return;
@@ -2320,7 +2455,7 @@ function renderAll(){
 
   // Group by practice
   const practices=[...new Set(agents.map(a=>a.practice))];
-  const practiceClass={'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  const practiceClass={'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso','Total Sleep · Scheduling':'tsm','Total Sleep · Inlab':'tsm','Total Sleep · Externos':'tsm'};
 
   practices.forEach(prac=>{
     const pAgents=agents.filter(a=>a.practice===prac);
@@ -2382,6 +2517,8 @@ function renderKPIs(container,agents){
     tot += state._oomaAbandoned
       ? getAbandonedForWeek(state._oomaAbandoned).total
       : agents.filter(a=>a.practice==='MAB Pulmonary').reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
+    // Total Sleep (RingCentral): entrantes = contestadas + perdidas de sus agentes
+    tot += agents.filter(a=>a.practice&&a.practice.startsWith('Total Sleep')).reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
     totalInbound = tot;
   } else {
     totalInbound = agents.reduce((s,a)=>s+a.calls_answered+a.calls_missed,0);
@@ -2556,9 +2693,14 @@ function renderWeekNav(container){
   nav.style.flexWrap='wrap';
   nav.style.gap='10px';
 
+  const mtBtn=(m,lbl)=>{
+    const on=(state.periodMode==='month')===(m==='month');
+    return '<button onclick="setPeriodMode(\''+m+'\')" style="padding:5px 12px;font-size:11px;font-family:\'DM Mono\',monospace;font-weight:700;border:none;cursor:pointer;background:'+(on?'var(--ink)':'var(--surface)')+';color:'+(on?'#fff':'var(--muted)')+';">'+lbl+'</button>';
+  };
+  const modeToggle='<div style="display:flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;">'+mtBtn('week','SEMANAS')+mtBtn('month','MESES')+'</div>';
   if(state.weeks.length===1){
-    // Single week — just show label
-    nav.innerHTML=`<div class="week-label" style="text-align:left">Semana del ${weekLabel(state.weeks[0])}</div>`;
+    // Single period — label + toggle
+    nav.innerHTML=modeToggle+'<div class="week-label" style="text-align:left">'+(state.periodMode==='month'?'Mes de':'Semana del')+' '+weekLabel(state.weeks[0])+'</div>';
     container.appendChild(nav);
     return;
   }
@@ -2572,6 +2714,7 @@ function renderWeekNav(container){
   const nextDis=state.weekIdx===state.weeks.length-1?'disabled':'';
 
   nav.innerHTML=`
+    ${modeToggle}
     <div style="display:flex;align-items:center;gap:8px;flex:1;">
       <div class="week-arrow ${prevDis}" onclick="goWeek(-1)" title="Semana anterior">←</div>
       <select class="week-select" onchange="setWeekB(this.value)">${buildOptions(state.weeks,wBval)}</select>
@@ -2632,14 +2775,14 @@ function renderWeeklySummary(container, agents){
   } else if(state.weeks && state.weeks.length > 1 && state.weekIdx > 0){
     const prevWk = state.weeks[state.weekIdx - 1];
     prevAgents = filterAgentsByWeek(state.allAgents, prevWk);
-    compareLabel = ' · vs semana anterior';
+    compareLabel = state.periodMode==='month' ? ' · vs mes anterior' : ' · vs semana anterior';
   }
 
   const sec = document.createElement('div');
   sec.style.cssText = 'margin-bottom:20px;';
   const titleDiv = document.createElement('div');
   titleDiv.className = 'section-hdr';
-  titleDiv.textContent = 'PROMEDIO SEMANAL POR AGENTE' + (prevAgents ? compareLabel : '');
+  titleDiv.textContent = (state.periodMode==='month'?'PROMEDIO MENSUAL POR AGENTE':'PROMEDIO SEMANAL POR AGENTE') + (prevAgents ? compareLabel : '');
   sec.appendChild(titleDiv);
 
   const wrap = document.createElement('div');
@@ -2651,7 +2794,8 @@ function renderWeeklySummary(container, agents){
     const d = dset.size || 1;
     return {a, _avgT:(a.calls_answered+a.calls_out)/d, _avgS:(a.sms_sent||0)/d};
   }).sort((x,y)=> y._avgT-x._avgT || y._avgS-x._avgS).map(x=>x.a);
-  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso','Total Sleep · Scheduling':'tsm','Total Sleep · Inlab':'tsm','Total Sleep · Externos':'tsm'};
+  const _conSms = agents.some(a => (a.sms_sent||0) > 0 || (a.smsList && a.smsList.length));
 
   const table = document.createElement('table');
   const thS = 'style="text-align:right;background:#2b2b26;color:#fff;line-height:1.5;padding:7px 10px;"';
@@ -2659,7 +2803,7 @@ function renderWeeklySummary(container, agents){
     <th style="background:#2b2b26;color:#fff;padding:7px 10px;">AGENTE</th>
     <th style="background:#2b2b26;color:#fff;padding:7px 10px;">PRÁCTICA</th>
     <th style="text-align:right;background:linear-gradient(135deg,#1565FF,#0d47a1);color:#fff;line-height:1.5;padding:7px 10px;">PROM. TOTAL<br>CALL / DÍA</th>
-    <th style="text-align:right;background:linear-gradient(135deg,#a34d22,#7a3a1a);color:#fff;line-height:1.5;padding:7px 10px;">PROM. SMS<br>/ DÍA</th>
+    ${_conSms?'<th style="text-align:right;background:linear-gradient(135deg,#a34d22,#7a3a1a);color:#fff;line-height:1.5;padding:7px 10px;">PROM. SMS<br>/ DÍA</th>':''}
     <th ${thS}>PROM.<br>CONTESTADAS / DÍA</th>
     <th ${thS}>PROM.<br>REALIZADAS / DÍA</th>
     <th ${thS}>PROM.<br>PERDIDAS / DÍA</th>
@@ -2670,7 +2814,27 @@ function renderWeeklySummary(container, agents){
 
   const tbody = document.createElement('tbody');
 
-  sorted.forEach(a => {
+  // ── Agrupar por práctica (Scheduling → Inlab → Externos y demás) ──
+  const _ordenCanon=['Cardiovascular','Gastroenterology','MAB Pulmonary','Advantage Medical','Alonso Medical','Total Sleep · Scheduling','Total Sleep · Inlab','Total Sleep · Externos'];
+  const _grupos=[...new Set(sorted.map(x=>x.practice))].sort((x,y)=>{
+    const ix=_ordenCanon.indexOf(x), iy=_ordenCanon.indexOf(y);
+    return (ix<0?99:ix)-(iy<0?99:iy);
+  });
+  const _filas=[];
+  _grupos.forEach(g=>{
+    const del_g=sorted.filter(x=>x.practice===g);
+    if(_grupos.length>1) _filas.push({_hdr:g,_n:del_g.length});
+    del_g.forEach(x=>_filas.push(x));
+  });
+
+  _filas.forEach(a => {
+    if(a._hdr){
+      const gcls=practiceClass[a._hdr]||'cardio';
+      const trH=document.createElement('tr');
+      trH.innerHTML='<td colspan="'+(_conSms?10:9)+'" style="background:var(--'+gcls+'-bg);color:var(--'+gcls+');font-weight:800;font-size:11px;letter-spacing:.08em;padding:6px 12px;border-top:2px solid var(--'+gcls+');">\u25cf '+a._hdr.toUpperCase()+' \u00b7 '+a._n+' AGENTE'+(a._n!==1?'S':'')+'</td>';
+      tbody.appendChild(trH);
+      return;
+    }
     // Días activos = días con llamadas O con SMS (para agentes/semanas solo-SMS)
     const activeDaySet = new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
     const days = activeDaySet.size || 1;
@@ -2704,8 +2868,8 @@ function renderWeeklySummary(container, agents){
     const ansColor  = avgTotal >= GOAL_EXCELLENT ? 'var(--green)' : avgTotal >= GOAL_GOOD ? 'var(--blue)' : avgTotal >= GOAL_MIN ? 'var(--yellow)' : avgTotal >= GOAL_LOW ? 'var(--orange)' : 'var(--red)';
     const deadColor = avgDeadMins > 120 ? 'var(--red)' : avgDeadMins > 60 ? 'var(--yellow)' : 'var(--green)';
     const cls = practiceClass[a.practice] || 'cardio';
-    const pracColor = cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
-    const pracBg    = cls==='cardio'?'var(--cardio-bg)':cls==='gastro'?'var(--gastro-bg)':cls==='mab'?'var(--mab-bg)':cls==='advantage'?'var(--advantage-bg)':cls==='alonso'?'var(--alonso-bg)':'var(--advantage-bg)';
+    const pracColor = 'var(--'+cls+')';
+    const pracBg    = 'var(--'+cls+'-bg)';
 
     const rowCls = avgTotal >= GOAL_EXCELLENT ? 'row-ideal' : avgTotal >= GOAL_GOOD ? 'row-good' : avgTotal >= GOAL_MIN ? 'row-min' : avgTotal >= GOAL_LOW ? 'row-low' : 'row-alert';
     const isCoverage = a.name.toLowerCase().includes('santiago');
@@ -2719,7 +2883,7 @@ function renderWeeklySummary(container, agents){
       <td style="font-weight:600">${nameCellHtml}</td>
       <td><span style="font-size:10px;padding:3px 9px;border-radius:3px;background:${pracColor};color:#fff;font-weight:600;">${a.practice}</span></td>
       <td style="text-align:right;font-weight:800;font-size:16px;color:#0d47a1;background:rgba(21,101,255,0.09);">${avgTotal.toFixed(1)} ${getDelta(avgTotal, pAvgTotal)}</td>
-      <td style="text-align:right;font-weight:800;font-size:15px;color:#a34d22;background:rgba(163,77,34,0.07);">${avgSms.toFixed(1)} ${getDelta(avgSms, pAvgSms)}</td>
+      ${_conSms?`<td style="text-align:right;font-weight:800;font-size:15px;color:#a34d22;background:rgba(163,77,34,0.07);">${avgSms.toFixed(1)} ${getDelta(avgSms, pAvgSms)}</td>`:''}
       <td style="text-align:right;font-weight:600;font-size:13px;color:var(--ink);">${avgAnswered.toFixed(1)} ${getDelta(avgAnswered, pAvgAns)}</td>
       <td style="text-align:right;font-weight:600;color:var(--ink);">${avgMade.toFixed(1)} ${getDelta(avgMade, pAvgMade)}</td>
       <td style="text-align:right;font-weight:600;color:var(--ink);">${avgMissed.toFixed(1)} ${getDelta(avgMissed, pAvgMissed, true)}</td>
@@ -3117,6 +3281,8 @@ function renderPracticeSection(container,prac,agents,cls){
       ?`<span class="aplat tag-voip3">VOIP3</span>`
       :a.platform==='weave'
       ?`<span class="aplat tag-weave">WEAVE</span>`
+      :a.platform==='ringcentral'
+      ?`<span class="aplat" style="background:var(--tsm-bg);color:var(--tsm);">RINGCENTRAL</span>`
       :`<span class="aplat tag-ooma">OOMA</span>`;
 
     // SMS por día (solo cuando hay datos de SMS en la práctica)
@@ -4902,7 +5068,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
   const existing = document.getElementById('ai-report-panel');
   if(existing) existing.remove();
 
-  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso'};
+  const practiceClass = {'Cardiovascular':'cardio','Gastroenterology':'gastro','MAB Pulmonary':'mab','Advantage Medical':'advantage','Alonso Medical':'alonso','Total Sleep · Scheduling':'tsm','Total Sleep · Inlab':'tsm','Total Sleep · Externos':'tsm'};
   const main  = document.getElementById('main');
   const panel = document.createElement('div');
   panel.id = 'ai-report-panel';
@@ -5848,7 +6014,7 @@ function exportAIPDF(){
 // ─── UTILS ─────────────────────────────────────────────────────────────────
 function getFiltered(){
   if(state.filter==='all') return state.agents;
-  return state.agents.filter(a=>a.practice===state.filter);
+  return state.agents.filter(a=>a.practice===state.filter || a.practice.startsWith(state.filter+' ·'));
 }
 function sortAgents(agents){
   return [...agents].sort((a,b)=>{
