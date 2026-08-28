@@ -2,147 +2,1102 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>24/7 Medical Aid — Portal de Apps</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04141F">
+<title>24/7 Medical Aid — Portal de Operaciones</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304141F'/%3E%3Cpath d='M9 22h6M12 10v12M20 10v12M17 15h6' stroke='%23ED3237' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tema 24/7 Medical Aid — tokens tomados de 247medical-aid.com
+   ══════════════════════════════════════════════════════════════════════════ */
 :root{
-  --bg:#EDF2FF;--surface:#FFFFFF;--surface2:#E3EBFF;
-  --border:#BCCBF2;--text:#0A1D3D;--text2:#23407A;--text3:#40598F;
-  --accent:#1565FF;--accent2:#0E47C9;
-  --c-pros:#1565FF;   /* azul — Prospectos */
-  --c-nom:#FF8A00;    /* naranja vivo — Nómina */
-  --c-comp:#7C3AED;   /* violeta — Comprobantes */
-  --c-ana:#00B3A4;    /* teal — Analyzer */
-  --radius:10px;
+  --ink-900:#04141F; --ink-800:#082436; --ink-700:#0D3247; --ink-600:#1A4A63;
+  --brand-700:#0A6A90; --brand-600:#0E86B4; --brand-500:#17A9DE; --brand-400:#4CC2EC;
+  --brand-100:#D3ECF9; --brand-50:#EFF8FD;
+  --accent-600:#C81F29; --accent-500:#ED3237; --accent-400:#F4676B; --accent-50:#FDECEC;
+  --paper:#FFFFFF; --sand:#F5F8F9; --sand-2:#EBF1F3;
+  --text:#0B2233; --text-muted:#4A6478; --text-invert:#EAF4F6; --text-invert-muted:#9FBECB;
+  --line:#DCE6EA; --line-dark:rgba(255,255,255,.13);
+  --ok:#0F7B52; --ok-50:#E7F5EF; --warn:#A85B00; --warn-50:#FFF4E5;
+  --radius-sm:10px; --radius:16px; --radius-lg:24px; --radius-xl:32px;
+  --shadow-sm:0 1px 2px rgba(4,20,31,.06), 0 2px 8px rgba(4,20,31,.05);
+  --shadow:0 4px 12px rgba(4,20,31,.07), 0 14px 40px rgba(4,20,31,.08);
+  --shadow-lg:0 8px 24px rgba(4,20,31,.10), 0 32px 70px rgba(4,20,31,.14);
+  --maxw:1200px; --gutter:clamp(20px,5vw,48px);
+  --font-display:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-body:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--sand);color:var(--text);font-family:var(--font-body);
+  font-size:16px;line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);font-weight:800;letter-spacing:-.022em;line-height:1.15}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--brand-500);outline-offset:2px;border-radius:4px}
+.hidden{display:none !important}
 
-/* ── CINTA DE 4 COLORES (una franja por app) ── */
-.ribbon{display:flex;height:6px;width:100%;}
-.ribbon span{flex:1;}
-.ribbon span:nth-child(1){background:var(--c-pros);}
-.ribbon span:nth-child(2){background:var(--c-nom);}
-.ribbon span:nth-child(3){background:var(--c-comp);}
-.ribbon span:nth-child(4){background:var(--c-ana);}
+/* ── Botones ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font-display);font-weight:700;font-size:14.7px;letter-spacing:-.01em;
+  padding:11px 20px;border-radius:999px;border:1px solid transparent;cursor:pointer;
+  transition:background .16s,border-color .16s,transform .1s,opacity .16s;
+  text-decoration:none;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent-500);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent-600)}
+.btn-ghost{background:transparent;color:var(--text);border-color:var(--line)}
+.btn-ghost:hover:not(:disabled){background:var(--sand-2)}
+.btn-ink{background:var(--ink-900);color:#fff}
+.btn-ink:hover:not(:disabled){background:var(--ink-700)}
+.btn-brand{background:var(--brand-600);color:#fff}
+.btn-brand:hover:not(:disabled){background:var(--brand-700)}
+.btn-sm{padding:8px 15px;font-size:13.5px}
+.btn-danger{background:transparent;color:var(--accent-600);border-color:#F2C6C8}
+.btn-danger:hover:not(:disabled){background:var(--accent-50)}
+.btn-block{width:100%}
 
-.wrap{max-width:1060px;margin:0 auto;padding:0 28px 64px;}
+/* ── Campos ──────────────────────────────────────────────────────────────── */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-muted);margin-bottom:7px}
+.control{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  font-family:var(--font-body);font-size:15px;color:var(--text);background:var(--paper);
+  outline:none;transition:border-color .15s,box-shadow .15s}
+.control:focus{border-color:var(--brand-500);box-shadow:0 0 0 3px rgba(23,169,222,.16)}
+select.control{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234A6478' stroke-width='1.8'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:38px}
+.hint{font-size:13px;color:var(--text-muted);margin-top:6px}
+.pw-wrap{position:relative}
+.pw-wrap .control{padding-right:44px}
+.pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;
+  cursor:pointer;padding:8px;color:var(--text-muted);border-radius:8px;line-height:0}
+.pw-eye:hover{background:var(--sand-2)}
+.pw-eye svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
 
-/* ── HEADER ── */
-header{padding:48px 0 36px;border-bottom:1px solid var(--border);margin-bottom:44px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
-.brand h1{font-family:'DM Serif Display',serif;font-size:38px;line-height:1.1;letter-spacing:-.5px;}
-.brand h1 em{font-style:normal;color:var(--accent);}
-.brand .tag{margin-top:10px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);}
-.status{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px;}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--c-ana);box-shadow:0 0 0 3px rgba(0,179,164,.25);}
-
-/* ── GRID ── */
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;}
-@media(max-width:720px){.grid{grid-template-columns:1fr;}header{padding-top:32px;}}
-
-.app{
-  display:flex;flex-direction:column;gap:14px;
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:28px;text-decoration:none;color:var(--text);
-  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
-  position:relative;overflow:hidden;
+/* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
+#vLogin{min-height:100vh;display:flex;flex-direction:column;background:var(--ink-900);
+  background-image:radial-gradient(ellipse 70% 60% at 75% 20%, rgba(23,169,222,.16) 0%, transparent 65%),
+                   radial-gradient(ellipse 60% 50% at 10% 90%, rgba(14,134,180,.12) 0%, transparent 60%)}
+.login-shell{flex:1;display:grid;grid-template-columns:1.05fr .95fr;gap:0;
+  max-width:var(--maxw);width:100%;margin:0 auto;padding:0 var(--gutter);align-items:center}
+.login-shell>*{min-width:0}
+.login-pitch{padding:64px 56px 64px 0;color:var(--text-invert)}
+.login-pitch .brandmark{margin-bottom:38px}
+.login-pitch h1{font-size:clamp(32px,4vw,46px);color:#fff;margin-bottom:18px}
+.login-pitch h1 span{color:var(--brand-400)}
+.login-pitch p{color:var(--text-invert-muted);font-size:17px;max-width:44ch}
+.login-apps{display:flex;flex-wrap:wrap;gap:9px;margin-top:34px}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;
+  padding:7px 13px;border-radius:999px;border:1px solid var(--line-dark);
+  background:rgba(255,255,255,.05);color:var(--text-invert-muted)}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--brand-400);flex-shrink:0}
+.login-panel{background:var(--paper);border-radius:var(--radius-xl);padding:40px 38px;
+  box-shadow:var(--shadow-lg);margin:40px 0}
+.login-panel .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--brand-600);margin-bottom:9px}
+.login-panel h2{font-size:26px;margin-bottom:6px}
+.login-panel .sub{color:var(--text-muted);font-size:15px;margin-bottom:28px}
+.alert{display:none;padding:12px 14px;border-radius:var(--radius-sm);font-size:14px;
+  font-weight:500;margin-bottom:16px}
+.alert.show{display:block}
+.alert-err{background:var(--accent-50);border:1px solid #F2C6C8;color:var(--accent-600)}
+.alert-ok{background:var(--ok-50);border:1px solid #BFE3D2;color:var(--ok)}
+.alert-warn{background:var(--warn-50);border:1px solid #F5D9AF;color:var(--warn)}
+.login-foot{text-align:center;padding:22px var(--gutter) 30px;
+  font-size:12.5px;color:var(--text-invert-muted);border-top:1px solid var(--line-dark)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+.spin.dark{border-color:rgba(11,34,51,.25);border-top-color:var(--text)}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:900px){
+  .login-shell{grid-template-columns:1fr;padding:0 var(--gutter)}
+  .login-pitch{padding:36px 0 4px;text-align:left}
+  .login-pitch h1{font-size:30px;margin-bottom:12px}
+  .login-apps{display:none}
+  .login-pitch .brandmark img{height:36px}
+  .login-pitch .brandmark{margin-bottom:26px}
+  .brandmark-login .bm-fb{font-size:26px}
+  .login-pitch p{font-size:16px}
+  .login-apps{margin-top:24px}
+  .login-panel{margin:22px 0 36px;padding:30px 24px}
+  .login-panel h2{font-size:23px}
+  .login-panel .sub{margin-bottom:22px}
 }
-.app::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c);}
-.app:hover{transform:translateY(-3px);border-color:var(--c);box-shadow:0 16px 40px rgba(10,29,61,.14);}
-.app:focus-visible{outline:3px solid var(--c);outline-offset:2px;}
 
-.app-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
-.icon{width:46px;height:46px;border-radius:12px;background:var(--c);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-.app h2{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;}
-.app p{font-size:14px;color:var(--text2);line-height:1.5;}
-.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px;}
-.badge{font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);}
-.badge.api{border-color:#00B3A4;color:#00776D;background:#DFF7F4;}
-.badge.lock{border-color:#FF8A00;color:#A85B00;background:#FFF1DF;}
-.badge.local{border-color:#1565FF;color:#0E47C9;background:#E4EDFF;}
-.go{font-family:'DM Mono',monospace;font-size:12px;color:var(--c);letter-spacing:.05em;flex-shrink:0;transition:transform .16s;}
-.app:hover .go{transform:translateX(3px);}
+/* ── Marca: logo remoto con respaldo tipográfico si no carga ─────────────── */
+.brandmark{display:inline-flex;align-items:center;line-height:1}
+.brandmark img{display:block;width:auto}
+.brandmark .bm-fb{display:none;align-items:baseline;gap:.34em;flex-wrap:wrap;max-width:100%;
+  font-family:var(--font-display);font-weight:800;letter-spacing:-.03em}
+.brandmark .bm-fb>*{white-space:nowrap}
+.brandmark.sinlogo img{display:none}
+.brandmark.sinlogo .bm-fb{display:inline-flex}
+.bm-fb b{color:var(--accent-500);font-weight:800}
+.bm-fb i{font-style:normal;width:1px;align-self:stretch;background:currentColor;opacity:.28;margin:0 .18em}
+.bm-fb u{text-decoration:none}
+.bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.34em;opacity:.72;
+  align-self:center;margin-left:-.1em}
+.brandmark-oscuro .bm-fb{color:#fff}
+.brandmark-claro  .bm-fb{color:var(--ink-900)}
+.brandmark-login .bm-fb{font-size:34px}
+.brandmark-top   .bm-fb{font-size:23px}
 
-footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--border);font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;letter-spacing:.05em;}
-@media(prefers-reduced-motion:reduce){.app,.go{transition:none;}}
+/* ══ SHELL DE LA APLICACIÓN ═════════════════════════════════════════════════ */
+.topbar{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.topbar-in{max-width:var(--maxw);margin:0 auto;padding:0 var(--gutter);height:70px;
+  display:flex;align-items:center;gap:20px}
+.topbar img.logo{height:30px;width:auto;flex-shrink:0}
+.tabs{display:flex;gap:4px;margin-left:14px}
+.tab{font-family:var(--font-display);font-weight:700;font-size:14.5px;color:var(--text-muted);
+  background:none;border:none;padding:9px 15px;border-radius:999px;cursor:pointer;
+  transition:background .15s,color .15s;white-space:nowrap}
+.tab:hover{background:var(--sand-2);color:var(--text)}
+.tab.active{background:var(--ink-900);color:#fff}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.who{text-align:right;line-height:1.3;min-width:0}
+.who b{display:block;font-family:var(--font-display);font-weight:700;font-size:14px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.who span{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-600)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--ink-900);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-display);
+  font-weight:700;font-size:14px;flex-shrink:0;letter-spacing:.02em}
+
+.page{max-width:var(--maxw);margin:0 auto;padding:40px var(--gutter) 72px}
+.page-head{margin-bottom:30px}
+.page-head h2{font-size:32px;margin-bottom:7px}
+.page-head p{color:var(--text-muted);font-size:16px;max-width:62ch}
+.section-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin-bottom:20px}
+
+/* ── Tarjetas de app ─────────────────────────────────────────────────────── */
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.app-card{display:flex;flex-direction:column;gap:13px;background:var(--paper);
+  border:1px solid var(--line);border-radius:var(--radius-lg);padding:28px 26px;
+  text-decoration:none;color:var(--text);position:relative;overflow:hidden;
+  transition:transform .16s,box-shadow .16s,border-color .16s}
+.app-card::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--c)}
+.app-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#C6D8DF}
+.app-card .row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.app-icon{width:48px;height:48px;border-radius:14px;background:var(--c);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center}
+.app-icon svg{width:23px;height:23px;stroke:#fff;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.app-card h3{font-size:20px}
+.app-card p{font-size:14.5px;color:var(--text-muted);line-height:1.5}
+.app-go{font-family:var(--font-display);font-weight:700;font-size:12.5px;letter-spacing:.06em;
+  color:var(--c);flex-shrink:0;transition:transform .16s}
+.app-card:hover .app-go{transform:translateX(3px)}
+.app-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto;padding-top:6px}
+.tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:5px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--sand);color:var(--text-muted)}
+.tag-admin{border-color:#F5D9AF;background:var(--warn-50);color:var(--warn)}
+.tag-ok{border-color:#BFE3D2;background:var(--ok-50);color:var(--ok)}
+
+/* Estado vacío */
+.empty{background:var(--paper);border:1px dashed #C6D8DF;border-radius:var(--radius-lg);
+  padding:52px 32px;text-align:center;color:var(--text-muted)}
+.empty h3{font-size:19px;color:var(--text);margin-bottom:8px}
+.empty p{max-width:46ch;margin:0 auto;font-size:15px}
+
+/* ── Tabla de usuarios ───────────────────────────────────────────────────── */
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.panel-head{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;
+  align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-head h3{font-size:18px}
+.panel-head .count{font-size:13px;color:var(--text-muted);font-weight:500}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--text-muted);text-align:left;padding:12px 20px;background:var(--sand);
+  border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:14px 20px;border-bottom:1px solid var(--line);font-size:14.5px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--brand-50)}
+.u-name{font-family:var(--font-display);font-weight:700;font-size:15px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.u-name .pill{font-size:10px;padding:2px 8px}
+.u-user{font-family:var(--mono);font-size:12.5px;color:var(--text-muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px}
+.pill-admin{background:var(--ink-900);color:#fff}
+.pill-oper{background:var(--brand-50);color:var(--brand-700);border:1px solid var(--brand-100)}
+.pill-off{background:var(--sand-2);color:var(--text-muted)}
+.pill-on{background:var(--ok-50);color:var(--ok)}
+.app-dots{display:flex;flex-wrap:wrap;gap:4px}
+.dot-app{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap;
+  background:var(--sand);border:1px solid var(--line);color:var(--text-muted)}
+.dot-app.on{background:var(--c);border-color:transparent;color:#fff}
+.row-acts{display:flex;gap:7px;justify-content:flex-end}
+.icon-btn{background:none;border:1px solid var(--line);border-radius:9px;padding:7px;
+  cursor:pointer;color:var(--text-muted);line-height:0;transition:all .15s}
+.icon-btn:hover{border-color:var(--brand-500);color:var(--brand-600);background:var(--brand-50)}
+.icon-btn.danger:hover{border-color:#F2C6C8;color:var(--accent-600);background:var(--accent-50)}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(4,20,31,.62);backdrop-filter:blur(3px);
+  z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:32px 20px;
+  overflow-y:auto}
+.modal{background:var(--paper);border-radius:var(--radius-xl);width:100%;max-width:600px;
+  box-shadow:var(--shadow-lg);margin:auto}
+.modal-head{padding:26px 30px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.modal-head h3{font-size:21px;margin-bottom:4px}
+.modal-head p{font-size:14px;color:var(--text-muted)}
+.modal-body{padding:24px 30px}
+.modal-foot{padding:18px 30px 26px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.x-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;
+  border-radius:8px;line-height:0;flex-shrink:0}
+.x-btn:hover{background:var(--sand-2);color:var(--text)}
+.x-btn svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.perm{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;background:var(--paper)}
+.perm:hover{border-color:var(--brand-400);background:var(--brand-50)}
+.perm input{margin-top:2px;width:17px;height:17px;accent-color:var(--brand-600);flex-shrink:0;cursor:pointer}
+.perm b{display:block;font-family:var(--font-display);font-weight:700;font-size:14px}
+.perm small{color:var(--text-muted);font-size:12.5px;line-height:1.4}
+.divider{height:1px;background:var(--line);margin:22px 0}
+.legend{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:12px}
+
+/* ── Auditoría ───────────────────────────────────────────────────────────── */
+.log-row{display:grid;grid-template-columns:170px 150px 1fr;gap:14px;padding:13px 24px;
+  border-bottom:1px solid var(--line);font-size:13.5px;align-items:baseline}
+.log-row:last-child{border-bottom:none}
+.log-row time{font-family:var(--mono);font-size:12px;color:var(--text-muted)}
+.log-row.vacia{display:block;color:var(--text-muted)}
+.log-row .who-l{font-weight:600}
+.log-row .act{color:var(--text-muted)}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,140%);z-index:120;
+  background:var(--ink-900);color:#fff;padding:13px 22px;border-radius:999px;
+  font-family:var(--font-display);font-weight:700;font-size:14px;box-shadow:var(--shadow-lg);
+  transition:transform .28s cubic-bezier(.2,.8,.3,1);max-width:calc(100vw - 40px);text-align:center}
+#toast.show{transform:translate(-50%,0)}
+#toast.err{background:var(--accent-600)}
+#toast.ok{background:var(--ok)}
+
+@media(max-width:820px){
+  .topbar-in{height:auto;padding:14px var(--gutter);flex-wrap:wrap}
+  .tabs{order:3;width:100%;margin-left:0;overflow-x:auto;padding-bottom:2px}
+  .who{display:none}
+  .page{padding:28px var(--gutter) 60px}
+  .page-head h2{font-size:26px}
+  .two-col,.perm-grid{grid-template-columns:1fr}
+  .log-row{grid-template-columns:1fr;gap:3px}
+}
+@media(max-width:430px){
+  .brandmark-login .bm-fb{font-size:22px}
+  .login-panel{padding:28px 22px}
+  .app-card{padding:24px 22px}
+  .modal-body,.modal-head,.modal-foot{padding-left:22px;padding-right:22px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 </head>
 <body>
-<div class="ribbon"><span></span><span></span><span></span><span></span></div>
-<div class="wrap">
 
-<header>
-  <div class="brand">
-    <h1>24/7 <em>Medical Aid</em></h1>
-    <div class="tag">Portal de operaciones · Call Center</div>
+<!-- ══════════════════════════ LOGIN ══════════════════════════ -->
+<div id="vLogin">
+  <div class="login-shell">
+
+    <div class="login-pitch">
+      <div class="brandmark brandmark-oscuro brandmark-login" style="margin-bottom:38px">
+        <img src="https://247medical-aid.com/logo-247-light.svg" height="44"
+             alt="24/7 Medical AID Call Center" style="height:44px">
+        <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
+      </div>
+      <h1>Portal de <span>operaciones</span></h1>
+      <p>Un solo acceso para todas las herramientas internas del call center.
+         Tus permisos determinan lo que ves al entrar.</p>
+      <div class="login-apps" id="loginChips"></div>
+    </div>
+
+    <div class="login-panel">
+      <div class="eyebrow">Acceso restringido</div>
+      <h2>Inicia sesión</h2>
+      <div class="sub">Personal autorizado de 24/7 Medical Aid.</div>
+
+      <div class="alert alert-err" id="loginErr"></div>
+
+      <form id="loginForm" autocomplete="on">
+        <div class="field">
+          <label for="lu">Usuario</label>
+          <input class="control" id="lu" name="username" autocomplete="username"
+                 spellcheck="false" autocapitalize="none" required>
+        </div>
+        <div class="field">
+          <label for="lp">Contraseña</label>
+          <div class="pw-wrap">
+            <input class="control" id="lp" name="password" type="password"
+                   autocomplete="current-password" required>
+            <button class="pw-eye" type="button" data-eye="lp" aria-label="Mostrar contraseña">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" id="btnLogin" type="submit" style="margin-top:8px">Entrar</button>
+      </form>
+    </div>
+
   </div>
-  <div class="status"><span class="dot"></span>4 apps activas</div>
-</header>
+  <div class="login-foot">24/7 Medical Aid · Call Center · Orlando, Florida</div>
+</div>
 
-<main class="grid">
 
-  <a class="app" style="--c:var(--c-pros)" href="https://247medicalaid.github.io/prospectos/">
-    <div class="app-top">
-      <div class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-      <span class="go">ABRIR →</span>
-    </div>
-    <h2>MedProspect — Prospectos</h2>
-    <p>Gestión y seguimiento de prospectos del call center, sincronizado con Google Sheets.</p>
-    <div class="meta">
-      <span class="badge api">API verificada</span>
-      <span class="badge">/prospectos</span>
-    </div>
-  </a>
+<!-- ══════════════════════════ APLICACIÓN ══════════════════════════ -->
+<div id="vApp" class="hidden">
 
-  <a class="app" style="--c:var(--c-nom)" href="./nomina.html">
-    <div class="app-top">
-      <div class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-      <span class="go">ABRIR →</span>
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brandmark brandmark-claro brandmark-top">
+        <img class="logo" src="https://247medical-aid.com/logo-247-dark.svg" alt="24/7 Medical AID">
+        <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u></span>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-view="apps">Aplicaciones</button>
+        <button class="tab hidden" data-view="admin" id="tabAdmin">Usuarios</button>
+        <button class="tab" data-view="cuenta">Mi cuenta</button>
+      </nav>
+      <div class="topbar-right">
+        <div class="who"><b id="whoName">—</b><span id="whoRole">—</span></div>
+        <div class="avatar" id="whoAvatar">—</div>
+        <button class="btn btn-ghost btn-sm" id="btnLogout">Salir</button>
+      </div>
     </div>
-    <h2>Calculadora de Nómina</h2>
-    <p>Cálculo de pagos, horas y comisiones del equipo. Requiere contraseña de acceso.</p>
-    <div class="meta">
-      <span class="badge lock">🔒 Protegida</span>
-      <span class="badge api">API</span>
-      <span class="badge">nomina.html</span>
-    </div>
-  </a>
+  </header>
 
-  <a class="app" style="--c:var(--c-comp)" href="./paystubs.html">
-    <div class="app-top">
-      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></div>
-      <span class="go">ABRIR →</span>
+  <!-- ── Aplicaciones ── -->
+  <main class="page" id="viewApps">
+    <div class="page-head">
+      <h2 id="saludo">Tus aplicaciones</h2>
+      <p id="saludoSub">Estas son las herramientas a las que tienes acceso.</p>
     </div>
-    <h2>Comprobantes de Pago</h2>
-    <p>Generación de comprobantes de pago en PDF a partir de la nómina procesada.</p>
-    <div class="meta">
-      <span class="badge api">API</span>
-      <span class="badge">paystubs.html</span>
+    <div class="apps-grid" id="appsGrid"></div>
+    <div class="empty hidden" id="appsVacio">
+      <h3>Todavía no tienes aplicaciones asignadas</h3>
+      <p>Pídele al administrador general que te habilite el acceso a las herramientas que necesitas.</p>
     </div>
-  </a>
+  </main>
 
-  <a class="app" style="--c:var(--c-ana)" href="./analyzer.html">
-    <div class="app-top">
-      <div class="icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
-      <span class="go">ABRIR →</span>
+  <!-- ── Administración de usuarios ── -->
+  <main class="page hidden" id="viewAdmin">
+    <div class="page-head">
+      <h2>Administración de usuarios</h2>
+      <p>Da de alta al personal, decide a qué aplicaciones entra cada quien y con qué nivel de acceso.</p>
     </div>
-    <h2>Call Center Analyzer</h2>
-    <p>Análisis de reportes y métricas de llamadas. Procesa archivos localmente en el navegador.</p>
-    <div class="meta">
-      <span class="badge local">Sin API · Local</span>
-      <span class="badge">analyzer.html</span>
+
+    <div class="section-bar">
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="btnNuevo">+ Nuevo usuario</button>
+        <button class="btn btn-ghost" id="btnRecargar">Recargar</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btnCerrarTodo">Cerrar todas las sesiones</button>
     </div>
-  </a>
 
-</main>
+    <div class="panel" style="margin-bottom:26px">
+      <div class="panel-head">
+        <h3>Usuarios</h3>
+        <span class="count" id="userCount">—</span>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Usuario</th><th>Nivel</th><th>Aplicaciones</th>
+            <th>Estado</th><th>Último acceso</th><th></th>
+          </tr></thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </div>
+    </div>
 
-<footer>
-  <span>247MEDICALAID.GITHUB.IO</span>
-  <span>APPS INDEPENDIENTES · EDITAR UNA NO AFECTA LAS DEMÁS</span>
-</footer>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Actividad reciente</h3>
+        <button class="btn btn-ghost btn-sm" id="btnLog">Ver registro</button>
+      </div>
+      <div id="logBox"><div class="log-row vacia">Pulsa «Ver registro» para cargar los últimos eventos.</div></div>
+    </div>
+  </main>
+
+  <!-- ── Mi cuenta ── -->
+  <main class="page hidden" id="viewCuenta">
+    <div class="page-head">
+      <h2>Mi cuenta</h2>
+      <p>Cambia tu contraseña de acceso al portal.</p>
+    </div>
+    <div class="panel" style="max-width:520px">
+      <div class="panel-head"><h3>Cambiar contraseña</h3></div>
+      <div style="padding:26px 24px">
+        <div class="alert" id="cpMsg"></div>
+        <form id="formPass">
+          <div class="field">
+            <label for="cpAct">Contraseña actual</label>
+            <input class="control" id="cpAct" type="password" autocomplete="current-password" required>
+          </div>
+          <div class="field">
+            <label for="cpNue">Contraseña nueva</label>
+            <input class="control" id="cpNue" type="password" autocomplete="new-password" required>
+            <div class="hint">Mínimo 10 caracteres.</div>
+          </div>
+          <div class="field">
+            <label for="cpRep">Repite la contraseña nueva</label>
+            <input class="control" id="cpRep" type="password" autocomplete="new-password" required>
+          </div>
+          <button class="btn btn-primary" id="btnPass" type="submit">Guardar contraseña</button>
+        </form>
+      </div>
+    </div>
+  </main>
 
 </div>
+
+
+<!-- ══════════════════════════ MODAL USUARIO ══════════════════════════ -->
+<div class="overlay hidden" id="ovUser">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="muTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="muTitle">Nuevo usuario</h3>
+        <p id="muSub">Define el acceso y los permisos de esta persona.</p>
+      </div>
+      <button class="x-btn" data-cerrar="ovUser" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="muErr"></div>
+
+      <div class="two-col">
+        <div class="field">
+          <label for="muNombre">Nombre completo</label>
+          <input class="control" id="muNombre" placeholder="María Rodríguez">
+        </div>
+        <div class="field">
+          <label for="muUser">Nombre de acceso</label>
+          <input class="control" id="muUser" placeholder="maria" spellcheck="false" autocapitalize="none">
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label for="muRol">Nivel de acceso</label>
+          <select class="control" id="muRol">
+            <option value="operador">Operador</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <div class="hint" id="muRolHint">Uso normal de las aplicaciones asignadas.</div>
+        </div>
+        <div class="field">
+          <label for="muActivo">Estado</label>
+          <select class="control" id="muActivo">
+            <option value="si">Activo</option>
+            <option value="no">Bloqueado</option>
+          </select>
+          <div class="hint" id="muActivoHint">Puede iniciar sesión.</div>
+        </div>
+      </div>
+
+      <div class="field" id="muPassBox">
+        <label for="muPass">Contraseña <span id="muPassOpt" class="hidden">nueva — opcional</span></label>
+        <div class="pw-wrap">
+          <input class="control" id="muPass" type="password" autocomplete="new-password" placeholder="Mínimo 10 caracteres">
+          <button class="pw-eye" type="button" data-eye="muPass" aria-label="Mostrar contraseña">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="hint">Se convierte en tu navegador antes de enviarse. El servidor nunca la ve en claro.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="legend">Aplicaciones permitidas</div>
+      <div class="perm-grid" id="muApps"></div>
+
+      <div class="field hidden" id="muCiudadesBox" style="margin-top:18px;margin-bottom:0">
+        <label for="muCiudades">Ciudades de MedProspect</label>
+        <input class="control" id="muCiudades" placeholder="Orlando, Tampa, Miami">
+        <div class="hint">Separadas por comas. Déjalo vacío para que vea <b>todas</b> las ciudades.
+          Los administradores ven todas siempre.</div>
+      </div>
+
+      <div class="field" style="margin-top:22px;margin-bottom:0">
+        <label for="muNotas">Notas internas</label>
+        <input class="control" id="muNotas" placeholder="Opcional — cargo, equipo, etc.">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-cerrar="ovUser">Cancelar</button>
+      <button class="btn btn-primary" id="muGuardar">Guardar usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ MODAL CONFIRMAR ══════════════════════════ -->
+<div class="overlay hidden" id="ovConf">
+  <div class="modal" style="max-width:440px" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div><h3 id="cfTitle">¿Confirmas?</h3><p id="cfSub"></p></div>
+      <button class="x-btn" data-cerrar="ovConf" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-foot" style="padding-top:8px">
+      <button class="btn btn-ghost" data-cerrar="ovConf">Cancelar</button>
+      <button class="btn btn-primary" id="cfOk">Sí, continuar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   PORTAL 24/7 MEDICAL AID — control de acceso central
+   ══════════════════════════════════════════════════════════════════════════
+   La contraseña nunca sale en claro de este navegador: se convierte con
+   PBKDF2-SHA256 (310.000 iteraciones) y solo se envía la derivada.
+   El Apps Script valida, y devuelve un token firmado con los permisos.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── CONFIGURACIÓN ───────────────────────────────────────────────────────── */
+// Pega aquí la URL /exec de tu despliegue de Portal.gs
+const API = 'https://script.google.com/macros/s/AKfycbxEjSzo6gtP7rnVfc0JOAkZSvD6pTNYRvgcjoY_y_RrKMKOpRbDj4BBDMpzv_KuARxNNA/exec';
+
+const SITE_SALT   = '247MA-portal-v1';   // debe coincidir con Portal.gs y bootstrap_admin.html
+const PBKDF2_ITER = 310000;
+const SESION_KEY  = 'portal247.sesion';  // compartida con /prospectos/ (mismo origen)
+
+const CATALOGO = [
+  { key:'prospectos', titulo:'MedProspect', corto:'Prospectos', color:'#0E86B4',
+    url:'https://247medicalaid.github.io/prospectos/',
+    desc:'Gestión y seguimiento de prospectos de oficinas médicas, sincronizado con Google Sheets.',
+    icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+  { key:'nomina', titulo:'Calculadora de Nómina', corto:'Nómina', color:'#ED3237', url:'./nomina.html',
+    desc:'Cálculo de pagos, horas, comisiones e invoices del equipo, por quincena.',
+    icon:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>' },
+  { key:'paystubs', titulo:'Comprobantes de Pago', corto:'Comprobantes', color:'#0A6A90', url:'./paystubs.html',
+    desc:'Generación de comprobantes en PDF a partir de la nómina ya procesada.',
+    icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>' },
+  { key:'analyzer', titulo:'Call Center Analyzer', corto:'Analyzer', color:'#1A4A63', url:'./analyzer.html',
+    desc:'Análisis de reportes y métricas de llamadas. Procesa los archivos en el navegador.',
+    icon:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>' }
+];
+
+/* ── ESTADO ──────────────────────────────────────────────────────────────── */
+const S = { token:null, user:null, users:[], editando:null, confirmar:null };
+
+/* ── ATAJOS ──────────────────────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+function toast(msg, tipo){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show' + (tipo ? ' ' + tipo : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = ''; }, 3200);
+}
+function aviso(id, msg, tipo){
+  const a = $(id);
+  if(!msg){ a.className = 'alert'; a.textContent = ''; return; }
+  a.textContent = msg;
+  a.className = 'alert show alert-' + (tipo || 'err');
+}
+function cargando(btn, texto){
+  btn.disabled = true;
+  btn.dataset.txt = btn.dataset.txt || btn.textContent;
+  btn.innerHTML = '<span class="spin"></span> ' + texto;
+}
+function listo(btn){
+  btn.disabled = false;
+  if(btn.dataset.txt) btn.textContent = btn.dataset.txt;
+}
+
+/* ── CRIPTOGRAFÍA ────────────────────────────────────────────────────────── */
+async function derivar(username, password){
+  const enc = new TextEncoder();
+  const saltBuf = await crypto.subtle.digest('SHA-256',
+    enc.encode(String(username).trim().toLowerCase() + '|' + SITE_SALT));
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt:new Uint8Array(saltBuf), iterations:PBKDF2_ITER, hash:'SHA-256' }, keyMat, 256);
+  return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ── LLAMADAS AL SERVIDOR ────────────────────────────────────────────────── */
+// text/plain evita el preflight CORS; Apps Script lee el cuerpo igual.
+async function api(accion, datos){
+  if(API.indexOf('PEGA_AQUI') === 0){
+    throw new Error('Falta configurar la URL del Apps Script en la constante API del portal.');
+  }
+  let r;
+  try{
+    r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: accion }, datos || {}))
+    });
+  }catch(e){
+    throw new Error('No hay conexión con el servidor del portal. Revisa tu internet e inténtalo de nuevo.');
+  }
+  if(!r.ok) throw new Error('El servidor respondió con un error ' + r.status + '.');
+  let j;
+  try{ j = await r.json(); }
+  catch(e){ throw new Error('Respuesta inesperada del servidor. Revisa que el Apps Script esté implementado como aplicación web con acceso «Cualquier usuario».'); }
+  if(!j.ok){
+    const err = new Error(j.msg || 'Error en el servidor.');
+    err.codigo = j.codigo;
+    throw err;
+  }
+  return j;
+}
+const apiAuth = (accion, datos) => api(accion, Object.assign({ token: S.token }, datos || {}));
+
+/* ── SESIÓN ──────────────────────────────────────────────────────────────── */
+function guardarSesion(token, user){
+  try{ localStorage.setItem(SESION_KEY, JSON.stringify({ token, user, guardada: Date.now() })); }
+  catch(e){ /* modo privado: la sesión vive solo en memoria */ }
+}
+function leerSesion(){
+  try{ return JSON.parse(localStorage.getItem(SESION_KEY) || 'null'); }
+  catch(e){ return null; }
+}
+function borrarSesion(){
+  try{ localStorage.removeItem(SESION_KEY); }catch(e){}
+}
+
+/* ── LOGIN ───────────────────────────────────────────────────────────────── */
+$('loginForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  aviso('loginErr', '');
+  const u = $('lu').value.trim().toLowerCase(), p = $('lp').value;
+  if(!u || !p) return aviso('loginErr', 'Escribe tu usuario y tu contraseña.');
+
+  const btn = $('btnLogin');
+  cargando(btn, 'Verificando…');
+  try{
+    const dk = await derivar(u, p);
+    const res = await api('login', { username: u, dk });
+    S.token = res.token;
+    S.user  = res.user;
+    guardarSesion(res.token, res.user);
+    $('lp').value = '';
+    entrar();
+  }catch(e){
+    aviso('loginErr', e.message);
+  }
+  listo(btn);
+});
+
+function entrar(){
+  $('vLogin').classList.add('hidden');
+  $('vApp').classList.remove('hidden');
+  pintarIdentidad();
+  pintarApps();
+  $('tabAdmin').classList.toggle('hidden', S.user.rol !== 'admin');
+  irA('apps');
+}
+
+function salir(){
+  S.token = null; S.user = null; S.users = [];
+  borrarSesion();
+  $('vApp').classList.add('hidden');
+  $('vLogin').classList.remove('hidden');
+  $('lp').value = '';
+  aviso('loginErr', '');
+}
+$('btnLogout').addEventListener('click', salir);
+
+/** Si el servidor rechaza el token, la sesión murió: al login. */
+function manejar(e){
+  if(e.codigo === 'NO_SESSION'){
+    toast('Tu sesión expiró. Vuelve a entrar.', 'err');
+    salir();
+    return true;
+  }
+  toast(e.message, 'err');
+  return false;
+}
+
+/* Si el logo del sitio no está disponible, se muestra el respaldo tipográfico
+   para que el portal nunca aparezca sin marca. */
+document.querySelectorAll('.brandmark').forEach(bm => {
+  const img = bm.querySelector('img');
+  if(!img) return;
+  const fallar = () => bm.classList.add('sinlogo');
+  img.addEventListener('error', fallar);
+  if(img.complete && img.naturalWidth === 0) fallar();
+});
+
+/* ── NAVEGACIÓN ──────────────────────────────────────────────────────────── */
+function irA(vista){
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === vista));
+  $('viewApps').classList.toggle('hidden',   vista !== 'apps');
+  $('viewAdmin').classList.toggle('hidden',  vista !== 'admin');
+  $('viewCuenta').classList.toggle('hidden', vista !== 'cuenta');
+  if(vista === 'admin' && !S.users.length) cargarUsuarios();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => irA(t.dataset.view)));
+
+/* ── IDENTIDAD ───────────────────────────────────────────────────────────── */
+function iniciales(nombre){
+  const p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '?';
+  return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+}
+function pintarIdentidad(){
+  $('whoName').textContent   = S.user.nombre;
+  $('whoRole').textContent   = S.user.rol === 'admin' ? 'Administrador' : 'Operador';
+  $('whoAvatar').textContent = iniciales(S.user.nombre);
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const corto = String(S.user.nombre || '').trim().split(/\s+/)[0] || '';
+  $('saludo').textContent = saludo + (corto ? ', ' + corto : '');
+  $('saludoSub').textContent = S.user.rol === 'admin'
+    ? 'Tienes acceso de administrador. Estas son tus herramientas.'
+    : 'Estas son las herramientas a las que tienes acceso.';
+}
+
+/* ── TARJETAS DE APLICACIONES ────────────────────────────────────────────── */
+function pintarApps(){
+  const permitidas = CATALOGO.filter(a => (S.user.apps || []).indexOf(a.key) >= 0);
+  const grid = $('appsGrid');
+  $('appsVacio').classList.toggle('hidden', permitidas.length > 0);
+  grid.classList.toggle('hidden', permitidas.length === 0);
+
+  grid.innerHTML = permitidas.map(a => `
+    <a class="app-card" style="--c:${a.color}" href="${esc(a.url)}">
+      <div class="row">
+        <div class="app-icon"><svg viewBox="0 0 24 24">${a.icon}</svg></div>
+        <span class="app-go">ABRIR &rarr;</span>
+      </div>
+      <h3>${esc(a.titulo)}</h3>
+      <p>${esc(a.desc)}</p>
+      <div class="app-tags">
+        ${S.user.rol === 'admin'
+          ? '<span class="tag tag-admin">Acceso de administrador</span>'
+          : '<span class="tag tag-ok">Acceso de operador</span>'}
+      </div>
+    </a>`).join('');
+}
+
+/* Fichas del catálogo en la pantalla de login (informativas). */
+$('loginChips').innerHTML = CATALOGO
+  .map(a => `<span class="chip"><i style="background:${a.color}"></i>${esc(a.titulo)}</span>`).join('');
+
+/* ── ADMINISTRACIÓN: LISTA ───────────────────────────────────────────────── */
+async function cargarUsuarios(){
+  const cuerpo = $('userRows');
+  cuerpo.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted)">' +
+                     '<span class="spin dark"></span> Cargando usuarios…</td></tr>';
+  try{
+    const r = await apiAuth('listUsers');
+    S.users = r.users || [];
+    pintarUsuarios();
+  }catch(e){
+    if(!manejar(e)) cuerpo.innerHTML =
+      '<tr><td colspan="6" style="color:var(--accent-600)">' + esc(e.message) + '</td></tr>';
+  }
+}
+$('btnRecargar').addEventListener('click', cargarUsuarios);
+
+function fecha(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return '—';
+  return d.toLocaleDateString('es', { day:'2-digit', month:'short' }) + ' · ' +
+         d.toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+}
+
+function ciudadesDe(u){
+  const c = u.extras && u.extras.prospectos && u.extras.prospectos.ciudades;
+  if(!Array.isArray(c) || !c.length || u.rol === 'admin') return '';
+  return `<div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">
+            Prospectos limitado a: ${esc(c.join(', '))}</div>`;
+}
+
+function pintarUsuarios(){
+  const filas = S.users.slice().sort((a, b) =>
+    (a.rol === b.rol ? 0 : a.rol === 'admin' ? -1 : 1) ||
+    a.nombre.localeCompare(b.nombre, 'es'));
+
+  $('userCount').textContent = filas.length + (filas.length === 1 ? ' usuario' : ' usuarios') +
+    ' · ' + filas.filter(u => u.activo).length + ' activos';
+
+  $('userRows').innerHTML = filas.map(u => {
+    const apps = CATALOGO.map(a => {
+      const on = (u.apps || []).indexOf(a.key) >= 0;
+      return `<span class="dot-app${on ? ' on' : ''}" style="--c:${a.color}">${esc(a.corto)}</span>`;
+    }).join('');
+    const yo = u.id === S.user.id;
+    return `<tr>
+      <td><div class="u-name"><span>${esc(u.nombre)}</span>${yo ? '<span class="pill pill-oper">tú</span>' : ''}</div>
+          <div class="u-user">@${esc(u.username)}</div></td>
+      <td><span class="pill ${u.rol === 'admin' ? 'pill-admin' : 'pill-oper'}">${u.rol === 'admin' ? 'Administrador' : 'Operador'}</span></td>
+      <td><div class="app-dots">${apps}</div>${ciudadesDe(u)}</td>
+      <td><span class="pill ${u.activo ? 'pill-on' : 'pill-off'}">${u.activo ? 'Activo' : 'Bloqueado'}</span></td>
+      <td style="color:var(--text-muted);font-size:13px">${esc(fecha(u.ultimoAcceso))}</td>
+      <td><div class="row-acts">
+        <button class="icon-btn" data-editar="${esc(u.id)}" title="Editar" aria-label="Editar ${esc(u.nombre)}">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+        <button class="icon-btn danger" data-borrar="${esc(u.id)}" title="Eliminar" aria-label="Eliminar ${esc(u.nombre)}"${yo ? ' disabled style="opacity:.35"' : ''}>
+          <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+      </div></td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--text-muted)">Todavía no hay usuarios.</td></tr>';
+
+  $('userRows').querySelectorAll('[data-editar]').forEach(b =>
+    b.addEventListener('click', () => abrirUsuario(b.dataset.editar)));
+  $('userRows').querySelectorAll('[data-borrar]').forEach(b =>
+    b.addEventListener('click', () => pedirBorrar(b.dataset.borrar)));
+}
+
+/* ── ADMINISTRACIÓN: MODAL ───────────────────────────────────────────────── */
+function pintarPermisos(seleccion){
+  $('muApps').innerHTML = CATALOGO.map(a => `
+    <label class="perm">
+      <input type="checkbox" value="${esc(a.key)}"${seleccion.indexOf(a.key) >= 0 ? ' checked' : ''}>
+      <span><b>${esc(a.titulo)}</b><small>${esc(a.desc.split('.')[0])}.</small></span>
+    </label>`).join('');
+  $('muApps').querySelectorAll('input').forEach(c =>
+    c.addEventListener('change', ajustesPorApp));
+  ajustesPorApp();
+}
+
+/* Los ajustes propios de una app solo tienen sentido si esa app está marcada
+   y el usuario no es administrador (los admin no tienen restricciones). */
+function ajustesPorApp(){
+  const marcada = !!$('muApps').querySelector('input[value="prospectos"]:checked');
+  const esAdmin = $('muRol').value === 'admin';
+  $('muCiudadesBox').classList.toggle('hidden', !marcada || esAdmin);
+}
+
+function abrirUsuario(id){
+  const u = id ? S.users.find(x => x.id === id) : null;
+  S.editando = u || null;
+  aviso('muErr', '');
+
+  $('muTitle').textContent = u ? 'Editar usuario' : 'Nuevo usuario';
+  $('muSub').textContent   = u ? 'Cambia sus datos, su nivel de acceso o sus aplicaciones.'
+                               : 'Define el acceso y los permisos de esta persona.';
+  $('muNombre').value = u ? u.nombre   : '';
+  $('muUser').value   = u ? u.username : '';
+  $('muRol').value    = u ? u.rol      : 'operador';
+  $('muActivo').value = u ? (u.activo ? 'si' : 'no') : 'si';
+  $('muNotas').value  = u ? (u.notas || '') : '';
+  $('muPass').value   = '';
+  $('muPass').placeholder = u ? 'Dejar vacío para no cambiarla' : 'Mínimo 10 caracteres';
+  $('muPassOpt').classList.toggle('hidden', !u);
+  const cd = u && u.extras && u.extras.prospectos && u.extras.prospectos.ciudades;
+  $('muCiudades').value = Array.isArray(cd) ? cd.join(', ') : '';
+  pintarPermisos(u ? (u.apps || []) : []);
+  pistasModal();
+
+  $('ovUser').classList.remove('hidden');
+  setTimeout(() => $('muNombre').focus(), 60);
+}
+$('btnNuevo').addEventListener('click', () => abrirUsuario(null));
+
+function pistasModal(){
+  $('muRolHint').textContent = $('muRol').value === 'admin'
+    ? 'Ve el módulo de usuarios y puede administrar a los demás.'
+    : 'Uso normal de las aplicaciones asignadas.';
+  $('muActivoHint').textContent = $('muActivo').value === 'si'
+    ? 'Puede iniciar sesión.'
+    : 'No puede entrar; sus sesiones abiertas se cortan.';
+}
+$('muRol').addEventListener('change', () => { pistasModal(); ajustesPorApp(); });
+$('muActivo').addEventListener('change', pistasModal);
+
+$('muGuardar').addEventListener('click', async () => {
+  aviso('muErr', '');
+  const nombre = $('muNombre').value.trim();
+  const user   = $('muUser').value.trim().toLowerCase();
+  const pass   = $('muPass').value;
+  const apps   = Array.from($('muApps').querySelectorAll('input:checked')).map(c => c.value);
+
+  if(!nombre)  return aviso('muErr', 'Escribe el nombre completo.');
+  if(!/^[a-z0-9._-]{3,32}$/.test(user))
+    return aviso('muErr', 'El nombre de acceso admite entre 3 y 32 caracteres: letras, números, punto, guion o guion bajo.');
+  if(!S.editando && pass.length < 10)
+    return aviso('muErr', 'La contraseña inicial debe tener al menos 10 caracteres.');
+  if(pass && pass.length < 10)
+    return aviso('muErr', 'La contraseña nueva debe tener al menos 10 caracteres.');
+
+  const ciudades = $('muCiudades').value.split(',').map(c => c.trim()).filter(Boolean);
+  const extras = Object.assign({}, (S.editando && S.editando.extras) || {});
+  if(apps.indexOf('prospectos') >= 0 && ciudades.length) extras.prospectos = { ciudades };
+  else delete extras.prospectos;
+
+  const datos = {
+    id: S.editando ? S.editando.id : null,
+    nombre, username: user,
+    rol: $('muRol').value,
+    activo: $('muActivo').value === 'si',
+    apps, extras, notas: $('muNotas').value.trim()
+  };
+
+  const btn = $('muGuardar');
+  cargando(btn, 'Guardando…');
+  try{
+    if(pass) datos.dk = await derivar(user, pass);
+    await apiAuth('saveUser', { user: datos });
+    $('ovUser').classList.add('hidden');
+    toast(S.editando ? 'Usuario actualizado.' : 'Usuario creado.', 'ok');
+    await cargarUsuarios();
+  }catch(e){
+    if(e.codigo === 'NO_SESSION') manejar(e); else aviso('muErr', e.message);
+  }
+  listo(btn);
+});
+
+/* ── ADMINISTRACIÓN: BORRAR Y SESIONES ───────────────────────────────────── */
+function confirmar(titulo, sub, textoOk, alAceptar){
+  $('cfTitle').textContent = titulo;
+  $('cfSub').textContent   = sub;
+  $('cfOk').textContent    = textoOk;
+  S.confirmar = alAceptar;
+  $('ovConf').classList.remove('hidden');
+}
+$('cfOk').addEventListener('click', async () => {
+  const fn = S.confirmar;
+  $('ovConf').classList.add('hidden');
+  S.confirmar = null;
+  if(fn) await fn();
+});
+
+function pedirBorrar(id){
+  const u = S.users.find(x => x.id === id);
+  if(!u) return;
+  confirmar('Eliminar a ' + u.nombre + '',
+    'Perderá el acceso al portal de inmediato. Esta acción no se puede deshacer.',
+    'Sí, eliminar', async () => {
+      try{
+        await apiAuth('deleteUser', { id });
+        toast('Usuario eliminado.', 'ok');
+        await cargarUsuarios();
+      }catch(e){ manejar(e); }
+    });
+}
+
+$('btnCerrarTodo').addEventListener('click', () => {
+  confirmar('Cerrar todas las sesiones',
+    'Todo el mundo tendrá que volver a entrar, incluido tú. Úsalo si crees que alguien tiene acceso indebido.',
+    'Sí, cerrar todo', async () => {
+      try{
+        await apiAuth('closeAllSessions');
+        toast('Sesiones cerradas. Vuelve a entrar.', 'ok');
+        setTimeout(salir, 900);
+      }catch(e){ manejar(e); }
+    });
+});
+
+/* ── ADMINISTRACIÓN: REGISTRO ────────────────────────────────────────────── */
+$('btnLog').addEventListener('click', async () => {
+  const box = $('logBox');
+  box.innerHTML = '<div class="log-row vacia"><span class="spin dark"></span></div>';
+  try{
+    const r = await apiAuth('audit');
+    box.innerHTML = (r.eventos || []).slice(0, 60).map(e => `
+      <div class="log-row">
+        <time>${esc(fecha(e.fecha))}</time>
+        <span class="who-l">${esc(e.usuario)}</span>
+        <span class="act">${esc(e.accion.replace(/_/g, ' '))}${e.detalle ? ' — ' + esc(e.detalle) : ''}</span>
+      </div>`).join('') ||
+      '<div class="log-row vacia">Sin eventos registrados.</div>';
+  }catch(e){
+    if(!manejar(e)) box.innerHTML =
+      '<div class="log-row vacia" style="color:var(--accent-600)">' + esc(e.message) + '</div>';
+  }
+});
+
+/* ── MI CUENTA ───────────────────────────────────────────────────────────── */
+$('formPass').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  aviso('cpMsg', '');
+  const act = $('cpAct').value, nue = $('cpNue').value, rep = $('cpRep').value;
+  if(nue.length < 10) return aviso('cpMsg', 'La contraseña nueva debe tener al menos 10 caracteres.');
+  if(nue !== rep)     return aviso('cpMsg', 'La contraseña nueva y su repetición no coinciden.');
+  if(nue === act)     return aviso('cpMsg', 'La contraseña nueva debe ser distinta de la actual.');
+
+  const btn = $('btnPass');
+  cargando(btn, 'Guardando…');
+  try{
+    const dkActual = await derivar(S.user.username, act);
+    const dkNueva  = await derivar(S.user.username, nue);
+    await apiAuth('changePassword', { dkActual, dkNueva });
+    $('formPass').reset();
+    aviso('cpMsg', 'Contraseña actualizada. Úsala la próxima vez que entres.', 'ok');
+  }catch(e){
+    if(e.codigo === 'NO_SESSION') manejar(e); else aviso('cpMsg', e.message);
+  }
+  listo(btn);
+});
+
+/* ── INTERACCIONES GENERALES ─────────────────────────────────────────────── */
+document.querySelectorAll('[data-cerrar]').forEach(b =>
+  b.addEventListener('click', () => $(b.dataset.cerrar).classList.add('hidden')));
+
+document.querySelectorAll('.overlay').forEach(ov =>
+  ov.addEventListener('click', e => { if(e.target === ov) ov.classList.add('hidden'); }));
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden'));
+});
+
+document.querySelectorAll('[data-eye]').forEach(b => b.addEventListener('click', () => {
+  const i = $(b.dataset.eye);
+  i.type = i.type === 'password' ? 'text' : 'password';
+  b.setAttribute('aria-label', i.type === 'password' ? 'Mostrar contraseña' : 'Ocultar contraseña');
+}));
+
+/* ── MENSAJE AL VOLVER REBOTADO DESDE UNA APP ────────────────────────────── */
+(function motivoDeVuelta(){
+  const q = new URLSearchParams(location.search);
+  const motivo = q.get('motivo');
+  if(!motivo) return;
+  const app = CATALOGO.find(a => a.key === q.get('app'));
+  const nombre = app ? app.titulo : 'esa aplicación';
+  const textos = {
+    entra:      { m: 'Inicia sesión para abrir ' + nombre + '.', t: 'warn' },
+    sinpermiso: { m: 'No tienes acceso a ' + nombre + '. Pídeselo al administrador general.', t: 'err' },
+    expirada:   { m: 'Tu sesión expiró. Vuelve a entrar para continuar.', t: 'warn' }
+  };
+  const info = textos[motivo];
+  if(info) aviso('loginErr', info.m, info.t);
+  history.replaceState(null, '', location.pathname);
+})();
+
+/* ── ARRANQUE ────────────────────────────────────────────────────────────── */
+(async function inicio(){
+  const s = leerSesion();
+  if(!s || !s.token) return;
+  S.token = s.token;
+  try{
+    const r = await apiAuth('validate');   // el servidor decide si el token sigue vivo
+    S.user = r.user;
+    guardarSesion(S.token, S.user);
+    entrar();
+  }catch(e){
+    S.token = null;
+    borrarSesion();
+    if(e.codigo !== 'NO_SESSION') aviso('loginErr', e.message);
+  }
+})();
+</script>
 </body>
 </html>

@@ -475,6 +475,153 @@ td {
 </style>
 </head>
 <body>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     GUARD DEL PORTAL — se inserta justo después de la etiqueta de apertura del cuerpo.
+     paystubs se sustituye por la clave de la app: prospectos | nomina | paystubs | analyzer
+     ══════════════════════════════════════════════════════════════════════════ -->
+<style>
+#pg-velo{position:fixed;inset:0;z-index:2147483646;background:#04141F;color:#EAF4F6;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  font-family:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#pg-velo .pg-sp{width:26px;height:26px;border:3px solid rgba(255,255,255,.22);
+  border-top-color:#17A9DE;border-radius:50%;animation:pgsp .7s linear infinite}
+@keyframes pgsp{to{transform:rotate(360deg)}}
+#pg-velo small{color:#9FBECB;font-size:13px;letter-spacing:.02em}
+#pg-volver{position:fixed;right:14px;bottom:14px;z-index:2147483645;
+  display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;
+  background:#04141F;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.16);
+  font-family:"Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,sans-serif;
+  font-weight:700;font-size:12.5px;box-shadow:0 6px 20px rgba(4,20,31,.28);opacity:.92}
+#pg-volver:hover{opacity:1;background:#0D3247}
+#pg-volver b{font-weight:700}
+#pg-volver span{color:#9FBECB;font-weight:600}
+@media print{#pg-volver{display:none}}
+</style>
+
+<div id="pg-velo"><div class="pg-sp"></div><small>Verificando tu acceso…</small></div>
+
+<script>
+/* Control de acceso del portal. Esta app no tiene contraseña propia: quien
+   entra lo hace con su usuario del portal y con los permisos que tenga ahí.
+   La comprobación de aquí evita mostrar la interfaz a quien no debe verla;
+   la protección real la aplica el Apps Script, que exige el token en cada
+   petición de datos. */
+(function () {
+  var APP    = 'paystubs';
+  var API    = 'https://script.google.com/macros/s/AKfycbxEjSzo6gtP7rnVfc0JOAkZSvD6pTNYRvgcjoY_y_RrKMKOpRbDj4BBDMpzv_KuARxNNA/exec';
+  var PORTAL = 'https://247medicalaid.github.io/';
+  var CLAVE  = 'portal247.sesion';
+
+  function alPortal(motivo) {
+    try { if (motivo === 'expirada') localStorage.removeItem(CLAVE); } catch (e) {}
+    var destino = PORTAL + (motivo ? '?motivo=' + motivo + '&app=' + APP : '');
+    location.replace(destino);
+  }
+
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) {}
+
+  if (!s || !s.token || !s.user) return alPortal('entra');
+  if ((s.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
+
+  // Disponible para el resto de la aplicación.
+  window.PORTAL = {
+    listo: false,
+    app: APP,
+    token: s.token,
+    user: s.user,
+    rol: s.user.rol,
+    esAdmin: s.user.rol === 'admin',
+    // Ajustes de esta app para este usuario (p. ej. ciudades en MedProspect)
+    ajustes: (s.user.extras && s.user.extras[APP]) || {},
+    salir: function () { try { localStorage.removeItem(CLAVE); } catch (e) {} location.replace(PORTAL); },
+    volver: function () { location.href = PORTAL; },
+    // Añade el token a cualquier petición hacia los Apps Script
+    conToken: function (obj) { return Object.assign({ token: s.token, app: APP }, obj || {}); },
+    urlConToken: function (url) {
+      return url + (url.indexOf('?') < 0 ? '?' : '&') +
+             'token=' + encodeURIComponent(s.token) + '&app=' + encodeURIComponent(APP);
+    }
+  };
+
+  /* Toda petición hacia los Apps Script sale con el token de sesión.
+     Así no hay que tocar los cientos de llamadas que ya existen en cada app.
+     En los POST el token viaja en el cuerpo; solo en los GET va en la URL. */
+  (function interceptar() {
+    var original = window.fetch;
+    if (!original) return;
+    window.fetch = function (entrada, opciones) {
+      try {
+        var url = (typeof entrada === 'string') ? entrada
+                : (entrada && entrada.url) ? entrada.url : '';
+        if (url.indexOf('script.google.com') >= 0) {
+          var metodo = (opciones && opciones.method ? String(opciones.method) : 'GET').toUpperCase();
+
+          if (metodo === 'POST' && opciones && typeof opciones.body === 'string') {
+            try {
+              var cuerpo = JSON.parse(opciones.body);
+              if (cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {
+                cuerpo.token = s.token;
+                cuerpo.app = APP;
+                opciones = Object.assign({}, opciones, { body: JSON.stringify(cuerpo) });
+                return original.call(this, entrada, opciones);
+              }
+            } catch (e) { /* cuerpo no-JSON: cae al caso general */ }
+          }
+
+          var conToken = url + (url.indexOf('?') < 0 ? '?' : '&') +
+                         'token=' + encodeURIComponent(s.token) + '&app=' + encodeURIComponent(APP);
+          entrada = (typeof entrada === 'string') ? conToken : new Request(conToken, entrada);
+        }
+      } catch (e) { /* nunca romper la petición original */ }
+      return original.call(this, entrada, opciones);
+    };
+  })();
+
+  function mostrar() {
+    var v = document.getElementById('pg-velo');
+    if (v) v.parentNode.removeChild(v);
+    var a = document.createElement('a');
+    a.id = 'pg-volver';
+    a.href = PORTAL;
+    a.innerHTML = '&larr; <b>Portal</b> <span>&middot; ' +
+      String(window.PORTAL.user.nombre || '').split(' ')[0] + '</span>';
+    document.body.appendChild(a);
+  }
+
+  // Confirmación contra el servidor: si el token caducó o el usuario fue
+  // desactivado, se sale aunque el navegador todavía guarde la sesión.
+  fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'validate', token: s.token })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (j) {
+    if (!j || !j.ok) return alPortal('expirada');
+    if ((j.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
+    window.PORTAL.user    = j.user;
+    window.PORTAL.rol     = j.user.rol;
+    window.PORTAL.esAdmin = j.user.rol === 'admin';
+    window.PORTAL.ajustes = (j.user.extras && j.user.extras[APP]) || {};
+    try {
+      localStorage.setItem(CLAVE, JSON.stringify({ token: s.token, user: j.user, guardada: Date.now() }));
+    } catch (e) {}
+    window.PORTAL.listo = true;
+    mostrar();
+    document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
+  })
+  .catch(function () {
+    // Sin conexión con el portal: se deja trabajar con la sesión local.
+    // Los datos igual no llegan si el servidor rechaza el token.
+    window.PORTAL.listo = true;
+    mostrar();
+    document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
+  });
+})();
+</script>
+
+
 <div class="layout">
 
 <!-- ── SIDEBAR ──────────────────────────────────────────────────── -->
