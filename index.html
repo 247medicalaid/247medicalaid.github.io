@@ -638,30 +638,53 @@ async function derivar(username, password){
 
 /* ── LLAMADAS AL SERVIDOR ────────────────────────────────────────────────── */
 // text/plain evita el preflight CORS; Apps Script lee el cuerpo igual.
+const INTENTOS = 3;
+
 async function api(accion, datos){
   if(API.indexOf('PEGA_AQUI') === 0){
     throw new Error('Falta configurar la URL del Apps Script en la constante API del portal.');
   }
-  let r;
-  try{
-    r = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: accion }, datos || {}))
-    });
-  }catch(e){
-    throw new Error('No hay conexión con el servidor del portal. Revisa tu internet e inténtalo de nuevo.');
+  const cuerpo = JSON.stringify(Object.assign({ action: accion }, datos || {}));
+  let fallo = null;
+
+  // Apps Script devuelve de vez en cuando 404 o 5xx de forma pasajera, sobre todo
+  // en la primera llamada tras un despliegue. Se reintenta antes de dar error.
+  for(let intento = 1; intento <= INTENTOS; intento++){
+    let r;
+    try{
+      r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: cuerpo
+      });
+    }catch(e){
+      fallo = new Error('No hay conexión con el servidor del portal. Revisa tu internet e inténtalo de nuevo.');
+      r = null;
+    }
+
+    if(r && r.ok){
+      let j;
+      try{ j = await r.json(); }
+      catch(e){
+        throw new Error('Respuesta inesperada del servidor. Revisa que el Apps Script esté implementado como aplicación web con acceso «Cualquier usuario».');
+      }
+      if(!j.ok){
+        const err = new Error(j.msg || 'Error en el servidor.');
+        err.codigo = j.codigo;
+        throw err;   // respuesta legítima del servidor: no se reintenta
+      }
+      return j;
+    }
+
+    if(r && !r.ok){
+      fallo = new Error(r.status === 404
+        ? 'Google no encontró el servicio del portal (error 404). Suele pasar cuando el navegador tiene varias cuentas de Google abiertas: prueba en una ventana de incógnito o deja una sola cuenta iniciada.'
+        : 'El servidor respondió con un error ' + r.status + '.');
+    }
+
+    if(intento < INTENTOS) await new Promise(s => setTimeout(s, 900 * intento));
   }
-  if(!r.ok) throw new Error('El servidor respondió con un error ' + r.status + '.');
-  let j;
-  try{ j = await r.json(); }
-  catch(e){ throw new Error('Respuesta inesperada del servidor. Revisa que el Apps Script esté implementado como aplicación web con acceso «Cualquier usuario».'); }
-  if(!j.ok){
-    const err = new Error(j.msg || 'Error en el servidor.');
-    err.codigo = j.codigo;
-    throw err;
-  }
-  return j;
+  throw fallo || new Error('No se pudo contactar con el servidor del portal.');
 }
 const apiAuth = (accion, datos) => api(accion, Object.assign({ token: S.token }, datos || {}));
 
