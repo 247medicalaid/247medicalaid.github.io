@@ -6709,85 +6709,207 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
   const amtDue  = Math.max(0, data.monto - data.paid);
 
   // Line items: one row per group (same days worked), skip 0-day groups
+  // Las celdas usan las clases de la hoja de estilo de la factura en vez de
+  // estilos en linea, para que el color viva en un solo sitio.
   const lineRows = groups.map(g => `
     <tr>
-      <td style="padding:12px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top">
-        <div style="font-weight:700;font-size:13px">Call Center Service ${mesLabel}</div>
-        <div style="font-size:11px;color:#777;margin-top:3px">
+      <td>
+        <div class="it-desc">Call Center Service ${mesLabel}</div>
+        <div class="it-sub">
           Services provided during the period of ${periodoDesc}<br>
           ${g.nombres.length} agent${g.nombres.length!==1?'s':''} · ${g.dias} days worked
         </div>
       </td>
-      <td style="padding:12px 12px;border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;font-family:monospace;white-space:nowrap">
-        $${fmtN(data.tarifa)}
-      </td>
-      <td style="padding:12px 12px;border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;font-family:monospace">
-        ${g.nombres.length}
-      </td>
-      <td style="padding:12px 12px;border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;font-family:monospace;font-weight:700;color:#0f766e;white-space:nowrap">
-        $${fmtN(g.subtotal)}
-      </td>
+      <td class="num">$${fmtN(data.tarifa)}</td>
+      <td class="num">${g.nombres.length}</td>
+      <td class="num num-strong">$${fmtN(g.subtotal)}</td>
     </tr>`).join('');
+
+  // ── Totales ────────────────────────────────────────────────────────────────
+  // El pie mostraba data.monto como "Amount Due", ignorando lo ya pagado, asi
+  // que contradecia la cifra grande de la cabecera cuando habia un pago parcial.
+  // Ahora ambas usan amtDue y, si hay pago, aparece la linea que lo explica.
+  const filaPagado = data.paid > 0
+    ? `<tr><td>Payments received</td><td class="neg">-${fmtN(data.paid)}</td></tr>`
+    : '';
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>Invoice ${data.invnum||''} — ${cuentaNombre}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root{
+    --ink:#0B2233; --ink-800:#082436;
+    --brand:#0E86B4; --brand-700:#0A6A90; --brand-50:#EFF8FD;
+    --accent:#ED3237;
+    --muted:#4A6478; --line:#DCE6EA; --sand:#F5F8F9;
+    --font-display:'Plus Jakarta Sans',ui-sans-serif,system-ui,'Segoe UI',Arial,sans-serif;
+    --font-body:'Inter',ui-sans-serif,system-ui,'Segoe UI',Arial,sans-serif;
+  }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;background:#fff}
-  .page{max-width:820px;margin:0 auto;padding:36px 44px}
-  .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
-  .logo-box{display:flex;align-items:center;gap:14px}
-  .logo-icon{width:60px;height:60px;background:#1565c0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px;flex-shrink:0}
-  .logo-text{font-size:15px;font-weight:800;color:#1565c0;line-height:1.2}
-  .logo-sub{font-size:11px;color:#666;margin-top:2px}
-  .co-info{text-align:right;font-size:12px;color:#666;line-height:1.7}
-  .meta{display:grid;grid-template-columns:1fr auto auto auto;gap:20px;padding:16px 0;border-top:2.5px solid #1565c0;border-bottom:1px solid #e5e7eb;margin-bottom:24px;align-items:start}
-  .ml{font-size:10px;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
-  .mv{font-size:13px;color:#1a1a1a;font-weight:500}
-  .due-big{font-size:30px;font-weight:900;color:#1a1a1a}
+  body{font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--sand);
+    -webkit-font-smoothing:antialiased}
+  .page{max-width:820px;margin:0 auto;background:#fff}
+  .inner{padding:40px 46px 46px}
+
+  /* ── Cabecera ── */
+  .band{background:var(--ink-800);color:#fff;padding:26px 46px;
+    display:flex;justify-content:space-between;align-items:center;gap:24px}
+  .brandmark{display:flex;align-items:center;line-height:1}
+  .brandmark img{display:block;height:42px;width:auto}
+  .brandmark .bm-fb{display:none;align-items:baseline;gap:.3em;flex-wrap:wrap;
+    font-family:var(--font-display);font-weight:800;letter-spacing:-.03em;font-size:24px;color:#fff}
+  .brandmark.sinlogo img{display:none}
+  .brandmark.sinlogo .bm-fb{display:inline-flex}
+  .bm-fb b{color:#F4676B;font-weight:800}
+  .bm-fb i{font-style:normal;width:1px;align-self:stretch;background:currentColor;opacity:.3;margin:0 .18em}
+  .bm-fb u{text-decoration:none}
+  .bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.34em;opacity:.75;align-self:center;margin-left:-.1em}
+  .band-sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    color:rgba(255,255,255,.62);margin-top:8px}
+  .co-info{text-align:right;font-size:12px;line-height:1.75;color:rgba(255,255,255,.82)}
+  .co-info b{display:block;font-family:var(--font-display);font-weight:700;font-size:12.5px;
+    letter-spacing:.04em;color:#fff;margin-bottom:3px}
+
+  /* ── Titulo y resumen ── */
+  .title-row{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+    padding-bottom:20px;border-bottom:2px solid var(--brand)}
+  h1{font-family:var(--font-display);font-weight:800;font-size:30px;letter-spacing:-.03em;
+    color:var(--ink)}
+  .h1-sub{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .due-card{background:var(--brand-50);border:1px solid #C9E5F3;border-radius:12px;
+    padding:14px 20px;text-align:right;min-width:200px}
+  .due-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--brand-700)}
+  .due-big{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.03em;
+    color:var(--ink);margin-top:3px;white-space:nowrap}
+
+  .meta{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:26px;padding:22px 0 26px}
+  .ml{font-size:10px;font-weight:700;color:var(--brand-700);text-transform:uppercase;
+    letter-spacing:.1em;margin-bottom:5px}
+  .mv{font-size:13px;color:var(--ink);line-height:1.6}
+  .mv b{font-family:var(--font-display);font-weight:700}
+  .mv + .ml{margin-top:14px}
+
+  /* ── Detalle ── */
   table{width:100%;border-collapse:collapse}
-  thead tr{border-bottom:2px solid #1565c0}
-  th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.05em}
+  thead tr{background:var(--sand)}
+  th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--brand-700);
+    text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--line)}
   th:nth-child(n+2){text-align:right}
-  .tot-wrap{display:flex;justify-content:flex-end;margin-top:4px}
-  .tot{width:260px;border-collapse:collapse}
-  .tot td{padding:6px 12px;font-size:13px;border:none}
-  .tot td:last-child{text-align:right;font-weight:600}
-  .tot .tr td{border-top:2px solid #1a1a1a;font-size:14px;font-weight:700;padding-top:9px}
-  .tot .dr td{border-top:2px solid #1565c0;font-size:14px;font-weight:900;color:#1565c0;padding-top:9px}
-  .notes{margin-top:28px;border-top:1px solid #e5e7eb;padding-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
-  .nl{font-size:10px;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
-  .nt{font-size:12px;color:#555;line-height:1.6}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:20px 32px}}
+  td{padding:14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .it-desc{font-family:var(--font-display);font-weight:700;font-size:13px}
+  .it-sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .num-strong{font-weight:700;color:var(--brand-700)}
+
+  /* ── Totales ── */
+  .tot-wrap{display:flex;justify-content:flex-end;margin-top:18px}
+  .tot{width:300px;border-collapse:collapse}
+  .tot td{padding:7px 14px;font-size:13px;border:none}
+  .tot td:first-child{color:var(--muted)}
+  .tot td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  .tot .neg{color:var(--muted)}
+  .tot .tr td{border-top:1px solid var(--line);font-weight:700;color:var(--ink);padding-top:10px}
+  .tot .dr td{background:var(--brand-50);font-family:var(--font-display);font-size:15px;
+    font-weight:800;color:var(--brand-700);padding-top:11px;padding-bottom:11px}
+  .tot .dr td:first-child{border-radius:8px 0 0 8px;color:var(--brand-700)}
+  .tot .dr td:last-child{border-radius:0 8px 8px 0}
+
+  /* ── Notas ── */
+  .notes{margin-top:34px;border-top:1px solid var(--line);padding-top:22px;
+    display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .nl{font-size:10px;font-weight:700;color:var(--brand-700);text-transform:uppercase;
+    letter-spacing:.1em;margin-bottom:6px}
+  .nt{font-size:12px;color:var(--muted);line-height:1.65}
+  .foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--muted);text-align:center}
+
+  @page{margin:12mm}
+  @media print{
+    body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{max-width:none}
+    .band{padding:20px 30px}
+    .inner{padding:26px 30px 30px}
+    .notes,.title-row,tr{break-inside:avoid}
+  }
 </style></head><body><div class="page">
-  <div class="hdr">
-    <div class="logo-box">
-      <div class="logo-icon">24/7</div>
-      <div><div class="logo-text">24/7 Medical Aid – Call Center</div><div class="logo-sub">Professional Medical Call Center Services</div></div>
+  <div class="band">
+    <div>
+      <div class="brandmark">
+        <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical AID Call Center">
+        <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
+      </div>
+      <div class="band-sub">Professional Medical Call Center Services</div>
     </div>
-    <div class="co-info">24/7 MEDICAL AID - CALL CENTER<br>689-339-4029<br>callcenter@247medical-aid.com</div>
+    <div class="co-info"><b>24/7 MEDICAL AID · CALL CENTER</b>689-339-4029<br>callcenter@247medical-aid.com</div>
   </div>
-  <div class="meta">
-    <div><div class="ml">Billed To</div><div class="mv">${data.contact||'—'}<br><b>${cuentaNombre}</b></div></div>
-    <div><div class="ml">Date of Issue</div><div class="mv">${fmtDate(data.dateissue)}</div><div class="ml" style="margin-top:10px">Due Date</div><div class="mv">${fmtDate(data.duedate)}</div></div>
-    <div><div class="ml">Invoice Number</div><div class="mv">${data.invnum||'—'}</div></div>
-    <div style="text-align:right"><div class="ml">Amount Due (USD)</div><div class="due-big">$${fmtN(amtDue)}</div></div>
+
+  <div class="inner">
+    <div class="title-row">
+      <div>
+        <h1>Invoice</h1>
+        <div class="h1-sub">${periodoDesc}</div>
+      </div>
+      <div class="due-card">
+        <div class="due-lbl">Amount Due (USD)</div>
+        <div class="due-big">$${fmtN(amtDue)}</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div>
+        <div class="ml">Billed To</div>
+        <div class="mv">${data.contact||'—'}<br><b>${cuentaNombre}</b></div>
+      </div>
+      <div>
+        <div class="ml">Invoice Number</div>
+        <div class="mv">${data.invnum||'—'}</div>
+        <div class="ml">Date of Issue</div>
+        <div class="mv">${fmtDate(data.dateissue)}</div>
+      </div>
+      <div>
+        <div class="ml">Due Date</div>
+        <div class="mv"><b>${fmtDate(data.duedate)}</b></div>
+        <div class="ml">Billing Period</div>
+        <div class="mv">${mesLabel}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Description</th><th>Rate</th><th>Qty</th><th>Line Total</th></tr></thead>
+      <tbody>${lineRows}</tbody>
+    </table>
+
+    <div class="tot-wrap"><table class="tot">
+      <tr><td>Subtotal</td><td>${fmtN(data.monto)}</td></tr>
+      <tr><td>Tax</td><td>0.00</td></tr>
+      <tr class="tr"><td>Total</td><td>${fmtN(data.monto)}</td></tr>
+      ${filaPagado}
+      <tr class="dr"><td>Amount Due (USD)</td><td>$${fmtN(amtDue)}</td></tr>
+    </table></div>
+
+    <div class="notes">
+      <div><div class="nl">Notes</div><div class="nt">If you have any questions or require further information, please do not hesitate to contact us at callcenter@247medical-aid.com. We look forward to continuing our successful partnership.</div></div>
+      <div><div class="nl">Terms</div><div class="nt">Please ensure the payment is made by ${fmtDate(data.duedate)}, in accordance with our agreed terms. Thank you for your prompt attention to this matter.</div></div>
+    </div>
+
+    <div class="foot">24/7 Medical Aid · Call Center — Thank you for your business.</div>
   </div>
-  <table>
-    <thead><tr><th>Description</th><th>Rate</th><th>Qty</th><th>Line Total</th></tr></thead>
-    <tbody>${lineRows}</tbody>
-  </table>
-  <div class="tot-wrap"><table class="tot">
-    <tr><td style="color:#777">Subtotal</td><td>${fmtN(data.monto)}</td></tr>
-    <tr><td style="color:#777">Tax</td><td>0.00</td></tr>
-    <tr class="tr"><td>Total</td><td>${fmtN(data.monto)}</td></tr>
-    <tr class="dr"><td>Amount Due (USD)</td><td>$${fmtN(data.monto)}</td></tr>
-  </table></div>
-  <div class="notes">
-    <div><div class="nl">Notes</div><div class="nt">If you have any questions or require further information, please do not hesitate to contact us at callcenter@247medical-aid.com. Look forward to continuing our successful partnership.</div></div>
-    <div><div class="nl">Terms</div><div class="nt">Please ensure the payment is made by ${fmtDate(data.duedate)}, in accordance with our agreed terms. Thank you for your prompt attention to this matter.</div></div>
-  </div>
-</div></body></html>`;
+</div>
+<script>
+/* Si el logo del sitio no esta disponible (por ejemplo al imprimir sin conexion)
+   se muestra el respaldo tipografico, para que la factura nunca salga sin marca. */
+(function(){
+  var bm = document.querySelector('.brandmark'), img = bm && bm.querySelector('img');
+  if(!img) return;
+  var fallar = function(){ bm.classList.add('sinlogo'); };
+  img.addEventListener('error', fallar);
+  if(img.complete && img.naturalWidth === 0) fallar();
+})();
+<\/script>
+</body></html>`;
 
   const blob = new Blob([html], {type:'text/html'});
   const url  = URL.createObjectURL(blob);
