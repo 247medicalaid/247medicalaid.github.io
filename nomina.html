@@ -5487,17 +5487,81 @@ function toggleInvPago(mkid, nombre, pagado){
   renderInvoices();
 }
 
-function toggleSigmaPago(mkid, nombre, pagado){
-  const cur = getOv(mkid, nombre);
-  if(cur.cruzadoUtilidad && !pagado){
-    if(!confirm('⇄ Este invoice fue CRUZADO por Utilidad.\n\nDesmarcarlo deshace el cruce: volverá a Pendiente por pagar a Sigma y la utilidad pendiente por cobrar aumentará.\n\n¿Deshacer el cruce?')){ renderInvoices(); return; }
+// ── Pagos a Sigma: abonos parciales ─────────────────────────────────────────
+// Antes solo existia `sigmaPagado` (si / no), asi que un cheque a Sigma solo
+// podia estar pagado del todo o nada. Ahora `sigmaPaid` guarda cuanto se lleva
+// abonado y `sigmaPagado` se mantiene sincronizado como "saldado por completo",
+// para que todo lo que ya leia ese booleano siga funcionando igual.
+// Los invoices anteriores no tienen `sigmaPaid`: se deduce del booleano, de modo
+// que no hay que migrar nada.
+function sigmaEstado(ov, sigmaAmt){
+  const r2 = n => Math.round((Number(n)||0)*100)/100;
+  const total = r2(sigmaAmt);
+  let pagado = Number(ov && ov.sigmaPaid);
+  if(!isFinite(pagado) || pagado < 0){
+    pagado = (ov && ov.sigmaPagado === true) ? total : 0;
   }
-  // Un pago (o des-pago) manual siempre limpia el estado de cruce
-  setOv(mkid, nombre, { sigmaPagado: pagado, cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null });
+  pagado = Math.min(r2(pagado), total);
+  const saldo = r2(Math.max(0, total - pagado));
+  return {
+    total, pagado, saldo,
+    completo: total <= 0.005 || saldo < 0.005,
+    parcial:  pagado > 0.005 && saldo >= 0.005
+  };
+}
+
+// Cuanto falta por pagarle a Sigma en este invoice. Es lo que suman los
+// acumulados de "pendiente", para que un abono parcial se refleje en ellos.
+function sigmaSaldo(ov, sigmaAmt){ return sigmaEstado(ov, sigmaAmt).saldo; }
+function sigmaSaldado(ov, sigmaAmt){ return sigmaEstado(ov, sigmaAmt).completo; }
+
+// Fija el total abonado a Sigma de este invoice.
+function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
+  const cur = getOv(mkid, nombre);
+  const r2  = n => Math.round((Number(n)||0)*100)/100;
+  const total = r2(sigmaAmt);
+  let pagado = r2(nuevoPagado);
+  if(!isFinite(pagado) || pagado < 0) pagado = 0;
+  if(pagado > total) pagado = total;
+
+  // Deshacer un cruce por utilidad es una operacion distinta: se avisa.
+  if(cur.cruzadoUtilidad && pagado < total){
+    if(!confirm('⇄ Este invoice fue CRUZADO por Utilidad.\n\nCambiar el pago deshace el cruce: volvera a contar como pendiente por pagar a Sigma y la utilidad pendiente por cobrar aumentara.\n\n¿Deshacer el cruce?')){
+      renderInvoices();
+      return;
+    }
+  }
+
+  const completo = total <= 0.005 || (total - pagado) < 0.005;
+  setOv(mkid, nombre, {
+    sigmaPaid: pagado,
+    sigmaPagado: completo,
+    // Un pago manual siempre limpia el estado de cruce.
+    cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null
+  });
   const ovs = loadInvOv();
   const key = invOvKey(mkid, nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
   renderInvoices();
+  if(typeof renderUtilidad === 'function') try{ renderUtilidad(); }catch(e){}
+}
+
+// Suma un abono al total ya pagado, tomando el importe del campo de la tarjeta.
+// El id del campo llega desde la propia tarjeta: recalcularlo aqui fallaria en
+// las cuentas fusionadas, donde el tipo guardado no coincide con el del id.
+function abonarSigma(mkid, nombre, sigmaAmt, campoId){
+  let inp = campoId ? document.getElementById(campoId) : null;
+  if(!inp){ // respaldo, por si la tarjeta viene de un render anterior
+    const iid = makeIid(mkid, normalizeAccountName(nombre), getOv(mkid, nombre)._tipo || 'dr');
+    inp = document.getElementById(iid + '-sigpago');
+  }
+  const est = sigmaEstado(getOv(mkid, nombre), sigmaAmt);
+  const abono = inp ? parseFloat(inp.value) : NaN;
+  if(!isFinite(abono) || abono <= 0){ alert('Escribe el importe del abono.'); return; }
+  if(abono > est.saldo + 0.005){
+    if(!confirm('El abono de ' + fmt(abono) + ' supera el saldo pendiente de ' + fmt(est.saldo) + '.\n\nSe registrara el pago completo del cheque a Sigma. ¿Continuar?')) return;
+  }
+  fijarPagoSigma(mkid, nombre, est.pagado + abono, sigmaAmt);
 }
 
 // Edit invoice tarifa — modifies the master rate (permanente) or just this
@@ -5881,11 +5945,19 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>`;
       }
       const ovSigma = getOv(mk, cuNombre);
-      const sigmaPagado  = ovSigma.sigmaPagado === true;
+      const est         = sigmaEstado(ovSigma, sigma.sigmaAmt);
       const clientPagado = ovSigma.pagado === true;
-      const _flashThis   = clientPagado && !sigmaPagado && sigma.sigmaAmt > 0;
+      const _flashThis   = clientPagado && !est.completo && sigma.sigmaAmt > 0;
       const esCruzado = ovSigma.cruzadoUtilidad === true;
-      const sigmaColor = esCruzado ? '#2dd4bf' : (sigmaPagado ? 'var(--accent)' : (sigma.sigmaAmt > 0 ? 'var(--accent3)' : 'var(--text3)'));
+      const sigmaColor = esCruzado ? '#2dd4bf'
+        : (est.completo ? 'var(--accent)'
+        : (est.parcial  ? 'var(--accent2)'
+        : (sigma.sigmaAmt > 0 ? 'var(--accent3)' : 'var(--text3)')));
+      const etiquetaEstado = esCruzado ? '⇄ Cruzado por Utilidad'
+        : est.completo ? '✓ Pagado a Sigma'
+        : est.parcial  ? 'Abonado parcialmente'
+        : 'Pendiente Sigma';
+      const sid = iid + '-sigpago';
       return `
       <div class="${_flashThis ? 'inv-sigma-flash' : ''}" style="padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(167,139,250,.05);border-left:3px solid var(--inv-sigma,#a78bfa)">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -5893,19 +5965,45 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
             <div style="font-size:10px;color:var(--inv-sigma,#a78bfa);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">🏦 Cheque a Sigma</div>
             ${_sigDetalle}
           </div>
-          <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--inv-sigma,#a78bfa);white-space:nowrap">
-            ${fmt(sigma.sigmaAmt)}
+          <div style="text-align:right;white-space:nowrap">
+            <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--inv-sigma,#a78bfa)">
+              ${fmt(est.total)}
+            </div>
+            ${est.pagado > 0.005 && !est.completo
+              ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">
+                   abonado ${fmt(est.pagado)} · <b style="color:var(--accent3)">falta ${fmt(est.saldo)}</b>
+                 </div>`
+              : ''}
           </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border)">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">
-              <input type="checkbox" ${sigmaPagado ? 'checked' : ''}
-                onchange="toggleSigmaPago('${mk}','${esc(cuNombre)}',this.checked)"
-                style="width:16px;height:16px;cursor:pointer;accent-color:var(--inv-sigma,#a78bfa)">
-              <span style="font-size:12px;font-weight:600;color:${sigmaColor}">
-                ${sigmaPagado ? (esCruzado ? '⇄ Cruzado por Utilidad' : '✓ Pagado a Sigma') : 'Pendiente Sigma'}
-              </span>
-              ${esCruzado ? `<span style="font-size:10px;color:var(--text3);display:block">${ovSigma.cruceFecha||''} · compensado, no pagado</span>` : ''}
-            </label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border)">
+            <span style="font-size:12px;font-weight:600;color:${sigmaColor}">${etiquetaEstado}</span>
+            ${esCruzado
+              ? `<span style="font-size:10px;color:var(--text3)">${ovSigma.cruceFecha||''} · compensado, no pagado</span>`
+              : sigma.sigmaAmt > 0
+                ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                     ${!est.completo ? `
+                     <span style="font-size:12px;color:var(--text3)">$</span>
+                     <input type="number" step="0.01" min="0" id="${sid}" value="${est.saldo.toFixed(2)}"
+                       onfocus="this.select()"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}');}"
+                       style="width:96px;padding:5px 7px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;text-align:right">
+                     <button onclick="abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}')"
+                       style="background:rgba(76,194,236,.15);color:var(--accent2);border:1px solid rgba(76,194,236,.3);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
+                       Abonar
+                     </button>
+                     <button onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',${est.total},${est.total})"
+                       style="background:rgba(63,207,160,.12);color:var(--accent);border:1px solid rgba(63,207,160,.25);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
+                       Pagar todo
+                     </button>` : ''}
+                     ${est.pagado > 0.005
+                       ? `<button onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})"
+                            title="Borra los abonos registrados y deja el invoice en Pendiente"
+                            style="background:transparent;color:var(--text3);border:1px solid var(--border);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
+                            ✕ Deshacer
+                          </button>`
+                       : ''}
+                   </div>`
+                : ''}
           </div>
         </div>
       </div>`;
@@ -6151,7 +6249,8 @@ function renderInvResumenCuentas(){
             if(!sig.excluded){
               acc.sigmaTotal += sig.sigmaAmt;
               // Pending Sigma only when invoice IS paid to client but NOT yet paid to Sigma
-              if(ov.pagado && !ov.sigmaPagado) acc.sigmaPendiente += sig.sigmaAmt;
+              // Pendiente = lo que falta, para que los abonos parciales cuenten.
+              if(ov.pagado) acc.sigmaPendiente += sigmaSaldo(ov, sig.sigmaAmt);
             }
           }
         }
@@ -6492,10 +6591,10 @@ function renderInvoicesMes(){
     let sigmaMesPend = 0;
     lineItems.forEach(i => {
       const ov2 = getOv(mk, i.invKey||i.nombre);
-      if(!ov2.cerrado || ov2.sigmaPagado) return;
+      if(!ov2.cerrado) return;
       try {
         const d2 = buildInvData(mk, i.invKey||i.nombre, i.tipo, i.subCuentas||null);
-        if(d2){ const sig2 = calcSigmaCheck(d2, i.tipo); sigmaMesPend += sig2.sigmaAmt; }
+        if(d2){ const sig2 = calcSigmaCheck(d2, i.tipo); sigmaMesPend += sigmaSaldo(ov2, sig2.sigmaAmt); }
       } catch(e){}
     });
     // Grand total Sigma pending — split by invoice payment status
@@ -6503,7 +6602,7 @@ function renderInvoicesMes(){
     let sigmaGrandPorCobrarPend = 0; // invoice not yet paid to client
     const _seenSigma = new Set();
     Object.entries(allOvs).forEach(([key, ov3]) => {
-      if(!ov3.cerrado || ov3.sigmaPagado) return; // only closed, sigma not yet paid
+      if(!ov3.cerrado) return; // solo invoices cerrados
       const parts3 = key.split('|');
       const mk3 = parts3[0], nombre3 = parts3.slice(1).join('|');
       if(_seenSigma.has(mk3+'|'+nombre3)) return;
@@ -6520,8 +6619,9 @@ function renderInvoicesMes(){
           if(d3){
             const sig3 = calcSigmaCheck(d3, item3.tipo);
             if(!sig3.excluded){
-              if(ov3.pagado) sigmaGrandPagadosPend += sig3.sigmaAmt;   // client paid, sigma pending
-              else           sigmaGrandPorCobrarPend += sig3.sigmaAmt; // client hasn't paid yet
+              const _saldo3 = sigmaSaldo(ov3, sig3.sigmaAmt);
+              if(ov3.pagado) sigmaGrandPagadosPend   += _saldo3; // cliente pago, falta pagar a Sigma
+              else           sigmaGrandPorCobrarPend += _saldo3; // el cliente aun no paga
             }
           }
         }
@@ -6593,7 +6693,8 @@ function renderInvoicesMes(){
       _needsSigma = !_sigCheck.excluded && _sigCheck.sigmaAmt > 0;
     }
     const _sigmaPend  = ov.cerrado && !ov.pagado;                                      // cliente aún no paga
-    const _flashSigma = ov.cerrado && ov.pagado && _needsSigma && !ov.sigmaPagado;     // pagó pero Sigma pendiente
+    const _sigAmtHdr  = (i.tipo !== 'own' && _invDataHdr) ? calcSigmaCheck(_invDataHdr, i.tipo).sigmaAmt : 0;
+    const _flashSigma = ov.cerrado && ov.pagado && _needsSigma && !sigmaSaldado(ov, _sigAmtHdr); // pagó pero falta Sigma
     const _headerBg  = _sigmaPend ? '#B91C1C'  : '#1E3A5F';   // red vs dark blue
     const _headerClr = '#FFFFFF';                              // siempre blanco para legibilidad
     const _cardBg    = _sigmaPend ? '#9CA3AF'  : '#E8D4A8';   // gray-400 oscuro vs crema cálido más oscuro
@@ -7633,12 +7734,16 @@ function listarInvoicesSigmaPendientes(){
         if(item.tipo === 'own') return;
         const nombre = item.invKey || item.nombre;
         const ov = getOv(mk, nombre);
-        if(!ov.cerrado || ov.sigmaPagado) return;
+        if(!ov.cerrado) return;
         const d = buildInvData(mk, nombre, item.tipo, item.subCuentas || null);
         if(!d) return;
         const sig = calcSigmaCheck(d, item.tipo);
         if(sig.excluded || !(sig.sigmaAmt > 0)) return;
-        res.push({ mk, anio, mes, nombre, sigmaAmt: sig.sigmaAmt, clientPagado: ov.pagado === true });
+        // Se cruza lo que falta: si ya hubo abonos, solo el saldo.
+        const _est = sigmaEstado(ov, sig.sigmaAmt);
+        if(_est.completo) return;
+        res.push({ mk, anio, mes, nombre, sigmaAmt: _est.saldo, sigmaTotal: _est.total,
+                   yaAbonado: _est.pagado, clientPagado: ov.pagado === true });
       });
     } catch(e){}
   });
@@ -7668,11 +7773,11 @@ function abrirCruceUtilidad(){
   const pendCobrar = aid30 - yaCruzado;
   const filas = pendientes.length ? pendientes.map((p,i) => `
     <label style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;background:var(--surface2)">
-      <input type="checkbox" data-cruce-mk="${p.mk}" data-cruce-nombre="${escCruce(p.nombre)}" data-cruce-monto="${p.sigmaAmt}"
+      <input type="checkbox" data-cruce-mk="${p.mk}" data-cruce-nombre="${escCruce(p.nombre)}" data-cruce-monto="${p.sigmaAmt}" data-cruce-abonado="${p.yaAbonado||0}"
         onchange="_actualizarTotalCruce()" style="width:16px;height:16px;accent-color:#2dd4bf">
       <span style="flex:1;min-width:0">
         <span style="font-weight:600">${p.nombre}</span>
-        <span style="font-size:11px;color:var(--text3);display:block">${MESES_CRUCE[p.mes]} ${p.anio}${p.clientPagado ? ' · cliente pagó' : ' · cliente aún no paga'}</span>
+        <span style="font-size:11px;color:var(--text3);display:block">${MESES_CRUCE[p.mes]} ${p.anio}${p.clientPagado ? ' · cliente pagó' : ' · cliente aún no paga'}${p.yaAbonado > 0.005 ? ' · saldo tras abonos' : ''}</span>
       </span>
       <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent3)">${fmt(p.sigmaAmt)}</span>
     </label>`).join('')
@@ -7732,7 +7837,10 @@ function confirmarCruceUtilidad(){
   const fecha = new Date().toLocaleString('es-CO');
   checks.forEach(ch => {
     const mk = ch.dataset.cruceMk, nombre = ch.dataset.cruceNombre, monto = parseFloat(ch.dataset.cruceMonto);
-    setOv(mk, nombre, { sigmaPagado: true, cruzadoUtilidad: true, cruceFecha: fecha, cruceMonto: monto });
+    // Queda saldado: lo que ya se habia abonado en dinero mas la parte cruzada.
+    const _prev = parseFloat(ch.dataset.cruceAbonado) || 0;
+    setOv(mk, nombre, { sigmaPaid: Math.round((_prev + monto)*100)/100, sigmaPagado: true,
+                        cruzadoUtilidad: true, cruceFecha: fecha, cruceMonto: monto });
     const key = invOvKey(mk, nombre);
     const ovs = loadInvOv();
     if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
@@ -7746,7 +7854,10 @@ function deshacerCruce(mk, nombre){
   const fmt = n => '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const ov = getOv(mk, nombre);
   if(!confirm('¿Deshacer el cruce de "' + nombre + '" (' + fmt(ov.cruceMonto||0) + ')?\n\nEl invoice volverá a PENDIENTE por pagar a Sigma y la utilidad pendiente por cobrar aumentará de nuevo.')) return;
-  setOv(mk, nombre, { sigmaPagado: false, cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null });
+  // Se devuelve solo la parte cruzada: los abonos en dinero previos se conservan.
+  const _restante = Math.max(0, Math.round(((Number(ov.sigmaPaid)||0) - (ov.cruceMonto||0))*100)/100);
+  setOv(mk, nombre, { sigmaPaid: _restante, sigmaPagado: false,
+                      cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null });
   const key = invOvKey(mk, nombre);
   const ovs = loadInvOv();
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
