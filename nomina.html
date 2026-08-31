@@ -539,6 +539,77 @@
   .inv-sigma-flash {
     animation: inv-sigma-flash-anim 1.6s ease-in-out infinite;
   }
+  /* ─── Bloque de pago a Sigma ───────────────────────────────────────────
+     Solo usa variables del tema: la tarjeta cambia de paleta segun el estado
+     del invoice (abierto oscuro, pendiente gris, cerrado crema) y este bloque
+     tiene que leerse bien en los tres. */
+  .sig-box {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(167,139,250,.05);
+    border-left: 3px solid var(--inv-sigma, #a78bfa);
+  }
+  .sig-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sig-tit {
+    font-size: 10px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--inv-sigma, #a78bfa); white-space: nowrap;
+  }
+  .sig-pill {
+    font-size: 11px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
+    border: 1px solid currentColor; white-space: nowrap;
+  }
+  .sig-pill.pend    { color: var(--accent3); }
+  .sig-pill.parcial { color: var(--accent2); }
+  .sig-pill.ok      { color: var(--accent); }
+  .sig-pill.cruce   { color: var(--inv-247, #2dd4bf); }
+  .sig-det { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* Las tres cifras, cada una rotulada, para que no haya que adivinar cual es cual */
+  .sig-cifras { display: flex; gap: 9px; flex-wrap: wrap; margin: 12px 0 10px; }
+  .sig-cifra {
+    flex: 1 1 128px; min-width: 118px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 8px 11px;
+  }
+  .sig-cifra .lb {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 3px; white-space: nowrap;
+  }
+  .sig-cifra .vl {
+    font-family: 'DM Mono', monospace; font-size: 17px; font-weight: 700; white-space: nowrap;
+  }
+  .sig-cifra.total   .vl { color: var(--text); }
+  .sig-cifra.abonado .vl { color: var(--accent); }
+  .sig-cifra.falta   .vl { color: var(--accent3); }
+  .sig-cifra.abonado.cero .vl,
+  .sig-cifra.falta.cero   .vl { color: var(--text3); }
+
+  .sig-barra-fila { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .sig-barra {
+    flex: 1; height: 7px; border-radius: 99px; overflow: hidden;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .sig-barra > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .sig-pct { font-size: 11px; font-weight: 700; color: var(--text2); white-space: nowrap; }
+
+  .sig-acc { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .sig-acc .peso { font-size: 13px; color: var(--text3); }
+  .sig-inp {
+    width: 112px; padding: 6px 9px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 13px; text-align: right;
+  }
+  .sig-btn {
+    padding: 6px 13px; border-radius: 7px; cursor: pointer; font-size: 12px;
+    font-weight: 700; font-family: 'Inter', sans-serif;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+  }
+  .sig-btn.abonar   { color: var(--accent2); border-color: var(--accent2); }
+  .sig-btn.todo     { color: var(--accent);  border-color: var(--accent); }
+  .sig-btn.deshacer { color: var(--text3); margin-left: auto; }
+  .sig-btn:hover { filter: brightness(1.12); }
+  .sig-nota { font-size: 10.5px; color: var(--text3); }
+
   .inv-card-header {
     display: flex; align-items: center; gap: 14px; padding: 14px 20px;
     cursor: pointer; transition: background .15s;
@@ -5945,67 +6016,75 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>`;
       }
       const ovSigma = getOv(mk, cuNombre);
-      const est         = sigmaEstado(ovSigma, sigma.sigmaAmt);
+      const est          = sigmaEstado(ovSigma, sigma.sigmaAmt);
       const clientPagado = ovSigma.pagado === true;
       const _flashThis   = clientPagado && !est.completo && sigma.sigmaAmt > 0;
-      const esCruzado = ovSigma.cruzadoUtilidad === true;
-      const sigmaColor = esCruzado ? '#2dd4bf'
-        : (est.completo ? 'var(--accent)'
-        : (est.parcial  ? 'var(--accent2)'
-        : (sigma.sigmaAmt > 0 ? 'var(--accent3)' : 'var(--text3)')));
-      const etiquetaEstado = esCruzado ? '⇄ Cruzado por Utilidad'
-        : est.completo ? '✓ Pagado a Sigma'
-        : est.parcial  ? 'Abonado parcialmente'
-        : 'Pendiente Sigma';
+      const esCruzado    = ovSigma.cruzadoUtilidad === true;
+      const pct          = est.total > 0 ? Math.round(est.pagado / est.total * 100) : 0;
+      const claseEstado  = esCruzado ? 'cruce' : est.completo ? 'ok' : est.parcial ? 'parcial' : 'pend';
+      const textoEstado  = esCruzado    ? '⇄ Cruzado por Utilidad'
+                         : est.completo ? '✓ Pagado a Sigma'
+                         : est.parcial  ? '◑ Abonado parcialmente'
+                         : '● Pendiente de pago';
+      // En un cruce el dinero no salio: se compenso contra la utilidad. La
+      // etiqueta lo dice, para que la cifra no se lea como un pago.
+      const lbAbonado = esCruzado ? 'Compensado' : 'Abonado';
+      const lbPct     = esCruzado ? 'compensado' : 'abonado';
       const sid = iid + '-sigpago';
       return `
-      <div class="${_flashThis ? 'inv-sigma-flash' : ''}" style="padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(167,139,250,.05);border-left:3px solid var(--inv-sigma,#a78bfa)">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:10px;color:var(--inv-sigma,#a78bfa);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">🏦 Cheque a Sigma</div>
-            ${_sigDetalle}
+      <div class="sig-box${_flashThis ? ' inv-sigma-flash' : ''}">
+        <div class="sig-top">
+          <span class="sig-tit">🏦 Cheque a Sigma</span>
+          <span class="sig-pill ${claseEstado}">${textoEstado}</span>
+        </div>
+        ${_sigDetalle}
+
+        <div class="sig-cifras">
+          <div class="sig-cifra total">
+            <div class="lb">Total a pagar</div>
+            <div class="vl">${fmt(est.total)}</div>
           </div>
-          <div style="text-align:right;white-space:nowrap">
-            <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--inv-sigma,#a78bfa)">
-              ${fmt(est.total)}
-            </div>
-            ${est.pagado > 0.005 && !est.completo
-              ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">
-                   abonado ${fmt(est.pagado)} · <b style="color:var(--accent3)">falta ${fmt(est.saldo)}</b>
-                 </div>`
-              : ''}
+          <div class="sig-cifra abonado${est.pagado > 0.005 ? '' : ' cero'}">
+            <div class="lb">${lbAbonado}</div>
+            <div class="vl">${fmt(est.pagado)}</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border)">
-            <span style="font-size:12px;font-weight:600;color:${sigmaColor}">${etiquetaEstado}</span>
-            ${esCruzado
-              ? `<span style="font-size:10px;color:var(--text3)">${ovSigma.cruceFecha||''} · compensado, no pagado</span>`
-              : sigma.sigmaAmt > 0
-                ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                     ${!est.completo ? `
-                     <span style="font-size:12px;color:var(--text3)">$</span>
-                     <input type="number" step="0.01" min="0" id="${sid}" value="${est.saldo.toFixed(2)}"
-                       onfocus="this.select()"
-                       onkeydown="if(event.key==='Enter'){event.preventDefault();abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}');}"
-                       style="width:96px;padding:5px 7px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;text-align:right">
-                     <button onclick="abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}')"
-                       style="background:rgba(76,194,236,.15);color:var(--accent2);border:1px solid rgba(76,194,236,.3);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
-                       Abonar
-                     </button>
-                     <button onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',${est.total},${est.total})"
-                       style="background:rgba(63,207,160,.12);color:var(--accent);border:1px solid rgba(63,207,160,.25);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
-                       Pagar todo
-                     </button>` : ''}
-                     ${est.pagado > 0.005
-                       ? `<button onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})"
-                            title="Borra los abonos registrados y deja el invoice en Pendiente"
-                            style="background:transparent;color:var(--text3);border:1px solid var(--border);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
-                            ✕ Deshacer
-                          </button>`
-                       : ''}
-                   </div>`
-                : ''}
+          <div class="sig-cifra falta${est.saldo > 0.005 ? '' : ' cero'}">
+            <div class="lb">Pendiente</div>
+            <div class="vl">${fmt(est.saldo)}</div>
           </div>
         </div>
+
+        ${est.total > 0.005 ? `
+        <div class="sig-barra-fila">
+          <div class="sig-barra"><i style="width:${pct}%"></i></div>
+          <span class="sig-pct">${pct}% ${lbPct}</span>
+        </div>` : ''}
+
+        ${esCruzado
+          ? `<div class="sig-nota">${ovSigma.cruceFecha || ''} · compensado contra la utilidad, no pagado en dinero</div>
+             <div class="sig-acc" style="margin-top:8px">
+               <button class="sig-btn deshacer" style="margin-left:0"
+                 onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})">✕ Deshacer el cruce</button>
+             </div>`
+          : sigma.sigmaAmt > 0.005
+            ? `<div class="sig-acc">
+                 ${!est.completo ? `
+                 <span class="peso">$</span>
+                 <input type="number" step="0.01" min="0" class="sig-inp" id="${sid}"
+                   value="${est.saldo.toFixed(2)}" aria-label="Importe del abono a Sigma"
+                   onfocus="this.select()"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}');}">
+                 <button class="sig-btn abonar"
+                   onclick="abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}')">Registrar abono</button>
+                 <button class="sig-btn todo"
+                   onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',${est.total},${est.total})">Pagar todo</button>` : ''}
+                 ${est.pagado > 0.005
+                   ? `<button class="sig-btn deshacer"
+                        title="Borra los abonos registrados y deja el cheque en Pendiente"
+                        onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})">✕ Deshacer abonos</button>`
+                   : ''}
+               </div>`
+            : ''}
       </div>`;
     })()}
 
