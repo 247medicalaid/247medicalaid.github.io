@@ -506,7 +506,7 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     <div class="uz-platform">OOMA · MAB PULMONARY</div>
     <div class="uz-icon">🫁</div>
     <div class="uz-title" id="fo-title">Subir CSV de Ooma</div>
-    <div class="uz-sub" id="fo-sub">Ext 103 Diana · Ext 104 Angela</div>
+    <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · Ext 1004 Alejandra · Ext 1003 Diana</div>
   </div>
 
 
@@ -648,12 +648,61 @@ const NEXTIVA_PRACTICES = {
   'Gastroenterology': ['ana','maria','sergio','laura','stefania','isabel']
 };
 
-const OOMA_EXT = { '1003':'Diana', '1004':'Angela' };
-// Display names for Ooma agents (no parentheses)
-const OOMA_DISPLAY = { '1003':'Diana — Ext 103', '1004':'Angela — Ext 104' };
-// Mapeo de Local Name en CSV Ooma → Display name del agente
-// Aceptamos tanto "CC Lady" (reportes históricos) como "CC Angela" (nuevos)
-const OOMA_LOCALNAME = { 'CC Diana':'Diana — Ext 103', 'CC Lady':'Angela — Ext 104', 'CC Angela':'Angela — Ext 104' };
+// ─── OOMA · MAB PULMONARY ──────────────────────────────────────────────────
+// Directorio completo de extensiones del PBX (tal como aparece en el panel de Ooma).
+// Sirve para poner nombre a cualquier extensión que aparezca en el reporte, sea
+// del call center o del personal de la oficina.
+const OOMA_EXT_DIR = {
+  '1000':'Virtual Receptionist', '1001':'Dr Jerry Pinto',   '1002':'Ingrid Pinto',
+  '1003':'C.C Diana',            '1004':'C.C Alejandra Osorio', '1005':'Krystal Lent',
+  '1006':'Paola Cruz',           '1007':'Shakiyla Gamble',  '1008':'Maria Jordan',
+  '1009':'Brenda Barr',          '1010':'C.C Farouk Nasser','1013':'Theresa Black',
+  '1016':'Holly Bell',           '1017':'PFT REP TEST',     '1019':'Billing',
+  '1021':'Meliza Echeverry',     '2001':'Outside Work',     '2010':'Ring Group two',
+  '2011':'Ring Group three',     '2014':'CC Queue',         '2015':'CC Voicemail',
+  '2020':'Conference Server'
+};
+// Extensiones que NO son personas: no entran ni en agentes ni en personal de oficina.
+const OOMA_EXT_SISTEMA = ['1000','2001','2010','2011','2014','2015','2020'];
+
+// Agentes del call center — los únicos que aparecen en la tabla de agentes.
+const OOMA_EXT = { '1010':'Farouk Nasser', '1004':'Alejandra Osorio', '1003':'Diana' };
+const OOMA_DISPLAY = {
+  '1010':'Farouk Nasser — Ext 1010',
+  '1004':'Alejandra Osorio — Ext 1004',
+  '1003':'Diana — Ext 1003'
+};
+// Reparto de entrantes sin agente identificado: mitad y mitad.
+// Diana está en check out y por ahora solo hace salientes, así que no entra aquí.
+// Es solo el valor por defecto: el reparto real se calcula sobre quién contestó
+// de verdad en el reporte (ver oomaPoolReparto), así que el día que Diana vuelva
+// a atender llamadas entra sola, sin tocar el código.
+const OOMA_SPLIT_EXTS = ['1010','1004'];
+// Un agente entra al reparto si contestó al menos esta fracción de lo que
+// contestó el que más contestó. Evita que dos llamadas sueltas de alguien que
+// pasó por el teléfono le carguen un tercio de las llamadas sin identificar.
+const OOMA_POOL_MIN_SHARE = 0.10;
+// Duración mínima (segundos) para repartir una "Call Complete" sin extensión.
+// Por debajo del umbral son colgadas en el menú o pistas duplicadas de una
+// llamada que después aparece como "Answered by User".
+const OOMA_SPLIT_MIN_SEC = 30;
+// Buzón genérico del call center: esos mensajes sí son perdidas del CC.
+// Los buzones personales (Krystal, Brenda…) son transferencias, no perdidas.
+const OOMA_CC_VOICEMAIL = '2015';
+
+// Local Name del CSV → agente del call center (para las salientes).
+// La ext 1004 pasó por "CC Lady" y "CC Angela" antes de ser Alejandra: se
+// aceptan las tres formas para que los reportes históricos sigan cuadrando.
+const OOMA_LOCALNAME = {
+  'CC Diana':'Diana — Ext 1003',
+  'C.C Diana':'Diana — Ext 1003',
+  'CC Lady':'Alejandra Osorio — Ext 1004',
+  'CC Angela':'Alejandra Osorio — Ext 1004',
+  'CC Alejandra Osorio':'Alejandra Osorio — Ext 1004',
+  'C.C Alejandra Osorio':'Alejandra Osorio — Ext 1004',
+  'CC Farouk Nasser':'Farouk Nasser — Ext 1010',
+  'C.C Farouk Nasser':'Farouk Nasser — Ext 1010'
+};
 const OOMA_PRACTICE = 'MAB Pulmonary';
 
 // ─── TOTAL SLEEP MANAGEMENT ────────────────────────────────────────────────
@@ -716,11 +765,73 @@ if(window.ChartDataLabels){ Chart.defaults.set('plugins.datalabels',{display:fal
 
 
 function isNoAgent(name){ return name==='No Agent'; }
-const state = {periodMode:'week', nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null };
+const state = {periodMode:'week', nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null, _oomaOffice:null };
 // Agents to fully exclude from all analysis
 const EXCLUDED_AGENTS = ['eduardo'];
 
 // ─── PARSE HELPERS ─────────────────────────────────────────────────────────
+// Divide una línea CSV respetando las comillas.
+function splitCSVLine(line){
+  const vals=[]; let cur='', inQ=false;
+  for(const c of line){
+    if(c==='"') inQ=!inQ;
+    else if(c===',' && !inQ){ vals.push(cur.trim()); cur=''; }
+    else cur+=c;
+  }
+  vals.push(cur.trim());
+  return vals;
+}
+
+// ─── PARSER DEL CSV DE OOMA ────────────────────────────────────────────────
+// El export nuevo trae las cabeceras en minúscula
+//   type,localNumber,localName,remoteNumber,remoteName,resolutionCode,
+//   resolutionExtension,formattedDate,duration
+// y NO entrecomilla remoteName. Un identificador de llamada como
+// "DELOSA,JASON" parte la fila en 10 campos, con lo que resolutionCode,
+// resolutionExtension y formattedDate se corren una posición a la derecha:
+// por eso la extensión terminaba apareciendo en la columna de la fecha.
+//
+// La fila se reconstruye anclando por dos campos que no se pueden confundir:
+// la fecha (el único que contiene "GMT") y la duración (siempre la última).
+// Todo lo que quede entre remoteNumber y resolutionCode es el nombre.
+//
+// Si el archivo trae las cabeceras del formato histórico ("Type", "Start
+// Time"…), se delega en parseCSV y nada cambia.
+function parseOomaCSV(text){
+  const lines = String(text).replace(/^\uFEFF/,'').trim().split(/\r?\n/);
+  if(!lines.length) return [];
+  const headers = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim().toLowerCase());
+  const esFormatoNuevo = headers[0]==='type' && headers.indexOf('formatteddate')>=0;
+  if(!esFormatoNuevo) return parseCSV(text);
+
+  const TIPOS = {incoming:'Incoming', outgoing:'Outgoing', internal:'Internal'};
+  const out = [];
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    let f = splitCSVLine(lines[i]);
+    if(f.length > 9){
+      let d = -1;
+      for(let k=f.length-1;k>=0;k--){ if(f[k].indexOf('GMT')>=0){ d=k; break; } }
+      if(d >= 7) f = [f[0],f[1],f[2],f[3],f.slice(4,d-2).join(', '),f[d-2],f[d-1],f[d],f[f.length-1]];
+      else       f = f.slice(0,9);
+    }
+    while(f.length < 9) f.push('');
+    const tipo = (f[0]||'').trim().toLowerCase();
+    out.push({
+      'Type':                 TIPOS[tipo] || f[0],
+      'Local Number':         f[1],
+      'Local Name':           f[2],
+      'Remote Number':        f[3],
+      'Remote Name':          f[4],
+      'Resolution Code':      f[5],
+      'Resolution Extension': f[6],
+      'Start Time':           f[7],
+      'Duration':             f[8]
+    });
+  }
+  return out;
+}
+
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
   const headers = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
@@ -794,6 +905,15 @@ function parseNextivaTime(t){
 }
 const MONTHS={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
 function parseOomaTime(t){
+  if(!t) return null;
+  // Formato nuevo del export de Ooma:
+  //   "Tue Sep 08 2026 18:02:22 GMT-0400 (Eastern Daylight Time)"
+  // Trae el desfase horario explícito, así que Date lo interpreta bien.
+  const sGmt = String(t);
+  if(sGmt.indexOf('GMT') >= 0){
+    const d = new Date(sGmt.replace(/\s*\([^)]*\)\s*$/,''));
+    return isNaN(d.getTime()) ? null : d;
+  }
   try{
     const clean=t.trim().replace(/ EST| CST| PST| MST/,'');
     const[datePart,timePart]=clean.split(' ').filter(Boolean).slice(-2,-0).join(' ').split(' ').length===2?clean.split(' ').filter(Boolean).slice(-2):['',clean.split(' ').filter(Boolean).slice(-1)[0]];
@@ -1130,113 +1250,90 @@ function analyzeOoma(rows){
     };
   });
 
-  // ─── REASIGNACIÓN DE "Call Complete" SIN AGENTE ──────────────────────────
-  // Reglas:
-  //  1. La Call Complete debe durar >= 60 segundos
-  //  2. Se asigna solo a un agente activo ese día (1003 o 1004)
-  //  3. Si ambos están activos, se prefiere el que NO esté en otra llamada en ese momento
-  //  4. Si ambos están libres o ambos están ocupados, se intercala (round-robin por día)
-  //
-  // El campo Resolution Extension se muta in-place para que el loop principal lo procese
-  // como si la llamada siempre hubiera estado asignada. Se marca con _reassigned=true
-  // para que la rama "Incoming" la trate como contestada (Call Complete, no Answered by User).
-  (() => {
-    const candidates = ['1003','1004'];
-    // (a) Determinar agentes activos por día — un agente está activo si tiene
-    //     al menos una llamada asignada ese día en el reporte original.
-    const activeByDay = {};
-    // (b) Construir intervalos de ocupación [start, end) por agente (todas las llamadas
-    //     conocidas: contestadas, voicemail, etc. — cualquiera con extensión asignada).
-    const busy = {'1003':[], '1004':[]};
-    rows.forEach(r => {
-      const ext = (r['Resolution Extension']||'').trim();
-      if(!candidates.includes(ext)) return;
-      const t = parseOomaTime(r['Start Time']);
-      const d = parseOomaDur(r['Duration']);
-      if(!t) return;
-      const dk = dayKey(t);
-      if(!activeByDay[dk]) activeByDay[dk] = new Set();
-      activeByDay[dk].add(ext);
-      busy[ext].push([t.getTime(), t.getTime() + d*1000]);
-    });
+  // ─── LIMPIEZA DE MARCAS DE UN ANÁLISIS ANTERIOR ─────────────────────────
+  // analyze() se vuelve a ejecutar cada vez que se carga un archivo y las filas
+  // se mutan in-place. Sin esto, un segundo análisis vería las reasignaciones
+  // del primero como extensiones reales y repartiría dos veces.
+  rows.forEach(r=>{
+    if(r._extOriginal !== undefined){ r['Resolution Extension'] = r._extOriginal; delete r._extOriginal; }
+    delete r._reassigned; delete r._reassignedMissed;
+  });
 
-    // (c) Recolectar Call Complete elegibles (Incoming + Virtual Receptionist
-    //     + sin extensión + duración >= 60s), ordenadas por Start Time ASC.
-    const reassignable = [];
+  // ─── REPARTO 50/50 DE LAS ENTRANTES SIN EXTENSIÓN ────────────────────────
+  // El PBX marca "Call Complete" sin extensión cuando la llamada salió del
+  // menú pero el reporte no registra quién la tomó. Como no hay forma de
+  // saberlo, se reparten mitad y mitad entre los agentes del call center
+  // (OOMA_SPLIT_EXTS), alternando en orden cronológico.
+  //
+  // Solo entran las que duran al menos OOMA_SPLIT_MIN_SEC: por debajo del
+  // umbral son colgadas en el menú o la primera pista de una llamada que
+  // después aparece como "Answered by User", y contarlas inflaría el volumen.
+  //
+  // La extensión se escribe en la fila (guardando la original en _extOriginal)
+  // para que el resto del análisis la procese como cualquier otra llamada.
+  // ─── QUIÉNES ENTRAN AL REPARTO ──────────────────────────────────────────
+  // Se reparte entre los agentes del call center que realmente contestaron
+  // entrantes en este reporte ("Answered by User"). Así el reparto sigue a la
+  // operación real: hoy son Farouk y Alejandra; el día que Diana vuelva al
+  // teléfono entra sola, y un reporte histórico reparte entre quien estuviera
+  // en ese momento. Si nadie contestó nada, se usa la lista por defecto.
+  const OOMA_POOL = (() => {
+    const contestadas = {};
+    rows.forEach(r => {
+      if((r['Type']||'').trim() !== 'Incoming') return;
+      if((r['Resolution Code']||'').trim() !== 'Answered by User') return;
+      const e = (r['Resolution Extension']||'').trim();
+      if(!OOMA_EXT[e]) return;
+      contestadas[e] = (contestadas[e]||0) + 1;
+    });
+    const activos = Object.keys(contestadas);
+    if(!activos.length) return OOMA_SPLIT_EXTS.slice();
+    const tope = Math.max(...activos.map(e => contestadas[e]));
+    const pool = activos.filter(e => contestadas[e] >= tope * OOMA_POOL_MIN_SHARE).sort();
+    return pool.length ? pool : OOMA_SPLIT_EXTS.slice();
+  })();
+  const marcar = (idx, ext, campo) => {
+    if(rows[idx]._extOriginal === undefined) rows[idx]._extOriginal = rows[idx]['Resolution Extension'];
+    rows[idx]['Resolution Extension'] = ext;
+    rows[idx][campo] = true;
+  };
+
+  (() => {
+    const repartibles = [];
     rows.forEach((r,idx) => {
-      if((r['Resolution Code']||'').trim() !== 'Call Complete') return;
-      if((r['Resolution Extension']||'').trim() !== '') return;
       if((r['Type']||'').trim() !== 'Incoming') return;
       if((r['Local Name']||'').trim() !== 'Virtual Receptionist') return;
+      if((r['Resolution Code']||'').trim() !== 'Call Complete') return;
+      if((r['Resolution Extension']||'').trim() !== '') return;
       const t = parseOomaTime(r['Start Time']);
       const d = parseOomaDur(r['Duration']);
-      if(!t || d < 60) return;
-      reassignable.push({idx, t, d});
+      if(!t || d < OOMA_SPLIT_MIN_SEC) return;
+      repartibles.push({idx, t});
     });
-    reassignable.sort((a,b) => a.t - b.t);
+    repartibles.sort((x,y) => x.t - y.t);
+    repartibles.forEach((item,i) => marcar(item.idx, OOMA_POOL[i % OOMA_POOL.length], '_reassigned'));
 
-    // (d) Round-robin counter por día (regla 4)
-    const rr = {};
-    reassignable.forEach(item => {
-      const t = item.t, d = item.d, ms = t.getTime();
-      const dk = dayKey(t);
-      const active = activeByDay[dk] || new Set();
-      let chosen;
-      if(active.size === 0){
-        // Ningún agente activo ese día — intercalar entre 1003/1004 como fallback
-        rr[dk] = (rr[dk]||0);
-        chosen = candidates[rr[dk] % 2];
-        rr[dk]++;
-      } else if(active.size === 1){
-        chosen = [...active][0];
-      } else {
-        // Ambos activos — verificar ocupación en ese instante
-        const isBusy = ext => busy[ext].some(([s,e]) => ms >= s && ms < e);
-        const free = candidates.filter(ext => !isBusy(ext));
-        if(free.length === 1){
-          chosen = free[0]; // solo uno libre → ese
-        } else {
-          // Ambos libres o ambos ocupados → round-robin por día
-          rr[dk] = (rr[dk]||0);
-          chosen = candidates[rr[dk] % 2];
-          rr[dk]++;
-        }
-      }
-      // Mutar la fila y agregar su intervalo a la ocupación del agente elegido
-      rows[item.idx]['Resolution Extension'] = chosen;
-      rows[item.idx]._reassigned = true;
-      busy[chosen].push([ms, ms + d*1000]);
-      // Mantener busy ordenado por si futuras búsquedas se benefician
-      busy[chosen].sort((a,b) => a[0]-b[0]);
-    });
-
-    // ─── REPARTO DE PERDIDAS SIN AGENTE ATRIBUIBLE ──────────────────────
-    // Sent to Voicemail con ext = 2015 (buzón genérico, no de agente):
-    // como no hay forma de saber a quién corresponde, se divide ALTERNADAMENTE
-    // entre 1003 y 1004 (round-robin cronológico). Se marca _reassignedMissed
-    // para que la rama Incoming la trate como perdida.
+    // ─── PERDIDAS: BUZÓN GENERAL DEL CALL CENTER ──────────────────────────
+    // "Sent to Voicemail" con ext 2015 (CC Voicemail) es una llamada que nadie
+    // del call center alcanzó a tomar. No hay forma de saber a quién le tocaba,
+    // así que también se reparte mitad y mitad.
     //
-    // Las "Call Unanswered" NO se reparten aquí — son abandonadas globales
-    // (paciente colgó antes de llegar a un agente) y se acumulan en
-    // state._oomaAbandoned para los KPIs generales.
-    const missedToSplit = [];
+    // Los buzones personales (Krystal, Brenda, Maria…) NO cuentan como perdidas
+    // del call center: son transferencias a la oficina y salen en su panel.
+    //
+    // Las "Call Unanswered" tampoco se reparten: el paciente colgó antes de
+    // llegar a nadie, y son abandonadas globales en state._oomaAbandoned.
+    const perdidas = [];
     rows.forEach((r,idx) => {
       if((r['Type']||'').trim() !== 'Incoming') return;
-      const code = (r['Resolution Code']||'').trim();
-      const rext = (r['Resolution Extension']||'').trim();
-      if(!(code === 'Sent to Voicemail' && rext === '2015')) return;
+      if((r['Resolution Code']||'').trim() !== 'Sent to Voicemail') return;
+      if((r['Resolution Extension']||'').trim() !== OOMA_CC_VOICEMAIL) return;
       const t = parseOomaTime(r['Start Time']);
       if(!t) return;
-      missedToSplit.push({idx, t});
+      perdidas.push({idx, t});
     });
-    missedToSplit.sort((a,b) => a.t - b.t);
-    let rrMissed = 0;
-    missedToSplit.forEach(item => {
-      const chosen = candidates[rrMissed % 2];
-      rrMissed++;
-      rows[item.idx]['Resolution Extension'] = chosen;
-      rows[item.idx]._reassignedMissed = true;
-    });
+    perdidas.sort((x,y) => x.t - y.t);
+    perdidas.forEach((item,i) => marcar(item.idx, OOMA_POOL[i % OOMA_POOL.length], '_reassignedMissed'));
   })();
 
   rows.forEach(r=>{
@@ -1247,13 +1344,19 @@ function analyzeOoma(rows){
     const dur=parseOomaDur(r['Duration']);
     const t=parseOomaTime(r['Start Time']);
 
-    // ── CONTESTADAS: Incoming + Virtual Receptionist + ext 1003/1004 ──
+    // ── CONTESTADAS Y PERDIDAS DEL CALL CENTER ──
+    // Entrante que llegó al menú y quedó en manos de un agente del CC:
+    //   · "Answered by User" con su extensión → contestada
+    //   · "Call Complete" repartida (_reassigned) → contestada
+    //   · buzón general repartido (_reassignedMissed) → perdida
+    // Cualquier otra cosa con esa extensión (p. ej. su buzón personal) no
+    // se cuenta aquí.
     if(type==='Incoming' && localName==='Virtual Receptionist' && OOMA_EXT[ext]){
       const name=OOMA_DISPLAY[ext];
       const a=agents[name];
-      // Una llamada cuenta como contestada si Resolution Code = 'Answered by User'
-      // O si fue una 'Call Complete' reasignada (marcada con _reassigned).
       const isAns = res==='Answered by User' || (res==='Call Complete' && r._reassigned);
+      const isMissed = r._reassignedMissed === true;
+      if(!isAns && !isMissed) return;
       if(isAns){
         a.calls_answered++;
         a.calls_in++;
@@ -1275,7 +1378,7 @@ function analyzeOoma(rows){
       }
     }
 
-    // ── REALIZADAS: Outgoing + Local Name = CC Diana / CC Angela ──
+    // ── REALIZADAS: Outgoing + Local Name de un agente del call center ──
     else if(type==='Outgoing'){
       const name=OOMA_LOCALNAME[localName];
       if(!name) return;
@@ -1337,6 +1440,58 @@ function analyzeOoma(rows){
   state._oomaAbandoned = oomaTotal > 0
     ? { total:oomaTotal, abandoned:oomaAbandoned, byMonth:oomaByMonth, byDay:oomaByDay, byAgentMonth:oomaByAgentMonth }
     : null;
+
+  // ─── PERSONAL DE LA OFICINA (panel informativo aparte) ───────────────────
+  // Las extensiones de MAB que no son del call center (Krystal, Brenda, Maria,
+  // Paola…) mueven volumen real, pero no son agentes nuestros: no entran en la
+  // tabla de agentes ni en los KPIs. Se recogen aquí para un panel separado.
+  //
+  //   contestadas → "Answered by User" con su extensión
+  //   a buzón     → "Sent to Voicemail" a su buzón personal (una transferencia
+  //                 que no atendió, no una perdida del call center)
+  //   salientes   → Outgoing marcadas con su nombre en Local Name
+  const oficina = {};
+  const nombreOficina = ext => {
+    if(OOMA_EXT_DIR[ext]) return OOMA_EXT_DIR[ext];
+    if(/^\d{10,}$/.test(ext)) return 'Desvío externo · ' + ext;
+    return 'Ext ' + ext;
+  };
+  const esExtOficina = ext =>
+    !!ext && !OOMA_EXT[ext] && OOMA_EXT_SISTEMA.indexOf(ext) < 0;
+  const anotarOficina = (clave, nombre, ext, tipo, t, dur) => {
+    if(!oficina[clave]) oficina[clave] = {name:nombre, ext:ext, eventos:[]};
+    oficina[clave].eventos.push({time:t, tipo:tipo, duration:dur||0});
+  };
+  // Nombres de agentes del CC tal como aparecen en Local Name, para excluirlos
+  // de las salientes de oficina.
+  const nombresCC = Object.keys(OOMA_LOCALNAME);
+  rows.forEach(r => {
+    const type = (r['Type']||'').trim();
+    const localName = (r['Local Name']||'').trim();
+    const code = (r['Resolution Code']||'').trim();
+    const ext  = (r['Resolution Extension']||'').trim();
+    const t    = parseOomaTime(r['Start Time']);
+    const dur  = parseOomaDur(r['Duration']);
+    if(!t) return;
+    if(type === 'Incoming' && esExtOficina(ext)){
+      if(code === 'Answered by User')      anotarOficina(ext, nombreOficina(ext), ext, 'in', t, dur);
+      else if(code === 'Sent to Voicemail') anotarOficina(ext, nombreOficina(ext), ext, 'vm', t, dur);
+    } else if(type === 'Outgoing' && localName && nombresCC.indexOf(localName) < 0){
+      if(code !== 'Call Complete') return;
+      anotarOficina('n:'+localName, localName, '', 'out', t, dur);
+    }
+  });
+  // Un mismo nombre puede llegar por extensión (entrantes) y por Local Name
+  // (salientes): se funden en una sola fila.
+  const oficinaFusion = {};
+  Object.values(oficina).forEach(o => {
+    const clave = o.name.replace(/^C\.?C\.? /,'').trim().toLowerCase();
+    if(!oficinaFusion[clave]) oficinaFusion[clave] = {name:o.name, ext:o.ext, eventos:[]};
+    if(!oficinaFusion[clave].ext && o.ext) oficinaFusion[clave].ext = o.ext;
+    oficinaFusion[clave].eventos = oficinaFusion[clave].eventos.concat(o.eventos);
+  });
+  const listaOficina = Object.values(oficinaFusion).filter(o => o.eventos.length);
+  state._oomaOffice = listaOficina.length ? listaOficina : null;
 
   return Object.values(agents).map(a=>({...a,dead_gaps:computeDeadGaps(a.callList,a.practice)}));
 }
@@ -2414,7 +2569,9 @@ function loadFile(e,p){
   } else {
     const r=new FileReader();
     r.onload=ev=>{
-      const newRows = stateKey==='alonsoSms' ? parseCSVMultiline(ev.target.result) : parseCSV(ev.target.result);
+      const newRows = stateKey==='alonsoSms' ? parseCSVMultiline(ev.target.result)
+                    : stateKey==='ooma' ? parseOomaCSV(ev.target.result)
+                    : parseCSV(ev.target.result);
       // Acumular CSVs de nextiva y nextivaAll para mantener histórico multi-mes
       const accumulateKeys = ['nextiva','nextivaAll'];
       if(accumulateKeys.includes(stateKey) && Array.isArray(state[stateKey]) && state[stateKey].length>0){
@@ -2554,6 +2711,7 @@ function analyze(){
   state._advantageAbandoned = null;
   state._alonsoAbandoned = null;
   state._oomaAbandoned = null;
+  state._oomaOffice = null;
   let agents=[];
   if(state.nextiva)   agents=agents.concat(analyzeNextiva(state.nextiva, state.nextivaAll));
   if(state.advantage||state.advantageAbandoned) agents=agents.concat(analyzeAdvantage(state.advantage, state.advantageAbandoned));
@@ -2635,6 +2793,8 @@ function renderAll(){
     if(!pAgents.length) return;
     renderPracticeSection(main,prac,pAgents,practiceClass[prac]||'cardio');
   });
+
+  try { renderOomaOfficePanel(main); } catch(err){ console.error('renderOomaOfficePanel:', err); }
 
   renderDeadTime(main,agents);
 }
@@ -4538,6 +4698,99 @@ function renderAlonsoSmsPanel(container){
 
   container.appendChild(sec);
 
+}
+
+// ─── PERSONAL DE LA OFICINA · MAB PULMONARY ────────────────────────────────
+// Panel informativo: extensiones de MAB que no son del call center. Está
+// separado a propósito — su volumen no entra en los KPIs ni en la tabla de
+// agentes, pero sirve para ver a dónde se va lo que no atiende el CC.
+function renderOomaOfficePanel(container){
+  const gente = state._oomaOffice;
+  if(!gente || !gente.length) return;
+  const f = state.filter;
+  if(f !== 'all' && f !== OOMA_PRACTICE) return;
+
+  const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
+  const selWeekLbl = selWeek ? weekLabel(selWeek) : '';
+  const dayKeys5 = [];
+  if(selWeek){
+    const mon = new Date(selWeek+'T12:00:00');
+    for(let i=0;i<5;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); dayKeys5.push(dayKey(d)); }
+  }
+  const dayN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dayHeaders = dayKeys5.map(k=>{ const dt=new Date(k+'T12:00:00'); return dayN[dt.getDay()]+' '+dt.getDate(); });
+
+  const enSemana = ev => !dayKeys5.length || dayKeys5.indexOf(dayKey(ev.time)) >= 0;
+  const filas = gente.map(o => {
+    const ev = o.eventos.filter(enSemana);
+    const porDia = dayKeys5.map(k => o.eventos.filter(e => dayKey(e.time)===k).length);
+    return {
+      name: o.name, ext: o.ext,
+      porDia,
+      inb:  ev.filter(e=>e.tipo==='in').length,
+      vm:   ev.filter(e=>e.tipo==='vm').length,
+      out:  ev.filter(e=>e.tipo==='out').length,
+      total: ev.length,
+      totalReporte: o.eventos.length
+    };
+  }).filter(r => r.total > 0)
+    .sort((x,y) => y.total - x.total);
+  if(!filas.length) return;
+
+  const tot = k => filas.reduce((s,r)=>s+r[k],0);
+  const totalSemana = tot('total');
+
+  const sec = document.createElement('div');
+  sec.style.cssText = 'margin-bottom:32px;';
+  const hdr = document.createElement('div');
+  hdr.className = 'section-hdr';
+  hdr.innerHTML = 'PERSONAL DE LA OFICINA — MAB PULMONARY <span style="font-size:10px;padding:2px 8px;border-radius:2px;background:var(--mab-bg);color:var(--mab);margin-left:8px;">' +
+                  totalSemana.toLocaleString() + ' llamadas · ' + selWeekLbl + '</span>';
+  sec.appendChild(hdr);
+
+  const nota = document.createElement('div');
+  nota.style.cssText = "font-size:11px;color:var(--muted);margin-bottom:10px;font-family:'DM Mono',monospace;";
+  nota.textContent = 'Extensiones de la práctica que no son del call center. No cuentan en los KPIs ni en la tabla de agentes: van aquí para ver a dónde llega lo que no atiende el CC.';
+  sec.appendChild(nota);
+
+  const MAB_G = 'linear-gradient(135deg,#7a1a4a,#571034)';
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  const nD = dayKeys5.length;
+  let h = '<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:\'DM Mono\',monospace;">';
+  h += '<tr>';
+  h += '<th rowspan="2" style="text-align:left;padding:6px 10px;font-size:9px;letter-spacing:1px;font-weight:700;background:#12293A;color:#fff;vertical-align:middle;">PERSONA</th>';
+  h += '<th rowspan="2" style="text-align:center;padding:6px 8px;font-size:9px;letter-spacing:1px;font-weight:700;background:#12293A;color:#fff;vertical-align:middle;">EXT</th>';
+  if(nD) h += '<th colspan="'+(nD+1)+'" style="text-align:center;padding:7px 6px;font-size:10px;letter-spacing:2px;font-weight:700;background:'+MAB_G+';color:#fff;">ACTIVIDAD POR DÍA</th>';
+  h += '<th colspan="3" style="text-align:center;padding:7px 6px;font-size:10px;letter-spacing:2px;font-weight:700;background:#12293A;color:#fff;">DESGLOSE DE LA SEMANA</th>';
+  h += '</tr><tr>';
+  dayHeaders.forEach(d => h += '<th style="text-align:center;padding:5px 6px;font-size:9px;letter-spacing:1px;font-weight:600;background:var(--mab-bg);color:var(--mab);">'+d.toUpperCase()+'</th>');
+  if(nD) h += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:700;background:#f3d4e3;color:var(--mab);">SEMANA</th>';
+  h += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;background:#e6eef3;color:#12293A;">CONTEST.</th>';
+  h += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;background:#e6eef3;color:#12293A;">A BUZÓN</th>';
+  h += '<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;background:#e6eef3;color:#12293A;">SALIENTES</th>';
+  h += '</tr>';
+  filas.forEach((r,i) => {
+    h += '<tr style="background:'+(i%2?'#faf7f3':'transparent')+';">';
+    h += '<td style="padding:5px 10px;font-weight:600;">'+r.name+'</td>';
+    h += '<td style="text-align:center;padding:5px 8px;color:var(--muted);border-right:2px solid #12293A;">'+(r.ext||'—')+'</td>';
+    r.porDia.forEach(n => h += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'var(--mab)':'var(--muted)')+';">'+n+'</td>');
+    if(nD) h += '<td style="text-align:center;padding:5px 8px;font-weight:700;font-size:12px;color:var(--mab);background:rgba(122,26,74,0.08);">'+r.total+'</td>';
+    h += '<td style="text-align:center;padding:5px 8px;">'+r.inb+'</td>';
+    h += '<td style="text-align:center;padding:5px 8px;">'+r.vm+'</td>';
+    h += '<td style="text-align:center;padding:5px 8px;">'+r.out+'</td></tr>';
+  });
+  h += '<tr style="border-top:2px solid #12293A;font-weight:700;background:#f1ede7;">';
+  h += '<td style="padding:6px 10px;">TOTAL</td><td style="border-right:2px solid #12293A;"></td>';
+  dayKeys5.forEach((k,idx) => h += '<td style="text-align:center;padding:6px 6px;color:var(--mab);">'+filas.reduce((s,r)=>s+r.porDia[idx],0)+'</td>');
+  if(nD) h += '<td style="text-align:center;padding:6px 8px;font-size:12px;color:#fff;background:'+MAB_G+';">'+totalSemana.toLocaleString()+'</td>';
+  h += '<td style="text-align:center;padding:6px 8px;">'+tot('inb')+'</td>';
+  h += '<td style="text-align:center;padding:6px 8px;">'+tot('vm')+'</td>';
+  h += '<td style="text-align:center;padding:6px 8px;">'+tot('out')+'</td></tr>';
+  h += '</table>';
+  card.innerHTML = h;
+  sec.appendChild(card);
+  container.appendChild(sec);
 }
 
 // ─── DEAD TIME DETAIL ──────────────────────────────────────────────────────
