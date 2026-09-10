@@ -1263,27 +1263,37 @@ function analyzeOoma(rows){
   // del primero como extensiones reales y repartiría dos veces.
   rows.forEach(r=>{
     if(r._extOriginal !== undefined){ r['Resolution Extension'] = r._extOriginal; delete r._extOriginal; }
-    delete r._reassigned; delete r._reassignedMissed;
+    delete r._reassigned; delete r._reassignedMissed; delete r._sinAgente;
   });
 
-  // ─── REPARTO 50/50 DE LAS ENTRANTES SIN EXTENSIÓN ────────────────────────
-  // El PBX marca "Call Complete" sin extensión cuando la llamada salió del
-  // menú pero el reporte no registra quién la tomó. Como no hay forma de
-  // saberlo, se reparten mitad y mitad entre los agentes del call center
-  // (OOMA_SPLIT_EXTS), alternando en orden cronológico.
+  // ─── ENTRANTES SIN EXTENSIÓN: SE ASIGNAN POR OCUPACIÓN ───────────────────
+  // El PBX marca "Call Complete" sin extensión cuando la llamada salió del menú
+  // pero el reporte no registra quién la tomó.
   //
-  // Solo entran las que duran al menos OOMA_SPLIT_MIN_SEC: por debajo del
-  // umbral son colgadas en el menú o la primera pista de una llamada que
-  // después aparece como "Answered by User", y contarlas inflaría el volumen.
+  // Regla de Carlos: si en ese momento uno de los agentes no aparece atendiendo
+  // ninguna otra llamada, lo más probable es que estuviera justo en esta.
+  //
+  // Y si los agentes de teléfono estaban todos ocupados, la llamada la pudo
+  // tomar el agente que está en check out (hoy Diana): se le atribuye a él si
+  // en ese momento tampoco estaba en otra llamada. Solo cuando no queda nadie
+  // libre la llamada se deja sin atribuir, en vez de inventarle un dueño.
+  //
+  // Antes se repartían mitad y mitad sin mirar la ocupación, y eso producía días
+  // imposibles: el 31 de agosto Farouk ya acumulaba 8h 17m de llamadas propias y
+  // el reparto le sumaba otras 34, dejándolo en más de diez horas al teléfono.
+  //
+  // Solo entran las que duran al menos OOMA_SPLIT_MIN_SEC: por debajo del umbral
+  // son colgadas en el menú o la primera pista de una llamada que después
+  // aparece como "Answered by User".
   //
   // La extensión se escribe en la fila (guardando la original en _extOriginal)
   // para que el resto del análisis la procese como cualquier otra llamada.
+
   // ─── QUIÉNES ENTRAN AL REPARTO ──────────────────────────────────────────
-  // Se reparte entre los agentes del call center que realmente contestaron
-  // entrantes en este reporte ("Answered by User"). Así el reparto sigue a la
-  // operación real: hoy son Farouk y Alejandra; el día que Diana vuelva al
-  // teléfono entra sola, y un reporte histórico reparte entre quien estuviera
-  // en ese momento. Si nadie contestó nada, se usa la lista por defecto.
+  // Los agentes del call center que realmente contestaron entrantes en este
+  // reporte. Así el reparto sigue a la operación real: hoy son Farouk y
+  // Alejandra; el día que Diana vuelva al teléfono entra sola, y un reporte
+  // histórico reparte entre quien estuviera en ese momento.
   const OOMA_POOL = (() => {
     const contestadas = {};
     rows.forEach(r => {
@@ -1299,6 +1309,7 @@ function analyzeOoma(rows){
     const pool = activos.filter(e => contestadas[e] >= tope * OOMA_POOL_MIN_SHARE).sort();
     return pool.length ? pool : OOMA_SPLIT_EXTS.slice();
   })();
+
   const marcar = (idx, ext, campo) => {
     if(rows[idx]._extOriginal === undefined) rows[idx]._extOriginal = rows[idx]['Resolution Extension'];
     rows[idx]['Resolution Extension'] = ext;
@@ -1306,6 +1317,46 @@ function analyzeOoma(rows){
   };
 
   (() => {
+    // (a) Ocupación conocida de cada agente: todo lo que el reporte SÍ le
+    //     atribuye — entrantes contestadas con su extensión y salientes hechas
+    //     desde su nombre. Son los tramos en los que sabemos que estaba al
+    //     teléfono.
+    // La reserva son los agentes del call center que no están contestando
+    // entrantes en este reporte — el que está en check out. Entran solo cuando
+    // los de teléfono están todos ocupados.
+    const OOMA_RESERVA = Object.keys(OOMA_EXT).filter(e => OOMA_POOL.indexOf(e) < 0).sort();
+    const TODOS = OOMA_POOL.concat(OOMA_RESERVA);
+
+    const ocupado = {};
+    const hablado = {};   // segundos al teléfono por agente y día, para desempatar
+    TODOS.forEach(e => { ocupado[e] = []; hablado[e] = {}; });
+
+    const sumarHablado = (ext, t, dur) => {
+      const dk = dayKey(t);
+      hablado[ext][dk] = (hablado[ext][dk] || 0) + dur;
+    };
+
+    rows.forEach(r => {
+      const t = parseOomaTime(r['Start Time']); if(!t) return;
+      const dur = parseOomaDur(r['Duration']);
+      const ini = t.getTime(), fin = ini + dur*1000;
+      const tipo = (r['Type']||'').trim();
+      if(tipo === 'Incoming'){
+        const ext = (r['Resolution Extension']||'').trim();
+        if((r['Resolution Code']||'').trim() === 'Answered by User' && ocupado[ext]){
+          ocupado[ext].push([ini, fin]); sumarHablado(ext, t, dur);
+        }
+      } else if(tipo === 'Outgoing' && (r['Resolution Code']||'').trim() === 'Call Complete'){
+        const nombre = OOMA_LOCALNAME[(r['Local Name']||'').trim()];
+        const ext = nombre ? Object.keys(OOMA_DISPLAY).find(k => OOMA_DISPLAY[k] === nombre) : null;
+        if(ext && ocupado[ext]){ ocupado[ext].push([ini, fin]); sumarHablado(ext, t, dur); }
+      }
+    });
+
+    // Solapamiento real: la llamada empieza antes de que termine otra suya.
+    const libre = (ext, ini, fin) => !ocupado[ext].some(([s,f]) => ini < f && fin > s);
+
+    // (b) Las candidatas, en orden cronológico.
     const repartibles = [];
     rows.forEach((r,idx) => {
       if((r['Type']||'').trim() !== 'Incoming') return;
@@ -1315,10 +1366,35 @@ function analyzeOoma(rows){
       const t = parseOomaTime(r['Start Time']);
       const d = parseOomaDur(r['Duration']);
       if(!t || d < OOMA_SPLIT_MIN_SEC) return;
-      repartibles.push({idx, t});
+      repartibles.push({idx, t, d});
     });
-    repartibles.sort((x,y) => x.t - y.t);
-    repartibles.forEach((item,i) => marcar(item.idx, OOMA_POOL[i % OOMA_POOL.length], '_reassigned'));
+    repartibles.sort((a,b) => a.t - b.t);
+
+    // (c) A quién le toca cada una.
+    repartibles.forEach(item => {
+      const ini = item.t.getTime(), fin = ini + item.d*1000;
+      const dk = dayKey(item.t);
+      // Primero los agentes de teléfono; si están todos ocupados, el de check out.
+      let libres = OOMA_POOL.filter(e => libre(e, ini, fin));
+      if(!libres.length) libres = OOMA_RESERVA.filter(e => libre(e, ini, fin));
+      if(!libres.length){
+        // Nadie libre: no fue de ninguno de ellos.
+        rows[item.idx]._sinAgente = true;
+        return;
+      }
+      // Si hay más de uno libre, la toma quien menos tiempo lleve hablando ese
+      // día; a igualdad, el primero por extensión (estable y reproducible).
+      let elegido = libres[0];
+      if(libres.length > 1){
+        libres.forEach(e => {
+          const a = hablado[e][dk] || 0, b = hablado[elegido][dk] || 0;
+          if(a < b) elegido = e;
+        });
+      }
+      marcar(item.idx, elegido, '_reassigned');
+      ocupado[elegido].push([ini, fin]);
+      hablado[elegido][dk] = (hablado[elegido][dk] || 0) + item.d;
+    });
 
     // ─── PERDIDAS: BUZÓN GENERAL DEL CALL CENTER ──────────────────────────
     // "Sent to Voicemail" con ext 2015 (CC Voicemail) es una llamada que nadie
@@ -1411,7 +1487,7 @@ function analyzeOoma(rows){
   // total = todas las inbound elegibles (contestadas + perdidas + abandonadas)
   // abandoned = solo las Call Unanswered
   // No se renderiza panel visual — los datos viven solo para los KPIs.
-  let oomaTotal = 0, oomaAbandoned = 0;
+  let oomaTotal = 0, oomaAbandoned = 0, oomaSinAgente = 0;
   const oomaByMonth = {}, oomaByDay = {}, oomaByAgentMonth = {};
   rows.forEach(r => {
     if((r['Type']||'').trim() !== 'Incoming') return;
@@ -1424,14 +1500,22 @@ function analyzeOoma(rows){
     const ext = (r['Resolution Extension']||'').trim();
     const isAgentCall = OOMA_EXT[ext] && (code === 'Answered by User' || r._reassigned || r._reassignedMissed);
     const isUnans = (code === 'Call Unanswered');
-    if(!isAgentCall && !isUnans) return;
+    // Entrantes que completaron pero que no se pudieron atribuir a nadie porque
+    // todos los agentes estaban en otra llamada. Son entrantes reales: cuentan
+    // en el total, pero no como contestadas de ningún agente.
+    const isSinAgente = r._sinAgente === true;
+    if(!isAgentCall && !isUnans && !isSinAgente) return;
     const mk = monthKey(t), dk = dayKey(t);
-    if(!oomaByMonth[mk]) oomaByMonth[mk] = {total:0, abandoned:0};
-    if(!oomaByDay[dk])   oomaByDay[dk]   = {total:0, abandoned:0};
+    if(!oomaByMonth[mk]) oomaByMonth[mk] = {total:0, abandoned:0, sinAgente:0};
+    if(!oomaByDay[dk])   oomaByDay[dk]   = {total:0, abandoned:0, sinAgente:0};
     oomaTotal++;
     oomaByMonth[mk].total++;
     oomaByDay[dk].total++;
-    if(isUnans){
+    if(isSinAgente){
+      oomaSinAgente++;
+      oomaByMonth[mk].sinAgente++;
+      oomaByDay[dk].sinAgente++;
+    } else if(isUnans){
       oomaAbandoned++;
       oomaByMonth[mk].abandoned++;
       oomaByDay[dk].abandoned++;
@@ -1445,7 +1529,7 @@ function analyzeOoma(rows){
     }
   });
   state._oomaAbandoned = oomaTotal > 0
-    ? { total:oomaTotal, abandoned:oomaAbandoned, byMonth:oomaByMonth, byDay:oomaByDay, byAgentMonth:oomaByAgentMonth }
+    ? { total:oomaTotal, abandoned:oomaAbandoned, sinAgente:oomaSinAgente, byMonth:oomaByMonth, byDay:oomaByDay, byAgentMonth:oomaByAgentMonth }
     : null;
 
   // ─── PERSONAL DE LA OFICINA (panel informativo aparte) ───────────────────
@@ -3024,11 +3108,18 @@ function renderKPIs(container,agents){
   // Contestadas sin agente atribuible: vienen de la fila "Sin agente asignado"
   // (creada en analyzeAlonso para llamadas inbound contestadas sin Office User).
   // Se calcula como la suma de calls_answered de los agentes con flag _unassigned.
-  const displayUnassigned = agents
+  const unassignedAgentes = agents
     .filter(a => a._unassigned)
     .reduce((s,a) => s + (a.calls_answered||0), 0);
-  // Contestadas con agente atribuible = total contestadas - sin agente
-  const displayAssigned = Math.max(0, displayAnswered - displayUnassigned);
+  // MAB suma aquí sus entrantes sin atribuir: completaron, pero todos los
+  // agentes estaban en otra llamada, así que no son contestadas de nadie.
+  // No están en `agents` (no pertenecen a ningún agente), por eso se toman del
+  // panel y se suman aparte.
+  const sinAgenteOoma = ((f==='all' || f===OOMA_PRACTICE) && abOoma) ? (abOoma.sinAgente||0) : 0;
+  const displayUnassigned = unassignedAgentes + sinAgenteOoma;
+  // Contestadas con agente atribuible = total contestadas - las sin agente que
+  // sí venían dentro de `answered` (las de Alonso).
+  const displayAssigned = Math.max(0, displayAnswered - unassignedAgentes);
 
   // Tasa de respuesta = contestadas / total entrantes reales
   const ansRate = totalInbound ? Math.round(displayAnswered/totalInbound*100) : 0;
@@ -3931,15 +4022,16 @@ function getAbandonedForWeek(ab){
   const per = periodoSeleccionado();
   if(!per.sel || !ab.byDay) return ab; // sin filtro de periodo, se devuelve todo
 
-  let total=0, abandoned=0;
+  let total=0, abandoned=0, sinAgente=0;
   per.dias.forEach(k=>{
     const d=ab.byDay[k]; if(!d) return;
     total += d.total;
     abandoned += d.abandoned;
+    sinAgente += (d.sinAgente||0);
   });
 
   // byMonth se conserva entero: lo usa el grafico de tendencia
-  return { ...ab, total, abandoned };
+  return { ...ab, total, abandoned, sinAgente };
 }
 
 // Filter abandoned stats to selected week for a specific practice key ('cardio' or 'gastro')
