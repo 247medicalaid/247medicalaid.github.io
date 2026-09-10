@@ -48,6 +48,11 @@ body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-h
 .uz-icon{font-size:26px;margin-bottom:6px;}
 .uz-title{font-size:13px;font-weight:500;margin-bottom:2px;}
 .uz-sub{font-size:11px;color:var(--muted);}
+/* Limpiar la pila de archivos acumulados de una zona de carga. */
+.uz-limpiar{display:inline-block;margin-top:8px;font-size:10px;letter-spacing:.5px;
+  color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:3px 10px;
+  background:var(--surface);cursor:pointer;}
+.uz-limpiar:hover{border-color:var(--red,#C81F29);color:var(--red,#C81F29);}
 input[type=file]{display:none;}
 
 /* ─── CONTROLS ─── */
@@ -507,6 +512,8 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     <div class="uz-icon">🫁</div>
     <div class="uz-title" id="fo-title">Subir CSV de Ooma</div>
     <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · Ext 1004 Alejandra · Ext 1003 Diana</div>
+    <div class="uz-sub" style="margin-top:5px;opacity:.75">Varios archivos a la vez, o de uno en uno para ir sumando meses</div>
+    <span class="uz-limpiar" id="fo-limpiar" style="display:none" onclick="event.stopPropagation();limpiarOoma()">✕ Vaciar y empezar de nuevo</span>
   </div>
 
 
@@ -553,7 +560,7 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
   </div>
   <input type="file" id="fn" accept=".csv" onchange="loadFile(event,'nextiva')">
   <input type="file" id="fna" accept=".csv" onchange="loadFile(event,'nextivaAll')">
-  <input type="file" id="fo" accept=".csv" onchange="loadFile(event,'ooma')">
+  <input type="file" id="fo" accept=".csv" multiple onchange="loadFile(event,'ooma')">
   <input type="file" id="fv" accept=".xlsx,.csv" onchange="loadFile(event,'advantage')">
   <input type="file" id="fva" accept=".xlsx,.csv" onchange="loadFile(event,'advantage-abandoned')">
   <input type="file" id="fals" accept=".csv" onchange="loadFile(event,'alonsoSms')">
@@ -765,7 +772,7 @@ if(window.ChartDataLabels){ Chart.defaults.set('plugins.datalabels',{display:fal
 
 
 function isNoAgent(name){ return name==='No Agent'; }
-const state = {periodMode:'week', nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null, _oomaOffice:null };
+const state = {periodMode:'week', nextiva:null, nextivaAll:null, ooma:null, advantage:null, advantageAbandoned:null, alonso:null, alonsoSms:null, agents:[], allAgents:[], filter:'all', sort:'calls', weeks:[], weekIdx:0, weekA:null, weekB:null, compareMode:false, _nextivaAbandoned:null, _advantageAbandoned:null, _alonsoAbandoned:null, _oomaAbandoned:null, _oomaOffice:null, oomaArchivos:[] };
 // Agents to fully exclude from all analysis
 const EXCLUDED_AGENTS = ['eduardo'];
 
@@ -2540,17 +2547,105 @@ async function exportPDF(){
 }
 
 // ─── FILE LOADING ──────────────────────────────────────────────────────────
+// ─── CARGA DE ARCHIVOS ─────────────────────────────────────────────────────
+// Ooma solo exporta 30 días por reporte, así que para ver varios meses hay que
+// juntar varios archivos. Estas zonas acumulan: se pueden soltar varios de una
+// vez o ir sumándolos de uno en uno, y las llamadas repetidas de los periodos
+// que se solapan se descartan.
+const ZONAS_ACUMULABLES = ['nextiva','nextivaAll','ooma'];
+
+// La huella de una llamada de Ooma son sus nueve campos juntos. Dos reportes
+// que se solapan traen la misma llamada con los mismos valores; dos llamadas
+// distintas no coinciden en todo (numero, hora exacta y duracion a la vez).
+//
+// OJO con la extension: analyzeOoma() la reescribe en las llamadas que reparte
+// entre los agentes, guardando la original en _extOriginal. Si la huella usara
+// el valor reescrito, una llamada ya analizada no coincidiria con esa misma
+// llamada recien leida de otro archivo y entraria por duplicado. Por eso aqui
+// se usa siempre la extension como venia en el CSV.
+function huellaFila(stateKey, r){
+  if(stateKey === 'ooma'){
+    const ext = r._extOriginal !== undefined ? r._extOriginal : r['Resolution Extension'];
+    return [r['Type'],r['Local Number'],r['Local Name'],r['Remote Number'],r['Remote Name'],
+            r['Resolution Code'],ext,r['Start Time'],r['Duration']].join('|');
+  }
+  return r['Time'] || r['Time of Call'] || JSON.stringify(r);
+}
+
+function parsearZona(stateKey, texto){
+  if(stateKey === 'alonsoSms') return parseCSVMultiline(texto);
+  if(stateKey === 'ooma')      return parseOomaCSV(texto);
+  return parseCSV(texto);
+}
+
+function leerTexto(file){
+  return new Promise((ok,mal) => {
+    const r = new FileReader();
+    r.onload  = ev => ok(ev.target.result);
+    r.onerror = () => mal(new Error('No se pudo leer ' + file.name));
+    r.readAsText(file);
+  });
+}
+
+// Rango de fechas cubierto por los CSV de Ooma ya cargados.
+function rangoOoma(){
+  const t = (state.ooma||[]).map(r => parseOomaTime(r['Start Time'])).filter(Boolean).sort((a,b)=>a-b);
+  if(!t.length) return '';
+  const f = d => d.toLocaleDateString('es',{day:'numeric',month:'short'});
+  const ini = t[0], fin = t[t.length-1];
+  const anio = ini.getFullYear()===fin.getFullYear() ? '' : ' ' + fin.getFullYear();
+  return f(ini) + ' – ' + f(fin) + anio;
+}
+
+function resumenOoma(){
+  const n = (state.ooma||[]).length;
+  const archivos = (state.oomaArchivos||[]).length;
+  const titulo = document.getElementById('fo-title');
+  const sub    = document.getElementById('fo-sub');
+  const limpiar= document.getElementById('fo-limpiar');
+  if(!n){
+    if(titulo) titulo.textContent = 'Subir CSV de Ooma';
+    if(sub)    sub.textContent = 'Ext 1010 Farouk · Ext 1004 Alejandra · Ext 1003 Diana';
+    if(limpiar) limpiar.style.display = 'none';
+    document.getElementById('zone-ooma').classList.remove('loaded');
+    return;
+  }
+  // Un archivo que no aporto ninguna llamada nueva (el mismo reporte subido dos
+  // veces) no se cuenta en el titulo: contarlo daria a entender que hay mas
+  // periodo cargado del que hay.
+  const utiles = (state.oomaArchivos||[]).filter(a => a.nuevas > 0).length;
+  const repes  = archivos - utiles;
+  if(titulo) titulo.textContent = '✓ ' + utiles + ' archivo' + (utiles!==1?'s':'') + ' de Ooma';
+  if(sub){
+    const r = rangoOoma();
+    sub.textContent = n.toLocaleString('es') + ' llamadas' + (r ? ' · ' + r : '')
+      + (repes ? ' · ' + repes + ' repetido' + (repes!==1?'s':'') : '');
+    sub.title = (state.oomaArchivos||[]).map(a => a.nombre + ' — ' + a.nuevas + ' nuevas de ' + a.filas).join('\n');
+  }
+  if(limpiar) limpiar.style.display = 'inline-block';
+}
+
+function limpiarOoma(){
+  state.ooma = null;
+  state.oomaArchivos = [];
+  const inp = document.getElementById('fo'); if(inp) inp.value = '';
+  resumenOoma();
+  analyze();
+}
+
 function loadFile(e,p){
-  const file=e.target.files[0]; if(!file) return;
-  const isXlsx=file.name.toLowerCase().endsWith('.xlsx');
-  const zoneId = `zone-${p}`;
-  const idMap = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',advantage:'fv','advantage-abandoned':'fva',alonso:'fal',alonsoSms:'fals',tsm:'fts'};
-  const elId = idMap[p] || `f${p[0]}`;
+  const files = Array.from((e.target && e.target.files) || []);
+  if(!files.length) return;
+  const zoneId  = `zone-${p}`;
+  const idMap   = {nextiva:'fn',nextivaAll:'fna',ooma:'fo',advantage:'fv','advantage-abandoned':'fva',alonso:'fal',alonsoSms:'fals',tsm:'fts'};
+  const elId    = idMap[p] || `f${p[0]}`;
   const titleId = `${elId}-title`;
   const subId   = `${elId}-sub`;
   const stateKey = p==='advantage-abandoned' ? 'advantageAbandoned' : p;
 
-  if(isXlsx){
+  // El XLSX sigue siendo de un solo archivo: no se acumula.
+  if(files[0].name.toLowerCase().endsWith('.xlsx')){
+    const file = files[0];
     const r=new FileReader();
     r.onload=ev=>{
       const data=new Uint8Array(ev.target.result);
@@ -2566,40 +2661,65 @@ function loadFile(e,p){
       analyze();
     };
     r.readAsArrayBuffer(file);
-  } else {
-    const r=new FileReader();
-    r.onload=ev=>{
-      const newRows = stateKey==='alonsoSms' ? parseCSVMultiline(ev.target.result)
-                    : stateKey==='ooma' ? parseOomaCSV(ev.target.result)
-                    : parseCSV(ev.target.result);
-      // Acumular CSVs de nextiva y nextivaAll para mantener histórico multi-mes
-      const accumulateKeys = ['nextiva','nextivaAll'];
-      if(accumulateKeys.includes(stateKey) && Array.isArray(state[stateKey]) && state[stateKey].length>0){
-        // parseCSV retorna array de objetos {key:val}
-        // Combinar todos — las keys de cada objeto identifican el mes por fecha
-        // Usar Set para evitar duplicados por timestamp exacto
-        const existingTimes = new Set(state[stateKey].map(r=>r['Time']||r['Time of Call']||JSON.stringify(r)).filter(Boolean));
-        const deduped = newRows.filter(r=>{
-          const t = r['Time']||r['Time of Call']||JSON.stringify(r);
-          if(existingTimes.has(t)) return false;
-          existingTimes.add(t);
+    if(e.target && e.target.value !== undefined) e.target.value='';
+    return;
+  }
+
+  const acumula = ZONAS_ACUMULABLES.includes(stateKey);
+
+  (async () => {
+    let anadidas = 0, repetidas = 0, ultimoNombre = '';
+    for(const file of files){
+      let filas;
+      try { filas = parsearZona(stateKey, await leerTexto(file)); }
+      catch(err){ console.error('[carga]', file.name, err); continue; }
+      ultimoNombre = file.name;
+
+      if(acumula && Array.isArray(state[stateKey]) && state[stateKey].length){
+        const vistas = new Set(state[stateKey].map(r => huellaFila(stateKey, r)));
+        const nuevas = filas.filter(r => {
+          const h = huellaFila(stateKey, r);
+          if(vistas.has(h)) return false;
+          vistas.add(h);
           return true;
         });
-        state[stateKey] = [...state[stateKey], ...deduped];
-        console.log(`[Acumulación ${stateKey}] existentes: ${state[stateKey].length - deduped.length}, nuevos: ${deduped.length}, total: ${state[stateKey].length}`);
+        repetidas += filas.length - nuevas.length;
+        anadidas  += nuevas.length;
+        state[stateKey] = state[stateKey].concat(nuevas);
+        if(stateKey==='ooma') (state.oomaArchivos = state.oomaArchivos||[]).push({nombre:file.name, filas:filas.length, nuevas:nuevas.length});
       } else {
-        state[stateKey] = newRows;
+        // Primer archivo de la zona: dentro del propio archivo tampoco deberia
+        // haber repetidas, pero se filtra igual por si el export las trae.
+        if(acumula){
+          const vistas = new Set();
+          const unicas = filas.filter(r => { const h=huellaFila(stateKey,r); if(vistas.has(h)) return false; vistas.add(h); return true; });
+          repetidas += filas.length - unicas.length;
+          anadidas  += unicas.length;
+          state[stateKey] = unicas;
+          if(stateKey==='ooma') state.oomaArchivos = [{nombre:file.name, filas:filas.length, nuevas:unicas.length}];
+        } else {
+          anadidas += filas.length;
+          state[stateKey] = filas;
+        }
       }
-      document.getElementById(zoneId).classList.add('loaded');
+    }
+
+    document.getElementById(zoneId).classList.add('loaded');
+    if(stateKey === 'ooma'){
+      resumenOoma();
+      console.log(`[Ooma] +${anadidas} llamadas nuevas, ${repetidas} repetidas descartadas, total ${(state.ooma||[]).length}`);
+    } else {
       const totalRec = Array.isArray(state[stateKey]) ? state[stateKey].length : 0;
-      document.getElementById(titleId).textContent=`✓ ${file.name}`;
-      document.getElementById(subId).textContent=`${totalRec} registros acumulados`;
-      document.getElementById('pdfBtn').disabled=false;
-      updateAIButtons();
-      analyze();
-    };
-    r.readAsText(file);
-  }
+      document.getElementById(titleId).textContent = files.length>1 ? `✓ ${files.length} archivos` : `✓ ${ultimoNombre}`;
+      document.getElementById(subId).textContent = acumula ? `${totalRec} registros acumulados` : `${totalRec} registros`;
+    }
+    document.getElementById('pdfBtn').disabled=false;
+    updateAIButtons();
+    analyze();
+  })();
+
+  // Se limpia el input para poder volver a elegir el mismo archivo si hace falta.
+  if(e.target && e.target.value !== undefined) e.target.value='';
 }
 
 // ─── DRAG & DROP ────────────────────────────────────────────────────────────
@@ -2610,8 +2730,8 @@ function dleave(e,p){
 }
 function drop(e,p){
   e.preventDefault();
-  const file=e.dataTransfer.files[0]; if(!file) return;
-  loadFile({target:{files:[file]}},p);
+  const files=Array.from(e.dataTransfer.files||[]); if(!files.length) return;
+  loadFile({target:{files:files}},p);
 }
 function updateAIButtons(){
   const hasData    = state.agents.length > 0;
