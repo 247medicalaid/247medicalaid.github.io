@@ -911,18 +911,32 @@ function parseNextivaTime(t){
   }catch{return null;}
 }
 const MONTHS={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+let FMT_OOMA_ET = null;
 function parseOomaTime(t){
   if(!t) return null;
   // Formato nuevo del export de Ooma:
   //   "Tue Sep 08 2026 18:02:22 GMT-0400 (Eastern Daylight Time)"
-  // Trae el desfase horario explícito, así que Date lo interpreta bien.
+  // Trae el desfase horario explícito. Se convierte a hora de Orlando y se
+  // devuelve como fecha local con esos componentes, que es exactamente lo que
+  // produce el formato histórico ('2026-Sep-08 18:02 EDT', ya en hora local del
+  // PBX). Así las dos formas coinciden y el analizador muestra lo mismo desde
+  // Orlando o desde Colombia — y una misma llamada tiene la misma huella venga
+  // del export que venga, que es de lo que depende no contarla dos veces al
+  // juntar reportes de los dos tipos.
   const sGmt = String(t);
   if(sGmt.indexOf('GMT') >= 0){
     const d = new Date(sGmt.replace(/\s*\([^)]*\)\s*$/,''));
-    return isNaN(d.getTime()) ? null : d;
+    if(isNaN(d.getTime())) return null;
+    try{
+      if(!FMT_OOMA_ET) FMT_OOMA_ET = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',
+        year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+      const pp={}; FMT_OOMA_ET.formatToParts(d).forEach(x=>{ pp[x.type]=x.value; });
+      if(pp.year) return new Date(+pp.year, +pp.month-1, +pp.day, +pp.hour, +pp.minute, +pp.second);
+    }catch(e){}
+    return d;
   }
   try{
-    const clean=t.trim().replace(/ EST| CST| PST| MST/,'');
+    const clean=t.trim().replace(/ E[SD]T| C[SD]T| P[SD]T| M[SD]T/,'');
     const[datePart,timePart]=clean.split(' ').filter(Boolean).slice(-2,-0).join(' ').split(' ').length===2?clean.split(' ').filter(Boolean).slice(-2):['',clean.split(' ').filter(Boolean).slice(-1)[0]];
     // robust parse
     const parts=clean.trim().split(' ');
@@ -2638,22 +2652,69 @@ async function exportPDF(){
 // que se solapan se descartan.
 const ZONAS_ACUMULABLES = ['nextiva','nextivaAll','ooma'];
 
-// La huella de una llamada de Ooma son sus nueve campos juntos. Dos reportes
-// que se solapan traen la misma llamada con los mismos valores; dos llamadas
-// distintas no coinciden en todo (numero, hora exacta y duracion a la vez).
+// La huella de una llamada de Ooma. Dos reportes que se solapan traen la misma
+// llamada; dos llamadas distintas no coinciden en quien, con quien, cuando y
+// cuanto duro, todo a la vez.
+//
+// La huella se construye sobre valores NORMALIZADOS, no sobre el texto crudo,
+// porque los dos formatos de export escriben lo mismo de forma distinta:
+//
+//   fecha    '2026-Sep-08 18:02 EDT'   vs  'Tue Sep 08 2026 18:02:22 GMT-0400…'
+//   telefono '(561) 599-2860'          vs  '5615992860'
+//   duracion ' 0:01:53'                vs  '00:01:53'
+//
+// Sin normalizar, la misma llamada tendria dos huellas y entraria duplicada al
+// mezclar un reporte viejo con uno nuevo. La hora se recorta al minuto porque
+// el formato historico no guarda segundos.
 //
 // OJO con la extension: analyzeOoma() la reescribe en las llamadas que reparte
 // entre los agentes, guardando la original en _extOriginal. Si la huella usara
 // el valor reescrito, una llamada ya analizada no coincidiria con esa misma
-// llamada recien leida de otro archivo y entraria por duplicado. Por eso aqui
-// se usa siempre la extension como venia en el CSV.
+// llamada recien leida de otro archivo. Por eso se usa siempre la original.
 function huellaFila(stateKey, r){
   if(stateKey === 'ooma'){
     const ext = r._extOriginal !== undefined ? r._extOriginal : r['Resolution Extension'];
-    return [r['Type'],r['Local Number'],r['Local Name'],r['Remote Number'],r['Remote Name'],
-            r['Resolution Code'],ext,r['Start Time'],r['Duration']].join('|');
+    const tel = String(r['Remote Number']||'').replace(/\D/g,'').slice(-10);
+    const t   = parseOomaTime(r['Start Time']);
+    const min = t ? dayKey(t)+'T'+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')
+                  : String(r['Start Time']||'').trim();
+    return [String(r['Type']||'').trim(), String(r['Local Name']||'').trim(), tel,
+            String(r['Resolution Code']||'').trim(), String(ext||'').trim(),
+            min, parseOomaDur(r['Duration'])].join('|');
   }
   return r['Time'] || r['Time of Call'] || JSON.stringify(r);
+}
+
+// Una misma huella puede repetirse dentro de un mismo reporte y ser legítima:
+// el formato histórico solo guarda el minuto, así que dos rellamadas seguidas al
+// mismo número sin respuesta salen idénticas. Se les añade su número de orden
+// dentro del archivo, de modo que la segunda rellamada sigue siendo distinta de
+// la primera — y dos reportes que traigan las dos rellamadas siguen casando,
+// porque en ambos ocupan el mismo orden.
+function huellasConOrden(stateKey, filas){
+  const cuenta = new Map(), set = new Set();
+  filas.forEach(r => {
+    const base = huellaFila(stateKey, r);
+    const n = cuenta.get(base) || 0;
+    cuenta.set(base, n + 1);
+    set.add(base + '#' + n);
+  });
+  return set;
+}
+
+// Filtra `filas` dejando solo lo que no esté ya en `vistas`, respetando el orden
+// de repetición. Añade a `vistas` lo que va aceptando.
+function soloNuevas(stateKey, filas, vistas){
+  const cuenta = new Map();
+  return filas.filter(r => {
+    const base = huellaFila(stateKey, r);
+    const n = cuenta.get(base) || 0;
+    cuenta.set(base, n + 1);
+    const clave = base + '#' + n;
+    if(vistas.has(clave)) return false;
+    vistas.add(clave);
+    return true;
+  });
 }
 
 function parsearZona(stateKey, texto){
@@ -2760,13 +2821,8 @@ function loadFile(e,p){
       ultimoNombre = file.name;
 
       if(acumula && Array.isArray(state[stateKey]) && state[stateKey].length){
-        const vistas = new Set(state[stateKey].map(r => huellaFila(stateKey, r)));
-        const nuevas = filas.filter(r => {
-          const h = huellaFila(stateKey, r);
-          if(vistas.has(h)) return false;
-          vistas.add(h);
-          return true;
-        });
+        const vistas = huellasConOrden(stateKey, state[stateKey]);
+        const nuevas = soloNuevas(stateKey, filas, vistas);
         repetidas += filas.length - nuevas.length;
         anadidas  += nuevas.length;
         state[stateKey] = state[stateKey].concat(nuevas);
@@ -2775,8 +2831,7 @@ function loadFile(e,p){
         // Primer archivo de la zona: dentro del propio archivo tampoco deberia
         // haber repetidas, pero se filtra igual por si el export las trae.
         if(acumula){
-          const vistas = new Set();
-          const unicas = filas.filter(r => { const h=huellaFila(stateKey,r); if(vistas.has(h)) return false; vistas.add(h); return true; });
+          const unicas = soloNuevas(stateKey, filas, new Set());
           repetidas += filas.length - unicas.length;
           anadidas  += unicas.length;
           state[stateKey] = unicas;
