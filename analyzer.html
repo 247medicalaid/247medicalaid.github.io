@@ -3904,41 +3904,55 @@ function renderPracticeSection(container,prac,agents,cls){
 
 // ─── ABANDONED CALLS PANEL (Cardio/Gastro) ──────────────────────────────────
 // ─── HELPER: filter abandoned stats to selected week ────────────────────────
+// ─── EL PERIODO SELECCIONADO, EN CLAVES DE DIA ─────────────────────────────
+// state.weeks guarda lunes ('2026-08-31') en modo semana y meses ('2026-08') en
+// modo mes. Todo lo que filtre por periodo tiene que distinguirlos: construir
+// 'lunes + 4 dias' sobre un '2026-08' da fechas invalidas, y el filtro se queda
+// sin encontrar nada — que es como el panel de KPIs acababa diciendo
+// "0 entrantes" y "127 de 0" en modo mes.
+function periodoSeleccionado(){
+  const sel = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
+  if(!sel) return {sel:null, esMes:false, dias:[]};
+  if(/^\d{4}-\d{2}$/.test(sel)){
+    const y=+sel.slice(0,4), m=+sel.slice(5,7);
+    const ultimo = new Date(y, m, 0).getDate();   // dia 0 del mes siguiente
+    const dias=[];
+    for(let d=1; d<=ultimo; d++) dias.push(sel+'-'+String(d).padStart(2,'0'));
+    return {sel, esMes:true, dias};
+  }
+  const lunes = new Date(sel+'T12:00:00');
+  const dias=[];
+  for(let i=0;i<5;i++){ const d=new Date(lunes); d.setDate(lunes.getDate()+i); dias.push(dayKey(d)); }
+  return {sel, esMes:false, dias};
+}
+
 function getAbandonedForWeek(ab){
   if(!ab) return null;
-  const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
-  if(!selWeek || !ab.byDay) return ab; // no week filter available, return all-time
-
-  // Build Mon–Fri keys for selected week
-  const mon = new Date(selWeek+'T12:00:00');
-  const weekKeys = [];
-  for(let i=0;i<5;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); weekKeys.push(d.toISOString().slice(0,10)); }
+  const per = periodoSeleccionado();
+  if(!per.sel || !ab.byDay) return ab; // sin filtro de periodo, se devuelve todo
 
   let total=0, abandoned=0;
-  weekKeys.forEach(k=>{
+  per.dias.forEach(k=>{
     const d=ab.byDay[k]; if(!d) return;
     total += d.total;
     abandoned += d.abandoned;
   });
 
-  // byMonth for this week is just a single entry — keep all-time byMonth for trend chart
+  // byMonth se conserva entero: lo usa el grafico de tendencia
   return { ...ab, total, abandoned };
 }
 
 // Filter abandoned stats to selected week for a specific practice key ('cardio' or 'gastro')
 function getAbandonedForWeekByPractice(ab, pracKey){
   if(!ab || !ab.byDay) return {total:0, abandoned:0};
-  const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
-  if(!selWeek) return {total:0, abandoned:0};
-  const mon = new Date(selWeek+'T12:00:00');
+  const per = periodoSeleccionado();
+  if(!per.sel) return {total:0, abandoned:0};
   let total=0, abandoned=0;
-  for(let i=0;i<5;i++){
-    const d=new Date(mon); d.setDate(mon.getDate()+i);
-    const dk=d.toISOString().slice(0,10);
-    const day=ab.byDay[dk]; if(!day) continue;
+  per.dias.forEach(dk=>{
+    const day=ab.byDay[dk]; if(!day) return;
     total     += day[pracKey]?.total    ||0;
     abandoned += day[pracKey]?.abandoned||0;
-  }
+  });
   return {total, abandoned};
 }
 
@@ -4830,17 +4844,15 @@ function renderOomaOfficePanel(container){
   const f = state.filter;
   if(f !== 'all' && f !== OOMA_PRACTICE) return;
 
-  const selWeek = state.weeks && state.weeks.length ? state.weeks[state.weekIdx] : null;
-  const selWeekLbl = selWeek ? weekLabel(selWeek) : '';
-  const dayKeys5 = [];
-  if(selWeek){
-    const mon = new Date(selWeek+'T12:00:00');
-    for(let i=0;i<5;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); dayKeys5.push(dayKey(d)); }
-  }
+  const per = periodoSeleccionado();
+  const selWeekLbl = per.sel ? weekLabel(per.sel) : '';
+  const diasPeriodo = per.dias;
+  // En modo mes serian mas de veinte columnas: se muestra solo el desglose.
+  const dayKeys5 = per.esMes ? [] : diasPeriodo;
   const dayN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const dayHeaders = dayKeys5.map(k=>{ const dt=new Date(k+'T12:00:00'); return dayN[dt.getDay()]+' '+dt.getDate(); });
 
-  const enSemana = ev => !dayKeys5.length || dayKeys5.indexOf(dayKey(ev.time)) >= 0;
+  const enSemana = ev => !diasPeriodo.length || diasPeriodo.indexOf(dayKey(ev.time)) >= 0;
   const filas = gente.map(o => {
     const ev = o.eventos.filter(enSemana);
     const porDia = dayKeys5.map(k => o.eventos.filter(e => dayKey(e.time)===k).length);
