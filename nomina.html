@@ -498,6 +498,46 @@
     --pay-tint:  rgba(22,101,52,.13);
     --sig-tint:  rgba(91,33,182,.12);
   }
+  /* El panel desplegado es el area de trabajo: fondo blanco y letra negra para
+     que destaque sobre la pagina oscura. El color del estado del invoice vive
+     en la fila de arriba, no aqui. Lo que antes iba en cian para destacar pasa
+     a azul y negrita. */
+  .inv-theme-edit {
+    background: #FFFFFF;
+    --text:  #0F172A;
+    --text2: #334155;
+    --text3: #64748B;
+    --surface:  #FFFFFF;
+    --surface2: #F4F6FA;
+    --border:   #CBD5E1;
+    --bg: #FFFFFF;
+    --accent:   #15803D;   /* verde oscuro — totales cobrados */
+    --accent2:  #1D4ED8;   /* azul — todo lo que antes destacaba en cian */
+    --accent3:  #B45309;   /* ambar oscuro — avisos */
+    --danger:   #B91C1C;
+    --inv-sigma:#6D28D9;
+    --inv-247:  #0F766E;
+    --pay-tint: rgba(29,78,216,.06);
+    --sig-tint: rgba(109,40,217,.07);
+  }
+  /* Los rotulos y cifras que destacan van en negrita, como pidio Carlos */
+  .inv-theme-edit [style*="color:var(--accent2)"] { font-weight: 700 !important; }
+  /* Los steppers traen color blanco fijo en la hoja y en el atributo style:
+     sobre fondo blanco desaparecerian. */
+  .inv-theme-edit .inv-stepper input,
+  .inv-theme-edit .inv-stepper.sm input {
+    color: #0F172A !important;
+    background: #FFFFFF !important;
+    border-color: rgba(29,78,216,.35) !important;
+  }
+  .inv-theme-edit .inv-stepper-btn { background: rgba(29,78,216,.10); }
+  .inv-theme-edit .inv-stepper-btn:hover  { background: rgba(29,78,216,.22); }
+  .inv-theme-edit .inv-stepper-btn:active { background: rgba(29,78,216,.34); }
+  /* Nada se desvanece dentro del area de trabajo */
+  .inv-theme-edit [style*="opacity:.5"],
+  .inv-theme-edit [style*="opacity:.6"],
+  .inv-theme-edit [style*="opacity:.7"] { opacity: 1 !important; }
+
   /* Steppers inside light themes — dark text on light bg for readability */
   .inv-theme-pending .inv-stepper input,
   .inv-theme-pending .inv-stepper.sm input {
@@ -839,12 +879,12 @@
      claros (invoice pendiente en gris, pagado en crema) el campo se deja como
      esta, que es donde se lee bien. */
   .inv-card input[type="date"],
-  .inv-fila-body:not(.inv-theme-paid):not(.inv-theme-pending) input[type="date"] {
+  .inv-fila-body:not(.inv-theme-paid):not(.inv-theme-pending):not(.inv-theme-edit) input[type="date"] {
     color-scheme: dark;
     accent-color: var(--accent2);
   }
   .inv-card input[type="date"]::-webkit-calendar-picker-indicator,
-  .inv-fila-body:not(.inv-theme-paid):not(.inv-theme-pending) input[type="date"]::-webkit-calendar-picker-indicator {
+  .inv-fila-body:not(.inv-theme-paid):not(.inv-theme-pending):not(.inv-theme-edit) input[type="date"]::-webkit-calendar-picker-indicator {
     filter: brightness(0) saturate(100%) invert(60%) sepia(40%) saturate(400%) hue-rotate(180deg);
     cursor: pointer;
   }
@@ -6349,7 +6389,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
               data-inv-iid="${iid}"
               onblur="invUpdateAgente(this)"
               onfocus="this.select()"
-              style="flex:1;border-color:rgba(255,255,255,.2);color:#ffffff">
+              style="flex:1">
             <button class="inv-stepper-btn" data-delta="1" style="background:rgba(255,255,255,.05)" tabindex="-1" onpointerdown="event.preventDefault()">+</button>
           </div>
         </div>`).join('')}
@@ -7302,7 +7342,7 @@ function renderInvoicesMes(){
           <span class="sd" style="display:block">${subLinea}</span>
         </span>
       </div>
-      <div class="inv-fila-body ${ov.cerrado ? (est.completo ? 'inv-theme-paid' : 'inv-theme-pending') : ''}"
+      <div class="inv-fila-body inv-theme-edit"
         id="${iid}-body" style="display:${abierta ? 'block' : 'none'}">
         ${expanded}
       </div>
