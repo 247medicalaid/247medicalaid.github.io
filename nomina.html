@@ -4279,10 +4279,19 @@ function autoGuardarQuincenaReabierta(inmediato, keyOverride){
 }
 
 // ── Quincena aprobada y RE-ABIERTA ────────────────────────────
-// Guarda los cambios SOBRE el registro aprobado, dejando la quincena
-// re-abierta. Los invoices del mes se recalculan al instante.
+// Guarda los cambios SOBRE el registro aprobado. Por defecto la quincena
+// sigue re-abierta; con opts.cerrar la deja cerrada en ese mismo guardado.
+//
+// Lo de cerrar aquí dentro no es un capricho: cada guardado manda el registro
+// a Sheets con un fetch a ciegas (no-cors, sin esperar respuesta). Antes,
+// cerrar hacía dos guardados seguidos del MISMO registro — este con
+// reabierta:true y, un milisegundo después, otro con reabierta:false — y
+// ganaba el que llegara último, sin ningún orden garantizado. Cuando llegaba
+// último el "true", la hoja se quedaba creyendo que la quincena seguía
+// abierta y al recargar se re-abría sola.
 function guardarCambiosQuincena(opts){
   opts = opts || {};
+  const cerrando = opts.cerrar === true;
   const key       = getCurrentKey();
   const historial = cargarHistorial();
   const idx       = historial.findIndex(h => h.key === key);
@@ -4294,13 +4303,17 @@ function guardarCambiosQuincena(opts){
   const registro = construirRegistroActual(p.anio, p.mes, p.q, anterior.notas || '');
   registro.fechaAprobacion = anterior.fechaAprobacion || registro.fechaAprobacion;
   registro.fechaEdicion    = new Date().toLocaleString('es-CO');
-  registro.reabierta       = true;   // sigue abierta hasta que se cierre explícitamente
+  registro.reabierta       = !cerrando;
   historial[idx] = registro;
   localStorage.setItem(CACHE_KEY, JSON.stringify(historial));
-  marcarReabierta(key, true);
+  // El registro que acabamos de dejar en el cache ya lleva el valor correcto,
+  // así que marcarReabierta solo ajusta la lista local y NO dispara un segundo
+  // guardado remoto: un único fetch por pulsación, sin carrera posible.
+  marcarReabierta(key, !cerrando);
 
-  // La quincena SIGUE re-abierta — se cierra explícitamente con 🔒 Cerrar Quincena
-  _snapshotAtUnlock = registro;
+  // Si no se está cerrando, la quincena SIGUE re-abierta y se cierra
+  // explícitamente con 🔒 Cerrar Quincena.
+  _snapshotAtUnlock = cerrando ? null : registro;
 
   actualizarBadgePendiente();
   renderHistorial();
@@ -4314,7 +4327,7 @@ function guardarCambiosQuincena(opts){
 
   if(!opts.silencioso){
     const t = document.createElement('div');
-    t.textContent = '💾 Cambios guardados — la quincena sigue re-abierta';
+    t.textContent = cerrando ? '💾 Cambios guardados' : '💾 Cambios guardados — la quincena sigue re-abierta';
     t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--accent2);color:var(--accent2);padding:12px 20px;border-radius:10px;font-size:13px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:opacity .5s';
     document.body.appendChild(t);
     setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),500); }, 2500);
@@ -4333,9 +4346,11 @@ function cerrarQuincenaReabierta(){
   if(!confirm('🔒 ¿Cerrar esta quincena?\n\nSe guardan los cambios actuales y la quincena vuelve a quedar bloqueada (solo lectura).\n\nLos invoices del mes dejarán de estar EN PROCESO y podrás cerrarlos.')) return;
 
   clearTimeout(_autoQTimer);
-  if(!guardarCambiosQuincena({ silencioso:true })) return;
+  // Un único guardado, ya con reabierta:false. Antes se guardaba con true y
+  // después se mandaba otro guardado con false, y la hoja se quedaba con el
+  // que llegara último.
+  if(!guardarCambiosQuincena({ silencioso:true, cerrar:true })) return;
 
-  marcarReabierta(key, false);   // deja de estar re-abierta (persistente)
   _periodoDesbloqueado = false;
   _snapshotAtUnlock    = null;
   _snapshotActivo      = cargarHistorial().find(h => h.key === key) || null;
