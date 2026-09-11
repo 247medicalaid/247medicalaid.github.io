@@ -580,6 +580,13 @@
   .inv-hdr-flash {
     animation: inv-hdr-flash-anim 1.6s ease-in-out infinite;
   }
+  @keyframes inv-fila-flash-pagado {
+    0%, 100% { background-color: #FACC15; }
+    50%      { background-color: #F97316; }
+  }
+  .inv-fila.st-pagado.inv-hdr-flash {
+    animation: inv-fila-flash-pagado 1.6s ease-in-out infinite;
+  }
   .inv-sigma-flash {
     animation: inv-sigma-flash-anim 1.6s ease-in-out infinite;
   }
@@ -757,12 +764,20 @@
   /* Estados del invoice cerrado — se conservan los colores de siempre */
   .inv-fila.st-pend    { background: #B91C1C; color: #fff; border-color: #7F1D1D; }
   .inv-fila.st-parcial { background: #B45309; color: #fff; border-color: #7C2D12; }
-  .inv-fila.st-pagado  { background: #1E3A5F; color: #fff; border-color: #12263F; }
-  .inv-fila.st-pend .tag, .inv-fila.st-parcial .tag, .inv-fila.st-pagado .tag,
-  .inv-fila.st-pend .pill, .inv-fila.st-parcial .pill, .inv-fila.st-pagado .pill {
+  /* Cobrado del todo: amarillo con letra negra. Es el estado que Carlos necesita
+     reconocer de un golpe de vista, y el salto de luminosidad lo hace visible
+     sin depender de distinguir el tono. */
+  .inv-fila.st-pagado  { background: #FACC15; color: #111827; border-color: #A16207; }
+  .inv-fila.st-pend .tag, .inv-fila.st-parcial .tag,
+  .inv-fila.st-pend .pill, .inv-fila.st-parcial .pill {
     color: #fff !important; background: rgba(255,255,255,.18) !important;
     border-color: rgba(255,255,255,.45) !important;
   }
+  .inv-fila.st-pagado .tag, .inv-fila.st-pagado .pill {
+    color: #111827 !important; background: rgba(0,0,0,.10) !important;
+    border-color: rgba(0,0,0,.35) !important;
+  }
+  .inv-fila.st-pagado .inv-fila-color { background: rgba(0,0,0,.38) !important; }
 
   .inv-card-header {
     display: flex; align-items: center; gap: 14px; padding: 14px 20px;
@@ -7364,10 +7379,8 @@ function renderInvoicesMes(){
     </div>` : '';
 
   const barraDesplegar = cardsHtml ? `
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
-      <button class="desc-link" onclick="invDesplegarTodo(true)">Desplegar todo</button>
-      <span style="color:var(--text3);font-size:11px">·</span>
-      <button class="desc-link" onclick="invDesplegarTodo(false)">Plegar todo</button>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="desc-link" onclick="invPlegarTodo()">Plegar la cuenta abierta</button>
     </div>` : '';
 
   el.innerHTML = cardsHtml
@@ -7387,21 +7400,30 @@ function renderInvoicesMes(){
 // DOM o cada refresco cerraria lo que el usuario acaba de abrir.
 const _invAbiertos = new Set();
 
+function _plegarInvFila(gid){
+  _invAbiertos.delete(gid);
+  const g = document.getElementById(gid);
+  const b = document.getElementById(gid + '-body');
+  if(g) g.classList.remove('abierta');
+  if(b) b.style.display = 'none';
+}
+
 function toggleInvFila(gid){
   const grupo = document.getElementById(gid);
   const body  = document.getElementById(gid + '-body');
   if(!grupo || !body) return;
   const abrir = !_invAbiertos.has(gid);
+  // Solo una cuenta abierta a la vez: al abrir una se pliegan las demas, para
+  // no perder de vista en cual se esta trabajando.
+  if(abrir) Array.from(_invAbiertos).forEach(otro => { if(otro !== gid) _plegarInvFila(otro); });
   if(abrir) _invAbiertos.add(gid); else _invAbiertos.delete(gid);
   grupo.classList.toggle('abierta', abrir);
   body.style.display = abrir ? 'block' : 'none';
 }
 
-function invDesplegarTodo(abrir){
-  document.querySelectorAll('#invoices-list .inv-grupo').forEach(g => {
-    const abierto = _invAbiertos.has(g.id);
-    if(abierto !== abrir) toggleInvFila(g.id);
-  });
+// Pliega la cuenta que este abierta, sin tener que buscarla en la lista.
+function invPlegarTodo(){
+  Array.from(_invAbiertos).forEach(_plegarInvFila);
 }
 
 function toggleInvCard(id){
