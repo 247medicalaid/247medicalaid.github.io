@@ -6284,6 +6284,31 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       style="display:none;margin:0 16px 0;padding:10px 14px;background:rgba(244,103,107,.08);border:1px solid rgba(244,103,107,.3);border-radius:8px;font-size:12px;color:var(--danger);line-height:1.6">
     </div>
 
+    <!-- Tarifa mensual de la cuenta -->
+    ${(()=>{
+      const hayOverride = !locked && getOv(mk, cuNombre).tarifa !== undefined
+                                  && getOv(mk, cuNombre).tarifa !== null;
+      const master = INVOICE_RATES[cu.invKey || cu.norKey] || 0;
+      const sinTarifa = !(data.tarifa > 0);
+      return `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(76,194,236,.04)">
+      <div style="font-size:13px;color:var(--text)">💲 <b>Tarifa mensual por agente</b></div>
+      <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${sinTarifa ? 'var(--danger)' : 'var(--accent2)'}">${fmt(data.tarifa)}</span>
+      ${locked
+        ? '<span style="font-size:11px;color:var(--text3)">congelada — el invoice está cerrado</span>'
+        : `<button class="desc-link" onclick="editInvoiceTarifa('${mk}','${esc(cu.invKey || cu.norKey)}')">cambiar tarifa</button>`}
+      ${hayOverride
+        ? `<span style="font-size:10.5px;font-weight:700;color:var(--accent3);border:1px solid currentColor;border-radius:20px;padding:2px 9px"
+             title="Solo para este invoice. Master permanente: ${fmt(master)}">✎ solo este invoice</span>`
+        : ''}
+      ${sinTarifa ? `<div style="flex-basis:100%;font-size:12.5px;color:var(--accent3);background:rgba(242,169,59,.10);border:1px solid rgba(242,169,59,.35);border-radius:8px;padding:9px 12px;line-height:1.6;margin-top:2px">
+        ⚠ <b>Esta cuenta todavía no tiene tarifa</b>, por eso el invoice sale en $0.00.
+        Usa <b>cambiar tarifa</b> y escribe lo que se le cobra al mes por agente.
+        Al confirmar, elige <b>permanente</b> para que quede guardada también para los meses siguientes.
+      </div>` : ''}
+    </div>`;
+    })()}
+
     <!-- Días hábiles del mes -->
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(76,194,236,.04);${locked?'opacity:.5;pointer-events:none':''}">
       <div style="font-size:13px;color:var(--text)">📅 <b>Días hábiles del mes</b></div>
@@ -7244,6 +7269,9 @@ function renderInvoicesMes(){
       : (_mesEnProceso
         ? '<span class="pill" style="color:var(--accent3);background:rgba(242,169,59,.14);border-color:rgba(242,169,59,.35)">⏳ EN PROCESO</span>'
         : '<span class="pill" style="color:var(--text3);background:rgba(255,255,255,.05);border-color:var(--border)">ABIERTO</span>');
+    const pillTarifa = (_invDataHdr && !(_invDataHdr.tarifa > 0))
+      ? '<span class="pill" style="color:var(--accent3);background:rgba(242,169,59,.14);border-color:rgba(242,169,59,.4)">⚠ SIN TARIFA</span>'
+      : '';
     const pillSigma = (ov.cerrado && _faltaSigma)
       ? `<span class="pill" style="color:var(--inv-sigma,#a78bfa);background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.3)">🏦 SIGMA ${fmt(_sigAmtHdr)}</span>`
       : '';
@@ -7267,7 +7295,7 @@ function renderInvoicesMes(){
           ? '<span class="tag joint" style="font-size:10px">Callcenter</span><span class="tag own" style="font-size:10px">24/7</span>'
           : `<span class="tag ${i.tipo==='dr'?'joint':'own'}" style="font-size:10px">${i.tipo==='dr'?'Callcenter':'24/7'}</span>`}
         ${ov.invnum ? `<span class="inv-fila-num">${ov.invnum}</span>` : ''}
-        ${pillLock} ${pillPago} ${pillSigma}
+        ${pillLock} ${pillPago} ${pillTarifa} ${pillSigma}
         <span class="inv-fila-esp"></span>
         <span class="inv-fila-cifras">
           <span class="mt" data-inv-hdr-mk="${mk}" data-inv-hdr-nombre="${nombreOv}">${fmt(_hdrMonto)}</span>
