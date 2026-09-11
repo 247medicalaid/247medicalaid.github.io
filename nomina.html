@@ -3530,6 +3530,51 @@ function setConexion(estado, msg){
   if(el){ el.textContent = icons[estado]+' '+msg; el.style.color = colors[estado]; }
 }
 
+// ── ESCRITURAS RECIENTES: NO DEJAR QUE UNA LECTURA LAS PISE ──────────────
+// Guardar en Sheets es un fetch a ciegas (no-cors: no se puede leer la
+// respuesta), y leer el historial SOBRESCRIBE el cache local con lo que
+// devuelva el servidor. Si una lectura sale antes de que la escritura llegue
+// —cosa que pasaba literalmente: renderHistorial() dispara
+// cargarHistorialRemoto() y guardarCambiosQuincena() lo llama ANTES de guardar—
+// el servidor contesta con la versión anterior y borra lo que se acababa de
+// hacer. Eso es lo que re-abría la quincena en el acto después de cerrarla.
+//
+// Cada registro que se manda a Sheets queda anotado aquí. Mientras esté
+// anotado, una lectura del historial no lo pisa: se mantiene la versión local.
+// La anotación se suelta cuando el servidor ya devuelve lo mismo que
+// escribimos, o al cabo de VENTANA_ESCRITURA por si algo se perdió.
+const _escrituraLocal    = {};      // key → { ts, registro }
+const VENTANA_ESCRITURA  = 90000;   // ms
+
+function marcarEscrituraLocal(registro){
+  if(registro && registro.key) _escrituraLocal[registro.key] = { ts: Date.now(), registro };
+}
+
+// ¿El registro que devuelve el servidor ya refleja nuestra escritura?
+function _mismaVersion(remoto, local){
+  if(!remoto || !local) return false;
+  if(remoto.fechaEdicion || local.fechaEdicion) return remoto.fechaEdicion === local.fechaEdicion;
+  return remoto.reabierta === local.reabierta && remoto.fechaAprobacion === local.fechaAprobacion;
+}
+
+function fusionarHistorialRemoto(remotos){
+  const ahora = Date.now();
+  const fusionado = (remotos || []).map(r => {
+    const pend = _escrituraLocal[r.key];
+    if(!pend) return r;
+    if(ahora - pend.ts > VENTANA_ESCRITURA){ delete _escrituraLocal[r.key]; return r; }
+    if(_mismaVersion(r, pend.registro)){ delete _escrituraLocal[r.key]; return r; }
+    return pend.registro;                       // la escritura aún no ha llegado
+  });
+  // Un registro recién aprobado puede no estar todavía en la respuesta remota.
+  Object.keys(_escrituraLocal).forEach(k => {
+    const pend = _escrituraLocal[k];
+    if(ahora - pend.ts > VENTANA_ESCRITURA){ delete _escrituraLocal[k]; return; }
+    if(!fusionado.some(r => r.key === k)) fusionado.push(pend.registro);
+  });
+  return fusionado;
+}
+
 // ── GET: cargar historial desde Sheets (con cache local como fallback) ──
 function cargarHistorial(){
   // Retorna cache mientras llega la respuesta real
@@ -3543,7 +3588,7 @@ function cargarHistorialRemoto(){
   fetch(GS_URL + '?tipo=historial')
     .then(r => r.json())
     .then(data => {
-      const registros = Array.isArray(data) ? data : [];
+      const registros = fusionarHistorialRemoto(Array.isArray(data) ? data : []);
       localStorage.setItem(CACHE_KEY, JSON.stringify(registros));
       _historialLoaded = true;
       _checkAndInit();
@@ -3585,6 +3630,7 @@ function inicializarPeriodoActual(){
 
 // ── POST: guardar un registro en Sheets ──
 function guardarRegistroRemoto(registro, onSuccess, onError){
+  marcarEscrituraLocal(registro);   // protegerlo de una lectura que llegue tarde
   setConexion('loading','Guardando en Sheets...');
   fetch(GS_URL, {
     method: 'POST',
