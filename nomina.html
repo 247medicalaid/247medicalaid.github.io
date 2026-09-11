@@ -477,6 +477,8 @@
     --danger:  #7F1D1D;
     --inv-sigma: #7F1D1D;  /* was purple → dark red */
     --inv-247:   #1E3A5F;  /* was teal   → dark blue */
+    --pay-tint:  rgba(30,58,95,.14);
+    --sig-tint:  rgba(127,29,29,.13);
   }
   .inv-theme-paid {
     background: #E8D4A8;   /* crema un poco más oscuro */
@@ -493,6 +495,8 @@
     --danger:  #991B1B;
     --inv-sigma: #5B21B6;  /* dark purple */
     --inv-247:   #0F766E;  /* dark teal */
+    --pay-tint:  rgba(22,101,52,.13);
+    --sig-tint:  rgba(91,33,182,.12);
   }
   /* Steppers inside light themes — dark text on light bg for readability */
   .inv-theme-pending .inv-stepper input,
@@ -543,17 +547,31 @@
      Solo usa variables del tema: la tarjeta cambia de paleta segun el estado
      del invoice (abierto oscuro, pendiente gris, cerrado crema) y este bloque
      tiene que leerse bien en los tres. */
+  /* Las dos cajas de dinero — lo que entra del cliente y lo que sale hacia
+     Sigma — comparten estructura, asi que se separan por color, por un borde
+     izquierdo grueso y por el titulo. Antes eran dos franjas casi iguales. */
+  .sig-box, .pay-box {
+    margin: 12px 16px;
+    padding: 13px 15px;
+    border: 1px solid var(--border);
+    border-left-width: 5px;
+    border-radius: 12px;
+  }
   .sig-box {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(167,139,250,.05);
-    border-left: 3px solid var(--inv-sigma, #a78bfa);
+    background: var(--sig-tint, rgba(167,139,250,.10));
+    border-left-color: var(--inv-sigma, #a78bfa);
   }
   .sig-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .sig-tit {
-    font-size: 10px; font-weight: 700; letter-spacing: .07em;
-    text-transform: uppercase; color: var(--inv-sigma, #a78bfa); white-space: nowrap;
+    font-size: 14px; font-weight: 800; letter-spacing: .02em;
+    color: var(--inv-sigma, #a78bfa); white-space: nowrap;
   }
+  /* Aclara de un vistazo en que direccion va el dinero */
+  .caja-sub {
+    font-size: 11.5px; color: var(--text3); white-space: nowrap;
+    padding-left: 2px; border-left: 1px solid var(--border); padding-left: 10px;
+  }
+  .caja-der { margin-left: auto; }
   .sig-pill {
     font-size: 11px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
     border: 1px solid currentColor; white-space: nowrap;
@@ -612,12 +630,12 @@
 
   /* ─── Pago del cliente — misma gramatica visual que el bloque de Sigma ─── */
   .pay-box {
-    padding: 14px 16px; border-bottom: 1px solid var(--border);
-    background: rgba(63,207,160,.05); border-left: 3px solid var(--accent);
+    background: var(--pay-tint, rgba(63,207,160,.10));
+    border-left-color: var(--accent);
   }
   .pay-tit {
-    font-size: 10px; font-weight: 700; letter-spacing: .07em;
-    text-transform: uppercase; color: var(--accent); white-space: nowrap;
+    font-size: 14px; font-weight: 800; letter-spacing: .02em;
+    color: var(--accent); white-space: nowrap;
   }
   .pay-lista { margin: 11px 0 12px; display: flex; flex-direction: column; gap: 6px; }
   .pay-item {
@@ -6325,9 +6343,11 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       const est    = estadoPagoCliente(ovPago, data.monto);
       const pct    = est.total > 0 ? Math.round(est.abonado / est.total * 100) : 0;
       const clase  = est.completo ? 'ok' : est.parcial ? 'parcial' : 'pend';
-      const texto  = est.completo ? '✓ Pagado por el cliente'
-                   : est.parcial  ? '◑ Pagado parcialmente'
-                   : '● Pendiente de pago';
+      // Las dos cajas decian "Pendiente de pago", asi que no se distinguia
+      // el dinero que entra del que sale. Ahora cada una dice de quien habla.
+      const texto  = est.completo ? '✓ El cliente pagó'
+                   : est.parcial  ? '◑ El cliente pagó en parte'
+                   : '● El cliente no ha pagado';
       const hoy    = new Date().toISOString().slice(0,10);
       const opciones = METODOS_PAGO.map(mth => `<option value="${mth}">${mth}</option>`).join('');
       const filasPagos = (est.lista||[]).map(pg => `
@@ -6343,7 +6363,8 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <div class="pay-box">
         <div class="sig-top">
           <span class="pay-tit">💵 Pago del cliente</span>
-          <span class="sig-pill ${clase}">${texto}</span>
+          <span class="caja-sub">entra · lo que nos paga ${cuNombre}</span>
+          <span class="sig-pill ${clase} caja-der">${texto}</span>
         </div>
 
         <div class="sig-cifras">
@@ -6402,10 +6423,10 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         // Invoice abierto → proyección informativa. No se puede marcar como pagado
         // hasta cerrar el invoice (y antes, las quincenas del mes).
         return `
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(167,139,250,.05);border-left:3px dashed var(--inv-sigma,#a78bfa)">
+      <div class="sig-box" style="border-left-style:dashed">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
-            <div style="font-size:10px;color:var(--inv-sigma,#a78bfa);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">🏦 Pago Proyectado a Sigma</div>
+            <div class="sig-tit" style="margin-bottom:5px;display:block">🏦 Pago proyectado a Sigma</div>
             ${_sigDetalle}
             <div style="font-size:11px;color:var(--accent3);margin-top:4px">
               ⏳ Proyección informativa — se confirma al cerrar el invoice${enProceso ? ' (primero hay que aprobar las quincenas del mes)' : ''}
@@ -6428,7 +6449,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       const textoEstado  = esCruzado    ? '⇄ Cruzado por Utilidad'
                          : est.completo ? '✓ Pagado a Sigma'
                          : est.parcial  ? '◑ Abonado parcialmente'
-                         : '● Pendiente de pago';
+                         : '● Falta pagarle a Sigma';
       // En un cruce el dinero no salio: se compenso contra la utilidad. La
       // etiqueta lo dice, para que la cifra no se lea como un pago.
       const lbAbonado = esCruzado ? 'Compensado' : 'Abonado';
@@ -6438,7 +6459,8 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <div class="sig-box${_flashThis ? ' inv-sigma-flash' : ''}">
         <div class="sig-top">
           <span class="sig-tit">🏦 Cheque a Sigma</span>
-          <span class="sig-pill ${claseEstado}">${textoEstado}</span>
+          <span class="caja-sub">sale · lo que le giramos a Sigma</span>
+          <span class="sig-pill ${claseEstado} caja-der">${textoEstado}</span>
         </div>
         ${_sigDetalle}
 
