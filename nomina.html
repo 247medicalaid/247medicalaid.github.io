@@ -5988,7 +5988,7 @@ function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
     sigmaPagado: completo,
     sigmaFecha: fecha,
     // Un pago manual siempre limpia el estado de cruce.
-    cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null
+    cruzadoUtilidad: false, cruceFecha: null, cruceFechaISO: null, cruceMonto: null
   });
   const ovs = loadInvOv();
   const key = invOvKey(mkid, nombre);
@@ -6023,6 +6023,40 @@ function normalizarFechaInvoice(mk, nombre, campo, el, porDefecto){
   const g = getOv(mk, nombre)[campo];
   const v = (g === undefined || g === null || g === '') ? (porDefecto || '') : g;
   if(el.value !== v) el.value = v;
+}
+
+// cruceFecha se guarda desde siempre como texto local de es-CO
+// ("14/9/2026, 4:35:12 p. m."), que un input[type=date] no entiende. Los cruces
+// nuevos guardan tambien cruceFechaISO; los viejos se traducen aqui.
+function fechaCruceISO(ov){
+  if(!ov) return '';
+  if(ov.cruceFechaISO && /^\d{4}-\d{2}-\d{2}$/.test(ov.cruceFechaISO)) return ov.cruceFechaISO;
+  const t = String(ov.cruceFecha || '').trim();
+  if(!t) return '';
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);                 // ya venia en ISO
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);              // es-CO: dia/mes/ano
+  if(m){
+    const d = m[1].padStart(2,'0'), mes = m[2].padStart(2,'0');
+    if(+m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) return m[3]+'-'+mes+'-'+d;
+  }
+  return '';
+}
+
+// Corregir a mano la fecha de un cruce viejo. Guarda solo el campo ISO: el
+// texto original se conserva tal cual, como quedo registrado en su momento.
+function fijarFechaCruce(mkid, nombre, fecha){
+  const v = (fecha || '').trim();
+  if(!fechaRazonable(v)) return;
+  setOv(normMkid(mkid), nombre, { cruceFechaISO: v || null });
+  const ovs = loadInvOv();
+  const key = invOvKey(normMkid(mkid), nombre);
+  if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
+}
+function normalizarFechaCruce(mkid, nombre, el){
+  if(!el) return;
+  const g = fechaCruceISO(getOv(normMkid(mkid), nombre));
+  if(el.value !== g) el.value = g;
 }
 
 // Corrige a mano la fecha del giro a Sigma — para los pagos que se marcaron
@@ -6102,6 +6136,7 @@ function listarSigmaPorCuenta(){
         completo: est.completo, parcial: est.parcial,
         cancelado: ov.noPago === true,
         cruzado: ov.cruzadoUtilidad === true, cruceFecha: ov.cruceFecha || '',
+        cruceISO: fechaCruceISO(ov), cruceMonto: Number(ov.cruceMonto) || 0,
         fecha: ov.sigmaFecha || ''
       });
     });
@@ -6112,7 +6147,9 @@ function listarSigmaPorCuenta(){
       nombre, meses, directo: meses.some(m => m.directo),
       total:  invR2(meses.reduce((t,x)=>t+x.total,0)),
       pagado: invR2(meses.reduce((t,x)=>t+x.pagado,0)),
-      saldo:  invR2(meses.reduce((t,x)=>t+x.saldo,0))
+      saldo:  invR2(meses.reduce((t,x)=>t+x.saldo,0)),
+      // De lo que figura como saldado, cuanto no fue dinero sino cruce.
+      cruzado: invR2(meses.filter(m=>m.cruzado).reduce((t,x)=>t+Math.min(x.cruceMonto||x.pagado, x.pagado),0))
     };
   });
 }
@@ -7463,6 +7500,7 @@ function renderSigma(){
   const gPagado = invR2(propias.reduce((t,c)=>t+c.pagado,0));
   const gSaldo  = invR2(propias.reduce((t,c)=>t+c.saldo,0));
   const gDirecto = invR2(dirs.reduce((t,c)=>t+c.total,0));
+  const gCruzado = invR2(propias.reduce((t,c)=>t+(c.cruzado||0),0));
 
   const filaMes = (x) => {
     const esc2 = String(x.nombre).replace(/'/g,'&#39;');
@@ -7491,16 +7529,25 @@ function renderSigma(){
       ${x.cancelado ? '' : `
       <label style="display:flex;flex-direction:column;gap:3px;min-width:132px">
         <span style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${
-          x.fecha && !fechaRazonable(x.fecha)
+          x.cruzado
+            ? '<span style="color:var(--inv-247)">Fecha del cruce</span>'
+          : (x.fecha && !fechaRazonable(x.fecha))
             ? '<span style="color:var(--accent3)" title="El año quedó mal guardado. Escríbela de nuevo.">⚠ revisa la fecha</span>'
             : (x.directo ? 'Fecha del pago' : 'Fecha del giro')}</span>
-        <input type="date" min="2000-01-01" value="${x.fecha}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px"
-          onchange="fijarFechaSigma('${x.mk}','${esc2}',this.value)"
-          onblur="normalizarFechaSigma('${x.mk}','${esc2}',this)">
+        ${x.cruzado
+          ? `<input type="date" min="2000-01-01" value="${x.cruceISO}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--inv-247);background:var(--surface);color:var(--text);font-size:12.5px"
+               onchange="fijarFechaCruce('${x.mk}','${esc2}',this.value)"
+               onblur="normalizarFechaCruce('${x.mk}','${esc2}',this)">`
+          : `<input type="date" min="2000-01-01" value="${x.fecha}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px"
+               onchange="fijarFechaSigma('${x.mk}','${esc2}',this.value)"
+               onblur="normalizarFechaSigma('${x.mk}','${esc2}',this)">`}
       </label>
       <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;width:352px;flex:none">
         ${x.cruzado
-          ? `<button class="sig-btn deshacer" onclick="fijarPagoSigma('${x.mk}','${esc2}',0,${x.total})">✕ Deshacer el cruce</button>`
+          ? `<span style="font-size:10.5px;color:var(--inv-247);text-align:right;line-height:1.35;max-width:250px">
+               <b>No se pagó en dinero.</b><br>Se cruzó contra la utilidad pendiente por cobrar${x.cruceMonto > 0.005 ? ', por ' + fmt(x.cruceMonto) : ''}.
+             </span>
+             <button class="sig-btn deshacer" onclick="fijarPagoSigma('${x.mk}','${esc2}',0,${x.total})">✕ Deshacer el cruce</button>`
           : `${!x.completo ? `
              <input type="number" step="0.01" min="0" class="sig-inp" id="${sid}" value="${x.saldo.toFixed(2)}"
                aria-label="Importe del abono a Sigma" onfocus="this.select()"
@@ -7531,6 +7578,8 @@ function renderSigma(){
         <span style="text-align:right;min-width:104px">
           <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${c.directo ? 'Registrado' : 'Ya girado'}</span>
           <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(c.pagado)}</span>
+          ${c.cruzado > 0.005 ? `<span style="font-size:9.5px;color:var(--inv-247);display:block;margin-top:1px"
+            title="Esa parte no se giró en dinero: se cruzó contra la utilidad pendiente por cobrar.">⇄ ${fmt(c.cruzado)} cruzado</span>` : ''}
         </span>
         <span style="text-align:right;min-width:104px">
           <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${c.directo ? 'Sin registrar' : 'Pendiente'}</span>
@@ -7564,6 +7613,8 @@ function renderSigma(){
         <span style="text-align:right;min-width:104px">
           <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Ya girado</span>
           <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(gPagado)}</span>
+          ${gCruzado > 0.005 ? `<span style="font-size:9.5px;color:var(--inv-247);display:block;margin-top:1px"
+            title="Esa parte no se giró en dinero: se cruzó contra la utilidad pendiente por cobrar.">⇄ ${fmt(gCruzado)} cruzado</span>` : ''}
         </span>
         <span style="text-align:right;min-width:104px">
           <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Pendiente</span>
@@ -9123,13 +9174,19 @@ function confirmarCruceUtilidad(){
   const fmt = n => '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const total = checks.reduce((t,c) => t + parseFloat(c.dataset.cruceMonto), 0);
   if(!confirm('⇄ CRUCE DE CUENTAS\n\n' + checks.length + ' invoice(s) por ' + fmt(total) + ' se marcarán como CRUZADOS POR UTILIDAD (no pagados en dinero).\n\nLa utilidad 30% pendiente por cobrar se reducirá en ' + fmt(total) + '.\n\n¿Confirmar el cruce?')) return;
-  const fecha = new Date().toLocaleString('es-CO');
+  const _ahora = new Date();
+  const fecha  = _ahora.toLocaleString('es-CO');
+  // Ademas del texto legible, la fecha en ISO — es la que puede leer y mostrar
+  // el campo de fecha de la seccion Sigma.
+  const fechaISO = _ahora.getFullYear() + '-' + String(_ahora.getMonth()+1).padStart(2,'0')
+                   + '-' + String(_ahora.getDate()).padStart(2,'0');
   checks.forEach(ch => {
     const mk = ch.dataset.cruceMk, nombre = ch.dataset.cruceNombre, monto = parseFloat(ch.dataset.cruceMonto);
     // Queda saldado: lo que ya se habia abonado en dinero mas la parte cruzada.
     const _prev = parseFloat(ch.dataset.cruceAbonado) || 0;
     setOv(mk, nombre, { sigmaPaid: Math.round((_prev + monto)*100)/100, sigmaPagado: true,
-                        cruzadoUtilidad: true, cruceFecha: fecha, cruceMonto: monto });
+                        cruzadoUtilidad: true, cruceFecha: fecha, cruceFechaISO: fechaISO,
+                        cruceMonto: monto });
     const key = invOvKey(mk, nombre);
     const ovs = loadInvOv();
     if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
@@ -9146,7 +9203,7 @@ function deshacerCruce(mk, nombre){
   // Se devuelve solo la parte cruzada: los abonos en dinero previos se conservan.
   const _restante = Math.max(0, Math.round(((Number(ov.sigmaPaid)||0) - (ov.cruceMonto||0))*100)/100);
   setOv(mk, nombre, { sigmaPaid: _restante, sigmaPagado: false,
-                      cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null });
+                      cruzadoUtilidad: false, cruceFecha: null, cruceFechaISO: null, cruceMonto: null });
   const key = invOvKey(mk, nombre);
   const ovs = loadInvOv();
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
