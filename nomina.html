@@ -1153,6 +1153,10 @@
       <span class="dot" style="background:#f472b6"></span> Invoices
       <span class="badge" id="badge-invoices">0</span>
     </button>
+    <button class="nav-btn" onclick="showPage('sigma')">
+      <span class="dot" style="background:#a78bfa"></span> Sigma
+      <span class="badge" id="badge-sigma">0</span>
+    </button>
     <button class="nav-btn" onclick="showPage('utilidad')">
       <span class="dot" style="background:#34d399"></span> Utilidad Dr.
     </button>
@@ -1437,9 +1441,20 @@
 
     <!-- Invoices dados por perdidos — registro aparte, no cuentan como pendientes -->
     <div id="inv-perdidas" style="margin-top:26px"></div>
+  </div>
 
-    <!-- Sigma — lo que se le gira por cada cuenta y mes, y cuándo se pagó -->
-    <div id="sigma-lista" style="margin-top:26px"></div>
+
+  <!-- ══════════ PAGE: SIGMA ══════════ -->
+  <!-- Seccion propia, no depende del mes seleccionado en Invoices: recorre
+       todos los invoices cerrados y los agrupa por cuenta. -->
+  <div id="page-sigma" class="hidden">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Sigma</div>
+        <div class="page-sub">Lo que se le gira por cada cuenta y mes, si ya se pagó y en qué fecha</div>
+      </div>
+    </div>
+    <div id="sigma-lista"></div>
   </div>
 
 
@@ -2833,11 +2848,12 @@ function recalcAll(){
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
 function showPage(id){
-  ['resumen','cuentas-dr','cuentas-own','agentes','historial','invoices','utilidad'].forEach(p=>{
+  ['resumen','cuentas-dr','cuentas-own','agentes','historial','invoices','sigma','utilidad'].forEach(p=>{
     $('page-'+p).classList.toggle('hidden', p!==id);
   });
   // When opening invoices, always re-render with latest data
   if(id === 'invoices') renderInvoices();
+  if(id === 'sigma')    renderSigma();
   if(id === 'utilidad') renderUtilidad();
   document.querySelectorAll('.nav-btn').forEach(b=>{
     b.classList.toggle('active', b.getAttribute('onclick')?.includes("'"+id+"'"));
@@ -2847,7 +2863,7 @@ function showPage(id){
   document.body.classList.toggle('page-utilidad', id === 'utilidad');
   // Hide quincena-bar on pages that don't need it
   const _qbar = document.getElementById('quincena-bar');
-  if(_qbar) _qbar.style.display = (id === 'invoices' || id === 'utilidad') ? 'none' : '';
+  if(_qbar) _qbar.style.display = (id === 'invoices' || id === 'utilidad' || id === 'sigma') ? 'none' : '';
 
   if(id==='historial') renderHistorial();
   if(id==='invoices') renderInvoices();
@@ -5272,6 +5288,12 @@ function updateBadges(){
     const invCount = countInvoicesAvailable(historialParaInvoices());
     $('badge-invoices').textContent = invCount;
   } catch { $('badge-historial').textContent = '0'; $('badge-invoices').textContent = '0'; }
+  // Badge de Sigma: meses pendientes por girar. Los de pago directo no cuentan,
+  // porque esa plata no sale de 24/7.
+  try {
+    const bs = $('badge-sigma');
+    if(bs) bs.textContent = contarSigmaPendiente();
+  } catch { const bs = $('badge-sigma'); if(bs) bs.textContent = '0'; }
 }
 
 // ── Stepper helper — increment/decrement without re-rendering ──
@@ -5668,6 +5690,7 @@ function loadInvOv(){
 }
 function _cacheInvOv(ovs){
   localStorage.setItem(INV_CACHE_KEY, JSON.stringify(ovs));
+  _sigmaSello++;  // cualquier cambio en los invoices invalida el conteo del badge
 }
 function loadInvCounter(){
   return parseInt(localStorage.getItem(INV_COUNTER_KEY)||'0');
@@ -5968,6 +5991,7 @@ function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
   const key = invOvKey(mkid, nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
   renderInvoices();
+  refrescarSigma();
   if(typeof renderUtilidad === 'function') try{ renderUtilidad(); }catch(e){}
 }
 
@@ -5979,6 +6003,27 @@ function fijarFechaSigma(mkid, nombre, fecha){
   const key = invOvKey(normMkid(mkid), nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
   renderSigma();
+}
+
+// Recorrer todos los invoices cerrados cuesta ~160 ms, y recalcAll() se llama a
+// cada rato: sin memoria, poner el numerito en el menu duplicaba el tiempo de
+// cada recalculo. Se memoriza SOLO el conteo del badge — la seccion siempre se
+// pinta con datos frescos — asi que en el peor caso el numero del menu llega un
+// instante tarde, nunca una cifra equivocada.
+let _sigmaBadgeMemo = null;
+let _sigmaSello = 0;
+function contarSigmaPendiente(){
+  let firma = null;
+  try {
+    firma = _sigmaSello + '|' + (localStorage.getItem(INV_CACHE_KEY)||'').length
+                        + '|' + (localStorage.getItem(CACHE_KEY)||'').length;
+  } catch(e){ firma = null; }
+  if(firma !== null && _sigmaBadgeMemo && _sigmaBadgeMemo.firma === firma) return _sigmaBadgeMemo.n;
+  const n = listarSigmaPorCuenta()
+    .filter(c => !c.directo)
+    .reduce((t,c) => t + c.meses.filter(m => !m.cancelado && m.saldo > 0.005).length, 0);
+  _sigmaBadgeMemo = { firma, n };
+  return n;
 }
 
 // ── Todo lo que se le debe o se le ha pagado a Sigma, agrupado por cuenta ────
@@ -6797,7 +6842,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         </div>
         <div class="sig-nota" style="margin-top:8px">
           Le corresponden <b>${fmt(_sd)}</b> de este invoice${_ovD.sigmaFecha ? `, pagados el <b>${_ovD.sigmaFecha}</b>` : ''}.
-          No sale de 24/7, así que no cuenta en lo que le debes a Sigma. El registro se lleva en la sección <b>🏦 Sigma</b>.
+          No sale de 24/7, así que no cuenta en lo que le debes a Sigma. El registro se lleva en la sección <b><a href="#" onclick="showPage('sigma');return false" style="color:var(--inv-sigma,#a78bfa)">🏦 Sigma</a></b> del menú.
         </div>
       </div>`;
       }
@@ -6874,7 +6919,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         ${esCruzado
           ? `<div class="sig-nota">${ovSigma.cruceFecha || ''} · compensado contra la utilidad, no pagado en dinero</div>`
           : `<div class="sig-nota">
-               ${ovSigma.sigmaFecha ? 'Girado el ' + ovSigma.sigmaFecha + ' · ' : ''}El pago a Sigma se registra en la sección <b>🏦 Sigma</b>, al final de esta página.
+               ${ovSigma.sigmaFecha ? 'Girado el ' + ovSigma.sigmaFecha + ' · ' : ''}El pago a Sigma se registra en la sección <b><a href="#" onclick="showPage('sigma');return false" style="color:var(--inv-sigma,#a78bfa)">🏦 Sigma</a></b>, en el menú de la izquierda.
              </div>`}
       </div>`;
     })()}
@@ -7334,6 +7379,15 @@ function renderInvPerdidas(){
 // se le debe por cada una, que meses ya se giraron y en que fecha.
 const _sigmaAbiertas = new Set();
 
+// Recorrer todos los invoices cerrados cuesta, asi que desde la pagina de
+// Invoices solo se repinta si Sigma esta a la vista. Al entrar a Sigma,
+// showPage() la pinta de cero, asi que nunca se ve informacion vieja.
+function refrescarSigma(){
+  const pg = document.getElementById('page-sigma');
+  if(!pg || pg.classList.contains('hidden')) return;
+  try { renderSigma(); } catch(e){}
+}
+
 function toggleSigmaCuenta(nombre){
   if(_sigmaAbiertas.has(nombre)) _sigmaAbiertas.delete(nombre); else _sigmaAbiertas.add(nombre);
   renderSigma();
@@ -7344,7 +7398,13 @@ function renderSigma(){
   if(!el) return;
   let cuentasSig = [];
   try { cuentasSig = listarSigmaPorCuenta(); } catch(e){ cuentasSig = []; }
-  if(!cuentasSig.length){ el.innerHTML = ''; return; }
+  if(!cuentasSig.length){
+    el.innerHTML = `<div class="empty" style="padding:44px;text-align:center;color:var(--text3)">
+      Todavia no hay invoices cerrados con cheque a Sigma.<br>
+      <span style="font-size:12px">Aparecen aqui en cuanto cierres un invoice de una cuenta compartida.</span>
+    </div>`;
+    return;
+  }
 
   // Lo que paga el cliente directo no es deuda de 24/7: va en su propia cifra.
   const propias = cuentasSig.filter(c => !c.directo);
@@ -7431,7 +7491,7 @@ function renderSigma(){
     <div style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--sig-tint,rgba(167,139,250,.10));border-left:5px solid var(--inv-sigma,#a78bfa)">
         <span style="font-size:15px;font-weight:800;color:var(--inv-sigma,#a78bfa)">🏦 Sigma</span>
-        <span style="font-size:11.5px;color:var(--text3)">lo que le giramos por cada cuenta · solo invoices cerrados</span>
+        <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
         <span style="flex:1;min-width:6px"></span>
         <span style="text-align:right;min-width:104px">
           <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Total</span>
@@ -7862,7 +7922,7 @@ function renderInvoicesMes(){
     : `<div class="empty" style="padding:40px;text-align:center;color:var(--text3)">Sin cuentas con invoice para ${mesLabel}</div>`;
 
   renderInvPerdidas();
-  renderSigma();
+  refrescarSigma();
 
   // Check overlaps for all rendered invoices
   lineItems.forEach(i => {
