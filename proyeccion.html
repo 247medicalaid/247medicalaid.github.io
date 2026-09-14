@@ -1351,6 +1351,11 @@ function completarMes(m, ctx){
       m.invDet = m.invDet.map(d => ajI[d.cuenta] !== undefined
         ? { ...d, m: R2(ajI[d.cuenta]), ajustado: true } : d);
       m.invTotal = R2(m.invDet.reduce((t,d) => t + d.m, 0));
+      // Lo que falta por cobrar es un dato de Nómina: si él cambió el monto de
+      // una cuenta, el saldo de esa cuenta ya no corresponde. Se deja fuera en
+      // vez de mezclar una cifra real con una supuesta.
+      m.invPendiente = R2(m.invDet.filter(d => !d.ajustado)
+        .reduce((t,d) => t + (Number(d.saldo)||0), 0));
       m.ajustado = true;
     }
   }
@@ -1518,7 +1523,7 @@ function filaGastoMes(mk, g){
 // En un mes futuro las cuatro cifras que vienen de Nómina todavía no existen.
 // Se muestran como campos: arrancan en las del último mes completo y Carlos las
 // corrige si sabe que ese mes va a ser distinto.
-function filaProyeccion(mk, campo, etiqueta, valor, ajustado, color){
+function filaProyeccion(mk, campo, etiqueta, valor, ajustado, volverA){
   const eid = 'pm-' + mk + '-' + campo;
   return `
     <div class="lin gasto-mes">
@@ -1529,34 +1534,32 @@ function filaProyeccion(mk, campo, etiqueta, valor, ajustado, color){
         aria-label="${esc(etiqueta)} en este mes" onfocus="this.select()"
         onchange="fijarProyeccion('${mk}','${campo}',this.value)">
       ${ajustado
-        ? `<button class="mini" title="Volver al mes de referencia" onclick="quitarProyeccion('${mk}','${campo}')">volver</button>`
+        ? `<button class="mini" title="Volver a ${volverA || 'el mes de referencia'}" onclick="quitarProyeccion('${mk}','${campo}')">volver</button>`
         : '<span style="width:64px;display:inline-block"></span>'}
     </div>`;
 }
 
-// Cada invoice del mes, en su propia fila. Los que Nómina ya tiene se muestran
-// tal cual (son un hecho); los proyectados se pueden corregir uno por uno.
+// Cada invoice del mes, en su propia fila y siempre editable — venga de Nómina
+// o esté proyectado. La etiqueta dice de dónde sale la cifra, para que se sepa
+// qué es un dato y qué una suposición tuya.
 function filaInvoice(mk, d){
-  if(!d.proyectado){
-    return `<div class="lin">
-      <span class="e">Invoice · ${esc(d.e)}</span>
-      <span style="flex:1;min-width:4px"></span>
-      <span class="m">${fmt(d.m)}</span>
-    </div>`;
-  }
   const eid = 'iv-' + mk + '-' + String(d.cuenta).replace(/[^A-Za-z0-9]/g,'');
-  const nota = d.ajustado ? 'lo escribiste tú'
-             : (d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses');
+  const nota = d.ajustado
+      ? '<span class="sig-eti ajus">lo escribiste tú</span>'
+      : (d.proyectado
+          ? `<span class="sig-eti solo">${d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses'}</span>`
+          : '');
+  const volverA = d.proyectado ? 'la proyección' : 'lo que dice Nómina';
   return `
     <div class="lin gasto-mes">
       <span class="e">${esc(d.e)}</span>
-      <span class="sig-eti ${d.ajustado ? 'ajus' : 'solo'}">${nota}</span>
+      ${nota}
       <span style="flex:1;min-width:4px"></span>
       <input type="number" step="0.01" min="0" class="inp" id="${eid}" value="${d.m}"
         aria-label="Invoice de ${esc(d.e)} en este mes" onfocus="this.select()"
         onchange="fijarInvoiceProy('${mk}','${esc(d.cuenta)}',this.value)">
       ${d.ajustado
-        ? `<button class="mini" title="Volver a la proyección" onclick="quitarInvoiceProy('${mk}','${esc(d.cuenta)}')">volver</button>`
+        ? `<button class="mini" title="Volver a ${volverA}" onclick="quitarInvoiceProy('${mk}','${esc(d.cuenta)}')">volver</button>`
         : '<span style="width:64px;display:inline-block"></span>'}
     </div>`;
 }
@@ -1581,9 +1584,11 @@ function detalleMes(m){
       Este mes todavía tiene ${m.quincenas} de 2 quincenas aprobadas y no hay un mes
       completo anterior del que partir, así que lo que falta va en cero.
     </div>` : '');
+  const tocados = m.invDet.filter(d => d.ajustado).length;
   const pend = m.invPendiente > 0.005 ? `
     <div class="nota" style="margin-top:7px">
-      De los invoices de este mes quedan <b>${fmt(m.invPendiente)}</b> por cobrar.
+      De los invoices de este mes quedan <b>${fmt(m.invPendiente)}</b> por cobrar${
+        tocados ? ' — sin contar ' + (tocados===1 ? 'el que cambiaste' : 'los ' + tocados + ' que cambiaste') : ''}.
     </div>` : '';
 
   return `
@@ -1592,15 +1597,13 @@ function detalleMes(m){
       <div class="det-grid">
         <div class="det-col">
           <div class="det-t" style="color:var(--accent)">⬆ Entra</div>
-          ${m.ccDet.length
-            ? m.ccDet.map(d => `<div class="lin"><span class="e">${esc(d.e)}</span>
-                ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
-                <span style="flex:1;min-width:4px"></span>
-                <span class="m">${fmt(d.m)}</span></div>`).join('')
-            : ''}
-          ${_ajProy(m.mk,'ccCheck') || m.proyectado
-            ? filaProyeccion(m.mk,'ccCheck','Callcenter Check del mes', m.ccCheck, _ajProy(m.mk,'ccCheck'))
-            : ''}
+          ${_ajProy(m.mk,'ccCheck') ? '' : m.ccDet.map(d => `
+            <div class="lin"><span class="e">${esc(d.e)}</span>
+              ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
+              <span style="flex:1;min-width:4px"></span>
+              <span class="m">${fmt(d.m)}</span></div>`).join('')}
+          ${filaProyeccion(m.mk,'ccCheck','Callcenter Check del mes', m.ccCheck,
+                           _ajProy(m.mk,'ccCheck'), m.real ? 'lo que dice Nómina' : 'la proyección')}
           <div class="det-t" style="color:var(--accent2);margin-top:13px;font-size:10px">
             Invoices${m.invProyectados ? ' · proyectados con ' + (m.invBase||[]).length + ' mes(es) del historial' : ''}
           </div>
