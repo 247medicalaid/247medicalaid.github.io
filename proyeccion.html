@@ -94,6 +94,15 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
 .lin.gasto-mes{gap:8px;padding:4px 0;flex-wrap:wrap}
 .lin.gasto-mes .inp{padding:5px 8px;font-size:12.5px;width:96px}
 .lin.gasto-mes .inp.txt{width:auto;min-width:110px;flex:0 1 150px}
+/* "Ya pasó": la línea sigue a la vista pero se apaga, para que se lea de un
+   golpe qué mueve el saldo y qué no. */
+.ya-box{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;
+  color:var(--text3);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;
+  white-space:nowrap;user-select:none}
+.ya-box input{margin:0;cursor:pointer}
+.lin.gasto-mes.ya{opacity:.55}
+.lin.gasto-mes.ya .e{text-decoration:line-through;text-decoration-thickness:1px}
+.lin.gasto-mes.ya .ya-box{opacity:1;color:var(--accent2)}
 .sig-eti{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
 .sig-eti.ajus{color:var(--accent2)} .sig-eti.solo{color:var(--morado)}
 .mini{background:none;border:1px solid var(--border);color:var(--text3);border-radius:6px;
@@ -975,7 +984,11 @@ function datosPorDefecto(){
     //   { 'YYYY-MM': { ccCheck, nomTotal, sigma } }
     proyMes: {},
     // Invoice por invoice de un mes proyectado:  { 'YYYY-MM': { ADVANTAGE: 2500 } }
-    proyInv: {}
+    proyInv: {},
+    // Estado de cada línea de un mes:  { 'YYYY-MM': { 'nom:1': { v, ya } } }
+    //   v  = el valor corregido a mano
+    //   ya = eso ya pasó: salió o entró, y está dentro del saldo del banco
+    lineas: {}
   };
 }
 
@@ -989,7 +1002,8 @@ function cargarDatos(){
       const d = { ...base, ...raw, ajustes: { ...base.ajustes, ...(raw.ajustes||{}) },
                   bancos: Array.isArray(raw.bancos) && raw.bancos.length ? raw.bancos : base.bancos,
                   porMes: raw.porMes || {}, extras: raw.extras || {},
-                  proyMes: raw.proyMes || {}, proyInv: raw.proyInv || {} };
+                  proyMes: raw.proyMes || {}, proyInv: raw.proyInv || {},
+                  lineas: raw.lineas || {} };
       // La lista sembrada cambio (nombres, valores y categorias). Se reemplaza
       // solo si Carlos todavia no la ha dado por revisada: si ya la reviso, lo
       // que el escribio manda y no se le pisa nada.
@@ -1094,7 +1108,7 @@ function calcularMes(mk){
   [q1, q2].forEach((r, i) => {
     if(!r) return;
     const v = (r.resumen && r.resumen.totalDrCheck) || 0;   // crudo: se redondea al final
-    ccCheck += v; ccDet.push({ e: 'Callcenter Check · Q' + (i+1), m: R2(v) });
+    ccCheck += v; ccDet.push({ id: 'cc:' + (i+1), e: 'Callcenter Check · Q' + (i+1), m: R2(v) });
   });
 
   const invDet = []; let invTotal = 0, invPendiente = 0;
@@ -1115,7 +1129,8 @@ function calcularMes(mk){
         invTotal += d.monto;                                 // crudo
         const est = estadoCobro(ov, d.monto);
         if(est.saldo > 0.005) invPendiente += est.saldo;
-        invDet.push({ e: nombre, cuenta: normalizeAccountName(nombre), m: R2(d.monto),
+        invDet.push({ id: 'inv:' + normalizeAccountName(nombre), e: nombre,
+                      cuenta: normalizeAccountName(nombre), m: R2(d.monto),
                       saldo: est.saldo, cerrado: ov.cerrado === true });
       });
     }
@@ -1128,7 +1143,8 @@ function calcularMes(mk){
     if(!r) return;
     const c = consolidadoQuincena(r);
     nomTotal += c.total;
-    nomDet.push({ e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: R2(c.total) });
+    nomDet.push({ id: 'nom:' + (i+1),
+      e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: R2(c.total) });
   });
 
   let sigma = 0; const sigDet = [];
@@ -1148,7 +1164,7 @@ function calcularMes(mk){
         const ov = getOv(mk, nombre);
         if(ov.noPago === true) return;                 // el cheque se cancela con el invoice
         sigma += sg.sigmaAmt;
-        sigDet.push({ e: nombre, m: R2(sg.sigmaAmt) });
+        sigDet.push({ id: 'sig:' + normalizeAccountName(nombre), e: nombre, m: R2(sg.sigmaAmt) });
       });
     }
   }
@@ -1231,6 +1247,8 @@ function editarExtraMes(mk, id, campo, v){
   else g[campo] = v;
   guardarDatos(); pintar();
 }
+function marcarGastoYaPaso(mk, id, valor){ marcarYaPaso(mk, 'gasto:' + id, valor); }
+
 function quitarExtraMes(mk, id){
   const lista = DATOS.extras[mk] || [];
   const i = lista.findIndex(x => x.id === id);
@@ -1282,15 +1300,57 @@ function historialInvoices(hoy, mesesAtras){
 function invoicesProyectados(mk, hist){
   const aj = DATOS.proyInv[mk] || {};
   const lista = hist.cuentas.map(c => ({
-    e: c.nombre, cuenta: c.cuenta,
+    id: 'inv:' + c.cuenta, e: c.nombre, cuenta: c.cuenta,
     m: aj[c.cuenta] !== undefined ? R2(aj[c.cuenta]) : c.monto,
     base: c.base, proyectado: true, ajustado: aj[c.cuenta] !== undefined
   }));
   Object.keys(aj).forEach(k => {
     if(lista.some(x => x.cuenta === k)) return;
-    lista.push({ e: k, cuenta: k, m: R2(aj[k]), base: 0, proyectado: true, ajustado: true });
+    lista.push({ id: 'inv:' + k, e: k, cuenta: k, m: R2(aj[k]), base: 0, proyectado: true, ajustado: true });
   });
   return lista.filter(x => x.m > 0.005 || x.ajustado);
+}
+
+// ── Lo que ya pasó ──────────────────────────────────────────────────────────
+// El mes en curso tiene movimientos hechos: la nómina de Q1 ya se pagó, el
+// cheque a Sigma ya salió, algún invoice ya se cobró. Esa plata YA está dentro
+// del saldo del banco, así que volver a restarla o sumarla la contaría dos
+// veces. Marcar una línea como "ya pasó" la deja a la vista pero fuera de la
+// proyección.
+function lineaDe(mk, id){
+  return (DATOS.lineas[mk] && DATOS.lineas[mk][id]) || {};
+}
+function _tocarLinea(mk, id, cambio){
+  if(!DATOS.lineas[mk]) DATOS.lineas[mk] = {};
+  const l = { ...(DATOS.lineas[mk][id] || {}), ...cambio };
+  if(l.v === undefined && !l.ya) delete DATOS.lineas[mk][id];
+  else DATOS.lineas[mk][id] = l;
+  if(!Object.keys(DATOS.lineas[mk]).length) delete DATOS.lineas[mk];
+  guardarDatos(); pintar();
+}
+function marcarYaPaso(mk, id, valor){ _tocarLinea(mk, id, { ya: !!valor || undefined }); }
+function fijarLinea(mk, id, valor){
+  const n = parseFloat(valor);
+  _tocarLinea(mk, id, { v: isFinite(n) && n >= 0 ? R2(n) : 0 });
+}
+function quitarLinea(mk, id){ _tocarLinea(mk, id, { v: undefined }); }
+
+// Aplica a una lista de líneas lo corregido y lo ya pasado.
+function aplicarLineas(mk, lista){
+  return (lista || []).map(d => {
+    if(!d.id) return d;
+    const l = lineaDe(mk, d.id);
+    return { ...d,
+      m: l.v !== undefined ? R2(l.v) : d.m,
+      ajustado: d.ajustado || l.v !== undefined,
+      yaPaso: l.ya === true };
+  });
+}
+function sumaPendiente(lista){
+  return R2((lista || []).filter(d => !d.yaPaso).reduce((t,d) => t + d.m, 0));
+}
+function sumaYaPaso(lista){
+  return R2((lista || []).filter(d => d.yaPaso).reduce((t,d) => t + d.m, 0));
 }
 
 function fijarInvoiceProy(mk, cuenta, valor){
@@ -1325,6 +1385,7 @@ function completarMes(m, ctx){
       if(falta > 0.005){
         m[k] = R2(m[k] + falta);
         (k === 'ccCheck' ? m.ccDet : m.nomDet).push({
+          id: (k === 'ccCheck' ? 'cc' : 'nom') + ':proy',
           e: (m.quincenas === 0 ? 'Mes completo' : 'Quincena que falta') +
              ' · como en ' + etiquetaMes(base.mk), m: falta, proyectado: true });
         m.proyectado = true;
@@ -1363,7 +1424,7 @@ function completarMes(m, ctx){
   // Sigma solo existe con el mes cerrado.
   if(m.sigma <= 0.005 && aj.sigma === undefined && base && base.sigma > 0.005){
     m.sigma = base.sigma;
-    m.sigDet = [{ e: 'Como en ' + etiquetaMes(base.mk), m: base.sigma, proyectado: true }];
+    m.sigDet = [{ id: 'sig:proy', e: 'Como en ' + etiquetaMes(base.mk), m: base.sigma, proyectado: true }];
     m.proyectado = true;
   }
 
@@ -1372,14 +1433,46 @@ function completarMes(m, ctx){
     if(aj[k] === undefined) return;
     m[k] = R2(aj[k]);
     m[{ ccCheck:'ccDet', nomTotal:'nomDet', sigma:'sigDet' }[k]] =
-      [{ e: 'Lo que escribiste para este mes', m: R2(aj[k]), proyectado: true }];
+      [{ id: { ccCheck:'cc', nomTotal:'nom', sigma:'sig' }[k] + ':manual',
+         e: 'Lo que escribiste para este mes', m: R2(aj[k]), proyectado: true }];
     m.proyectado = true; m.ajustado = true;
   });
 
   m.baseMes = base ? base.mk : null;
-  m.entra = R2(m.ccCheck + m.invTotal);
-  m.sale  = R2(m.nomTotal + m.sigma + m.gTotal);
+
+  // Se aplica lo corregido a mano y lo que ya pasó, línea por línea. Los gastos
+  // llevan su marca aparte porque su valor vive en otro sitio.
+  m.ccDet  = aplicarLineas(m.mk, m.ccDet);
+  m.nomDet = aplicarLineas(m.mk, m.nomDet);
+  m.sigDet = aplicarLineas(m.mk, m.sigDet);
+  m.invDet = aplicarLineas(m.mk, m.invDet);
+  m.gastos = m.gastos.map(g => ({ ...g, id: g.id,
+    yaPaso: lineaDe(m.mk, 'gasto:' + g.id).ya === true }));
+
+  // Los totales del mes, y cuánto de eso ya pasó.
+  m.ccCheck  = sumaPendiente(m.ccDet) + sumaYaPaso(m.ccDet);
+  m.invTotal = sumaPendiente(m.invDet) + sumaYaPaso(m.invDet);
+  m.nomTotal = sumaPendiente(m.nomDet) + sumaYaPaso(m.nomDet);
+  m.sigma    = sumaPendiente(m.sigDet) + sumaYaPaso(m.sigDet);
+  m.gTotal   = R2(m.gastos.reduce((t,g) => t + g.valor, 0));
+
+  const gYa    = R2(m.gastos.filter(g => g.yaPaso).reduce((t,g) => t + g.valor, 0));
+  const gFalta = R2(m.gTotal - gYa);
+
+  m.entraYa = R2(sumaYaPaso(m.ccDet) + sumaYaPaso(m.invDet));
+  m.saleYa  = R2(sumaYaPaso(m.nomDet) + sumaYaPaso(m.sigDet) + gYa);
+  m.hayYaPaso = (m.entraYa > 0.005 || m.saleYa > 0.005);
+
+  // Lo que mueve el saldo de aquí en adelante es SOLO lo que falta: lo demás ya
+  // está dentro de lo que hay hoy en el banco.
+  m.entra = R2(sumaPendiente(m.ccDet) + sumaPendiente(m.invDet));
+  m.sale  = R2(sumaPendiente(m.nomDet) + sumaPendiente(m.sigDet) + gFalta);
   m.neto  = R2(m.entra - m.sale);
+
+  // Totales del mes entero, para poder verlos aunque no muevan el saldo.
+  m.entraMes = R2(m.entra + m.entraYa);
+  m.saleMes  = R2(m.sale + m.saleYa);
+  m.netoMes  = R2(m.entraMes - m.saleMes);
   return m;
 }
 
@@ -1508,8 +1601,13 @@ function filaGastoMes(mk, g){
         ? `<button class="mini" title="Volver al valor fijo" onclick="quitarAjusteMes('${mk}','${g.id}')">volver al fijo</button>`
         : '<span style="width:88px;display:inline-block"></span>');
   return `
-    <div class="lin gasto-mes">
-      ${nombre} ${cat} ${etiqueta}
+    <div class="lin gasto-mes ${g.yaPaso ? 'ya' : ''}">
+      <label class="ya-box" title="Ya pasó: ese gasto ya salió y está dentro del saldo del banco">
+        <input type="checkbox" ${g.yaPaso ? 'checked' : ''}
+          onchange="marcarGastoYaPaso('${mk}','${g.id}',this.checked)">
+        <span>ya pasó</span>
+      </label>
+      ${nombre} ${cat} ${g.yaPaso ? '' : etiqueta}
       <span style="flex:1;min-width:4px"></span>
       <input type="number" step="0.01" min="0" class="inp" id="${eid}" value="${g.valor}"
         aria-label="Valor de ${esc(g.nombre)} en este mes" onfocus="this.select()"
@@ -1539,30 +1637,43 @@ function filaProyeccion(mk, campo, etiqueta, valor, ajustado, volverA){
     </div>`;
 }
 
-// Cada invoice del mes, en su propia fila y siempre editable — venga de Nómina
-// o esté proyectado. La etiqueta dice de dónde sale la cifra, para que se sepa
-// qué es un dato y qué una suposición tuya.
-function filaInvoice(mk, d){
-  const eid = 'iv-' + mk + '-' + String(d.cuenta).replace(/[^A-Za-z0-9]/g,'');
+// Toda línea del mes se pinta igual: su nombre, de dónde sale la cifra, un
+// campo para corregirla y una casilla "ya pasó". Marcarla la deja a la vista
+// pero fuera de la proyección — esa plata ya está en el saldo del banco.
+function filaLinea(mk, d, opciones){
+  const o = opciones || {};
+  const eid = 'ln-' + mk + '-' + String(d.id || d.e).replace(/[^A-Za-z0-9]/g,'');
   const nota = d.ajustado
       ? '<span class="sig-eti ajus">lo escribiste tú</span>'
       : (d.proyectado
-          ? `<span class="sig-eti solo">${d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses'}</span>`
+          ? `<span class="sig-eti solo">${d.base ? (d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses') : 'proyectado'}</span>`
           : '');
+  const onEdit = o.onEdit || `fijarLinea('${mk}','${esc(d.id)}',this.value)`;
+  const onVolver = o.onVolver || `quitarLinea('${mk}','${esc(d.id)}')`;
   const volverA = d.proyectado ? 'la proyección' : 'lo que dice Nómina';
   return `
-    <div class="lin gasto-mes">
+    <div class="lin gasto-mes ${d.yaPaso ? 'ya' : ''}">
+      <label class="ya-box" title="Ya pasó: esta plata ya está dentro del saldo del banco">
+        <input type="checkbox" ${d.yaPaso ? 'checked' : ''}
+          onchange="marcarYaPaso('${mk}','${esc(d.id)}',this.checked)">
+        <span>ya pasó</span>
+      </label>
       <span class="e">${esc(d.e)}</span>
-      ${nota}
+      ${d.yaPaso ? '' : nota}
       <span style="flex:1;min-width:4px"></span>
       <input type="number" step="0.01" min="0" class="inp" id="${eid}" value="${d.m}"
-        aria-label="Invoice de ${esc(d.e)} en este mes" onfocus="this.select()"
-        onchange="fijarInvoiceProy('${mk}','${esc(d.cuenta)}',this.value)">
+        aria-label="${esc(d.e)} en este mes" onfocus="this.select()"
+        onchange="${onEdit}">
       ${d.ajustado
-        ? `<button class="mini" title="Volver a ${volverA}" onclick="quitarInvoiceProy('${mk}','${esc(d.cuenta)}')">volver</button>`
+        ? `<button class="mini" title="Volver a ${volverA}" onclick="${onVolver}">volver</button>`
         : '<span style="width:64px;display:inline-block"></span>'}
     </div>`;
 }
+
+const filaInvoice = (mk, d) => filaLinea(mk, d, {
+  onEdit:   `fijarInvoiceProy('${mk}','${esc(d.cuenta)}',this.value)`,
+  onVolver: `quitarInvoiceProy('${mk}','${esc(d.cuenta)}')`
+});
 
 function detalleMes(m){
   const avisoEst = !m.proyectado ? '' : `
@@ -1591,39 +1702,36 @@ function detalleMes(m){
         tocados ? ' — sin contar ' + (tocados===1 ? 'el que cambiaste' : 'los ' + tocados + ' que cambiaste') : ''}.
     </div>` : '';
 
+  const avisoYa = m.hayYaPaso ? `
+    <div class="nota" style="padding:9px 16px;border-bottom:1px solid var(--border);color:var(--accent2)">
+      Lo marcado <b>“ya pasó”</b> no se cuenta en la proyección: esa plata ya entró o
+      salió y está dentro del saldo del banco. Contarla otra vez sería contarla doble.
+    </div>` : '';
   return `
     <div class="panel">
       <div class="det-h">Detalle de <b>${MESES[m.mes-1]} ${m.anio}</b></div>
+      ${avisoYa}
       <div class="det-grid">
         <div class="det-col">
           <div class="det-t" style="color:var(--accent)">⬆ Entra</div>
-          ${_ajProy(m.mk,'ccCheck') ? '' : m.ccDet.map(d => `
-            <div class="lin"><span class="e">${esc(d.e)}</span>
-              ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
-              <span style="flex:1;min-width:4px"></span>
-              <span class="m">${fmt(d.m)}</span></div>`).join('')}
-          ${filaProyeccion(m.mk,'ccCheck','Callcenter Check del mes', m.ccCheck,
-                           _ajProy(m.mk,'ccCheck'), m.real ? 'lo que dice Nómina' : 'la proyección')}
+          ${m.ccDet.map(d => filaLinea(m.mk, d)).join('')}
           <div class="det-t" style="color:var(--accent2);margin-top:13px;font-size:10px">
             Invoices${m.invProyectados ? ' · proyectados con ' + (m.invBase||[]).length + ' mes(es) del historial' : ''}
           </div>
           ${m.invDet.length
             ? m.invDet.map(d => filaInvoice(m.mk, d)).join('')
             : '<div class="lin"><span class="e nota">Sin invoices</span></div>'}
-          <div class="lin tot"><span class="e">Total que entra</span>
+          <div class="lin tot"><span class="e">${m.hayYaPaso ? 'Falta que entre' : 'Total que entra'}</span>
             <span class="m" style="color:var(--accent)">${fmt(m.entra)}</span></div>
+          ${m.hayYaPaso ? `<div class="lin"><span class="e nota">Ya entró (está en el saldo)</span>
+            <span style="flex:1;min-width:4px"></span>
+            <span class="m nota">${fmt(m.entraYa)}</span></div>` : ''}
           ${pend}
         </div>
         <div class="det-col">
           <div class="det-t" style="color:var(--danger)">⬇ Sale · nómina y Sigma</div>
           ${m.nomDet.concat(m.sigDet.map(d => ({ ...d, e: 'Sigma · ' + d.e })))
-            .map(d => `<div class="lin"><span class="e">${esc(d.e)}</span>
-              ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
-              <span style="flex:1;min-width:4px"></span>
-              <span class="m">${fmt(d.m)}</span></div>`).join('')}
-          ${m.proyectado ? `
-            ${filaProyeccion(m.mk,'nomTotal','Nómina del mes', m.nomTotal, _ajProy(m.mk,'nomTotal'))}
-            ${filaProyeccion(m.mk,'sigma','Sigma del mes', m.sigma, _ajProy(m.mk,'sigma'))}` : ''}
+            .map(d => filaLinea(m.mk, d)).join('')}
           <div class="lin tot"><span class="e">Subtotal</span>
             <span class="m" style="color:var(--danger)">${fmt(R2(m.nomTotal + m.sigma))}</span></div>
 
@@ -1639,10 +1747,13 @@ function detalleMes(m){
           <div class="lin tot"><span class="e">Gastos del mes</span>
             <span class="m" style="color:var(--danger)">${fmt(m.gTotal)}</span></div>
 
-          <div class="lin tot"><span class="e">Total que sale</span>
+          <div class="lin tot"><span class="e">${m.hayYaPaso ? 'Falta que salga' : 'Total que sale'}</span>
             <span class="m" style="color:var(--danger)">${fmt(m.sale)}</span></div>
+          ${m.hayYaPaso ? `<div class="lin"><span class="e nota">Ya salió (está en el saldo)</span>
+            <span style="flex:1;min-width:4px"></span>
+            <span class="m nota">${fmt(m.saleYa)}</span></div>` : ''}
           <div class="lin tot" style="border-top-width:3px">
-            <span class="e">Queda</span>
+            <span class="e">${m.hayYaPaso ? 'Queda de lo que falta' : 'Queda'}</span>
             <span class="m" style="color:${m.neto>=0?'var(--accent)':'var(--danger)'}">${m.neto<0?'▼ ':''}${fmt(m.neto)}</span>
           </div>
         </div>
@@ -1656,7 +1767,7 @@ function pintar(){
   // era y se le devuelve el foco — sin esto, editar tres gastos seguidos
   // obliga a volver a hacer clic cada vez.
   const activo = document.activeElement;
-  const focoId = activo && activo.id && /^(gm|pm|iv)-/.test(activo.id) ? activo.id : null;
+  const focoId = activo && activo.id && /^(gm|pm|iv|ln)-/.test(activo.id) ? activo.id : null;
   const serie = construirSerie();
   const el = $('tabla-meses');
   if(!serie.length){
@@ -1673,6 +1784,7 @@ function pintar(){
                     : (m.proyectado
                         ? '<span class="pill parcial">' + m.quincenas + '/2 · resto proyectado</span>'
                         : '<span class="pill parcial">' + m.quincenas + '/2 quincenas</span>')))
+      + (m.hayYaPaso ? '<span class="pill real" title="Parte de este mes ya ocurrió y no se cuenta en la proyección">parte ya pasó</span>' : '')
       + (ajustados.has(m.mk) ? '<span class="pill ajus" title="Este mes tiene gastos cambiados">gastos ajustados</span>' : '');
     return `
     <div>
@@ -1700,7 +1812,7 @@ function pintar(){
   el.innerHTML = `
     <div class="card-h">
       <span class="card-t">📅 Mes a mes</span>
-      <span style="font-size:11.5px;color:var(--text3)">del mes actual en adelante · toca uno para ver el detalle</span>
+      <span style="font-size:11.5px;color:var(--text3)">del mes actual en adelante · las cifras son lo que <b>falta</b> por mover</span>
       <div class="tot-tira">
         <div class="b"><span>Saldo hoy</span><b style="color:var(--text2)">${fmt(saldoBanco())}</b></div>
         <div class="b"><span>Saldo al final</span>
