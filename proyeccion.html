@@ -972,8 +972,10 @@ function datosPorDefecto(){
     // Gastos que pasan UNA sola vez, en ese mes:  { 'YYYY-MM': [ {...} ] }
     extras: {},
     // Lo que se espera de un mes futuro, cuando se corrige a mano:
-    //   { 'YYYY-MM': { ccCheck, invTotal, nomTotal, sigma } }
-    proyMes: {}
+    //   { 'YYYY-MM': { ccCheck, nomTotal, sigma } }
+    proyMes: {},
+    // Invoice por invoice de un mes proyectado:  { 'YYYY-MM': { ADVANTAGE: 2500 } }
+    proyInv: {}
   };
 }
 
@@ -986,7 +988,8 @@ function cargarDatos(){
       const base = datosPorDefecto();
       const d = { ...base, ...raw, ajustes: { ...base.ajustes, ...(raw.ajustes||{}) },
                   bancos: Array.isArray(raw.bancos) && raw.bancos.length ? raw.bancos : base.bancos,
-                  porMes: raw.porMes || {}, extras: raw.extras || {}, proyMes: raw.proyMes || {} };
+                  porMes: raw.porMes || {}, extras: raw.extras || {},
+                  proyMes: raw.proyMes || {}, proyInv: raw.proyInv || {} };
       // La lista sembrada cambio (nombres, valores y categorias). Se reemplaza
       // solo si Carlos todavia no la ha dado por revisada: si ya la reviso, lo
       // que el escribio manda y no se le pisa nada.
@@ -1112,7 +1115,8 @@ function calcularMes(mk){
         invTotal += d.monto;                                 // crudo
         const est = estadoCobro(ov, d.monto);
         if(est.saldo > 0.005) invPendiente += est.saldo;
-        invDet.push({ e: nombre, m: R2(d.monto), saldo: est.saldo, cerrado: ov.cerrado === true });
+        invDet.push({ e: nombre, cuenta: normalizeAccountName(nombre), m: R2(d.monto),
+                      saldo: est.saldo, cerrado: ov.cerrado === true });
       });
     }
   }
@@ -1244,95 +1248,133 @@ function mesesConAjuste(){
   return ms;
 }
 
-// ═══ La proyección de los meses que todavía no existen ═════════════════════
-// Nada de promedios: un promedio de tres meses no es una cifra que exista en
-// ninguna parte y no se puede defender. Se parte de lo que pasó de verdad en el
-// último mes completo y, si Carlos sabe que un mes va a ser distinto, lo
-// corrige a mano y queda guardado para ese mes.
-const CAMPOS_PROY = ['ccCheck','invTotal','nomTotal','sigma'];
 
-function proyectarMes(mk, base){
-  const [anio, mes] = mk.split('-').map(Number);
-  const aj = DATOS.proyMes[mk] || {};
-  const v = {};
-  CAMPOS_PROY.forEach(k => {
-    v[k] = aj[k] !== undefined ? R2(aj[k]) : R2(base ? base[k] : 0);
-  });
-  const ajustado = CAMPOS_PROY.some(k => aj[k] !== undefined);
-  const origen = base ? base.mk : null;
-  const et = k => aj[k] !== undefined
-    ? 'Lo que escribiste para este mes'
-    : (origen ? 'Igual que ' + MESES[+origen.split('-')[1]-1] + ' ' + origen.split('-')[0] : 'Sin mes de referencia');
+const CAMPOS_PROY = ['ccCheck','nomTotal','sigma'];
 
-  const gastos = gastosDelMes(mk);
-  const gTotal = gastos.reduce((t,g) => t + g.valor, 0);
-  const entra = R2(v.ccCheck + v.invTotal);
-  const sale  = R2(v.nomTotal + v.sigma + gTotal);
-  return {
-    mk, anio, mes, real: false, completo: false, quincenas: 0,
-    baseMes: origen, ajustado,
-    ccCheck: v.ccCheck,  ccDet: [{ e: et('ccCheck'),  m: v.ccCheck }],
-    invTotal: v.invTotal, invDet: [{ e: et('invTotal'), m: v.invTotal }], invPendiente: 0,
-    nomTotal: v.nomTotal, nomDet: [{ e: et('nomTotal'), m: v.nomTotal }],
-    sigma: v.sigma,       sigDet: [{ e: et('sigma'),    m: v.sigma }],
-    gastos, gTotal: R2(gTotal),
-    entra, sale, neto: R2(entra - sale)
-  };
+// ── Los invoices de un mes que Nómina todavía no tiene ──────────────────────
+// Se miran los últimos 3 meses cerrados, cuenta por cuenta. Cada cuenta se
+// promedia SOLO sobre los meses en que de verdad facturó: si un cliente entró
+// hace un mes, dividir entre tres lo dejaría en un tercio de lo que cobra.
+function historialInvoices(hoy, mesesAtras){
+  const historial = cargarHistorial();
+  const claves = [...new Set(historial.map(r => r.anio + '-' + String(r.mes).padStart(2,'0')))]
+                   .filter(mk => mk < hoy).sort();
+  const ultimos = [];
+  for(let i = claves.length - 1; i >= 0 && ultimos.length < (mesesAtras || 3); i--){
+    const m = calcularMes(claves[i]);
+    if(m.completo && m.invDet.length) ultimos.push(m);
+  }
+  const porCuenta = {};
+  ultimos.forEach(m => m.invDet.forEach(d => {
+    const k = d.cuenta || d.e;
+    if(!porCuenta[k]) porCuenta[k] = { nombre: d.e, suma: 0, meses: 0 };
+    porCuenta[k].suma += d.m; porCuenta[k].meses++;
+  }));
+  return { meses: ultimos.map(m => m.mk),
+    cuentas: Object.keys(porCuenta).map(k => ({
+      cuenta: k, nombre: porCuenta[k].nombre,
+      monto: R2(porCuenta[k].suma / porCuenta[k].meses),
+      base: porCuenta[k].meses
+    })).sort((a,b) => b.monto - a.monto) };
 }
 
-// El mes en curso está a medias: Nómina solo tiene lo que ya se aprobó. Si se
-// deja así, el mes muestra medio ingreso contra un mes entero de gastos y sale
-// en rojo sin serlo — y como es el primer renglón, arrastra todo el saldo.
-// Lo que falta se completa con el último mes completo, marcado como proyectado
-// para que se vea qué es dato y qué es estimación. Todo se puede corregir.
-function completarMesActual(m, base){
-  if(!base) return m;
+// La lista de invoices de un mes proyectado, con lo que Carlos haya corregido.
+function invoicesProyectados(mk, hist){
+  const aj = DATOS.proyInv[mk] || {};
+  const lista = hist.cuentas.map(c => ({
+    e: c.nombre, cuenta: c.cuenta,
+    m: aj[c.cuenta] !== undefined ? R2(aj[c.cuenta]) : c.monto,
+    base: c.base, proyectado: true, ajustado: aj[c.cuenta] !== undefined
+  }));
+  Object.keys(aj).forEach(k => {
+    if(lista.some(x => x.cuenta === k)) return;
+    lista.push({ e: k, cuenta: k, m: R2(aj[k]), base: 0, proyectado: true, ajustado: true });
+  });
+  return lista.filter(x => x.m > 0.005 || x.ajustado);
+}
+
+function fijarInvoiceProy(mk, cuenta, valor){
+  const n = parseFloat(valor);
+  if(!DATOS.proyInv[mk]) DATOS.proyInv[mk] = {};
+  DATOS.proyInv[mk][cuenta] = isFinite(n) && n >= 0 ? R2(n) : 0;
+  guardarDatos(); pintar();
+}
+function quitarInvoiceProy(mk, cuenta){
+  if(DATOS.proyInv[mk]){
+    delete DATOS.proyInv[mk][cuenta];
+    if(!Object.keys(DATOS.proyInv[mk]).length) delete DATOS.proyInv[mk];
+  }
+  guardarDatos(); pintar();
+}
+
+// ── Completar un mes ────────────────────────────────────────────────────────
+// Primero manda lo que Nómina ya tenga de ese mes — Carlos puede meterle datos
+// futuros y esos son los buenos. Solo lo que todavía no existe se proyecta, y
+// va marcado para que se distinga un dato de una estimación.
+function completarMes(m, ctx){
   const aj = DATOS.proyMes[m.mk] || {};
+  const base = ctx.base;
   const faltan = Math.max(0, 2 - m.quincenas);
-  const marcar = (det, txt) => det.concat([{ e: txt, m: 0, proyectado: true }]);
 
   // Callcenter Check y nómina van por quincena: se completa lo que falte.
-  if(faltan > 0){
+  if(faltan > 0 && base){
     const porQ = k => base.quincenas > 0 ? base[k] / base.quincenas : 0;
     ['ccCheck','nomTotal'].forEach(k => {
       if(aj[k] !== undefined) return;
       const falta = R2(porQ(k) * faltan);
       if(falta > 0.005){
         m[k] = R2(m[k] + falta);
-        const det = k === 'ccCheck' ? m.ccDet : m.nomDet;
-        det.push({ e: (faltan === 1 ? 'Quincena que falta' : 'Las dos quincenas') +
-                      ' · como en ' + etiquetaMes(base.mk), m: falta, proyectado: true });
+        (k === 'ccCheck' ? m.ccDet : m.nomDet).push({
+          e: (m.quincenas === 0 ? 'Mes completo' : 'Quincena que falta') +
+             ' · como en ' + etiquetaMes(base.mk), m: falta, proyectado: true });
+        m.proyectado = true;
       }
     });
+  }
+
+  // Invoices: si Nómina ya los tiene, esos mandan. Si no, se proyectan uno a uno.
+  if(!m.invDet.length){
+    const lista = invoicesProyectados(m.mk, ctx.hist);
+    if(lista.length){
+      m.invDet = lista;
+      m.invTotal = R2(lista.reduce((t,d) => t + d.m, 0));
+      m.invPendiente = 0;
+      m.invProyectados = true;
+      m.invBase = ctx.hist.meses;
+      m.proyectado = true;
+      if(lista.some(d => d.ajustado)) m.ajustado = true;
+    }
+  } else {
+    // Aun con invoices reales, él puede corregir alguno de un mes por venir.
+    const ajI = DATOS.proyInv[m.mk] || {};
+    if(Object.keys(ajI).length){
+      m.invDet = m.invDet.map(d => ajI[d.cuenta] !== undefined
+        ? { ...d, m: R2(ajI[d.cuenta]), ajustado: true } : d);
+      m.invTotal = R2(m.invDet.reduce((t,d) => t + d.m, 0));
+      m.ajustado = true;
+    }
+  }
+
+  // Sigma solo existe con el mes cerrado.
+  if(m.sigma <= 0.005 && aj.sigma === undefined && base && base.sigma > 0.005){
+    m.sigma = base.sigma;
+    m.sigDet = [{ e: 'Como en ' + etiquetaMes(base.mk), m: base.sigma, proyectado: true }];
     m.proyectado = true;
   }
-  // Invoices y Sigma solo existen con el mes cerrado.
-  if(!m.completo || m.invTotal <= 0.005){
-    if(aj.invTotal === undefined && base.invTotal > 0.005){
-      m.invTotal = base.invTotal;
-      m.invDet = [{ e: 'Como en ' + etiquetaMes(base.mk), m: base.invTotal, proyectado: true }];
-      m.invPendiente = 0;
-      m.proyectado = true;
-    }
-    if(aj.sigma === undefined && base.sigma > 0.005){
-      m.sigma = base.sigma;
-      m.sigDet = [{ e: 'Como en ' + etiquetaMes(base.mk), m: base.sigma, proyectado: true }];
-      m.proyectado = true;
-    }
-  }
-  // Lo que él haya escrito a mano manda sobre todo lo anterior.
+
+  // Lo que él escribió a mano manda sobre todo lo anterior.
   CAMPOS_PROY.forEach(k => {
     if(aj[k] === undefined) return;
     m[k] = R2(aj[k]);
-    const det = { ccCheck:'ccDet', invTotal:'invDet', nomTotal:'nomDet', sigma:'sigDet' }[k];
-    m[det] = [{ e: 'Lo que escribiste para este mes', m: R2(aj[k]), proyectado: true }];
+    m[{ ccCheck:'ccDet', nomTotal:'nomDet', sigma:'sigDet' }[k]] =
+      [{ e: 'Lo que escribiste para este mes', m: R2(aj[k]), proyectado: true }];
     m.proyectado = true; m.ajustado = true;
   });
 
+  m.baseMes = base ? base.mk : null;
   m.entra = R2(m.ccCheck + m.invTotal);
   m.sale  = R2(m.nomTotal + m.sigma + m.gTotal);
   m.neto  = R2(m.entra - m.sale);
-  m.baseMes = base.mk;
   return m;
 }
 
@@ -1371,21 +1413,26 @@ function construirSerie(){
   const claves = [...new Set(historial.map(r => r.anio + '-' + String(r.mes).padStart(2,'0')))].sort();
   const hoy = mesDeHoy();
 
-  // El mes actual, con lo que Nómina ya tenga de él.
-  const arranque = hoy;
-
-  // El mes de referencia para lo que viene: el último COMPLETO que haya, que es
-  // el único con las dos quincenas y por tanto con invoices y Sigma de verdad.
+  // El mes de referencia para el Callcenter Check, la nómina y Sigma: el último
+  // mes COMPLETO, que es el único con las dos quincenas y por tanto con cifras
+  // de verdad. Los invoices se proyectan aparte, cuenta por cuenta.
   const completos = claves.filter(mk => mk < hoy).map(calcularMes).filter(m => m.completo);
-  const base = completos.length ? completos[completos.length-1] : null;
+  const ctx = {
+    base: completos.length ? completos[completos.length-1] : null,
+    hist: historialInvoices(hoy, 3)
+  };
 
-  const serie = [completarMesActual(calcularMes(arranque), base)];
-
+  // Cada mes, del actual en adelante, se calcula PRIMERO con lo que Nómina
+  // tenga de él — Carlos puede haberle metido datos futuros — y solo después se
+  // completa lo que falte.
+  const serie = [];
   const cuantos = DATOS.ajustes.futuro || 0;
-  let mk = arranque;
-  for(let i = 0; i < cuantos; i++){
+  let mk = hoy;
+  for(let i = 0; i <= cuantos; i++){
+    const m = completarMes(calcularMes(mk), ctx);
+    m.real = m.quincenas > 0 || m.invDet.some(d => !d.proyectado);
+    serie.push(m);
     mk = mesSiguiente(mk);
-    serie.push(proyectarMes(mk, base));
   }
   // El saldo arranca en lo que hay hoy en el banco y se encadena. Como la serie
   // ya empieza en el mes actual, no hay nada anterior que pueda contarse doble.
@@ -1487,14 +1534,41 @@ function filaProyeccion(mk, campo, etiqueta, valor, ajustado, color){
     </div>`;
 }
 
+// Cada invoice del mes, en su propia fila. Los que Nómina ya tiene se muestran
+// tal cual (son un hecho); los proyectados se pueden corregir uno por uno.
+function filaInvoice(mk, d){
+  if(!d.proyectado){
+    return `<div class="lin">
+      <span class="e">Invoice · ${esc(d.e)}</span>
+      <span style="flex:1;min-width:4px"></span>
+      <span class="m">${fmt(d.m)}</span>
+    </div>`;
+  }
+  const eid = 'iv-' + mk + '-' + String(d.cuenta).replace(/[^A-Za-z0-9]/g,'');
+  const nota = d.ajustado ? 'lo escribiste tú'
+             : (d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses');
+  return `
+    <div class="lin gasto-mes">
+      <span class="e">${esc(d.e)}</span>
+      <span class="sig-eti ${d.ajustado ? 'ajus' : 'solo'}">${nota}</span>
+      <span style="flex:1;min-width:4px"></span>
+      <input type="number" step="0.01" min="0" class="inp" id="${eid}" value="${d.m}"
+        aria-label="Invoice de ${esc(d.e)} en este mes" onfocus="this.select()"
+        onchange="fijarInvoiceProy('${mk}','${esc(d.cuenta)}',this.value)">
+      ${d.ajustado
+        ? `<button class="mini" title="Volver a la proyección" onclick="quitarInvoiceProy('${mk}','${esc(d.cuenta)}')">volver</button>`
+        : '<span style="width:64px;display:inline-block"></span>'}
+    </div>`;
+}
+
 function detalleMes(m){
-  const avisoEst = m.real ? '' : `
+  const avisoEst = !m.proyectado ? '' : `
     <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border)">
-      ${m.baseMes
-        ? 'Mes por venir. Las cifras de arriba arrancan en lo que pasó de verdad en <b>' +
-          MESES[+m.baseMes.split('-')[1]-1] + ' ' + m.baseMes.split('-')[0] +
-          '</b> — no son un promedio. Cámbialas si sabes que este mes va a ser distinto.'
-        : 'Mes por venir. Todavía no hay ningún mes completo del que partir, así que las cifras arrancan en cero: escríbelas tú.'}
+      Lo que Nómina ya tiene de este mes manda. Lo demás va marcado
+      <b>proyectado</b>: el Callcenter Check, la nómina y Sigma salen de
+      <b>${m.baseMes ? etiquetaMes(m.baseMes) : '—'}</b>, y los invoices de los últimos
+      ${(m.invBase||[]).length || 3} meses, cuenta por cuenta.
+      Todo se puede corregir aquí y solo cambia este mes.
     </div>`;
   const avisoParcial = (m.real && m.proyectado) ? `
     <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border);color:var(--accent3)">
@@ -1517,32 +1591,38 @@ function detalleMes(m){
       <div class="det-h">Detalle de <b>${MESES[m.mes-1]} ${m.anio}</b></div>
       <div class="det-grid">
         <div class="det-col">
-          ${m.real
-            ? bloqueLineas('⬆ Entra', 'var(--accent)',
-                m.ccDet.concat(m.invDet.map(d => ({ e: 'Invoice · ' + d.e, m: d.m, proyectado: d.proyectado }))),
-                m.entra, 'Total que entra') + (m.proyectado ? `
-               <div class="nota" style="margin-top:9px">Corrige lo que este mes vaya a ser distinto:</div>
-               ${filaProyeccion(m.mk,'ccCheck','Callcenter Check del mes', m.ccCheck, _ajProy(m.mk,'ccCheck'))}
-               ${filaProyeccion(m.mk,'invTotal','Invoices del mes', m.invTotal, _ajProy(m.mk,'invTotal'))}` : '')
-            : `<div class="det-t" style="color:var(--accent)">⬆ Entra</div>
-               ${filaProyeccion(m.mk,'ccCheck','Callcenter Check', m.ccCheck, _ajProy(m.mk,'ccCheck'))}
-               ${filaProyeccion(m.mk,'invTotal','Invoices (sin White Wilson)', m.invTotal, _ajProy(m.mk,'invTotal'))}
-               <div class="lin tot"><span class="e">Total que entra</span>
-                 <span class="m" style="color:var(--accent)">${fmt(m.entra)}</span></div>`}
+          <div class="det-t" style="color:var(--accent)">⬆ Entra</div>
+          ${m.ccDet.length
+            ? m.ccDet.map(d => `<div class="lin"><span class="e">${esc(d.e)}</span>
+                ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
+                <span style="flex:1;min-width:4px"></span>
+                <span class="m">${fmt(d.m)}</span></div>`).join('')
+            : ''}
+          ${_ajProy(m.mk,'ccCheck') || m.proyectado
+            ? filaProyeccion(m.mk,'ccCheck','Callcenter Check del mes', m.ccCheck, _ajProy(m.mk,'ccCheck'))
+            : ''}
+          <div class="det-t" style="color:var(--accent2);margin-top:13px;font-size:10px">
+            Invoices${m.invProyectados ? ' · proyectados con ' + (m.invBase||[]).length + ' mes(es) del historial' : ''}
+          </div>
+          ${m.invDet.length
+            ? m.invDet.map(d => filaInvoice(m.mk, d)).join('')
+            : '<div class="lin"><span class="e nota">Sin invoices</span></div>'}
+          <div class="lin tot"><span class="e">Total que entra</span>
+            <span class="m" style="color:var(--accent)">${fmt(m.entra)}</span></div>
           ${pend}
         </div>
         <div class="det-col">
-          ${m.real
-            ? bloqueLineas('⬇ Sale · nómina y Sigma', 'var(--danger)',
-                m.nomDet.concat(m.sigDet.map(d => ({ e: 'Sigma · ' + d.e, m: d.m, proyectado: d.proyectado }))),
-                R2(m.nomTotal + m.sigma), 'Subtotal') + (m.proyectado ? `
-               ${filaProyeccion(m.mk,'nomTotal','Nómina del mes', m.nomTotal, _ajProy(m.mk,'nomTotal'))}
-               ${filaProyeccion(m.mk,'sigma','Sigma del mes', m.sigma, _ajProy(m.mk,'sigma'))}` : '')
-            : `<div class="det-t" style="color:var(--danger)">⬇ Sale · nómina y Sigma</div>
-               ${filaProyeccion(m.mk,'nomTotal','Nómina (consolidado)', m.nomTotal, _ajProy(m.mk,'nomTotal'))}
-               ${filaProyeccion(m.mk,'sigma','Cheque a Sigma', m.sigma, _ajProy(m.mk,'sigma'))}
-               <div class="lin tot"><span class="e">Subtotal</span>
-                 <span class="m" style="color:var(--danger)">${fmt(R2(m.nomTotal + m.sigma))}</span></div>`}
+          <div class="det-t" style="color:var(--danger)">⬇ Sale · nómina y Sigma</div>
+          ${m.nomDet.concat(m.sigDet.map(d => ({ ...d, e: 'Sigma · ' + d.e })))
+            .map(d => `<div class="lin"><span class="e">${esc(d.e)}</span>
+              ${d.proyectado ? '<span class="sig-eti solo">proyectado</span>' : ''}
+              <span style="flex:1;min-width:4px"></span>
+              <span class="m">${fmt(d.m)}</span></div>`).join('')}
+          ${m.proyectado ? `
+            ${filaProyeccion(m.mk,'nomTotal','Nómina del mes', m.nomTotal, _ajProy(m.mk,'nomTotal'))}
+            ${filaProyeccion(m.mk,'sigma','Sigma del mes', m.sigma, _ajProy(m.mk,'sigma'))}` : ''}
+          <div class="lin tot"><span class="e">Subtotal</span>
+            <span class="m" style="color:var(--danger)">${fmt(R2(m.nomTotal + m.sigma))}</span></div>
 
           <div class="det-t" style="color:var(--danger);margin-top:16px">💸 Gastos de este mes</div>
           <div class="nota" style="margin:-4px 0 7px">
@@ -1573,7 +1653,7 @@ function pintar(){
   // era y se le devuelve el foco — sin esto, editar tres gastos seguidos
   // obliga a volver a hacer clic cada vez.
   const activo = document.activeElement;
-  const focoId = activo && activo.id && /^(gm|pm)-/.test(activo.id) ? activo.id : null;
+  const focoId = activo && activo.id && /^(gm|pm|iv)-/.test(activo.id) ? activo.id : null;
   const serie = construirSerie();
   const el = $('tabla-meses');
   if(!serie.length){
