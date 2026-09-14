@@ -504,6 +504,9 @@
      a azul y negrita. */
   .inv-theme-edit {
     background: #FFFFFF;
+    /* 'color' se hereda ya calculado del contenedor oscuro: redefinir --text no
+       lo cambia por si solo. Hay que volver a pedirlo aqui. */
+    color: var(--text);
     --text:  #0F172A;
     --text2: #334155;
     --text3: #64748B;
@@ -7430,8 +7433,13 @@ function refrescarSigma(){
   try { renderSigma(); } catch(e){}
 }
 
+// Solo una cuenta abierta a la vez — mismo patron que en Invoices. Con varias
+// abiertas y todas del mismo color, Carlos registro una fecha en la cuenta
+// equivocada: no habia forma de saber en cual se estaba trabajando.
 function toggleSigmaCuenta(nombre){
-  if(_sigmaAbiertas.has(nombre)) _sigmaAbiertas.delete(nombre); else _sigmaAbiertas.add(nombre);
+  const abrir = !_sigmaAbiertas.has(nombre);
+  _sigmaAbiertas.clear();
+  if(abrir) _sigmaAbiertas.add(nombre);
   renderSigma();
 }
 
@@ -7510,12 +7518,12 @@ function renderSigma(){
     const esc2 = String(c.nombre).replace(/'/g,'&#39;');
     const pend = c.saldo > 0.005;
     return `
-    <div style="border-top:1px solid var(--border)">
-      <div onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0"
+    <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--inv-sigma,#a78bfa)':''}">
+      <div onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
-        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap${abierta?';background:var(--sig-tint,rgba(167,139,250,.14))':''}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span style="font-weight:700;font-size:14px">${c.nombre}</span>
+        <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--inv-sigma,#a78bfa)':''}">${c.nombre}</span>
         <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
         ${c.directo ? `<span class="sig-pill" style="color:var(--inv-sigma,#a78bfa)"
             title="Esta cuenta le paga a Sigma directamente. Aparece aquí para llevar el registro, pero no cuenta en lo que debes tú.">paga directo a Sigma</span>` : ''}
@@ -7529,7 +7537,17 @@ function renderSigma(){
           <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${pend?(c.directo?'var(--text3)':'var(--accent3)'):'var(--accent)'}">${fmt(c.saldo)}</span>
         </span>
       </div>
-      <div style="display:${abierta?'block':'none'}">${c.meses.map(filaMes).join('')}</div>
+      <div class="inv-theme-edit" style="display:${abierta?'block':'none'}">
+        <!-- El nombre repetido dentro del panel: si la lista es larga el
+             encabezado se va de la pantalla, y es ahi donde se registra una
+             fecha en la cuenta equivocada. -->
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
+                    color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
+          Registrando pagos de
+          <b style="color:var(--inv-sigma);font-size:12.5px;letter-spacing:.02em">${c.nombre}</b>
+        </div>
+        ${c.meses.map(filaMes).join('')}
+      </div>
     </div>`;
   }).join('');
 
