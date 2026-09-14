@@ -594,6 +594,7 @@ const CATALOGO = [
   /* Modulo personal: ademas de este permiso, proyeccion.html solo abre para el
      usuario que figura en su lista de duenos. */
   { key:'proyeccion', titulo:'Proyección Flujo de Caja', corto:'Proyección', color:'#6D28D9', url:'./proyeccion.html',
+    soloUsuarios:['carloshtl75'],
     desc:'Proyección de ingresos y gastos mes a mes. Lee de Nómina; no la modifica.',
     icon:'<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-7"/><circle cx="7" cy="15" r="1.4"/><circle cx="18" cy="6" r="1.4"/>' }
 ];
@@ -801,9 +802,23 @@ function pintarIdentidad(){
     : 'Estas son las herramientas a las que tienes acceso.';
 }
 
+/* Un modulo personal (soloUsuarios) no se concede por la tabla de permisos,
+   sino por nombre de usuario aqui mismo. Hay una razon concreta: el Apps Script
+   del portal solo acepta las claves de app que el ya conoce y descarta en
+   silencio cualquiera nueva — responde ok, pero la quita — asi que 'proyeccion'
+   nunca quedaba guardada por mas veces que se marcara la casilla.
+   La regla real de acceso vive dentro de la propia app; esto solo decide si se
+   muestra la tarjeta. */
+function esPersonal(a){ return Array.isArray(a.soloUsuarios); }
+function puedeVerApp(a, u){
+  const usuario = String((u && u.username) || '').toLowerCase();
+  if(esPersonal(a)) return a.soloUsuarios.indexOf(usuario) >= 0;
+  return ((u && u.apps) || []).indexOf(a.key) >= 0;
+}
+
 /* ── TARJETAS DE APLICACIONES ────────────────────────────────────────────── */
 function pintarApps(){
-  const permitidas = CATALOGO.filter(a => (S.user.apps || []).indexOf(a.key) >= 0);
+  const permitidas = CATALOGO.filter(a => puedeVerApp(a, S.user));
   const grid = $('appsGrid');
   $('appsVacio').classList.toggle('hidden', permitidas.length > 0);
   grid.classList.toggle('hidden', permitidas.length === 0);
@@ -825,7 +840,7 @@ function pintarApps(){
 }
 
 /* Fichas del catálogo en la pantalla de login (informativas). */
-$('loginChips').innerHTML = CATALOGO
+$('loginChips').innerHTML = CATALOGO.filter(a => !Array.isArray(a.soloUsuarios))
   .map(a => `<span class="chip"><i style="background:${a.color}"></i>${esc(a.titulo)}</span>`).join('');
 
 /* ── ADMINISTRACIÓN: LISTA ───────────────────────────────────────────────── */
@@ -868,10 +883,11 @@ function pintarUsuarios(){
     ' · ' + filas.filter(u => u.activo).length + ' activos';
 
   $('userRows').innerHTML = filas.map(u => {
-    const apps = CATALOGO.map(a => {
+    const apps = CATALOGO.filter(a => !esPersonal(a)).map(a => {
       const on = (u.apps || []).indexOf(a.key) >= 0;
       return `<span class="dot-app${on ? ' on' : ''}" style="--c:${a.color}">${esc(a.corto)}</span>`;
-    }).join('');
+    }).join('') + CATALOGO.filter(a => esPersonal(a) && puedeVerApp(a, u))
+        .map(a => `<span class="dot-app on" style="--c:${a.color}" title="Módulo personal: no se concede desde aquí">${esc(a.corto)}</span>`).join('');
     const yo = u.id === S.user.id;
     return `<tr>
       <td><div class="u-name"><span>${esc(u.nombre)}</span>${yo ? '<span class="pill pill-oper">tú</span>' : ''}</div>
@@ -896,7 +912,9 @@ function pintarUsuarios(){
 
 /* ── ADMINISTRACIÓN: MODAL ───────────────────────────────────────────────── */
 function pintarPermisos(seleccion){
-  $('muApps').innerHTML = CATALOGO.map(a => `
+  // Los modulos personales no salen aqui: marcarlos no serviria de nada porque
+  // el servidor descarta las claves que no conoce.
+  $('muApps').innerHTML = CATALOGO.filter(a => !esPersonal(a)).map(a => `
     <label class="perm">
       <input type="checkbox" value="${esc(a.key)}"${seleccion.indexOf(a.key) >= 0 ? ' checked' : ''}>
       <span><b>${esc(a.titulo)}</b><small>${esc(a.desc.split('.')[0])}.</small></span>

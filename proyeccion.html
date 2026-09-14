@@ -114,11 +114,15 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
 <div id="pg-velo"><div class="pg-sp"></div><small>Verificando tu acceso…</small></div>
 <script>
 /* ── Control de acceso ───────────────────────────────────────────────────────
-   Este modulo muestra las finanzas personales de Carlos, asi que el filtro es
-   mas estrecho que el de las demas apps: ademas del permiso 'proyeccion' que da
-   el portal, el usuario tiene que estar en DUENOS. Si manana quiere abrirlo a
-   alguien mas, se agrega ahi el nombre de usuario y listo.
-   La proteccion real del dato la aplica el Apps Script, que exige el token. */
+   Este modulo muestra las finanzas personales de Carlos, asi que no se concede
+   por la tabla de permisos del portal: quien entra tiene que estar en DUENOS.
+   Ademas hay una razon practica — el Apps Script del portal solo acepta las
+   claves de app que ya conoce y descarta en silencio cualquiera nueva (responde
+   ok, pero la quita), asi que el permiso 'proyeccion' nunca llegaba a quedar
+   guardado. La lista de aqui es la regla de verdad, y no depende del servidor.
+   Si manana quiere abrirlo a alguien mas, se agrega el usuario a DUENOS.
+   La sesion sigue validandose contra el portal, y el token sigue viajando en
+   cada peticion de datos. */
 (function () {
   var APP    = 'proyeccion';
   var DUENOS = ['carloshtl75'];
@@ -137,7 +141,6 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
   var s = null;
   try { s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) {}
   if (!s || !s.token || !s.user) return alPortal('entra');
-  if ((s.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
   if (!esDueno(s.user)) return alPortal('sinpermiso');
 
   window.PORTAL = {
@@ -192,7 +195,6 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
   .then(function(r){ return r.json(); })
   .then(function(j){
     if (!j || !j.ok) return alPortal('expirada');
-    if ((j.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
     if (!esDueno(j.user)) return alPortal('sinpermiso');
     window.PORTAL.user = j.user; window.PORTAL.rol = j.user.rol;
     try { localStorage.setItem(CLAVE, JSON.stringify({ token:s.token, user:j.user, guardada:Date.now() })); } catch(e){}
