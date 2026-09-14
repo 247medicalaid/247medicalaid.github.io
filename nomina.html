@@ -1437,6 +1437,9 @@
 
     <!-- Invoices dados por perdidos — registro aparte, no cuentan como pendientes -->
     <div id="inv-perdidas" style="margin-top:26px"></div>
+
+    <!-- Sigma — lo que se le gira por cada cuenta y mes, y cuándo se pagó -->
+    <div id="sigma-lista" style="margin-top:26px"></div>
   </div>
 
 
@@ -5949,9 +5952,15 @@ function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
   }
 
   const completo = total <= 0.005 || (total - pagado) < 0.005;
+  // La fecha del giro: se pone sola al saldar y se borra al deshacer los abonos.
+  // Carlos puede corregirla despues desde la seccion de Sigma.
+  let fecha = cur.sigmaFecha || null;
+  if(pagado <= 0.005)      fecha = null;
+  else if(completo && !fecha) fecha = new Date().toISOString().slice(0,10);
   setOv(mkid, nombre, {
     sigmaPaid: pagado,
     sigmaPagado: completo,
+    sigmaFecha: fecha,
     // Un pago manual siempre limpia el estado de cruce.
     cruzadoUtilidad: false, cruceFecha: null, cruceMonto: null
   });
@@ -5960,6 +5969,66 @@ function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
   renderInvoices();
   if(typeof renderUtilidad === 'function') try{ renderUtilidad(); }catch(e){}
+}
+
+// Corrige a mano la fecha del giro a Sigma — para los pagos que se marcaron
+// antes de que existiera este campo.
+function fijarFechaSigma(mkid, nombre, fecha){
+  setOv(normMkid(mkid), nombre, { sigmaFecha: (fecha || '').trim() || null });
+  const ovs = loadInvOv();
+  const key = invOvKey(normMkid(mkid), nombre);
+  if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
+  renderSigma();
+}
+
+// ── Todo lo que se le debe o se le ha pagado a Sigma, agrupado por cuenta ────
+// Solo invoices cerrados: mientras el mes esta en proceso las cifras aun cambian.
+function listarSigmaPorCuenta(){
+  const historial = cargarHistorial();
+  const meses = groupHistorialByMonth(historial);
+  const porCuenta = {};
+  Object.entries(meses).forEach(([mk, m]) => {
+    if(!m.q1 || !m.q2) return;
+    const [anio, mes] = mk.split('-').map(Number);
+    let items = [];
+    try { items = buildInvLineItems(mk, m, calcDiasHabilesUSA(anio,mes,1)+calcDiasHabilesUSA(anio,mes,2), mes); }
+    catch(e){ return; }
+    items.forEach(item => {
+      if(item.tipo === 'own') return;                 // las 24/7 no llevan cheque a Sigma
+      const nombre = item.invKey || item.nombre;
+      const ov = getOv(mk, nombre);
+      if(ov.cerrado !== true) return;                 // solo cerrados
+      let d, sig;
+      try {
+        d = buildInvData(mk, nombre, item.tipo, item.subCuentas || null);
+        if(!d) return;
+        sig = calcSigmaCheck(d, item.tipo);
+      } catch(e){ return; }
+      // Las que pagan directo entran con su importe propio: se ven y se puede
+      // registrar su pago, pero no suman en lo que debe 24/7.
+      const directo = sig.excluded === true;
+      const importe = directo ? (sig.sigmaDirecto || 0) : sig.sigmaAmt;
+      if(!(importe > 0.005)) return;
+      const est = sigmaEstado(ov, importe);
+      (porCuenta[nombre] = porCuenta[nombre] || []).push({
+        mk, anio, mes, nombre, invnum: ov.invnum || '', directo,
+        total: est.total, pagado: est.pagado, saldo: est.saldo,
+        completo: est.completo, parcial: est.parcial,
+        cancelado: ov.noPago === true,
+        cruzado: ov.cruzadoUtilidad === true, cruceFecha: ov.cruceFecha || '',
+        fecha: ov.sigmaFecha || ''
+      });
+    });
+  });
+  return Object.keys(porCuenta).sort().map(nombre => {
+    const meses = porCuenta[nombre].sort((a,b) => b.mk.localeCompare(a.mk));
+    return {
+      nombre, meses, directo: meses.some(m => m.directo),
+      total:  invR2(meses.reduce((t,x)=>t+x.total,0)),
+      pagado: invR2(meses.reduce((t,x)=>t+x.pagado,0)),
+      saldo:  invR2(meses.reduce((t,x)=>t+x.saldo,0))
+    };
+  });
 }
 
 // Suma un abono al total ya pagado, tomando el importe del campo de la tarjeta.
@@ -6264,17 +6333,21 @@ function calcSigmaCheck(data, cuentaTipo){
   if(cuentaTipo === 'own'){
     return { sigmaAmt: 0, amt247: data.monto, hasSplit: false };
   }
-  // WHITE WILSON pays Sigma directly — exclude from 24/7 Sigma check
-  if((data.cuentaNombre||'').toUpperCase().includes('WHITE WILSON')){
-    return { sigmaAmt: 0, amt247: data.monto, hasSplit: false, excluded: true };
-  }
   // DR or merged: check for (24/7) agents
   const is247 = n => n && (n.includes('(24/7)') || n.includes('(24-7)'));
   const ags247 = data.agentes.filter(a => is247(a.nombre) && a.total > 0);
   const agsDr  = data.agentes.filter(a => !is247(a.nombre) && a.total > 0);
 
+  // WHITE WILSON le paga a Sigma directamente: el importe se calcula igual que
+  // en las demas cuentas, pero NO es una obligacion de 24/7. sigmaAmt se queda
+  // en 0 y excluded en true — igual que antes, para que ningun total cambie —
+  // y la cifra viaja en sigmaDirecto, solo para poder verla y registrarla.
+  const _pagaDirecto = (data.cuentaNombre||'').toUpperCase().includes('WHITE WILSON');
+
   if(ags247.length === 0){
     // No (24/7) agents → all to Sigma
+    if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: false,
+                              excluded: true, sigmaDirecto: data.monto };
     return { sigmaAmt: data.monto, amt247: 0, hasSplit: false };
   }
   // Mixed → split proportionally by days
@@ -6286,6 +6359,9 @@ function calcSigmaCheck(data, cuentaTipo){
   const _baseDias = dias247 + diasDr;
   const amt247  = _baseDias > 0 ? data.monto * dias247 / _baseDias : 0;
   const sigmaAmt= _baseDias > 0 ? data.monto * diasDr  / _baseDias : 0;
+  if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: true,
+                            excluded: true, sigmaDirecto: sigmaAmt,
+                            ags247, agsDr, dias247, diasDr };
   return { sigmaAmt, amt247, hasSplit: true, ags247, agsDr, dias247, diasDr };
 }
 
@@ -6705,7 +6781,26 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
     ${(()=>{
       if(cu.tipo === 'own') return ''; // OWN → no sigma block
       const sigma = calcSigmaCheck(data, cu.tipo);
-      if(sigma.excluded) return ''; // WHITE WILSON — pays Sigma directly
+      // Las cuentas que le pagan a Sigma directamente: se muestra el importe
+      // como informacion, sin contarlo como deuda de 24/7.
+      if(sigma.excluded){
+        const _sd = sigma.sigmaDirecto || 0;
+        if(!(_sd > 0.005)) return '';
+        const _ovD = getOv(mk, cuNombre);
+        const _estD = sigmaEstado(_ovD, _sd);
+        return `
+      <div class="sig-box" style="border-left-style:dashed">
+        <div class="sig-top">
+          <span class="sig-tit">🏦 Sigma · lo paga el cliente</span>
+          <span class="caja-sub">${cuNombre} le gira a Sigma directamente</span>
+          <span class="sig-pill caja-der" style="color:var(--text3)">${_estD.completo ? '✓ registrado' : '● sin registrar'}</span>
+        </div>
+        <div class="sig-nota" style="margin-top:8px">
+          Le corresponden <b>${fmt(_sd)}</b> de este invoice${_ovD.sigmaFecha ? `, pagados el <b>${_ovD.sigmaFecha}</b>` : ''}.
+          No sale de 24/7, así que no cuenta en lo que le debes a Sigma. El registro se lleva en la sección <b>🏦 Sigma</b>.
+        </div>
+      </div>`;
+      }
       const _sigDetalle = sigma.hasSplit
         ? `<div style="font-size:11px;color:var(--text3)">${sigma.agsDr?.map(a=>a.nombre).join(', ')||''} · ${fmtDias(sigma.diasDr)} días (${data.totalDias > 0 ? (sigma.diasDr/data.totalDias*100).toFixed(1) : 0}% del invoice)</div>`
         : sigma.sigmaAmt > 0
@@ -6746,7 +6841,6 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       // etiqueta lo dice, para que la cifra no se lea como un pago.
       const lbAbonado = esCruzado ? 'Compensado' : 'Abonado';
       const lbPct     = esCruzado ? 'compensado' : 'abonado';
-      const sid = iid + '-sigpago';
       return `
       <div class="sig-box${_flashThis ? ' inv-sigma-flash' : ''}">
         <div class="sig-top">
@@ -6778,30 +6872,10 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         </div>` : ''}
 
         ${esCruzado
-          ? `<div class="sig-nota">${ovSigma.cruceFecha || ''} · compensado contra la utilidad, no pagado en dinero</div>
-             <div class="sig-acc" style="margin-top:8px">
-               <button class="sig-btn deshacer" style="margin-left:0"
-                 onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})">✕ Deshacer el cruce</button>
-             </div>`
-          : sigma.sigmaAmt > 0.005
-            ? `<div class="sig-acc">
-                 ${!est.completo ? `
-                 <span class="peso">$</span>
-                 <input type="number" step="0.01" min="0" class="sig-inp" id="${sid}"
-                   value="${est.saldo.toFixed(2)}" aria-label="Importe del abono a Sigma"
-                   onfocus="this.select()"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}');}">
-                 <button class="sig-btn abonar"
-                   onclick="abonarSigma('${mk}','${esc(cuNombre)}',${est.total},'${sid}')">Registrar abono</button>
-                 <button class="sig-btn todo"
-                   onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',${est.total},${est.total})">Pagar todo</button>` : ''}
-                 ${est.pagado > 0.005
-                   ? `<button class="sig-btn deshacer"
-                        title="Borra los abonos registrados y deja el cheque en Pendiente"
-                        onclick="fijarPagoSigma('${mk}','${esc(cuNombre)}',0,${est.total})">✕ Deshacer abonos</button>`
-                   : ''}
-               </div>`
-            : ''}
+          ? `<div class="sig-nota">${ovSigma.cruceFecha || ''} · compensado contra la utilidad, no pagado en dinero</div>`
+          : `<div class="sig-nota">
+               ${ovSigma.sigmaFecha ? 'Girado el ' + ovSigma.sigmaFecha + ' · ' : ''}El pago a Sigma se registra en la sección <b>🏦 Sigma</b>, al final de esta página.
+             </div>`}
       </div>`;
     })()}
 
@@ -7254,6 +7328,134 @@ function renderInvPerdidas(){
     </div>`;
 }
 
+// ── Sección Sigma ───────────────────────────────────────────────────────────
+// El cheque a Sigma se manejaba dentro de cada invoice, mezclado con el cobro al
+// cliente. Aqui vive aparte, agrupado por cuenta, que es como se revisa: cuanto
+// se le debe por cada una, que meses ya se giraron y en que fecha.
+const _sigmaAbiertas = new Set();
+
+function toggleSigmaCuenta(nombre){
+  if(_sigmaAbiertas.has(nombre)) _sigmaAbiertas.delete(nombre); else _sigmaAbiertas.add(nombre);
+  renderSigma();
+}
+
+function renderSigma(){
+  const el = $('sigma-lista');
+  if(!el) return;
+  let cuentasSig = [];
+  try { cuentasSig = listarSigmaPorCuenta(); } catch(e){ cuentasSig = []; }
+  if(!cuentasSig.length){ el.innerHTML = ''; return; }
+
+  // Lo que paga el cliente directo no es deuda de 24/7: va en su propia cifra.
+  const propias = cuentasSig.filter(c => !c.directo);
+  const dirs    = cuentasSig.filter(c =>  c.directo);
+  const gTotal  = invR2(propias.reduce((t,c)=>t+c.total,0));
+  const gPagado = invR2(propias.reduce((t,c)=>t+c.pagado,0));
+  const gSaldo  = invR2(propias.reduce((t,c)=>t+c.saldo,0));
+  const gDirecto = invR2(dirs.reduce((t,c)=>t+c.total,0));
+
+  const filaMes = (x) => {
+    const esc2 = String(x.nombre).replace(/'/g,'&#39;');
+    const sid  = 'sig-in-' + x.mk + '-' + String(x.nombre).replace(/[^A-Za-z0-9]/g,'');
+    const estado = x.cancelado ? '<span class="sig-pill" style="color:var(--text3)">✕ cancelado con el invoice</span>'
+                 : x.directo && x.completo ? '<span class="sig-pill ok">✓ registrado</span>'
+                 : x.directo && !x.parcial ? '<span class="sig-pill" style="color:var(--text3)">● sin registrar</span>'
+                 : x.cruzado  ? '<span class="sig-pill cruce">⇄ cruzado por utilidad</span>'
+                 : x.completo ? '<span class="sig-pill ok">✓ pagado</span>'
+                 : x.parcial  ? '<span class="sig-pill parcial">◑ abonado en parte</span>'
+                 : '<span class="sig-pill pend">● pendiente</span>';
+    return `
+    <div style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap${x.cancelado?';opacity:.6':''}">
+      <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
+      ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
+      ${estado}
+      <span style="flex:1;min-width:6px"></span>
+      <span style="text-align:right;min-width:96px">
+        <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${x.directo ? 'Importe' : 'A pagar'}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700">${fmt(x.total)}</span>
+      </span>
+      <span style="text-align:right;min-width:96px">
+        <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${x.directo ? 'Sin registrar' : 'Pendiente'}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${x.saldo>0.005?(x.directo?'var(--text3)':'var(--accent3)'):'var(--accent)'}">${fmt(x.saldo)}</span>
+      </span>
+      ${x.cancelado ? '' : `
+      <label style="display:flex;flex-direction:column;gap:3px;min-width:132px">
+        <span style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${x.directo ? 'Fecha del pago' : 'Fecha del giro'}</span>
+        <input type="date" value="${x.fecha}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px"
+          onchange="fijarFechaSigma('${x.mk}','${esc2}',this.value)">
+      </label>
+      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;width:352px;flex:none">
+        ${x.cruzado
+          ? `<button class="sig-btn deshacer" onclick="fijarPagoSigma('${x.mk}','${esc2}',0,${x.total})">✕ Deshacer el cruce</button>`
+          : `${!x.completo ? `
+             <input type="number" step="0.01" min="0" class="sig-inp" id="${sid}" value="${x.saldo.toFixed(2)}"
+               aria-label="Importe del abono a Sigma" onfocus="this.select()"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();abonarSigma('${x.mk}','${esc2}',${x.total},'${sid}');}">
+             <button class="sig-btn abonar" onclick="abonarSigma('${x.mk}','${esc2}',${x.total},'${sid}')">Abonar</button>
+             <button class="sig-btn todo" onclick="fijarPagoSigma('${x.mk}','${esc2}',${x.total},${x.total})">${x.directo ? 'Marcar pagado' : 'Pagar todo'}</button>` : ''}
+             ${x.pagado > 0.005 ? `<button class="sig-btn deshacer" title="Borra los abonos y deja el cheque pendiente"
+               onclick="fijarPagoSigma('${x.mk}','${esc2}',0,${x.total})">✕</button>` : ''}`}
+      </span>`}
+    </div>`;
+  };
+
+  const bloques = cuentasSig.map(c => {
+    const abierta = _sigmaAbiertas.has(c.nombre);
+    const esc2 = String(c.nombre).replace(/'/g,'&#39;');
+    const pend = c.saldo > 0.005;
+    return `
+    <div style="border-top:1px solid var(--border)">
+      <div onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
+        <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
+        <span style="font-weight:700;font-size:14px">${c.nombre}</span>
+        <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
+        ${c.directo ? `<span class="sig-pill" style="color:var(--inv-sigma,#a78bfa)"
+            title="Esta cuenta le paga a Sigma directamente. Aparece aquí para llevar el registro, pero no cuenta en lo que debes tú.">paga directo a Sigma</span>` : ''}
+        <span style="flex:1;min-width:6px"></span>
+        <span style="text-align:right;min-width:104px">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${c.directo ? 'Registrado' : 'Ya girado'}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(c.pagado)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${c.directo ? 'Sin registrar' : 'Pendiente'}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${pend?(c.directo?'var(--text3)':'var(--accent3)'):'var(--accent)'}">${fmt(c.saldo)}</span>
+        </span>
+      </div>
+      <div style="display:${abierta?'block':'none'}">${c.meses.map(filaMes).join('')}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--sig-tint,rgba(167,139,250,.10));border-left:5px solid var(--inv-sigma,#a78bfa)">
+        <span style="font-size:15px;font-weight:800;color:var(--inv-sigma,#a78bfa)">🏦 Sigma</span>
+        <span style="font-size:11.5px;color:var(--text3)">lo que le giramos por cada cuenta · solo invoices cerrados</span>
+        <span style="flex:1;min-width:6px"></span>
+        <span style="text-align:right;min-width:104px">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Total</span>
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700">${fmt(gTotal)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Ya girado</span>
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(gPagado)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Pendiente</span>
+          <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${gSaldo>0.005?'var(--accent3)':'var(--accent)'}">${fmt(gSaldo)}</span>
+        </span>
+        ${gDirecto > 0.005 ? `
+        <span style="text-align:right;min-width:104px;border-left:1px solid var(--border);padding-left:12px"
+          title="Lo que el cliente le paga a Sigma directamente. No sale de 24/7, por eso va aparte.">
+          <span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">Paga el cliente</span>
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--text2)">${fmt(gDirecto)}</span>
+        </span>` : ''}
+      </div>
+      ${bloques}
+    </div>`;
+}
+
 function invNavMes(delta){
   const selAnio = $('inv-sel-anio');
   const selMes  = $('inv-sel-mes');
@@ -7660,6 +7862,7 @@ function renderInvoicesMes(){
     : `<div class="empty" style="padding:40px;text-align:center;color:var(--text3)">Sin cuentas con invoice para ${mesLabel}</div>`;
 
   renderInvPerdidas();
+  renderSigma();
 
   // Check overlaps for all rendered invoices
   lineItems.forEach(i => {
