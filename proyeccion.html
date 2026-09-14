@@ -1044,7 +1044,9 @@ function consolidadoQuincena(reg){
       if(n > 0){ sub += n; comp += n * pct; }
     });
   });
-  return { sub: R2(sub), comp: R2(comp), total: R2(sub + comp) };
+  // Sin redondear: quien suma redondea UNA sola vez al final. Redondear cada
+  // quincena y luego sumar daba un centavo de diferencia contra Nómina.
+  return { sub, comp, total: sub + comp };
 }
 
 // Todo lo de un mes real: ingresos, egresos y con qué detalle.
@@ -1059,8 +1061,8 @@ function calcularMes(mk){
   let ccCheck = 0; const ccDet = [];
   [q1, q2].forEach((r, i) => {
     if(!r) return;
-    const v = R2((r.resumen && r.resumen.totalDrCheck) || 0);
-    ccCheck += v; ccDet.push({ e: 'Callcenter Check · Q' + (i+1), m: v });
+    const v = (r.resumen && r.resumen.totalDrCheck) || 0;   // crudo: se redondea al final
+    ccCheck += v; ccDet.push({ e: 'Callcenter Check · Q' + (i+1), m: R2(v) });
   });
 
   const invDet = []; let invTotal = 0, invPendiente = 0;
@@ -1078,7 +1080,7 @@ function calcularMes(mk){
         if(!d || !(d.monto > 0.005)) return;
         const ov = getOv(mk, nombre);
         if(ov.noPago === true) return;                                 // dado por perdido
-        invTotal += d.monto;
+        invTotal += d.monto;                                 // crudo
         const est = estadoCobro(ov, d.monto);
         if(est.saldo > 0.005) invPendiente += est.saldo;
         invDet.push({ e: nombre, m: R2(d.monto), saldo: est.saldo, cerrado: ov.cerrado === true });
@@ -1093,7 +1095,7 @@ function calcularMes(mk){
     if(!r) return;
     const c = consolidadoQuincena(r);
     nomTotal += c.total;
-    nomDet.push({ e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: c.total });
+    nomDet.push({ e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: R2(c.total) });
   });
 
   let sigma = 0; const sigDet = [];
