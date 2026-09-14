@@ -5995,14 +5995,52 @@ function fijarPagoSigma(mkid, nombre, nuevoPagado, sigmaAmt){
   if(typeof renderUtilidad === 'function') try{ renderUtilidad(); }catch(e){}
 }
 
+// Un <input type="date"> dispara 'change' con CADA tecla del año: al escribir
+// "2026" pasa por los años 0002, 0020 y 0202, y para el navegador las tres son
+// fechas completas y validas. Si se guardan, el año queda en 0002 — que es
+// exactamente lo que pasaba. Solo se acepta un año de verdad.
+function fechaRazonable(v){
+  const t = (v || '').trim();
+  if(!t) return true;                       // vacio = borrar la fecha, es valido
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if(!m) return false;
+  const a = +m[1];
+  return a >= 2000 && a <= new Date().getFullYear() + 5;
+}
+
+// Las fechas del invoice (emision, vencimiento, periodo) tienen el mismo
+// problema del año a medio escribir, y ademas salen impresas en el PDF.
+function fijarFechaInvoice(mk, nombre, campo, valor){
+  if(!fechaRazonable(valor)) return false;
+  setOv(mk, nombre, { [campo]: (valor || '').trim() });
+  return true;
+}
+function normalizarFechaInvoice(mk, nombre, campo, el, porDefecto){
+  if(!el) return;
+  const g = getOv(mk, nombre)[campo];
+  const v = (g === undefined || g === null || g === '') ? (porDefecto || '') : g;
+  if(el.value !== v) el.value = v;
+}
+
 // Corrige a mano la fecha del giro a Sigma — para los pagos que se marcaron
 // antes de que existiera este campo.
 function fijarFechaSigma(mkid, nombre, fecha){
-  setOv(normMkid(mkid), nombre, { sigmaFecha: (fecha || '').trim() || null });
+  const v = (fecha || '').trim();
+  if(!fechaRazonable(v)) return;            // año a medio escribir: aun no se guarda
+  setOv(normMkid(mkid), nombre, { sigmaFecha: v || null });
   const ovs = loadInvOv();
   const key = invOvKey(normMkid(mkid), nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
-  renderSigma();
+  // Ojo: NO se repinta la seccion. Repintarla destruia el campo a medio
+  // escribir y por eso se perdia el año. La fecha no entra en ningun total,
+  // asi que no hay nada que recalcular en pantalla.
+}
+
+// Al salir del campo, lo que se ve tiene que ser lo que quedo guardado.
+function normalizarFechaSigma(mkid, nombre, el){
+  if(!el) return;
+  const guardada = getOv(normMkid(mkid), nombre).sigmaFecha || '';
+  if(el.value !== guardada) el.value = guardada;
 }
 
 // Recorrer todos los invoices cerrados cuesta ~160 ms, y recalcAll() se llama a
@@ -6592,16 +6630,18 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Issue Date</div>
-        <input type="date" value="${data.dateissue}"
+        <input type="date" min="2000-01-01" value="${data.dateissue}"
           ${locked ? 'readonly' : ''}
-          onchange="setOv('${mk}','${esc(cuNombre)}',{dateissue:this.value})"
+          onchange="fijarFechaInvoice('${mk}','${esc(cuNombre)}','dateissue',this.value)"
+          onblur="normalizarFechaInvoice('${mk}','${esc(cuNombre)}','dateissue',this,'${data.dateissue}')"
           style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px">
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Due Date</div>
-        <input type="date" value="${data.duedate}"
+        <input type="date" min="2000-01-01" value="${data.duedate}"
           ${locked ? 'readonly' : ''}
-          onchange="setOv('${mk}','${esc(cuNombre)}',{duedate:this.value})"
+          onchange="fijarFechaInvoice('${mk}','${esc(cuNombre)}','duedate',this.value)"
+          onblur="normalizarFechaInvoice('${mk}','${esc(cuNombre)}','duedate',this,'${data.duedate}')"
           style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px">
       </div>
     </div>
@@ -6611,16 +6651,18 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <div style="font-size:13px;color:var(--text);margin-right:4px;align-self:center">📆 <b>Período del Invoice</b></div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Inicio</div>
-        <input type="date" value="${data.periodoStart}"
+        <input type="date" min="2000-01-01" value="${data.periodoStart}"
           ${locked ? 'readonly' : ''}
-          onchange="setOv('${mk}','${esc(cuNombre)}',{periodoStart:this.value});showOverlapWarning('${mk}','${esc(cuNombre)}','${iid}')"
+          onchange="if(fijarFechaInvoice('${mk}','${esc(cuNombre)}','periodoStart',this.value)) showOverlapWarning('${mk}','${esc(cuNombre)}','${iid}')"
+          onblur="normalizarFechaInvoice('${mk}','${esc(cuNombre)}','periodoStart',this,'${data.periodoStart}')"
           style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px">
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Fin</div>
-        <input type="date" value="${data.periodoEnd}"
+        <input type="date" min="2000-01-01" value="${data.periodoEnd}"
           ${locked ? 'readonly' : ''}
-          onchange="setOv('${mk}','${esc(cuNombre)}',{periodoEnd:this.value});showOverlapWarning('${mk}','${esc(cuNombre)}','${iid}')"
+          onchange="if(fijarFechaInvoice('${mk}','${esc(cuNombre)}','periodoEnd',this.value)) showOverlapWarning('${mk}','${esc(cuNombre)}','${iid}')"
+          onblur="normalizarFechaInvoice('${mk}','${esc(cuNombre)}','periodoEnd',this,'${data.periodoEnd}')"
           style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px">
       </div>
       <div style="font-size:11px;color:var(--text2);align-self:flex-end;padding-bottom:9px">
@@ -7440,9 +7482,13 @@ function renderSigma(){
       </span>
       ${x.cancelado ? '' : `
       <label style="display:flex;flex-direction:column;gap:3px;min-width:132px">
-        <span style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${x.directo ? 'Fecha del pago' : 'Fecha del giro'}</span>
-        <input type="date" value="${x.fecha}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px"
-          onchange="fijarFechaSigma('${x.mk}','${esc2}',this.value)">
+        <span style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${
+          x.fecha && !fechaRazonable(x.fecha)
+            ? '<span style="color:var(--accent3)" title="El año quedó mal guardado. Escríbela de nuevo.">⚠ revisa la fecha</span>'
+            : (x.directo ? 'Fecha del pago' : 'Fecha del giro')}</span>
+        <input type="date" min="2000-01-01" value="${x.fecha}" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px"
+          onchange="fijarFechaSigma('${x.mk}','${esc2}',this.value)"
+          onblur="normalizarFechaSigma('${x.mk}','${esc2}',this)">
       </label>
       <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;width:352px;flex:none">
         ${x.cruzado
