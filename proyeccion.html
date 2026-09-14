@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proyección Flujo de Caja — 24/7 Medical Aid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#071A24; --surface:#0C2632; --surface2:#123243; --border:#1E4457;
+  --text:#EAF4F6; --text2:#B9D3DD; --text3:#7FA3B2;
+  --accent:#3FCFA0;    /* entra plata */
+  --accent2:#4CC2EC;   /* informativo */
+  --accent3:#F2A93B;   /* ojo */
+  --danger:#F4676B;    /* sale plata */
+  --morado:#a78bfa;    /* Sigma */
+  --radius:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px}
+.hidden{display:none !important}
+.wrap{max-width:1420px;margin:0 auto;padding:26px 22px 90px}
+h1{font-size:23px;margin:0;font-weight:800;letter-spacing:-.01em}
+.sub{color:var(--text3);font-size:13px;margin-top:5px}
+.mono{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card+.card{margin-top:20px}
+.card-h{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.card-t{font-size:13.5px;font-weight:800;letter-spacing:.01em}
+.pill{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.real{color:var(--accent2)} .pill.est{color:var(--accent3)} .pill.parcial{color:var(--morado)}
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;
+     padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--border)}
+.btn.pri{color:var(--accent2);border-color:var(--accent2)}
+.btn.del{color:var(--danger);border-color:rgba(244,103,107,.35)}
+.inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;
+     padding:7px 10px;font-size:13px;font-family:'DM Mono',monospace;text-align:right;width:104px}
+.inp.txt{font-family:'Inter',sans-serif;text-align:left;width:auto;flex:1;min-width:120px}
+.inp:focus{outline:2px solid var(--accent2);outline-offset:-1px}
+select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
+
+/* ── Tabla de meses ─────────────────────────────────────────────────────── */
+.mes-h{display:grid;grid-template-columns:142px repeat(5,1fr) 122px 132px;gap:9px;padding:9px 16px;
+  border-bottom:1px solid var(--border);background:var(--surface2)}
+.mes-h span{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.mes-h span:not(:first-child){text-align:right}
+.mes-f{display:grid;grid-template-columns:142px repeat(5,1fr) 122px 132px;gap:9px;padding:12px 16px;
+  border-top:1px solid var(--border);align-items:center;cursor:pointer}
+.mes-f:hover{background:rgba(76,194,236,.05)}
+.mes-f.abierta{background:rgba(167,139,250,.12);box-shadow:inset 5px 0 0 var(--morado)}
+.mes-f .n{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+.mes-f .v{text-align:right;font-family:'DM Mono',monospace;font-size:13.5px;font-weight:700}
+/* Carlos es daltónico: verde contra rojo no le sirve. Lo que entra va en cian y
+   lo que sale en ámbar — dos tonos fuera del eje rojo-verde y además con
+   luminancia distinta. Lo que queda va en blanco (la cifra que importa) o en
+   rojo fuerte con un ▼ delante, para que el signo no dependa del color. */
+.mes-f .v.ent{color:var(--accent2)} .mes-f .v.sal{color:var(--accent3)}
+.mes-f .v.neto-pos{color:#FFFFFF} .mes-f .v.neto-neg{color:var(--danger)}
+/* El saldo es la cifra que decide: se separa con una línea y, si se va a
+   negativo, lleva un ⚠ delante para que el aviso no dependa del color. */
+.mes-h span:last-child,.mes-f .v:last-child{border-left:1px solid var(--border);padding-left:9px}
+.mes-f .v.saldo-pos{color:#FFFFFF} .mes-f .v.saldo-neg{color:var(--danger)}
+.flecha{font-size:10px;opacity:.65;display:inline-block;width:9px;transition:transform .18s}
+
+/* El panel abierto es el area de trabajo: fondo claro, como en Nomina. */
+.panel{background:#FFFFFF;color:#0F172A;
+  --text:#0F172A; --text2:#334155; --text3:#64748B;
+  --surface:#FFFFFF; --surface2:#F4F6FA; --border:#CBD5E1;
+  --accent:#15803D; --accent2:#1D4ED8; --accent3:#B45309; --danger:#B91C1C; --morado:#6D28D9;}
+.panel .det-h{padding:9px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em}
+.panel .det-h b{color:var(--morado);font-size:12.5px;letter-spacing:.02em}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:860px){.det-grid{grid-template-columns:1fr}
+  .mes-h{display:none}
+  .mes-f{grid-template-columns:1fr 1fr;gap:6px}}
+.det-col{padding:14px 16px}
+.det-col+.det-col{border-left:1px solid var(--border)}
+.det-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:9px}
+.lin{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px}
+.lin .e{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lin .m{font-family:'DM Mono',monospace;font-weight:700;white-space:nowrap}
+.lin.tot{border-top:2px solid var(--border);margin-top:8px;padding-top:8px;font-weight:800}
+.nota{font-size:10.5px;color:var(--text3);line-height:1.4}
+
+.gasto-f{display:flex;align-items:center;gap:9px;padding:8px 16px;border-top:1px solid var(--border);flex-wrap:wrap}
+.gasto-f.off{opacity:.45}
+.tot-tira{display:flex;gap:22px;flex-wrap:wrap;margin-left:auto;align-items:flex-end}
+.tot-tira .b{text-align:right}
+.tot-tira .b span{display:block;font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.tot-tira .b b{font-family:'DM Mono',monospace;font-size:15px;font-weight:700}
+.aviso{margin:0 0 18px;padding:12px 15px;border-radius:10px;border:1px solid var(--accent3);
+  background:rgba(242,169,59,.10);color:var(--text2);font-size:12.5px;line-height:1.5}
+.aviso b{color:var(--accent3)}
+.empty{padding:40px;text-align:center;color:var(--text3)}
+
+#pg-velo{position:fixed;inset:0;z-index:2147483646;background:#04141F;color:#EAF4F6;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#pg-velo .pg-sp{width:26px;height:26px;border:3px solid rgba(255,255,255,.22);
+  border-top-color:#17A9DE;border-radius:50%;animation:pgsp .7s linear infinite}
+@keyframes pgsp{to{transform:rotate(360deg)}}
+#pg-velo small{color:#9FBECB;font-size:13px}
+#pg-volver{position:fixed;right:14px;bottom:14px;z-index:2147483645;display:inline-flex;align-items:center;
+  gap:7px;padding:9px 15px;border-radius:999px;background:#04141F;color:#fff;text-decoration:none;
+  border:1px solid rgba(255,255,255,.16);font-weight:700;font-size:12.5px;opacity:.92}
+#pg-volver:hover{opacity:1;background:#0D3247}
+#pg-volver span{color:#9FBECB;font-weight:600}
+</style>
+</head>
+<body>
+<div id="pg-velo"><div class="pg-sp"></div><small>Verificando tu acceso…</small></div>
+<script>
+/* ── Control de acceso ───────────────────────────────────────────────────────
+   Este modulo muestra las finanzas personales de Carlos, asi que el filtro es
+   mas estrecho que el de las demas apps: ademas del permiso 'proyeccion' que da
+   el portal, el usuario tiene que estar en DUENOS. Si manana quiere abrirlo a
+   alguien mas, se agrega ahi el nombre de usuario y listo.
+   La proteccion real del dato la aplica el Apps Script, que exige el token. */
+(function () {
+  var APP    = 'proyeccion';
+  var DUENOS = ['carloshtl75'];
+  var API    = 'https://script.google.com/macros/s/AKfycbxEjSzo6gtP7rnVfc0JOAkZSvD6pTNYRvgcjoY_y_RrKMKOpRbDj4BBDMpzv_KuARxNNA/exec';
+  var PORTAL = 'https://247medicalaid.github.io/';
+  var CLAVE  = 'portal247.sesion';
+
+  function alPortal(motivo) {
+    try { if (motivo === 'expirada') localStorage.removeItem(CLAVE); } catch (e) {}
+    location.replace(PORTAL + (motivo ? '?motivo=' + motivo + '&app=' + APP : ''));
+  }
+  function esDueno(u){
+    return !!u && DUENOS.indexOf(String(u.username || '').toLowerCase()) >= 0;
+  }
+
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) {}
+  if (!s || !s.token || !s.user) return alPortal('entra');
+  if ((s.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
+  if (!esDueno(s.user)) return alPortal('sinpermiso');
+
+  window.PORTAL = {
+    listo:false, app:APP, token:s.token, user:s.user, rol:s.user.rol,
+    esAdmin:s.user.rol === 'admin',
+    salir:function(){ try{ localStorage.removeItem(CLAVE); }catch(e){} location.replace(PORTAL); },
+    volver:function(){ location.href = PORTAL; }
+  };
+
+  /* Todo lo que salga hacia los Apps Script lleva el token de sesion. */
+  (function interceptar() {
+    var original = window.fetch;
+    if (!original) return;
+    window.fetch = function (entrada, opciones) {
+      try {
+        var url = (typeof entrada === 'string') ? entrada : (entrada && entrada.url) ? entrada.url : '';
+        if (url.indexOf('script.google.com') >= 0) {
+          var metodo = (opciones && opciones.method ? String(opciones.method) : 'GET').toUpperCase();
+          if (metodo === 'POST' && opciones && typeof opciones.body === 'string') {
+            try {
+              var cuerpo = JSON.parse(opciones.body);
+              if (cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {
+                cuerpo.token = s.token; cuerpo.app = APP;
+                opciones = Object.assign({}, opciones, { body: JSON.stringify(cuerpo) });
+                return original.call(this, entrada, opciones);
+              }
+            } catch (e) {}
+          }
+          var conToken = url + (url.indexOf('?') < 0 ? '?' : '&') +
+                         'token=' + encodeURIComponent(s.token) + '&app=' + encodeURIComponent(APP);
+          entrada = (typeof entrada === 'string') ? conToken : new Request(conToken, entrada);
+        }
+      } catch (e) {}
+      return original.call(this, entrada, opciones);
+    };
+  })();
+
+  function mostrar() {
+    var v = document.getElementById('pg-velo'); if (v && v.parentNode) v.parentNode.removeChild(v);
+    var a = document.createElement('a'); a.id = 'pg-volver'; a.href = PORTAL;
+    a.innerHTML = '&larr; <b>Portal</b> <span>&middot; ' +
+      String(window.PORTAL.user.nombre || '').split(' ')[0] + '</span>';
+    document.body.appendChild(a);
+  }
+  function seguir(){
+    window.PORTAL.listo = true; mostrar();
+    document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
+  }
+
+  fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+               body: JSON.stringify({ action:'validate', token:s.token }) })
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    if (!j || !j.ok) return alPortal('expirada');
+    if ((j.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
+    if (!esDueno(j.user)) return alPortal('sinpermiso');
+    window.PORTAL.user = j.user; window.PORTAL.rol = j.user.rol;
+    try { localStorage.setItem(CLAVE, JSON.stringify({ token:s.token, user:j.user, guardada:Date.now() })); } catch(e){}
+    seguir();
+  })
+  .catch(function(){ seguir(); });   // sin red: se trabaja con la sesion local
+})();
+</script>
+<div class="wrap">
+  <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px">
+    <div>
+      <h1>Proyección Flujo de Caja</h1>
+      <div class="sub">Lo que entra, lo que sale y lo que queda — mes a mes</div>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--text3)">Meses hacia adelante</label>
+      <select id="sel-futuro" class="inp" onchange="guardarAjuste('futuro',+this.value);pintar()">
+        <option value="0">ninguno</option><option value="3">3</option>
+        <option value="6" selected>6</option><option value="12">12</option>
+      </select>
+      <label style="font-size:12px;color:var(--text3);margin-left:6px">Meses atrás</label>
+      <select id="sel-atras" class="inp" onchange="guardarAjuste('atras',+this.value);pintar()">
+        <option value="3">3</option><option value="6" selected>6</option>
+        <option value="12">12</option><option value="99">todos</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="aviso-semilla" class="aviso hidden">
+    <b>⚠ Revisa los gastos antes de confiar en los números.</b><br>
+    Sembré la lista con los nombres y valores que se veían en tus capturas de la
+    hoja de cálculo, pero no sé si están al día. Ábrela más abajo, corrige lo que
+    haga falta y dale el botón de abajo.
+    <div style="margin-top:10px"><button class="btn pri" onclick="marcarRevisado()">Ya los revisé</button></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-h">
+      <span class="card-t">🏦 Saldo en el banco hoy</span>
+      <span style="font-size:11.5px;color:var(--text3)">de aquí arranca la proyección</span>
+      <div class="tot-tira">
+        <div class="b"><span id="saldo-cuando">Actualizado</span><b id="saldo-fecha" style="color:var(--text3);font-size:12px">—</b></div>
+        <div class="b"><span>Total</span><b id="saldo-tot" style="color:#FFFFFF">$0.00</b></div>
+      </div>
+    </div>
+    <div id="bancos-lista"></div>
+    <div style="padding:11px 16px;border-top:1px solid var(--border);display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+      <button class="btn pri" onclick="agregarBanco()">+ Agregar cuenta</button>
+      <label style="font-size:12px;color:var(--text3);margin-left:8px">Ese saldo es al empezar</label>
+      <select id="sel-desde" class="inp" onchange="DATOS.saldoDesde=this.value;guardarDatos();pintar()"></select>
+    </div>
+  </div>
+
+  <div id="tabla-meses" class="card"></div>
+
+  <div class="card">
+    <div class="card-h">
+      <span class="card-t">💸 Gastos fijos del mes</span>
+      <span style="font-size:11.5px;color:var(--text3)">se repiten todos los meses · los valores se pueden cambiar</span>
+      <div class="tot-tira">
+        <div class="b"><span>Empresa</span><b id="g-emp" style="color:var(--accent2)">$0.00</b></div>
+        <div class="b"><span>Personal</span><b id="g-per" style="color:var(--accent3)">$0.00</b></div>
+        <div class="b"><span>Total</span><b id="g-tot" style="color:var(--danger)">$0.00</b></div>
+      </div>
+    </div>
+    <div id="gastos-lista"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+      <button class="btn pri" onclick="agregarGasto()">+ Agregar gasto</button>
+      <button class="btn" onclick="exportarDatos()">⬇ Exportar respaldo</button>
+      <button class="btn" onclick="document.getElementById('imp-file').click()">⬆ Importar respaldo</button>
+      <input type="file" id="imp-file" accept="application/json,.json" class="hidden" onchange="importarDatos(this)">
+      <span id="g-estado" style="font-size:11.5px;color:var(--text3);margin-left:auto"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="card-t">ℹ️ De dónde sale cada cifra</span></div>
+    <div style="padding:14px 16px;font-size:12.5px;color:var(--text2);line-height:1.65">
+      <b style="color:var(--accent)">Entra:</b>
+      el <b>Callcenter Check</b> de las dos quincenas del mes, y el valor de los
+      <b>invoices</b> del mes <b>sin incluir White Wilson</b>.<br>
+      <b style="color:var(--danger)">Sale:</b>
+      el <b>consolidado de nómina</b> (subtotal + compensación dólar) de las dos
+      quincenas, el <b>cheque a Sigma</b> del mes, y los <b>gastos fijos</b> de aquí abajo.<br>
+      <b style="color:var(--accent2)">Saldo:</b>
+      arranca en lo que tengas hoy en el banco y le va sumando lo que queda cada mes.
+      Los meses anteriores a esa fecha no muestran saldo, porque esa plata ya está
+      contada dentro del saldo de hoy.<br>
+      <span class="nota" style="color:var(--text3)">
+        Este módulo solo <b>lee</b> la información de Nómina — nunca la modifica.
+        Los gastos y los ajustes viven únicamente aquí.
+      </span>
+    </div>
+  </div>
+</div>
+<script>
+// ─── Motor de invoices — COPIA EXACTA de nomina.html ───────────────────
+// Generado por extraer_motor.py. NO editar a mano: se regenera.
+// Solo lectura: ninguna de estas funciones escribe en los datos de Nomina.
+// Huella del motor: dc12c19a793b70f5   (funciones: 45)
+// Si Nomina cambia, correr de nuevo el extractor; probar_paridad.js
+// compara mes a mes que las dos apps den exactamente las mismas cifras.
+
+const CACHE_KEY = 'callcenter_historial_cache';
+
+const CONFIG_CACHE_KEY = 'callcenter_config_cache';
+
+const INV_CACHE_KEY   = 'inv_overrides_cache';
+
+const INVOICE_RATES_KEY       = 'invoice_rates_v1';
+
+const INVOICE_EXCLUDE = ['CARDIOVASCULAR','GASTROENTEROLOGY'];
+
+const INVOICE_RATES_DEFAULT = {
+  'WHITE WILSON': 1350,
+  'ACCESS':       1250,
+  'ADVANTAGE':    1250,
+  'TOTAL SLEEP':  1350,
+  'MAB':          1350,
+  'ALONSO':       1450,
+};
+
+const REABIERTAS_KEY = 'callcenter_quincenas_reabiertas';
+
+const DRAFT_CACHE_KEY = 'callcenter_borradores';
+
+const INV_COUNTER_KEY = 'inv_counter_cache';
+
+const INV_MERGE = {
+  'ACCESS':      'ACCESS',
+  'TOTAL SLEEP': 'TOTAL SLEEP',
+};
+
+function invR2(n){ return Math.round((Number(n)||0)*100)/100; }
+
+function numDias(v){
+  const n = invR2(parseFloat(v));
+  return isFinite(n) && n > 0 ? n : 0;
+}
+
+function normMkid(mkid){ const p=mkid.split('-'); return p[0]+'-'+String(parseInt(p[1])).padStart(2,'0'); }
+
+function invOvKey(mkid, nombre){ return normMkid(mkid)+'|'+nombre; }
+
+function makeIid(mkid, norKey, tipo){ return 'inv-acc-'+normMkid(mkid)+'-'+norKey.replace(/ /g,'-')+'-'+tipo; }
+
+function loadInvOv(){
+  try{ return JSON.parse(localStorage.getItem(INV_CACHE_KEY)||'{}'); }catch{ return {}; }
+}
+
+function getOv(mkid, nombre){
+  return loadInvOv()[invOvKey(mkid, nombre)] || {};
+}
+
+function normalizeAccountName(nombre){
+  const n = (nombre||'').toUpperCase();
+  if(n.includes('WHITE WILSON')) return 'WHITE WILSON';
+  if(n.includes('ACCESS'))       return 'ACCESS';
+  if(n.includes('ADVANTAGE'))    return 'ADVANTAGE';
+  if(n.includes('TOTAL SLEEP'))  return 'TOTAL SLEEP';
+  if(n.includes('MAB'))          return 'MAB';
+  if(n.includes('ALONSO'))       return 'ALONSO';
+  return n.trim();
+}
+
+function isExcluded(nombre){
+  const n = (nombre||'').toUpperCase();
+  return INVOICE_EXCLUDE.some(ex => n.includes(ex));
+}
+
+function calcDiasHabilesUSA(year, month, quincena){
+  const holidays = getUSHolidays(year);
+  const startDay = quincena === 1 ? 1 : 16;
+  const endDay   = quincena === 1 ? 15 : new Date(year, month, 0).getDate();
+  let count = 0;
+  for(let d = startDay; d <= endDay; d++){
+    const fecha = new Date(year, month-1, d);
+    const key   = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(fecha.getDay() > 0 && fecha.getDay() < 6 && !holidays.has(key)) count++;
+  }
+  return count;
+}
+
+function calcDiasHabileMes(anio, mes){
+  return calcDiasHabilesUSA(anio, mes, 1) + calcDiasHabilesUSA(anio, mes, 2);
+}
+
+function limpiarTarifas(obj){
+  const out = {};
+  if(!obj || typeof obj !== 'object') return out;
+  Object.keys(obj).forEach(k => {
+    const v = Number(obj[k]);
+    if(typeof k === 'string' && k.trim() && isFinite(v) && v > 0) out[k] = v;
+  });
+  return out;
+}
+
+function tarifaDesdeCuenta(invKey){
+  try {
+    const cu = (cuentas || []).find(c => c && c.tipo === 'own' && c.activo !== false
+                 && normalizeAccountName(c.nombre) === invKey);
+    const v = cu ? Number(cu.cobroAgente) : 0;
+    return isFinite(v) && v > 0 ? v : 0;
+  } catch(e){ return 0; }
+}
+
+function getEffectiveTarifa(invKey, ov){
+  if(ov && ov.tarifa !== undefined && ov.tarifa !== null) return +ov.tarifa || 0;
+  if(INVOICE_RATES[invKey] > 0) return INVOICE_RATES[invKey];
+  return tarifaDesdeCuenta(invKey);
+}
+
+function cargarHistorial(){
+  // Retorna cache mientras llega la respuesta real
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function historialParaInvoices(){
+  const hist = cargarHistorial();
+  const out  = hist.slice();
+  const keys = new Set(hist.map(h => h.key));
+  let borradores = {};
+  try { borradores = cargarBorradores(); } catch(e){ borradores = {}; }
+  Object.keys(borradores).forEach(k => {
+    if(keys.has(k)) return;                 // la versión aprobada siempre gana
+    const r = registroDesdeBorrador(k, borradores[k]);
+    if(r) out.push(r);
+  });
+  return out;
+}
+
+function groupHistorialByMonth(historial){
+  const months = {};
+  historial.forEach(h => {
+    const mk = `${h.anio}-${String(h.mes).padStart(2,'0')}`;
+    if(!months[mk]) months[mk] = { anio: h.anio, mes: h.mes, q1: null, q2: null };
+    if(h.quincena === 1) months[mk].q1 = h;
+    if(h.quincena === 2) months[mk].q2 = h;
+  });
+  return months;
+}
+
+function extractCuentaDias(registro, cuentaNombre, tipo){
+  const snap = registro && registro.cuentas.find(c => c.nombre === cuentaNombre && c.tipo === tipo);
+  if(!snap) return null;
+  if(tipo === 'dr'){
+    const diasRealesTotal = snap.agentes.filter(a=>a.estadoQuincena!=='inactive_perm').reduce((s,a)=>s+(a.dias||0),0);
+    return { diasRealesTotal, agentes: snap.agentes.filter(a=>a.estadoQuincena!=='inactive_perm') };
+  } else {
+    const diasCobrarTotal = snap.agentes.filter(a=>a.estadoQuincena!=='inactive_perm').reduce((s,a)=>s+(a.diasCobrar!==undefined?a.diasCobrar:(a.dias||0)),0);
+    return { diasCobrarTotal, agentes: snap.agentes.filter(a=>a.estadoQuincena!=='inactive_perm') };
+  }
+}
+
+function buildInvLineItems(mk, m, diasMes, mes){
+  // Gather all non-excluded cuentas
+  const allCuentas = detectCuentasForMonth(m.q1, m.q2);
+  // Build merged groups
+  const groups = {}; // invKey → { invKey, nombre (display), norKey, color, tarifa, subCuentas:[], ov }
+  const orderedKeys = [];
+
+  allCuentas.forEach(cu => {
+    const invKey = INV_MERGE[cu.norKey] || cu.norKey; // ACCESS stays ACCESS regardless of dr/own
+    if(!groups[invKey]){
+      // Find the cuenta object for color
+      const cObj = cuentas.find(c => c.nombre === cu.nombre);
+      const color = (cObj && cObj.color) ? cObj.color : '#888';
+      groups[invKey] = {
+        invKey,
+        nombre:   invKey,           // display name (e.g. "ACCESS", "TOTAL SLEEP")
+        norKey:   invKey,
+        color,
+        tarifa:   getEffectiveTarifa(invKey, getOv(mk, invKey)),
+        subCuentas: [],
+      };
+      orderedKeys.push(invKey);
+    }
+    groups[invKey].subCuentas.push(cu);
+    // Use first color found
+    if(groups[invKey].color === '#888'){
+      const cObj = cuentas.find(c => c.nombre === cu.nombre);
+      if(cObj && cObj.color) groups[invKey].color = cObj.color;
+    }
+  });
+
+  // Add MAB if not already in groups (e.g. zero days in historial but cuenta exists)
+  if(!groups['MAB']){
+    const mabCu = allCuentas.find(c => c.norKey === 'MAB');
+    const mabCuenta = cuentas.find(c => normalizeAccountName(c.nombre) === 'MAB');
+    if(mabCuenta){
+      groups['MAB'] = {
+        invKey: 'MAB', nombre: 'MAB', norKey: 'MAB',
+        color: mabCuenta.color || '#818cf8',
+        tarifa: getEffectiveTarifa('MAB', getOv(mk, 'MAB')),
+        subCuentas: mabCu ? [mabCu] : [{ nombre: mabCuenta.nombre, tipo: mabCuenta.tipo }],
+      };
+      orderedKeys.push('MAB');
+    }
+  }
+
+  // Compute days + monto for each group
+  return orderedKeys.map(invKey => {
+    const g  = groups[invKey];
+    const ov = getOv(mk, invKey);
+
+    // Sum dias across all sub-cuentas
+    let diasUsadosBase = 0;
+    g.subCuentas.forEach(cu => {
+      const q1d = extractCuentaDias(m.q1, cu.nombre, cu.tipo);
+      const q2d = extractCuentaDias(m.q2, cu.nombre, cu.tipo);
+      // For dr: use real days. For own: use cobrar days.
+      const d1 = cu.tipo==='dr' ? (q1d?.diasRealesTotal||0) : (q1d?.diasCobrarTotal||0);
+      const d2 = cu.tipo==='dr' ? (q2d?.diasRealesTotal||0) : (q2d?.diasCobrarTotal||0);
+      diasUsadosBase += d1 + d2;
+    });
+
+    const dM    = ov.diasMes !== undefined ? ov.diasMes : diasMes;
+    const dU    = ov.agenteDias ? Object.values(ov.agenteDias).reduce((s,v)=>s+v,0) : diasUsadosBase;
+    const pror  = dM > 0 ? dU/dM : 0;
+    const monto = g.tarifa * pror;
+
+    return { ...g, diasUsados:dU, diasMesBase:diasMes, diasMes:dM, pror, monto,
+             tipo: g.subCuentas.length===1 ? g.subCuentas[0].tipo : 'merged' };
+  });
+}
+
+function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
+  const historial = historialParaInvoices();
+  const months = groupHistorialByMonth(historial);
+  const mk = normMkid(mkid);
+  const m = months[mk];
+  if(!m || !m.q1 || !m.q2) return null;
+
+  const anio = parseInt(mk.split('-')[0]), mes = parseInt(mk.split('-')[1]);
+  const ov = getOv(mk, cuentaNombre);
+  const diasMesBase = calcDiasHabileMes(anio, mes);
+  const diasMes = ov.diasMes !== undefined ? ov.diasMes : diasMesBase;
+  const tarifa = getEffectiveTarifa(normalizeAccountName(cuentaNombre), ov);
+
+  // Build per-agent data from Q1+Q2 across all sub-cuentas (supports merged accounts)
+  // If no subCuentas provided and tipo is 'merged', detect them from historial
+  let cuList = subCuentas;
+  if(!cuList){
+    if(cuentaTipo === 'merged'){
+      // Find all sub-cuentas whose normalizedName matches cuentaNombre
+      cuList = [];
+      [m.q1, m.q2].forEach(reg => {
+        if(!reg) return;
+        reg.cuentas.forEach(c => {
+          if(normalizeAccountName(c.nombre) === cuentaNombre){
+            if(!cuList.find(x => x.nombre === c.nombre && x.tipo === c.tipo)){
+              cuList.push({ nombre: c.nombre, tipo: c.tipo });
+            }
+          }
+        });
+      });
+      if(!cuList.length) cuList = [{ nombre: cuentaNombre, tipo: 'own' }];
+    } else {
+      // Single cuenta - find actual nombre in historial (handles case where cuentaNombre is the norKey)
+      let realNombre = cuentaNombre;
+      [m.q1, m.q2].forEach(reg => {
+        if(!reg || realNombre !== cuentaNombre) return;
+        const snap = reg.cuentas.find(c => normalizeAccountName(c.nombre) === cuentaNombre || c.nombre === cuentaNombre);
+        if(snap) realNombre = snap.nombre;
+      });
+      cuList = [{ nombre: realNombre, tipo: cuentaTipo }];
+    }
+  }
+  const agMap = {};
+  cuList.forEach(cu => {
+    [m.q1, m.q2].forEach((reg, qi) => {
+      if(!reg) return;
+      const snap = reg.cuentas.find(c => c.nombre === cu.nombre && c.tipo === cu.tipo);
+      if(!snap) return;
+      snap.agentes.filter(a=>a.estadoQuincena!=='inactive_perm').forEach(a => {
+        if(!agMap[a.nombre]) agMap[a.nombre] = { diasQ1:0, diasQ2:0 };
+        const d = cu.tipo==='dr' ? (a.dias||0) : (a.diasCobrar!==undefined?a.diasCobrar:(a.dias||0));
+        if(qi===0) agMap[a.nombre].diasQ1 = d;
+        else       agMap[a.nombre].diasQ2 = d;
+      });
+    });
+  });
+  const agentes = Object.entries(agMap).map(([nombre,d]) => {
+    const totalBase = d.diasQ1+d.diasQ2;
+    const total = (ov.agenteDias && ov.agenteDias[nombre]!==undefined) ? ov.agenteDias[nombre] : totalBase;
+    return { nombre, diasQ1:d.diasQ1, diasQ2:d.diasQ2, totalBase, total };
+  });
+
+  // Los dias admiten medios dias, asi que se redondea la suma a centesimas
+  // para que 0.5 + 0.5 + 0.5 no arrastre error de coma flotante.
+  let totalDias = invR2(agentes.reduce((s,a)=>s+a.total,0));
+  // Descuento por dias no trabajados fijado a mano: se traduce a los dias
+  // facturables del invoice, de modo que prorrateo, monto y el reparto a Sigma
+  // salen de un unico numero coherente.
+  const _agFact     = agentes.filter(a=>a.total>0).length;
+  const _diasPlenos = invR2(_agFact * diasMes);
+  const descManual  = ov.descDias !== undefined && ov.descDias !== null;
+  if(descManual) totalDias = invR2(Math.max(0, _diasPlenos - (Number(ov.descDias)||0)));
+  const prorrateo = diasMes > 0 ? totalDias/diasMes : 0;
+  const monto = tarifa * prorrateo;
+  const numAgentes = agentes.length;
+
+  // Meta
+  const now = new Date();
+  const pad2 = n => String(n).padStart(2,'0');
+  const todayStr = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
+  const due = new Date(now); due.setDate(due.getDate()+15);
+  const dueStr = `${due.getFullYear()}-${pad2(due.getMonth()+1)}-${pad2(due.getDate())}`;
+
+  // Auto-assign invoice number on first access.
+  // Mientras el mes esté EN PROCESO (quincenas sin cerrar) no se consume
+  // número — se asigna al quedar ambas quincenas aprobadas.
+  const _enProceso = mesEnProceso(mk);
+  if(!ov.invnum && !_enProceso){
+    const autoNum = nextInvNum();
+    setOv(mk, cuentaNombre, { invnum: autoNum });
+    ov.invnum = autoNum;
+  }
+
+  // Default billedTo from cuenta config (use first matching cuenta for merged)
+  const cuentaObj = cuentas.find(c => normalizeAccountName(c.nombre) === normalizeAccountName(cuentaNombre));
+  const defaultBilledTo = (cuentaObj && cuentaObj.billedTo) ? cuentaObj.billedTo : '';
+
+  return {
+    anio, mes, mk, cuentaNombre, cuentaTipo,
+    diasMes, diasMesBase, tarifa, agentes, numAgentes, totalDias, prorrateo, monto,
+    descManual,
+    contact:    ov.contact   !== undefined ? ov.contact : defaultBilledTo,
+    invnum:     ov.invnum    || '',
+    dateissue:  ov.dateissue || todayStr,
+    duedate:    ov.duedate   || dueStr,
+    paid:       ov.paid      !== undefined ? ov.paid : 0,
+    pagado:     ov.pagado    === true,
+    pagos:      Array.isArray(ov.pagos) ? ov.pagos : [],
+    cerrado:    ov.cerrado   === true,
+    enProceso:  _enProceso,
+    periodoStart: ov.periodoStart || `${String(anio)}-${String(mes).padStart(2,'0')}-01`,
+    periodoEnd:   ov.periodoEnd   || `${String(anio)}-${String(mes).padStart(2,'0')}-${String(new Date(anio,mes,0).getDate()).padStart(2,'0')}`,
+  };
+}
+
+function calcSigmaCheck(data, cuentaTipo){
+  if(!data) return { sigmaAmt: 0, amt247: 0, hasSplit: false };
+  if(cuentaTipo === 'own'){
+    return { sigmaAmt: 0, amt247: data.monto, hasSplit: false };
+  }
+  // DR or merged: check for (24/7) agents
+  const is247 = n => n && (n.includes('(24/7)') || n.includes('(24-7)'));
+  const ags247 = data.agentes.filter(a => is247(a.nombre) && a.total > 0);
+  const agsDr  = data.agentes.filter(a => !is247(a.nombre) && a.total > 0);
+
+  // WHITE WILSON le paga a Sigma directamente: el importe se calcula igual que
+  // en las demas cuentas, pero NO es una obligacion de 24/7. sigmaAmt se queda
+  // en 0 y excluded en true — igual que antes, para que ningun total cambie —
+  // y la cifra viaja en sigmaDirecto, solo para poder verla y registrarla.
+  const _pagaDirecto = (data.cuentaNombre||'').toUpperCase().includes('WHITE WILSON');
+
+  if(ags247.length === 0){
+    // No (24/7) agents → all to Sigma
+    if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: false,
+                              excluded: true, sigmaDirecto: data.monto };
+    return { sigmaAmt: data.monto, amt247: 0, hasSplit: false };
+  }
+  // Mixed → split proportionally by days
+  const dias247 = ags247.reduce((s,a) => s+a.total, 0);
+  const diasDr  = agsDr.reduce((s,a) => s+a.total, 0);
+  // Se reparte el monto del invoice segun los dias de cada lado. Equivale a
+  // tarifa x dias/diasMes mientras no haya descuento manual, y sigue cuadrando
+  // cuando lo hay: amt247 + sigmaAmt == data.monto siempre.
+  const _baseDias = dias247 + diasDr;
+  const amt247  = _baseDias > 0 ? data.monto * dias247 / _baseDias : 0;
+  const sigmaAmt= _baseDias > 0 ? data.monto * diasDr  / _baseDias : 0;
+  if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: true,
+                            excluded: true, sigmaDirecto: sigmaAmt,
+                            ags247, agsDr, dias247, diasDr };
+  return { sigmaAmt, amt247, hasSplit: true, ags247, agsDr, dias247, diasDr };
+}
+
+function sigmaEstado(ov, sigmaAmt){
+  const r2 = n => Math.round((Number(n)||0)*100)/100;
+  const total = r2(sigmaAmt);
+  // Si el invoice se dio por perdido, la parte de Sigma se cancela con el: no
+  // se cobro, no se gira. Queda saldado sin figurar como pagado en dinero.
+  if(ov && ov.noPago === true){
+    return { total, pagado: 0, saldo: 0, completo: true, parcial: false, cancelado: true };
+  }
+  let pagado = Number(ov && ov.sigmaPaid);
+  if(!isFinite(pagado) || pagado < 0){
+    pagado = (ov && ov.sigmaPagado === true) ? total : 0;
+  }
+  pagado = Math.min(r2(pagado), total);
+  const saldo = r2(Math.max(0, total - pagado));
+  return {
+    total, pagado, saldo,
+    completo: total <= 0.005 || saldo < 0.005,
+    parcial:  pagado > 0.005 && saldo >= 0.005
+  };
+}
+
+function getUSHolidays(year){
+  const h = new Set();
+  const add = (m, d) => h.add(`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+
+  // Reglas para calcular feriados móviles
+  const nthMonday = (m, n) => {        // n-ésimo lunes del mes m
+    const d = new Date(year, m-1, 1);
+    let count = 0;
+    while(true){ if(d.getDay()===1) count++; if(count===n) break; d.setDate(d.getDate()+1); }
+    return d;
+  };
+  const lastMonday = (m) => {          // último lunes del mes m
+    const last = new Date(year, m, 0); // último día del mes
+    while(last.getDay()!==1) last.setDate(last.getDate()-1);
+    return last;
+  };
+  const nthThursday = (m, n) => {
+    const d = new Date(year, m-1, 1);
+    let count = 0;
+    while(true){ if(d.getDay()===4) count++; if(count===n) break; d.setDate(d.getDate()+1); }
+    return d;
+  };
+
+  // New Year's Day (1/1, observed Mon if Sun, Fri if Sat)
+  const ny = new Date(year, 0, 1);
+  if(ny.getDay()===0) add(1,2);
+  else if(ny.getDay()===6) add(12,31); // prev year, ignored for current calc
+  else add(1,1);
+
+  // MLK Day — 3rd Monday of January
+  const mlk = nthMonday(1,3); add(mlk.getMonth()+1, mlk.getDate());
+
+  // Presidents Day — 3rd Monday of February
+  const pres = nthMonday(2,3); add(pres.getMonth()+1, pres.getDate());
+
+  // Memorial Day — last Monday of May
+  const mem = lastMonday(5); add(mem.getMonth()+1, mem.getDate());
+
+  // Juneteenth (6/19)
+  const june = new Date(year, 5, 19);
+  if(june.getDay()===0) add(6,20);
+  else if(june.getDay()===6) add(6,18);
+  else add(6,19);
+
+  // Independence Day (7/4)
+  const july4 = new Date(year, 6, 4);
+  if(july4.getDay()===0) add(7,5);
+  else if(july4.getDay()===6) add(7,3);
+  else add(7,4);
+
+  // Labor Day — 1st Monday of September
+  const labor = nthMonday(9,1); add(labor.getMonth()+1, labor.getDate());
+
+  // Columbus Day — 2nd Monday of October
+  const col = nthMonday(10,2); add(col.getMonth()+1, col.getDate());
+
+  // Veterans Day (11/11)
+  const vet = new Date(year, 10, 11);
+  if(vet.getDay()===0) add(11,12);
+  else if(vet.getDay()===6) add(11,10);
+  else add(11,11);
+
+  // Thanksgiving — 4th Thursday of November
+  const tg = nthThursday(11,4); add(tg.getMonth()+1, tg.getDate());
+
+  // Christmas (12/25)
+  const xmas = new Date(year, 11, 25);
+  if(xmas.getDay()===0) add(12,26);
+  else if(xmas.getDay()===6) add(12,24);
+  else add(12,25);
+
+  return h;
+}
+
+function detectCuentasForMonth(q1, q2){
+  const map = {};
+  [q1, q2].forEach(reg => {
+    if(!reg) return;
+    reg.cuentas.forEach(c => {
+      if(isExcluded(c.nombre)) return;
+      const nk = normalizeAccountName(c.nombre);
+      if(!map[nk+'_'+c.tipo]) map[nk+'_'+c.tipo] = { nombre: c.nombre, tipo: c.tipo, norKey: nk };
+    });
+  });
+  return Object.values(map);
+}
+
+function cargarBorradores(){
+  try { return JSON.parse(localStorage.getItem(DRAFT_CACHE_KEY) || '{}'); } catch{ return {}; }
+}
+
+function registroDesdeBorrador(key, borrador){
+  if(!borrador || !borrador.agentesSnap) return null;
+  let p;
+  try { p = parsePeriodoKey(key); } catch(e){ return null; }
+  if(!p || !p.anio || !p.mes || !p.q) return null;
+  const agsSnap = borrador.agentesSnap;
+  const cuentasSnapshot = cuentas.filter(c => c.activo !== false).map(c => {
+    const ags = agsSnap.filter(a => a.cuenta === c.id);
+    return {
+      id: c.id, nombre: c.nombre, tipo: c.tipo,
+      agentes: ags.map(a => {
+        const inactivoPerm = a.estado === 'inactive';
+        const sinDias = c.tipo === 'dr'
+          ? ((a.dias||0) === 0 && (a.diasStd === 0 || a.diasStd === undefined))
+          : ((a.dias||0) === 0 && (a.diasCobrar === 0 ||
+              (a.diasCobrar === undefined && (a.diasStd === 0 || a.diasStd === undefined))));
+        return {
+          id: a.id, nombre: a.nombre, horas: a.horas, valor: a.valor,
+          dias: a.dias || 0, diasStd: a.diasStd || 0, diasCobrar: a.diasCobrar,
+          estadoQuincena: inactivoPerm ? 'inactive_perm' : (sinDias ? 'inactive_temp' : 'active')
+        };
+      })
+    };
+  });
+  return { key, anio: p.anio, mes: p.mes, quincena: p.q, _borrador: true,
+           periodo: periodoLabel(p.anio, p.mes, p.q), cuentas: cuentasSnapshot };
+}
+
+function mesEnProceso(mk){
+  const m = normMkid(mk);
+  const [anio, mes] = m.split('-').map(Number);
+  if(!anio || !mes) return true;
+  const hist = cargarHistorial();
+  const k1 = buildPeriodoKey(anio, mes, 1);
+  const k2 = buildPeriodoKey(anio, mes, 2);
+  const ok1 = hist.some(h => h.key === k1);
+  const ok2 = hist.some(h => h.key === k2);
+  if(!ok1 || !ok2) return true;
+  // Una quincena aprobada pero RE-ABIERTA también deja el mes en proceso
+  try { if(estaReabierta(k1) || estaReabierta(k2)) return true; } catch(e){}
+  return false;
+}
+
+function nextInvNum(){
+  const n = loadInvCounter() + 1;
+  _cacheInvCounter(n);
+  // Persist counter to Sheets
+  fetch(GS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'saveInvCounter', value: n })
+  }).catch(()=>{});
+  const year = new Date().getFullYear();
+  return 'INV-' + year + String(n).padStart(3,'0');
+}
+
+function loadInvCounter(){
+  return parseInt(localStorage.getItem(INV_COUNTER_KEY)||'0');
+}
+
+function _cacheInvCounter(n){
+  localStorage.setItem(INV_COUNTER_KEY, String(n));
+}
+
+function buildPeriodoKey(anio, mes, q){
+  return `${anio}-${String(mes).padStart(2,'0')}-Q${q}`;
+}
+
+function parsePeriodoKey(key){
+  const [anio, mes, qStr] = key.split('-');
+  return { anio: parseInt(anio), mes: parseInt(mes), q: parseInt(qStr.replace('Q','')) };
+}
+
+function periodoLabel(anio, mes, q){
+  return `${q === 1 ? '1ª' : '2ª'} Quincena ${MESES[mes-1]} ${anio}`;
+}
+
+function estaReabierta(key){
+  if(!key) return false;
+  if(cargarReabiertas().indexOf(key) >= 0) return true;
+  const r = cargarHistorial().find(h => h.key === key);
+  return !!(r && r.reabierta === true);
+}
+
+function cargarReabiertas(){
+  try { const a = JSON.parse(localStorage.getItem(REABIERTAS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch(e){ return []; }
+}
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  Proyección Flujo de Caja — lógica del módulo
+//  Lee de Nómina (historial, configuración, invoices) y NUNCA le escribe.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const GS_URL = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const FLUJO_KEY = 'flujo_proyeccion_v1';
+
+const $ = id => document.getElementById(id);
+const R2  = n => Math.round((Number(n)||0)*100)/100;
+const fmt = n => (n<0?'-$':'$') + Math.abs(R2(n)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                 .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+// El motor copiado de Nómina espera estas variables globales.
+let cuentas = [];
+let agentes = [];
+let INVOICE_RATES = { ...INVOICE_RATES_DEFAULT };
+
+// ── SOLO LECTURA ────────────────────────────────────────────────────────────
+// buildInvData() de Nómina asigna un número de invoice si falta, y para eso
+// llama a setOv(). Aquí eso sería escribir en los datos de Nómina, que es
+// justo lo que este módulo no puede hacer. Se deja sin efecto a propósito.
+function setOv(){ /* no-op: este módulo no escribe en Nómina */ }
+function _guardarInvOvSheets(){ /* no-op */ }
+function _cacheInvOv(){ /* no-op */ }
+// nextInvNum() del motor sube el contador de invoices y lo manda a Sheets.
+// Aquí eso sería inventar números de invoice desde un módulo de consulta, así
+// que se anula: al flujo de caja no le importa el número, solo el monto.
+function nextInvNum(){ return ''; }
+function _cacheInvCounter(){ /* no-op */ }
+
+// ═══ Datos propios del módulo ══════════════════════════════════════════════
+// Sembrados con lo que se veía en las capturas de la hoja de cálculo de Carlos.
+// Son un punto de partida para que no tenga que escribirlos de cero, NO una
+// fuente de verdad: por eso arrancan marcados como "sin revisar".
+const GASTOS_SEMILLA = [
+  { nombre:'Renta',            valor:2400, cat:'empresa'  },
+  { nombre:'T.C 24/7',         valor:3500, cat:'empresa'  },
+  { nombre:'American Express', valor:750,  cat:'empresa'  },
+  { nombre:'Chase',            valor:750,  cat:'empresa'  },
+  { nombre:'Resync',           valor:600,  cat:'empresa'  },
+  { nombre:'Lina',             valor:1200, cat:'personal' },
+  { nombre:'Honda',            valor:700,  cat:'personal' },
+  { nombre:'Kia',              valor:700,  cat:'personal' },
+  { nombre:'Jami',             valor:400,  cat:'personal' },
+  { nombre:'Jose',             valor:150,  cat:'personal' },
+];
+
+function mesDeHoy(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function datosPorDefecto(){
+  return {
+    version: 1,
+    revisado: false,
+    // El saldo que hay HOY en el banco. Es el punto de partida de la
+    // proyeccion: sin el, la columna acumulada solo dice cuanto se mueve, no
+    // cuanta plata queda de verdad.
+    bancos: [
+      { id:'boa',     nombre:'Bank of America', saldo:0 },
+      { id:'regions', nombre:'Regions Bank',    saldo:0 }
+    ],
+    saldoFecha: '',            // cuando se actualizo por ultima vez
+    saldoDesde: mesDeHoy(),    // desde que mes aplica ese saldo
+    ajustes: { futuro: 6, atras: 6 },
+    gastos: GASTOS_SEMILLA.map((g,i) => ({
+      id: 'g' + (i+1), nombre: g.nombre, valor: g.valor, cat: g.cat, activo: true
+    })),
+    // Ajuste de un mes puntual:  { 'YYYY-MM': { g3: 1800 } }
+    porMes: {}
+  };
+}
+
+let DATOS = cargarDatos();
+
+function cargarDatos(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(FLUJO_KEY) || 'null');
+    if(raw && typeof raw === 'object' && Array.isArray(raw.gastos)){
+      const base = datosPorDefecto();
+      return { ...base, ...raw, ajustes: { ...base.ajustes, ...(raw.ajustes||{}) },
+               bancos: Array.isArray(raw.bancos) && raw.bancos.length ? raw.bancos : base.bancos,
+               saldoDesde: raw.saldoDesde || base.saldoDesde,
+               porMes: raw.porMes || {} };
+    }
+  } catch(e){}
+  return datosPorDefecto();
+}
+function guardarDatos(){
+  try { localStorage.setItem(FLUJO_KEY, JSON.stringify(DATOS)); } catch(e){}
+  const el = $('g-estado');
+  if(el){ el.textContent = 'Guardado ✓'; setTimeout(()=>{ el.textContent=''; }, 1800); }
+}
+function guardarAjuste(k, v){ DATOS.ajustes[k] = v; guardarDatos(); }
+
+// ═══ Lectura de Nómina ═════════════════════════════════════════════════════
+// Primero lo que ya está en este navegador (instantáneo), y en paralelo se
+// pide al servidor por si otra máquina aprobó una quincena.
+function leerCacheLocal(){
+  try {
+    const cfg = JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) || 'null');
+    if(cfg && Array.isArray(cfg.cuentas)) cuentas = cfg.cuentas;
+    if(cfg && Array.isArray(cfg.agentes)) agentes = cfg.agentes;
+  } catch(e){}
+  try {
+    const t = JSON.parse(localStorage.getItem(INVOICE_RATES_KEY) || 'null');
+    if(t && typeof t === 'object') INVOICE_RATES = { ...INVOICE_RATES_DEFAULT, ...limpiarTarifas(t) };
+  } catch(e){}
+}
+
+// Una respuesta de error del Apps Script llega con forma de objeto, y si se
+// guarda como si fuera dato borra el cache. Mismo guardia que en Nómina.
+function esRespuestaDeError(data){
+  if(!data || typeof data !== 'object') return true;
+  if(Array.isArray(data)) return false;
+  if(data.ok === false) return true;
+  if(data.error) return true;
+  if(typeof data.codigo === 'string' && typeof data.msg === 'string') return true;
+  return false;
+}
+
+function refrescarDesdeServidor(){
+  const pedir = (tipo) => fetch(GS_URL + '?tipo=' + tipo).then(r => r.json()).catch(()=>null);
+  return Promise.all([pedir('historial'), pedir('config'), pedir('invoiceOv')])
+    .then(([hist, cfg, ovs]) => {
+      let cambio = false;
+      if(Array.isArray(hist) && hist.length){
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(hist)); cambio = true; } catch(e){}
+      }
+      if(cfg && !esRespuestaDeError(cfg) && Array.isArray(cfg.cuentas)){
+        cuentas = cfg.cuentas;
+        if(Array.isArray(cfg.agentes)) agentes = cfg.agentes;
+        cambio = true;
+      }
+      if(ovs && !esRespuestaDeError(ovs)){
+        try {
+          localStorage.setItem(INV_CACHE_KEY, JSON.stringify(ovs));
+          const t = ovs['__rates__'];
+          if(t && typeof t === 'object') INVOICE_RATES = { ...INVOICE_RATES_DEFAULT, ...limpiarTarifas(t) };
+          cambio = true;
+        } catch(e){}
+      }
+      return cambio;
+    });
+}
+
+// ═══ Las cifras de cada mes ════════════════════════════════════════════════
+
+// Consolidado de nómina de una quincena: lo mismo que muestra el cuadro
+// "Consolidado" de Nómina — subtotal de nóminas más la compensación dólar,
+// cada agente con el porcentaje de SU cuenta.
+function consolidadoQuincena(reg){
+  let sub = 0, comp = 0;
+  (reg.cuentas || []).forEach(c => {
+    const pct = c.tipo === 'own'
+      ? (c.dollarPctOwn !== undefined ? c.dollarPctOwn : 0.15)
+      : (c.dollarPctReal || 0.15);
+    (c.agentes || []).forEach(a => {
+      const n = Number(a.nomina) || 0;
+      if(n > 0){ sub += n; comp += n * pct; }
+    });
+  });
+  return { sub: R2(sub), comp: R2(comp), total: R2(sub + comp) };
+}
+
+// Todo lo de un mes real: ingresos, egresos y con qué detalle.
+function calcularMes(mk){
+  const [anio, mes] = mk.split('-').map(Number);
+  const historial = cargarHistorial();
+  const delMes = historial.filter(r => r.anio === anio && r.mes === mes);
+  const q1 = delMes.find(r => r.quincena === 1);
+  const q2 = delMes.find(r => r.quincena === 2);
+
+  // ── Entra ──
+  let ccCheck = 0; const ccDet = [];
+  [q1, q2].forEach((r, i) => {
+    if(!r) return;
+    const v = R2((r.resumen && r.resumen.totalDrCheck) || 0);
+    ccCheck += v; ccDet.push({ e: 'Callcenter Check · Q' + (i+1), m: v });
+  });
+
+  const invDet = []; let invTotal = 0, invPendiente = 0;
+  if(q1 && q2){
+    const months = groupHistorialByMonth(historialParaInvoices());
+    const m = months[mk];
+    if(m && m.q1 && m.q2){
+      let items = [];
+      try { items = buildInvLineItems(mk, m, calcDiasHabileMes(anio, mes), mes); } catch(e){ items = []; }
+      items.forEach(it => {
+        const nombre = it.invKey || it.nombre;
+        if(normalizeAccountName(nombre) === 'WHITE WILSON') return;   // Carlos lo pidió fuera
+        let d = null;
+        try { d = buildInvData(mk, nombre, it.tipo, it.subCuentas || null); } catch(e){}
+        if(!d || !(d.monto > 0.005)) return;
+        const ov = getOv(mk, nombre);
+        if(ov.noPago === true) return;                                 // dado por perdido
+        invTotal += d.monto;
+        const est = estadoCobro(ov, d.monto);
+        if(est.saldo > 0.005) invPendiente += est.saldo;
+        invDet.push({ e: nombre, m: R2(d.monto), saldo: est.saldo, cerrado: ov.cerrado === true });
+      });
+    }
+  }
+  invDet.sort((a,b) => b.m - a.m);
+
+  // ── Sale ──
+  let nomTotal = 0; const nomDet = [];
+  [q1, q2].forEach((r, i) => {
+    if(!r) return;
+    const c = consolidadoQuincena(r);
+    nomTotal += c.total;
+    nomDet.push({ e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: c.total });
+  });
+
+  let sigma = 0; const sigDet = [];
+  if(q1 && q2){
+    const months = groupHistorialByMonth(historialParaInvoices());
+    const m = months[mk];
+    if(m && m.q1 && m.q2){
+      let items = [];
+      try { items = buildInvLineItems(mk, m, calcDiasHabileMes(anio, mes), mes); } catch(e){ items = []; }
+      items.forEach(it => {
+        if(it.tipo === 'own') return;
+        const nombre = it.invKey || it.nombre;
+        let d = null, sg = null;
+        try { d = buildInvData(mk, nombre, it.tipo, it.subCuentas || null);
+              if(d) sg = calcSigmaCheck(d, it.tipo); } catch(e){}
+        if(!sg || !(sg.sigmaAmt > 0.005)) return;      // White Wilson sale en 0: paga directo
+        const ov = getOv(mk, nombre);
+        if(ov.noPago === true) return;                 // el cheque se cancela con el invoice
+        sigma += sg.sigmaAmt;
+        sigDet.push({ e: nombre, m: R2(sg.sigmaAmt) });
+      });
+    }
+  }
+  sigDet.sort((a,b) => b.m - a.m);
+
+  const gastos = gastosDelMes(mk);
+  const gTotal = gastos.reduce((t,g) => t + g.valor, 0);
+
+  const entra = R2(ccCheck + invTotal);
+  const sale  = R2(nomTotal + sigma + gTotal);
+  return {
+    mk, anio, mes, real: true,
+    completo: !!(q1 && q2), quincenas: (q1?1:0) + (q2?1:0),
+    ccCheck: R2(ccCheck), ccDet,
+    invTotal: R2(invTotal), invDet, invPendiente: R2(invPendiente),
+    nomTotal: R2(nomTotal), nomDet,
+    sigma: R2(sigma), sigDet,
+    gastos, gTotal: R2(gTotal),
+    entra, sale, neto: R2(entra - sale)
+  };
+}
+
+// Cuánto falta por cobrar de un invoice — misma lógica de pagos que Nómina.
+function estadoCobro(ov, total){
+  const t = R2(total);
+  if(ov && ov.noPago === true) return { pagado: 0, saldo: 0 };
+  let pagado = 0;
+  if(Array.isArray(ov && ov.pagos)) pagado = ov.pagos.reduce((s,p) => s + (Number(p.monto)||0), 0);
+  else if(ov && ov.paid !== undefined) pagado = Number(ov.paid) || 0;
+  else if(ov && ov.pagado === true) pagado = t;
+  pagado = Math.min(R2(pagado), t);
+  return { pagado, saldo: R2(Math.max(0, t - pagado)) };
+}
+
+// ── Gastos del mes: la lista fija, con el ajuste puntual si lo hay ──
+function gastosDelMes(mk){
+  const aj = DATOS.porMes[mk] || {};
+  return DATOS.gastos.filter(g => g.activo !== false).map(g => ({
+    id: g.id, nombre: g.nombre, cat: g.cat,
+    valor: R2(aj[g.id] !== undefined ? aj[g.id] : g.valor),
+    ajustado: aj[g.id] !== undefined
+  }));
+}
+
+// ═══ La proyección de los meses que todavía no existen ═════════════════════
+// Se estima con el promedio de los últimos meses COMPLETOS. Los gastos no se
+// promedian: son fijos y se conocen.
+function estimarMes(mk, base){
+  const [anio, mes] = mk.split('-').map(Number);
+  const prom = k => base.length ? R2(base.reduce((t,m) => t + m[k], 0) / base.length) : 0;
+  const gastos = gastosDelMes(mk);
+  const gTotal = gastos.reduce((t,g) => t + g.valor, 0);
+  const ccCheck = prom('ccCheck'), invTotal = prom('invTotal');
+  const nomTotal = prom('nomTotal'), sigma = prom('sigma');
+  const entra = R2(ccCheck + invTotal), sale = R2(nomTotal + sigma + gTotal);
+  return {
+    mk, anio, mes, real: false, completo: false, quincenas: 0,
+    baseMeses: base.map(m => m.mk),
+    ccCheck, ccDet: [{ e: 'Promedio de ' + base.length + ' mes(es)', m: ccCheck }],
+    invTotal, invDet: [{ e: 'Promedio de ' + base.length + ' mes(es)', m: invTotal }], invPendiente: 0,
+    nomTotal, nomDet: [{ e: 'Promedio de ' + base.length + ' mes(es)', m: nomTotal }],
+    sigma, sigDet: [{ e: 'Promedio de ' + base.length + ' mes(es)', m: sigma }],
+    gastos, gTotal: R2(gTotal),
+    entra, sale, neto: R2(entra - sale)
+  };
+}
+
+function mesSiguiente(mk){
+  let [a, m] = mk.split('-').map(Number);
+  m++; if(m > 12){ m = 1; a++; }
+  return a + '-' + String(m).padStart(2,'0');
+}
+
+// La serie completa: meses con datos reales + los estimados hacia adelante.
+function construirSerie(){
+  const historial = cargarHistorial();
+  const claves = [...new Set(historial.map(r => r.anio + '-' + String(r.mes).padStart(2,'0')))].sort();
+  const atras = DATOS.ajustes.atras || 6;
+  const recorte = atras >= 99 ? claves : claves.slice(-atras);
+  const reales = recorte.map(calcularMes);
+
+  // Para estimar se usan los tres últimos meses completos, que son los únicos
+  // con las dos quincenas y por tanto con invoices y Sigma de verdad.
+  const completos = reales.filter(m => m.completo).slice(-3);
+  const cuantos = DATOS.ajustes.futuro || 0;
+  const serie = reales.slice();
+  if(cuantos > 0 && claves.length){
+    let mk = claves[claves.length-1];
+    for(let i = 0; i < cuantos; i++){
+      mk = mesSiguiente(mk);
+      serie.push(estimarMes(mk, completos));
+    }
+  }
+  // El saldo del banco es de HOY, así que ya trae dentro todo lo que pasó en los
+  // meses anteriores. Arrancar el acumulado desde un mes viejo contaría esa
+  // plata dos veces; por eso la proyección del saldo empieza en saldoDesde y los
+  // meses previos no muestran saldo.
+  const desde = DATOS.saldoDesde || mesDeHoy();
+  let saldo = saldoBanco();
+  let acum = 0;
+  serie.forEach(m => {
+    acum = R2(acum + m.neto);
+    m.acum = acum;
+    if(m.mk >= desde){ saldo = R2(saldo + m.neto); m.saldo = saldo; }
+    else { m.saldo = null; }
+  });
+  return serie;
+}
+
+function saldoBanco(){
+  return R2((DATOS.bancos || []).reduce((t,b) => t + (Number(b.saldo)||0), 0));
+}
+</script>
+<script>
+
+// ═══ Pintar ════════════════════════════════════════════════════════════════
+// Un solo mes desplegado a la vez — mismo patrón que Invoices y Sigma en
+// Nómina, para que nunca haya duda de en cuál se está mirando o escribiendo.
+let _mesAbierto = null;
+
+function toggleMes(mk){
+  _mesAbierto = (_mesAbierto === mk) ? null : mk;
+  pintar();
+}
+
+function bloqueLineas(titulo, color, lineas, total, etiquetaTotal){
+  const filas = lineas.length
+    ? lineas.map(l => `<div class="lin">
+         <span class="e">${esc(l.e)}</span>
+         <span class="m">${fmt(l.m)}</span>
+       </div>`).join('')
+    : '<div class="lin"><span class="e nota">Sin movimiento</span></div>';
+  return `
+    <div class="det-t" style="color:${color}">${titulo}</div>
+    ${filas}
+    <div class="lin tot"><span class="e">${etiquetaTotal}</span>
+      <span class="m" style="color:${color}">${fmt(total)}</span></div>`;
+}
+
+function detalleMes(m){
+  const gastosLin = m.gastos.map(g => ({
+    e: g.nombre + (g.cat === 'personal' ? ' · personal' : ' · empresa') + (g.ajustado ? ' · ajustado este mes' : ''),
+    m: g.valor
+  }));
+  const avisoEst = m.real ? '' : `
+    <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border)">
+      Mes estimado con el promedio de ${m.baseMeses.length ? m.baseMeses.join(', ') : '—'}.
+      Los gastos fijos no se promedian: son los de tu lista.
+    </div>`;
+  const avisoParcial = (m.real && !m.completo) ? `
+    <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border);color:var(--accent3)">
+      Este mes todavía tiene ${m.quincenas} de 2 quincenas aprobadas. Los invoices y el
+      cheque a Sigma solo se calculan con el mes completo, así que aquí van en cero.
+    </div>` : '';
+  const pend = m.invPendiente > 0.005 ? `
+    <div class="nota" style="margin-top:7px">
+      De los invoices de este mes quedan <b>${fmt(m.invPendiente)}</b> por cobrar.
+    </div>` : '';
+
+  return `
+    <div class="panel">
+      <div class="det-h">Detalle de <b>${MESES[m.mes-1]} ${m.anio}</b></div>
+      <div class="det-grid">
+        <div class="det-col">
+          ${bloqueLineas('⬆ Entra', 'var(--accent)',
+            m.ccDet.concat(m.invDet.map(d => ({ e: 'Invoice · ' + d.e, m: d.m }))),
+            m.entra, 'Total que entra')}
+          ${pend}
+        </div>
+        <div class="det-col">
+          ${bloqueLineas('⬇ Sale', 'var(--danger)',
+            m.nomDet
+              .concat(m.sigDet.map(d => ({ e: 'Sigma · ' + d.e, m: d.m })))
+              .concat(gastosLin),
+            m.sale, 'Total que sale')}
+          <div class="lin tot" style="border-top-width:3px">
+            <span class="e">Queda</span>
+            <span class="m" style="color:${m.neto>=0?'var(--accent)':'var(--danger)'}">${m.neto<0?'▼ ':''}${fmt(m.neto)}</span>
+          </div>
+        </div>
+      </div>
+      ${avisoParcial}${avisoEst}
+    </div>`;
+}
+
+function pintar(){
+  const serie = construirSerie();
+  const el = $('tabla-meses');
+  if(!serie.length){
+    el.innerHTML = '<div class="empty">Todavía no hay quincenas aprobadas en Nómina.</div>';
+    pintarBancos(); pintarGastos();
+    return;
+  }
+  const filas = serie.map(m => {
+    const abierta = _mesAbierto === m.mk;
+    const etiqueta = !m.real
+      ? '<span class="pill est">estimado</span>'
+      : (m.completo ? '' : '<span class="pill parcial">' + m.quincenas + '/2 quincenas</span>');
+    return `
+    <div>
+      <div class="mes-f ${abierta?'abierta':''}" role="button" tabindex="0"
+        aria-expanded="${abierta}" onclick="toggleMes('${m.mk}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMes('${m.mk}');}">
+        <span class="n"><span class="flecha" style="transform:rotate(${abierta?90:0}deg)">▶</span>
+          ${MESES[m.mes-1]} ${m.anio} ${etiqueta}</span>
+        <span class="v ent">${fmt(m.ccCheck)}</span>
+        <span class="v ent">${fmt(m.invTotal)}</span>
+        <span class="v sal">${fmt(m.nomTotal)}</span>
+        <span class="v sal">${fmt(m.sigma)}</span>
+        <span class="v sal">${fmt(m.gTotal)}</span>
+        <span class="v ${m.neto>=0?'neto-pos':'neto-neg'}">${m.neto<0?'▼ ':''}${fmt(m.neto)}</span>
+        <span class="v ${m.saldo===null?'':(m.saldo<0?'saldo-neg':'saldo-pos')}">${
+          m.saldo===null ? '<span style="color:var(--text3);font-size:11.5px">—</span>'
+                         : (m.saldo<0?'⚠ ':'') + fmt(m.saldo)}</span>
+      </div>
+      ${abierta ? detalleMes(m) : ''}
+    </div>`;
+  }).join('');
+
+  const conSaldo = serie.filter(m => m.saldo !== null);
+  const saldoFinal = conSaldo.length ? conSaldo[conSaldo.length-1].saldo : saldoBanco();
+  const enRojo = conSaldo.filter(m => m.saldo < 0);
+  const primerRojo = enRojo.length ? enRojo[0] : null;
+
+  el.innerHTML = `
+    <div class="card-h">
+      <span class="card-t">📅 Mes a mes</span>
+      <span style="font-size:11.5px;color:var(--text3)">${serie.length} meses · toca uno para ver el detalle</span>
+      <div class="tot-tira">
+        <div class="b"><span>Saldo hoy</span><b style="color:var(--text2)">${fmt(saldoBanco())}</b></div>
+        <div class="b"><span>Saldo al final</span>
+          <b style="color:${saldoFinal>=0?'#FFFFFF':'var(--danger)'}">${fmt(saldoFinal)}</b></div>
+      </div>
+    </div>
+    ${primerRojo ? `<div style="padding:11px 16px;background:rgba(244,103,107,.12);
+      border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text2)">
+      <b style="color:var(--danger)">⚠ El saldo se va a negativo en ${MESES[primerRojo.mes-1]} ${primerRojo.anio}</b>
+      — quedaría en ${fmt(primerRojo.saldo)}. Son ${enRojo.length} mes(es) por debajo de cero.
+    </div>` : ''}
+    <div class="mes-h">
+      <span>Mes</span><span>⬆ Callcenter Check</span><span>⬆ Invoices</span>
+      <span>⬇ Nómina</span><span>⬇ Sigma</span><span>⬇ Gastos</span><span>= Queda</span>
+      <span>Saldo en banco</span>
+    </div>
+    ${filas}`;
+  pintarBancos();
+  pintarGastos();
+}
+
+// ═══ Saldo en el banco ═════════════════════════════════════════════════════
+function pintarBancos(){
+  const el = $('bancos-lista');
+  if(!el) return;
+  el.innerHTML = (DATOS.bancos||[]).map((b, i) => `
+    <div class="gasto-f">
+      <input type="text" class="inp txt" value="${esc(b.nombre)}" placeholder="Nombre del banco"
+        onchange="DATOS.bancos[${i}].nombre=this.value;guardarDatos();pintar()">
+      <span style="font-size:12px;color:var(--text3)">$</span>
+      <input type="number" class="inp" step="0.01" value="${b.saldo}"
+        onchange="fijarSaldo(${i}, this.value)">
+      ${(DATOS.bancos||[]).length > 1
+        ? `<button class="btn del" title="Quitar esta cuenta" onclick="quitarBanco(${i})">✕</button>` : ''}
+    </div>`).join('') || '<div class="empty">Sin cuentas. Agrega una abajo.</div>';
+
+  $('saldo-tot').textContent = fmt(saldoBanco());
+  $('saldo-fecha').textContent = DATOS.saldoFecha
+    ? DATOS.saldoFecha
+    : 'sin actualizar';
+  // Desde qué mes aplica ese saldo
+  const sel = $('sel-desde');
+  if(sel){
+    const hoy = mesDeHoy();
+    const opciones = [];
+    let mk = hoy;
+    // tres meses atrás y tres adelante, por si actualiza el saldo con retraso
+    let atras = hoy;
+    for(let i=0;i<3;i++) atras = mesAnterior(atras);
+    mk = atras;
+    for(let i=0;i<7;i++){ opciones.push(mk); mk = mesSiguiente(mk); }
+    if(opciones.indexOf(DATOS.saldoDesde) < 0) opciones.push(DATOS.saldoDesde);
+    opciones.sort();
+    sel.innerHTML = opciones.map(o => {
+      const [a,m] = o.split('-').map(Number);
+      return `<option value="${o}" ${o===DATOS.saldoDesde?'selected':''}>${MESES[m-1]} ${a}</option>`;
+    }).join('');
+  }
+}
+function mesAnterior(mk){
+  let [a,m] = mk.split('-').map(Number);
+  m--; if(m < 1){ m = 12; a--; }
+  return a + '-' + String(m).padStart(2,'0');
+}
+function fijarSaldo(i, v){
+  const n = parseFloat(v);
+  DATOS.bancos[i].saldo = isFinite(n) ? R2(n) : 0;
+  // Se anota cuándo se actualizó: un saldo de hace dos meses no sirve de punto
+  // de partida y hay que poder verlo de un vistazo.
+  DATOS.saldoFecha = new Date().toISOString().slice(0,10);
+  guardarDatos(); pintar();
+}
+function agregarBanco(){
+  DATOS.bancos.push({ id:'b'+Date.now(), nombre:'', saldo:0 });
+  guardarDatos(); pintar();
+}
+function quitarBanco(i){
+  const b = DATOS.bancos[i];
+  if(!confirm('¿Quitar "' + (b.nombre || 'esta cuenta') + '"?')) return;
+  DATOS.bancos.splice(i,1); guardarDatos(); pintar();
+}
+
+// ═══ Gastos ════════════════════════════════════════════════════════════════
+function pintarGastos(){
+  const el = $('gastos-lista');
+  if(!el) return;
+  const av = $('aviso-semilla');
+  if(av) av.classList.toggle('hidden', DATOS.revisado === true);
+
+  el.innerHTML = DATOS.gastos.map((g, i) => `
+    <div class="gasto-f ${g.activo===false?'off':''}">
+      <input type="checkbox" ${g.activo!==false?'checked':''} title="Incluir este gasto"
+        onchange="DATOS.gastos[${i}].activo=this.checked;guardarDatos();pintar()">
+      <input type="text" class="inp txt" value="${esc(g.nombre)}" placeholder="Nombre del gasto"
+        onchange="DATOS.gastos[${i}].nombre=this.value;guardarDatos();pintar()">
+      <select class="inp" onchange="DATOS.gastos[${i}].cat=this.value;guardarDatos();pintar()">
+        <option value="empresa"  ${g.cat==='empresa'?'selected':''}>Empresa</option>
+        <option value="personal" ${g.cat==='personal'?'selected':''}>Personal</option>
+      </select>
+      <span style="font-size:12px;color:var(--text3)">$</span>
+      <input type="number" class="inp" step="0.01" min="0" value="${g.valor}"
+        onchange="fijarValorGasto(${i}, this.value)">
+      <button class="btn del" title="Quitar este gasto" onclick="quitarGasto(${i})">✕</button>
+    </div>`).join('') || '<div class="empty">Sin gastos. Agrega el primero abajo.</div>';
+
+  const act = DATOS.gastos.filter(g => g.activo !== false);
+  const emp = R2(act.filter(g=>g.cat==='empresa').reduce((t,g)=>t+(+g.valor||0),0));
+  const per = R2(act.filter(g=>g.cat==='personal').reduce((t,g)=>t+(+g.valor||0),0));
+  $('g-emp').textContent = fmt(emp);
+  $('g-per').textContent = fmt(per);
+  $('g-tot').textContent = fmt(emp + per);
+}
+
+function fijarValorGasto(i, v){
+  const n = parseFloat(v);
+  DATOS.gastos[i].valor = isFinite(n) && n >= 0 ? R2(n) : 0;
+  guardarDatos(); pintar();
+}
+function agregarGasto(){
+  const ids = DATOS.gastos.map(g => parseInt(String(g.id).replace(/\D/g,''),10) || 0);
+  DATOS.gastos.push({ id:'g'+(Math.max(0,...ids)+1), nombre:'', valor:0, cat:'empresa', activo:true });
+  guardarDatos(); pintar();
+}
+function quitarGasto(i){
+  const g = DATOS.gastos[i];
+  if(!confirm('¿Quitar "' + (g.nombre || 'este gasto') + '" de la lista?\n\nDeja de contarse en todos los meses.')) return;
+  DATOS.gastos.splice(i,1); guardarDatos(); pintar();
+}
+function marcarRevisado(){ DATOS.revisado = true; guardarDatos(); pintar(); }
+
+// ═══ Respaldo ══════════════════════════════════════════════════════════════
+// Los gastos viven en este navegador. El respaldo es para no perderlos y para
+// poder pasarlos a otro computador.
+function exportarDatos(){
+  const blob = new Blob([JSON.stringify(DATOS, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'flujo-caja-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function importarDatos(input){
+  const f = input.files && input.files[0];
+  input.value = '';
+  if(!f) return;
+  const lector = new FileReader();
+  lector.onload = () => {
+    let d = null;
+    try { d = JSON.parse(lector.result); } catch(e){}
+    if(!d || !Array.isArray(d.gastos)){ alert('Ese archivo no parece un respaldo de este módulo.'); return; }
+    if(!confirm('Reemplazar los gastos y ajustes actuales por los del archivo?')) return;
+    const base = datosPorDefecto();
+    DATOS = { ...base, ...d, ajustes:{ ...base.ajustes, ...(d.ajustes||{}) }, porMes: d.porMes || {} };
+    guardarDatos(); aplicarAjustesUI(); pintar();
+  };
+  lector.readAsText(f);
+}
+
+function aplicarAjustesUI(){
+  const f = $('sel-futuro'), a = $('sel-atras');
+  if(f) f.value = String(DATOS.ajustes.futuro);
+  if(a) a.value = String(DATOS.ajustes.atras);
+}
+
+// ═══ Arranque ══════════════════════════════════════════════════════════════
+document.addEventListener('portal:listo', () => {
+  leerCacheLocal();
+  aplicarAjustesUI();
+  pintar();
+  // Y en segundo plano, por si otra máquina aprobó una quincena.
+  refrescarDesdeServidor().then(cambio => { if(cambio) pintar(); }).catch(()=>{});
+});
+</script>
+</body>
+</html>
