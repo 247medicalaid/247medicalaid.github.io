@@ -3715,6 +3715,24 @@ document.querySelectorAll('.overlay').forEach(o=>{
 const GS_URL = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
 const CACHE_KEY = 'callcenter_historial_cache';
 
+// ── Respuestas del Apps Script ──────────────────────────────────────────────
+// El servidor avisa de un fallo con { ok:false, codigo:'NO_SESSION', msg:... },
+// pero las cargas comprobaban `!data.error`, que ese objeto no trae. Resultado:
+// una respuesta de "Acceso no autorizado" se guardaba en localStorage como si
+// fuera dato bueno. Asi se contaminaron las tarifas maestras, y lo mismo podia
+// pasarle al historial, los borradores, los overrides de invoices y los gastos.
+function esRespuestaDeError(data){
+  if(!data || typeof data !== 'object') return true;
+  if(Array.isArray(data)) return false;
+  if(data.ok === false) return true;
+  if(data.error) return true;
+  // Forma del guard del portal, por si cambia el nombre del campo
+  if(typeof data.codigo === 'string' && typeof data.msg === 'string') return true;
+  return false;
+}
+// Para las cargas que esperan un objeto con datos dentro
+function datosValidos(data){ return !esRespuestaDeError(data) && !Array.isArray(data); }
+
 // ── Indicador de conexión ──
 function setConexion(estado, msg){
   // estado: 'ok' | 'loading' | 'error'
@@ -3782,7 +3800,14 @@ function cargarHistorialRemoto(){
   fetch(GS_URL + '?tipo=historial')
     .then(r => r.json())
     .then(data => {
-      const registros = fusionarHistorialRemoto(Array.isArray(data) ? data : []);
+      // Sin una lista de verdad no se toca el cache: antes un error del
+      // servidor se convertia en [] y borraba el historial guardado.
+      if(!Array.isArray(data)){
+        _historialLoaded = true;
+        _checkAndInit();
+        return;
+      }
+      const registros = fusionarHistorialRemoto(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify(registros));
       _historialLoaded = true;
       _checkAndInit();
@@ -4038,7 +4063,7 @@ function cargarConfigRemoto(){
   fetch(GS_URL + '?tipo=config')
     .then(r => r.json())
     .then(data => {
-      if(data && Array.isArray(data.agentes) && data.agentes.length > 0){
+      if(datosValidos(data) && Array.isArray(data.agentes) && data.agentes.length > 0){
         const savedRecently = (Date.now() - _lastConfigSave) < 15000; // 15 seconds
         const sheetsIsStale = data.agentes.length < agentes.length;
         // Also check if localStorage is more recent
@@ -4382,7 +4407,7 @@ function cargarBorradoresRemoto(){
   fetch(GS_URL + '?tipo=borradores')
     .then(r => r.json())
     .then(data => {
-      if(data && typeof data === 'object' && !data.error){
+      if(datosValidos(data)){
         // data es un objeto { key: borrador, ... }
         localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(data));
         actualizarBadgePendiente();
@@ -5306,24 +5331,62 @@ const INVOICE_RATES_DEFAULT = {
   'MAB':          1350,
   'ALONSO':       1450,
 };
+// Deja solo pares cuenta -> numero positivo. Los caches de Carlos llegaron a
+// tener dentro { ok:false, codigo:'NO_SESSION', msg:'...' }, colado por una
+// respuesta de error que se guardo como si fuera la tabla de tarifas.
+function limpiarTarifas(obj){
+  const out = {};
+  if(!obj || typeof obj !== 'object') return out;
+  Object.keys(obj).forEach(k => {
+    const v = Number(obj[k]);
+    if(typeof k === 'string' && k.trim() && isFinite(v) && v > 0) out[k] = v;
+  });
+  return out;
+}
+
 let INVOICE_RATES = (() => {
   try {
     const stored = JSON.parse(localStorage.getItem(INVOICE_RATES_KEY) || 'null');
     if(stored && typeof stored === 'object'){
-      return { ...INVOICE_RATES_DEFAULT, ...stored };
+      return { ...INVOICE_RATES_DEFAULT, ...limpiarTarifas(stored) };
     }
   } catch(e){}
   return { ...INVOICE_RATES_DEFAULT };
 })();
 
+// Clave reservada dentro del almacen de invoiceOv. Se elige ese almacen porque
+// es el unico que se sabe que persiste: '?tipo=invoiceRates' devuelve {}, o sea
+// que el Apps Script no guarda las tarifas por su via propia, y sin esto viven
+// solo en el navegador donde se escribieron. '__counter__' ya vive ahi igual.
+const INVOICE_RATES_OV_KEY = '__rates__';
+
 function guardarInvoiceRates(){
+  INVOICE_RATES = limpiarTarifas(INVOICE_RATES);
   try { localStorage.setItem(INVOICE_RATES_KEY, JSON.stringify(INVOICE_RATES)); } catch(e){}
-  // Sync remoto a Sheets (fire-and-forget)
+  // Via propia (por si el backend llega a implementarla)
   fetch(GS_URL, {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'saveInvoiceRates', datos: INVOICE_RATES })
   }).catch(()=>{});
+  // Via que si guarda hoy: el almacen de overrides de invoices
+  try {
+    const ovs = loadInvOv();
+    ovs[INVOICE_RATES_OV_KEY] = { ...INVOICE_RATES };
+    _cacheInvOv(ovs);
+    _guardarInvOvSheets(INVOICE_RATES_OV_KEY, INVOICE_RATES);
+  } catch(e){}
+}
+
+// Aplica unas tarifas que llegan del servidor SIN perder las que el servidor no
+// conoce todavia: una cuenta nueva se quedaba en $0 porque la respuesta remota
+// reemplazaba la tabla entera en vez de fusionarla.
+function aplicarTarifasRemotas(data){
+  const limpias = limpiarTarifas(data);
+  if(!Object.keys(limpias).length) return false;
+  INVOICE_RATES = { ...INVOICE_RATES_DEFAULT, ...INVOICE_RATES, ...limpias };
+  try { localStorage.setItem(INVOICE_RATES_KEY, JSON.stringify(INVOICE_RATES)); } catch(e){}
+  return true;
 }
 
 // Cargar rates desde Sheets. El servidor es la fuente de verdad — si tiene
@@ -5333,9 +5396,8 @@ function cargarInvoiceRatesRemoto(){
   fetch(GS_URL + '?tipo=invoiceRates')
     .then(r => r.json())
     .then(data => {
-      if(data && typeof data === 'object' && !data.error && Object.keys(data).length){
-        INVOICE_RATES = { ...INVOICE_RATES_DEFAULT, ...data };
-        try { localStorage.setItem(INVOICE_RATES_KEY, JSON.stringify(INVOICE_RATES)); } catch(e){}
+      if(!datosValidos(data)) return;              // respuesta de error: no se toca nada
+      if(aplicarTarifasRemotas(data)){
         if(!$('page-invoices').classList.contains('hidden')) renderInvoices();
       }
     })
@@ -5680,7 +5742,9 @@ function cargarInvOvRemoto(){
   fetch(GS_URL + '?tipo=invoiceOv')
     .then(r => r.json())
     .then(data => {
-      if(data && typeof data === 'object' && !data.error){
+      if(datosValidos(data)){
+        // Las tarifas maestras viajan aqui bajo una clave reservada
+        if(data[INVOICE_RATES_OV_KEY]) aplicarTarifasRemotas(data[INVOICE_RATES_OV_KEY]);
         _cacheInvOv(data);
         // Congelar tarifa histórica en invoices ya cerrados (idempotente)
         migrateInvoiceTarifasIfNeeded();
@@ -9345,7 +9409,7 @@ function cargarGastosRemoto(){
       .then(r => r.json())
       .then(data => {
         clearTimeout(tid);
-        if(data && typeof data === 'object' && !data.error){
+        if(datosValidos(data)){
           localStorage.setItem(GASTOS_KEY, JSON.stringify(data));
           if(document.body.classList.contains('page-utilidad')) renderUtilidad();
         }
