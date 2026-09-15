@@ -295,11 +295,13 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
     <div class="card-h"><span class="card-t">ℹ️ De dónde sale cada cifra</span></div>
     <div style="padding:14px 16px;font-size:12.5px;color:var(--text2);line-height:1.65">
       <b style="color:var(--accent)">Entra:</b>
-      el <b>Callcenter Check</b> de las dos quincenas del mes, y el valor de los
-      <b>invoices</b> del mes <b>sin incluir White Wilson</b>.<br>
+      el <b>Callcenter Check</b> de las dos quincenas del mes, y los <b>invoices
+      del mes anterior</b> — el cliente paga el mes siguiente al del servicio —
+      <b>sin incluir White Wilson</b>.<br>
       <b style="color:var(--danger)">Sale:</b>
       el <b>consolidado de nómina</b> (subtotal + compensación dólar) de las dos
-      quincenas, el <b>cheque a Sigma</b> del mes, y los <b>gastos fijos</b> de aquí abajo.<br>
+      quincenas del mes, el <b>cheque a Sigma</b> de esos mismos invoices —se gira
+      al cobrarlos, así que viaja con ellos— y los <b>gastos fijos</b> de aquí abajo.<br>
       <b style="color:var(--accent2)">Saldo:</b>
       arranca en lo que tengas hoy en el banco y le va sumando lo que queda cada mes.
       La tabla empieza en el mes actual: lo de meses atrás ya está dentro de ese saldo.<br>
@@ -1367,6 +1369,33 @@ function quitarInvoiceProy(mk, cuenta){
   guardarDatos(); pintar();
 }
 
+// ── La caja de un mes ───────────────────────────────────────────────────────
+// El mes del invoice y el mes en que entra la plata NO son el mismo: el cliente
+// paga el mes siguiente al del servicio. O sea que lo que se deposita en
+// septiembre son los invoices de agosto. Y el cheque a Sigma se gira cuando se
+// cobra, así que viaja con el invoice.
+//
+//   Del mes en curso   →  Callcenter Check, nómina, gastos
+//   Del mes ANTERIOR   →  invoices y cheque a Sigma
+//
+// Mezclarlos era el error: mostraba en septiembre una plata que en septiembre
+// no se mueve.
+function calcularCaja(mk){
+  const m      = calcularMes(mk);          // lo que se mueve en el mes mismo
+  const mkFact = mesAnterior(mk);
+  const fac    = calcularMes(mkFact);      // lo facturado el mes pasado, que se cobra ahora
+
+  m.mkFact       = mkFact;
+  m.invDet       = fac.invDet;
+  m.invTotal     = fac.invTotal;
+  m.invPendiente = fac.invPendiente;
+  m.sigDet       = fac.sigDet;
+  m.sigma        = fac.sigma;
+  m.factCompleto = fac.completo;
+  m.factQuincenas= fac.quincenas;
+  return m;
+}
+
 // ── Completar un mes ────────────────────────────────────────────────────────
 // Primero manda lo que Nómina ya tenga de ese mes — Carlos puede meterle datos
 // futuros y esos son los buenos. Solo lo que todavía no existe se proyecta, y
@@ -1393,7 +1422,8 @@ function completarMes(m, ctx){
     });
   }
 
-  // Invoices: si Nómina ya los tiene, esos mandan. Si no, se proyectan uno a uno.
+  // Invoices: si Nómina ya tiene los del mes FACTURADO, esos mandan. Si no, se
+  // proyectan uno a uno.
   if(!m.invDet.length){
     const lista = invoicesProyectados(m.mk, ctx.hist);
     if(lista.length){
@@ -1439,6 +1469,9 @@ function completarMes(m, ctx){
   });
 
   m.baseMes = base ? base.mk : null;
+  // Si los invoices salieron proyectados, el mes del que se tomaron ya no es el
+  // anterior real: se deja claro que vienen del historial.
+  if(m.invProyectados) m.mkFact = null;
 
   // Se aplica lo corregido a mano y lo que ya pasó, línea por línea. Los gastos
   // llevan su marca aparte porque su valor vive en otro sitio.
@@ -1497,6 +1530,12 @@ function quitarProyeccion(mk, campo){
   guardarDatos(); pintar();
 }
 
+function mesAnterior(mk){
+  let [a, m] = mk.split('-').map(Number);
+  m--; if(m < 1){ m = 12; a--; }
+  return a + '-' + String(m).padStart(2,'0');
+}
+
 function mesSiguiente(mk){
   let [a, m] = mk.split('-').map(Number);
   m++; if(m > 12){ m = 1; a++; }
@@ -1517,6 +1556,8 @@ function construirSerie(){
   const completos = claves.filter(mk => mk < hoy).map(calcularMes).filter(m => m.completo);
   const ctx = {
     base: completos.length ? completos[completos.length-1] : null,
+    // Para proyectar los invoices que se cobrarán, el historial llega hasta el
+    // último mes facturado — el anterior al actual.
     hist: historialInvoices(hoy, 3)
   };
 
@@ -1527,7 +1568,7 @@ function construirSerie(){
   const cuantos = DATOS.ajustes.futuro || 0;
   let mk = hoy;
   for(let i = 0; i <= cuantos; i++){
-    const m = completarMes(calcularMes(mk), ctx);
+    const m = completarMes(calcularCaja(mk), ctx);
     m.real = m.quincenas > 0 || m.invDet.some(d => !d.proyectado);
     serie.push(m);
     mk = mesSiguiente(mk);
@@ -1698,7 +1739,7 @@ function detalleMes(m){
   const tocados = m.invDet.filter(d => d.ajustado).length;
   const pend = m.invPendiente > 0.005 ? `
     <div class="nota" style="margin-top:7px">
-      De los invoices de este mes quedan <b>${fmt(m.invPendiente)}</b> por cobrar${
+      De esos invoices quedan <b>${fmt(m.invPendiente)}</b> por cobrar${
         tocados ? ' — sin contar ' + (tocados===1 ? 'el que cambiaste' : 'los ' + tocados + ' que cambiaste') : ''}.
     </div>` : '';
 
@@ -1716,7 +1757,11 @@ function detalleMes(m){
           <div class="det-t" style="color:var(--accent)">⬆ Entra</div>
           ${m.ccDet.map(d => filaLinea(m.mk, d)).join('')}
           <div class="det-t" style="color:var(--accent2);margin-top:13px;font-size:10px">
-            Invoices${m.invProyectados ? ' · proyectados con ' + (m.invBase||[]).length + ' mes(es) del historial' : ''}
+            Invoices${m.mkFact ? ' de ' + etiquetaMes(m.mkFact) : ''}${
+              m.invProyectados ? ' · proyectados con ' + (m.invBase||[]).length + ' mes(es) del historial' : ''}
+          </div>
+          <div class="nota" style="margin:-3px 0 6px">
+            Se depositan este mes: el cliente paga el mes siguiente al del servicio.
           </div>
           ${m.invDet.length
             ? m.invDet.map(d => filaInvoice(m.mk, d)).join('')
@@ -1730,6 +1775,10 @@ function detalleMes(m){
         </div>
         <div class="det-col">
           <div class="det-t" style="color:var(--danger)">⬇ Sale · nómina y Sigma</div>
+          ${m.mkFact ? `<div class="nota" style="margin:-3px 0 6px">
+            La nómina es de este mes; el cheque a Sigma corresponde a los invoices
+            de ${etiquetaMes(m.mkFact)} y se gira al cobrarlos.
+          </div>` : ''}
           ${m.nomDet.concat(m.sigDet.map(d => ({ ...d, e: 'Sigma · ' + d.e })))
             .map(d => filaLinea(m.mk, d)).join('')}
           <div class="lin tot"><span class="e">Subtotal</span>
