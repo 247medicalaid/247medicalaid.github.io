@@ -2646,7 +2646,14 @@ function renderCuentasOwn(){
           normN(la.nombre).startsWith(normN(sa.nombre)) ||
           normN(sa.nombre).startsWith(normN(la.nombre))
         );
-        if(snapAg) return { ...snapAg, nombre: la.nombre, horas: la.horas, valor: la.valor };
+        // Los días vivos MANDAN sobre los del snapshot: esta rama existe
+        // justamente para poder editarlos. Sin esto, escribir 0 en un agente que
+        // ya figura en el snapshot se veía volver solo a su valor viejo — el
+        // cálculo sí tomaba el 0, pero el campo mostraba lo de antes. La tabla
+        // de cuentas DR ya lo hacía así; esta se quedó atrás.
+        if(snapAg) return { ...snapAg, nombre: la.nombre, horas: la.horas, valor: la.valor,
+          dias:       la.dias,        // en memoria: lo que acaba de escribir
+          diasCobrar: la.diasCobrar };
         return { nombre: la.nombre, horas: la.horas, valor: la.valor,
           dias: la.dias||0, diasCobrar: la.diasCobrar, estadoQuincena: 'active' };
       });
