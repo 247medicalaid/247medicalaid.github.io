@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor de Agentes – 24/7 Medical Aid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --brand:#04141F; --brand-ink:#ffffff;
+  --bg:#f4f5f7; --surface:#ffffff; --surface-2:#f0efec; --border:#e2e3e6;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
+  --track:#e7e8ea; --lunch:#d6d7da;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --neutral:#9a9a96;
+  --good-bg:#e6f6e6; --warning-bg:#fff4dc; --critical-bg:#fbe7e7; --neutral-bg:#ecebe8;
+  --accent:#0E86B4;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
+    --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
+    --track:#2c2c29; --lunch:#3d3d39;
+    --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+    --accent:#0E86B4;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
+  --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
+  --track:#2c2c29; --lunch:#3d3d39;
+  --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+  --accent:#0E86B4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--brand);color:var(--brand-ink);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header img{height:34px}
+header h1{font-size:18px;font-weight:700;margin:0;font-family:'Plus Jakarta Sans',Inter,sans-serif}
+header .sub{opacity:.75;font-size:12.5px}
+header .right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12.5px}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 12px;font:inherit;font-weight:500;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+header .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.3);text-decoration:none;display:inline-flex;align-items:center}
+header #quien{opacity:.85}
+main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.filters input[type=date]{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px 10px;font:inherit}
+.chip{border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:999px;padding:6px 13px;cursor:pointer;font:inherit;font-weight:500}
+.chip[aria-pressed=true]{background:var(--brand);color:#fff;border-color:var(--brand)}
+:root[data-theme="dark"] .chip[aria-pressed=true]{background:#fff;color:#04141F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip[aria-pressed=true]{background:#fff;color:#04141F}}
+.spacer{flex:1}
+.banner{border-radius:10px;padding:10px 14px;margin-bottom:14px;font-weight:500}
+.banner.demo{background:var(--warning-bg)}
+.banner.err{background:var(--critical-bg)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.tile .lbl{color:var(--text-2);font-size:12.5px;display:flex;align-items:center;gap:6px}
+.tile .num{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-family:'Plus Jakarta Sans',Inter,sans-serif}
+.tile .hint{color:var(--muted);font-size:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.card h2{font-size:15px;font-family:'Plus Jakarta Sans',Inter,sans-serif;margin:0;padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-weight:400;font-size:12.5px;color:var(--text-2);margin-left:auto}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:10px;border-radius:3px;display:inline-block}
+.row{display:grid;grid-template-columns:210px 190px 1fr 190px;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.who b{display:block;font-weight:600}
+.who small{color:var(--text-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-weight:600;font-size:12.5px;white-space:nowrap}
+.pill.verde{background:var(--good-bg)} .pill.amarillo{background:var(--warning-bg)} .pill.rojo{background:var(--critical-bg)} .pill.gris{background:var(--neutral-bg)}
+.pill svg{flex:none}
+.app{font-size:12px;color:var(--text-2);margin-top:4px}
+.tl{position:relative;height:22px;background:var(--track);border-radius:4px}
+.tl .seg{position:absolute;top:0;bottom:0;border-radius:4px;cursor:default}
+.tl .seg:hover{outline:2px solid var(--text);outline-offset:1px}
+.tl .lunch{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,var(--lunch) 0 3px,transparent 3px 7px)}
+.tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
+.axis{position:relative;height:16px;margin-top:3px;color:var(--muted);font-size:11px}
+.axis span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.axis span:first-child{transform:none}
+.axis span:last-child{transform:translateX(-100%)}
+.nums{font-size:12.5px;color:var(--text-2);text-align:right}
+.nums b{color:var(--text);font-size:15px}
+.hatch{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 2px,transparent 2px 6px)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 16px;border-bottom:1px solid var(--border);font-size:13px}
+th{color:var(--text-2);font-weight:600;background:var(--surface-2)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.empty{padding:26px;text-align:center;color:var(--text-2)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:none;z-index:10;max-width:260px}
+#setup,#denegado{max-width:520px;margin:40px auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px}
+#denegado{display:none}
+#setup label{display:block;font-weight:600;margin:14px 0 4px}
+#setup input{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:9px 10px;font:inherit}
+#setup p{color:var(--text-2)}
+.primary{background:var(--brand);color:#fff;border-color:var(--brand);margin-top:16px}
+@media (max-width:900px){
+  .row{grid-template-columns:1fr 1fr}
+  .row .tlwrap{grid-column:1/-1;order:3}
+  .row .nums{text-align:left}
+  main,header{padding-left:16px;padding-right:16px}
+  .legend{margin-left:0}
+}
+@media (max-width:600px){
+  .axis span:not(:first-child):not(:last-child){display:none}
+  .tile .num{font-size:24px}
+}
+.tscroll{overflow-x:auto}
+.tscroll table{min-width:620px}
+</style>
+</head>
+<body>
+<header>
+  <picture>
+    <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical Aid" onerror="this.style.display='none'">
+  </picture>
+  <div>
+    <h1>Monitor de actividad de agentes</h1>
+    <div class="sub" id="sub">Alertas a partir de 10 minutos sin actividad</div>
+  </div>
+  <div class="right">
+    <span id="quien"></span>
+    <span id="upd"></span>
+    <button class="btn" id="btnRef" type="button">Actualizar</button>
+    <button class="btn" id="btnCfg" type="button" title="Cambiar URL o token">Ajustes</button>
+    <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
+  </div>
+</header>
+
+<main id="app">
+  <div id="banner"></div>
+  <div class="filters" role="toolbar" aria-label="Filtros">
+    <input type="date" id="fecha" aria-label="Fecha">
+    <button class="chip" id="hoy" type="button">Hoy</button>
+    <span id="cuentas"></span>
+    <span class="spacer"></span>
+    <button class="chip" id="soloAlertas" type="button" aria-pressed="false">Solo con novedades</button>
+    <button class="btn" id="csv" type="button">Exportar CSV</button>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <section class="card">
+    <h2>Agentes <span class="legend" id="legend"></span></h2>
+    <div id="rows"></div>
+  </section>
+  <section class="card">
+    <h2>Novedades del día (10+ minutos)</h2>
+    <div id="tabla"></div>
+  </section>
+</main>
+
+<div id="denegado" hidden>
+  <h2 style="margin-top:0">Sin acceso</h2>
+  <p>Tu usuario no tiene asignada la aplicación <b>Monitor de Agentes</b>. Pídele acceso a un administrador del portal.</p>
+  <a class="btn primary" href="index.html">Volver al portal</a>
+</div>
+<div id="setup" hidden>
+  <h2 style="margin-top:0">Conectar el panel</h2>
+  <p>Pegue la URL de la aplicación web de Apps Script y el <b>TOKEN_PANEL</b>. Se guardan solo en este navegador.</p>
+  <label for="inUrl">URL de la aplicación web</label>
+  <input id="inUrl" placeholder="https://script.google.com/macros/s/.../exec">
+  <label for="inTok">Token del panel</label>
+  <input id="inTok" placeholder="pn_...">
+  <button class="btn primary" id="guardar" type="button">Conectar</button>
+  <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+// Opcional: pegue aquí la URL de la aplicación web para no tener que escribirla en cada navegador.
+const API_URL = '';
+
+const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156}]};
+
+const TIPOS = {
+  'Inactivo':        { color: 'var(--serious)',  icon: 'sq',  desc: 'Equipo encendido sin uso de teclado ni mouse' },
+  'Sin señal':       { color: 'var(--critical)', icon: 'x',   desc: 'Equipo apagado, suspendido o monitor detenido' },
+  'Sin conexión':    { color: 'var(--critical)', icon: 'x',   desc: 'No se conectó en todo el día', hatch: true },
+  'Conexión tardía': { color: 'var(--critical)', icon: 'x',   desc: 'Se conectó después de la hora de inicio', hatch: true },
+  'Sin internet':    { color: 'var(--warning)',  icon: 'tri', desc: 'Equipo activo pero sin conexión a internet' }
+};
+const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
+
+const S = { data: null, demo: false, cuenta: 'Todas', solo: false, timer: null, fecha: '' };
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try { return localStorage.getItem('mon247_' + k) || ''; } catch(e){ return ''; } },
+  set(k,v){ try { localStorage.setItem('mon247_' + k, v); } catch(e){} }
+};
+// --- Integración con el portal 24/7 (login unificado) ---
+const SESION_KEY = 'portal247.sesion';
+function portalSesion(){ try { return JSON.parse(localStorage.getItem(SESION_KEY) || 'null'); } catch(e){ return null; } }
+function portalAutoriza(){
+  const ses = portalSesion();
+  if (!ses || !ses.user) return null;                 // no hay sesión -> al portal
+  const u = ses.user;
+  const rol = String(u.rol || '').toLowerCase();
+  const apps = Array.isArray(u.apps) ? u.apps : [];
+  if (rol.indexOf('admin') >= 0 || apps.indexOf('monitor') >= 0) return u;
+  return false;                                        // logueado pero sin permiso
+}
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function hora(ms){
+  if (ms == null) return '—';
+  const tz = (S.data && S.data.config.zona) || 'America/New_York';
+  return new Intl.DateTimeFormat('es-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(ms));
+}
+function dur(min){ if (min == null) return ''; return min >= 60 ? Math.floor(min/60) + ' h ' + (min%60) + ' min' : min + ' min'; }
+
+function icono(nivel){
+  const c = { verde:'var(--good)', amarillo:'var(--warning)', rojo:'var(--critical)', gris:'var(--neutral)' }[nivel];
+  if (nivel === 'verde') return '<svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="'+c+'"/></svg>';
+  if (nivel === 'amarillo') return '<svg width="12" height="12" aria-hidden="true"><path d="M6 1 11 11H1z" fill="'+c+'"/></svg>';
+  if (nivel === 'rojo') return '<svg width="12" height="12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" fill="'+c+'"/></svg>';
+  return '<svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="'+c+'" stroke-width="2"/></svg>';
+}
+function swatch(t){
+  const d = TIPOS[t];
+  return '<i class="sw' + (d.hatch ? ' hatch' : '') + '" style="background-color:' + d.color + '"></i>';
+}
+
+// ---------------------------------------------------------------- datos
+function apiUrl(){ return API_URL || store.get('url'); }
+
+async function cargar(){
+  if (S.demo) { S.data = DEMO; pintar(); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { mostrarSetup(); return; }
+  $('upd').textContent = 'Actualizando…';
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + (S.fecha ? '&fecha=' + S.fecha : '');
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'respuesta inválida');
+    S.data = j;
+    if (!S.fecha) $('fecha').value = j.fecha;
+    $('banner').innerHTML = '';
+    pintar();
+  } catch (e) {
+    $('banner').innerHTML = '<div class="banner err">No se pudo cargar: ' + esc(e.message) + '. Revise la URL y el token en Ajustes.</div>';
+    $('upd').textContent = '';
+  }
+}
+
+function programar(){
+  clearInterval(S.timer);
+  S.timer = setInterval(() => { if (!document.hidden && (!S.data || S.data.esHoy)) cargar(); }, 60000);
+}
+
+// ---------------------------------------------------------------- pintar
+function pintar(){
+  const d = S.data;
+  $('app').hidden = false; $('setup').hidden = true;
+  $('sub').textContent = 'Alertas a partir de ' + d.config.umbralMin + ' minutos sin actividad · Hora ' + d.config.zona.replace('America/','').replace('_',' ');
+  $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado);
+  if (S.demo) $('banner').innerHTML = '<div class="banner demo">Está viendo datos de ejemplo. Use Ajustes para conectar su servidor.</div>';
+  $('fecha').value = d.fecha;
+
+  // Cuentas
+  const cuentas = ['Todas', ...Array.from(new Set(d.agentes.map(a => a.cuenta).filter(Boolean))).sort()];
+  if (!cuentas.includes(S.cuenta)) S.cuenta = 'Todas';
+  $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c) + '" aria-pressed="' + (c === S.cuenta) + '">' + esc(c) + '</button> ').join('');
+
+  let lista = d.agentes.filter(a => S.cuenta === 'Todas' || a.cuenta === S.cuenta);
+  const todos = lista;
+  if (S.solo) lista = lista.filter(a => a.episodios.length || (a.estado && a.estado.nivel !== 'verde' && a.estado.nivel !== 'gris'));
+  lista.sort((a, b) => {
+    const na = a.estado ? NIVEL[a.estado.nivel] : 0, nb = b.estado ? NIVEL[b.estado.nivel] : 0;
+    return (na - nb) || (b.minPerdidos - a.minPerdidos) || a.agente.localeCompare(b.agente);
+  });
+
+  // Tiles
+  const cnt = n => todos.filter(a => a.estado && a.estado.nivel === n).length;
+  const perdidos = todos.reduce((s, a) => s + a.minPerdidos, 0);
+  const conNov = todos.filter(a => a.episodios.length).length;
+  const reinTotal = todos.reduce((s, a) => s + (a.reinicios || 0), 0);
+  const tiles = d.esHoy ? [
+    ['Agentes monitoreados', todos.length, 'en ' + (S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta), ''],
+    ['Activos ahora', cnt('verde'), 'trabajando normalmente', 'verde'],
+    ['Requieren atención', cnt('rojo'), '10+ min sin actividad o señal', 'rojo'],
+    ['En pausa / aviso', cnt('amarillo'), '5–10 min o app cerrada', 'amarillo'],
+    ['Tiempo perdido hoy', dur(perdidos) || '0 min', conNov + ' agente(s) con novedades', ''],
+    ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició hoy', reinTotal ? 'amarillo' : '']
+  ] : [
+    ['Agentes', todos.length, S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta, ''],
+    ['Con novedades', conNov, 'episodios de 10+ minutos', 'rojo'],
+    ['Tiempo perdido', dur(perdidos) || '0 min', 'suma de la jornada', ''],
+    ['Episodios', todos.reduce((s, a) => s + a.episodios.length, 0), 'en el día', ''],
+    ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició', '']
+  ];
+  $('tiles').innerHTML = tiles.map(t => '<div class="tile"><div class="lbl">' + (t[3] ? icono(t[3]) : '') + esc(t[0]) +
+    '</div><div class="num">' + esc(t[1]) + '</div><div class="hint">' + esc(t[2]) + '</div></div>').join('');
+
+  // Leyenda
+  $('legend').innerHTML = Object.keys(TIPOS).map(t => '<span>' + swatch(t) + esc(t) + '</span>').join('') +
+    '<span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--lunch) 0 3px,transparent 3px 7px);border:1px solid var(--border)"></i>Almuerzo</span>';
+
+  // Filas
+  if (!lista.length) {
+    $('rows').innerHTML = '<div class="empty">' + (d.agentes.length ? 'Sin agentes para este filtro.' : 'Aún no hay agentes. Aparecerán 1–2 minutos después de instalar el monitor en cada computador.') + '</div>';
+  } else {
+    $('rows').innerHTML = lista.map(a => fila(a, d)).join('');
+  }
+
+  // Tabla de novedades
+  const eps = [];
+  todos.forEach(a => a.episodios.forEach(e => eps.push(Object.assign({ agente: a.agente, cuenta: a.cuenta }, e))));
+  eps.sort((x, y) => x.ini - y.ini);
+  S.eps = eps;
+  $('tabla').innerHTML = eps.length ? '<div class="tscroll"><table><thead><tr><th>Agente</th><th>Cuenta</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th style="text-align:right">Duración</th></tr></thead><tbody>' +
+    eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(e.tipo) + '</td><td>' + hora(e.ini) +
+      '</td><td>' + (e.abierto ? '<b>continúa</b>' : hora(e.fin)) + '</td><td class="num">' + dur(e.min) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<div class="empty">Sin novedades de 10+ minutos.</div>';
+}
+
+function fila(a, d){
+  const e = a.estado;
+  let pill;
+  if (e) {
+    const txt = e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + e.texto : '') : e.texto;
+    const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
+    pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
+  } else {
+    pill = a.episodios.length ? '<span class="pill rojo">' + icono('rojo') + a.episodios.length + ' novedad(es)</span>'
+                              : '<span class="pill verde">' + icono('verde') + 'Sin novedades</span>';
+  }
+  const app = e && e.app === false ? 'App de teléfono: <b>cerrada</b>' : (e && e.app === true ? 'App de teléfono: abierta' : '');
+
+  // Línea de tiempo de la jornada
+  const t0 = a.jIni, t1 = a.jFin, span = Math.max(1, t1 - t0);
+  const pct = t => Math.min(100, Math.max(0, (t - t0) / span * 100));
+  let tl = '';
+  if (a.almuerzoMs) tl += '<div class="lunch" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' + (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
+  a.episodios.forEach(ep => {
+    const T = TIPOS[ep.tipo] || TIPOS['Sin señal'];
+    const tip = esc(ep.tipo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(T.desc);
+    tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + '" data-tip="' + tip + '" style="left:' + pct(ep.ini) + '%;width:calc(' +
+      (pct(ep.fin) - pct(ep.ini)) + '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
+  });
+  if (d.esHoy && d.generado >= t0 && d.generado <= t1) tl += '<div class="now" style="left:' + pct(d.generado) + '%" title="Ahora"></div>';
+  const marcas = [];
+  const horas = Math.round(span / 3600000);
+  const paso = horas > 10 ? 3 : 2;
+  for (let i = 0; i <= horas; i += paso) marcas.push(t0 + i * 3600000);
+  if (marcas[marcas.length - 1] !== t1) { if (t1 - marcas[marcas.length - 1] < paso * 2700000) marcas.pop(); marcas.push(t1); }
+  const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
+
+  return '<div class="row">' +
+    '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small></div>' +
+    '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') + '</div>' +
+    '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
+    '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos<br>' +
+      (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
+      (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
+      (a.reinicios ? '<br><span style="color:var(--warning)">⚠ Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') + '</div>' +
+  '</div>';
+}
+
+// ---------------------------------------------------------------- interacción
+document.addEventListener('mousemove', ev => {
+  const el = ev.target.closest && ev.target.closest('[data-tip]');
+  const tip = $('tip');
+  if (!el) { tip.style.display = 'none'; return; }
+  const p = el.dataset.tip.split('|');
+  tip.innerHTML = '<b>' + p[0] + '</b><br>' + p[1] + ' · ' + p[2] + '<br><span style="color:var(--text-2)">' + p[3] + '</span>';
+  tip.style.display = 'block';
+  const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + 'px'; tip.style.top = (ev.clientY + 16) + 'px';
+});
+$('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[data-c]'); if (b) { S.cuenta = b.dataset.c; pintar(); } });
+$('soloAlertas').addEventListener('click', ev => { S.solo = !S.solo; ev.currentTarget.setAttribute('aria-pressed', S.solo); if (S.data) pintar(); });
+$('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.demo) return; cargar(); });
+$('hoy').addEventListener('click', () => { S.fecha = ''; cargar(); });
+$('btnRef').addEventListener('click', cargar);
+$('btnCfg').addEventListener('click', mostrarSetup);
+$('csv').addEventListener('click', () => {
+  if (!S.eps) return;
+  const filas = [['Fecha','Agente','Cuenta','Tipo','Desde','Hasta','Minutos']].concat(
+    S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, e.tipo, hora(e.ini), e.abierto ? 'continúa' : hora(e.fin), e.min]));
+  const csv = '\ufeff' + filas.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'novedades_agentes_' + S.data.fecha + '.csv';
+  a.click();
+});
+
+function mostrarSetup(){
+  $('app').hidden = true; $('setup').hidden = false;
+  $('inUrl').value = apiUrl(); $('inTok').value = store.get('token');
+  if (API_URL) $('inUrl').disabled = true;
+}
+$('guardar').addEventListener('click', () => {
+  const u = $('inUrl').value.trim(), t = $('inTok').value.trim();
+  if (!API_URL) store.set('url', u);
+  store.set('token', t);
+  S.demo = false; $('banner').innerHTML = '';
+  $('app').hidden = false; $('setup').hidden = true;
+  cargar();
+});
+$('verDemo').addEventListener('click', () => { S.demo = true; cargar(); });
+
+// Inicio
+if (/[?&]demo=1/.test(location.search)) S.demo = true;
+if (!S.demo) {
+  const u = portalAutoriza();
+  if (u === null) { location.replace('index.html'); }
+  else if (u === false) {
+    document.getElementById('app').hidden = true;
+    document.getElementById('setup').hidden = true;
+    document.getElementById('denegado').style.display = 'block';
+  } else {
+    S.portalUser = u;
+    document.getElementById('quien').textContent = (u.nombre || u.username || '') + ' · ';
+    cargar();
+    programar();
+  }
+} else {
+  cargar();
+  programar();
+}
+</script>
+</body>
+</html>
