@@ -112,6 +112,22 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 }
 .tscroll{overflow-x:auto}
 .tscroll table{min-width:620px}
+.app b{color:var(--text)}
+details.progs{margin-top:6px}
+details.progs summary{cursor:pointer;color:var(--accent);font-size:12px;list-style:none}
+details.progs summary::-webkit-details-marker{display:none}
+details.progs ul{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+details.progs li{display:flex;justify-content:space-between;gap:10px;padding:4px 9px;font-size:12px;border-bottom:1px solid var(--border)}
+details.progs li:last-child{border-bottom:0}
+details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.speed{margin-top:7px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.btn-speed{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:500;cursor:pointer}
+.btn-speed:hover{border-color:var(--accent)}
+.btn-speed:disabled{opacity:.5;cursor:default}
+.mbps{font-size:12px;color:var(--text-2)}
+#msg{position:fixed;left:50%;bottom:24px;transform:translate(-50%,160%);background:var(--brand);color:#fff;padding:11px 20px;border-radius:999px;font-weight:600;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:transform .28s;z-index:30;max-width:90vw;text-align:center}
+#msg.show{transform:translate(-50%,0)}
+#msg.err{background:var(--critical)} #msg.ok{background:var(--good)}
 </style>
 </head>
 <body>
@@ -168,13 +184,14 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   <button class="btn primary" id="guardar" type="button">Conectar</button>
   <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
 </div>
+<div id="msg" role="status"></div>
 <div id="tip" role="tooltip"></div>
 
 <script>
 // Opcional: pegue aquí la URL de la aplicación web para no tener que escribirla en cada navegador.
 const API_URL = '';
 
-const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156}]};
+const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
 
 const TIPOS = {
   'Inactivo':        { color: 'var(--serious)',  icon: 'sq',  desc: 'Equipo encendido sin uso de teclado ni mouse' },
@@ -319,6 +336,25 @@ function pintar(){
     : '<div class="empty">Sin novedades de 10+ minutos.</div>';
 }
 
+function netHtml(v){
+  if (!v || v.lat == null) return '';
+  const lat = v.lat, loss = v.loss || 0;
+  let color = 'var(--good)';
+  if (lat > 150 || loss > 5) color = 'var(--critical)';
+  else if (lat > 80 || loss > 0) color = 'var(--warning)';
+  return '<div class="app">Internet: <b style="color:' + color + '">' + lat + ' ms' + (loss > 0 ? ' \u00b7 ' + loss + '% p\u00e9rdida' : '') + '</b></div>';
+}
+function progsHtml(v){
+  if (!v || !v.programas || !v.programas.length) return '';
+  const items = v.programas.map(p => '<li><span>' + esc(p.n) + '</span><span>' + p.mb + ' MB</span></li>').join('');
+  return '<details class="progs"><summary>Ver programas (' + v.programas.length + ')</summary><ul>' + items + '</ul></details>';
+}
+function speedHtml(a){
+  const v = a.vivo;
+  const last = (v && v.mbps != null) ? '<span class="mbps">\u00daltima: ' + v.mbps + ' Mbps' + (v.mbpsFecha ? ' (' + hora(v.mbpsFecha) + ')' : '') + '</span>' : '';
+  return '<div class="speed"><button class="btn-speed" data-speed="' + esc(a.agente) + '" type="button">Medir velocidad</button>' + last + '</div>';
+}
+
 function fila(a, d){
   const e = a.estado;
   let pill;
@@ -353,12 +389,15 @@ function fila(a, d){
 
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small></div>' +
-    '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') + '</div>' +
+    '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
+      (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(a.vivo.progActivo) + '</b></div>' : '') +
+      (d.esHoy ? netHtml(a.vivo) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
       (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
-      (a.reinicios ? '<br><span style="color:var(--warning)">⚠ Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') + '</div>' +
+      (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
+      (d.esHoy ? progsHtml(a.vivo) + speedHtml(a) : '') + '</div>' +
   '</div>';
 }
 
@@ -373,6 +412,32 @@ document.addEventListener('mousemove', ev => {
   const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
   tip.style.left = x + 'px'; tip.style.top = (ev.clientY + 16) + 'px';
 });
+function toast(txt, tipo){
+  const m = $('msg');
+  m.textContent = txt;
+  m.className = 'show' + (tipo ? ' ' + tipo : '');
+  clearTimeout(m._t);
+  m._t = setTimeout(() => { m.className = ''; }, 4000);
+}
+
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('[data-speed]');
+  if (!b) return;
+  const ag = b.dataset.speed;
+  if (S.demo) { toast('En modo ejemplo no se mide la velocidad.'); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  b.disabled = true;
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=velocidad&agente=' + encodeURIComponent(ag);
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok) toast('Test de velocidad solicitado para ' + ag + '. El resultado aparece en ~1 minuto.', 'ok');
+    else toast(j.error || 'No se pudo solicitar.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+  setTimeout(() => { b.disabled = false; }, 3000);
+});
+
 $('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[data-c]'); if (b) { S.cuenta = b.dataset.c; pintar(); } });
 $('soloAlertas').addEventListener('click', ev => { S.solo = !S.solo; ev.currentTarget.setAttribute('aria-pressed', S.solo); if (S.data) pintar(); });
 $('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.demo) return; cargar(); });
