@@ -912,6 +912,13 @@ function cargarReabiertas(){
 // ═══════════════════════════════════════════════════════════════════════════
 
 const GS_URL = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
+// La proyeccion NO se guarda junto a los datos de Nomina: tiene su propio Apps
+// Script, aparte. La razon es sencilla — Nomina es la aplicacion de la que
+// depende el negocio, y un error en el guardado de esto nunca puede llegar a
+// tocarla. Si lo de aqui se cae, lo unico que pasa es que la proyeccion se
+// queda guardada en este navegador.
+// Vacio = todavia no esta publicado.
+const FLUJO_URL = '';
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const FLUJO_KEY = 'flujo_proyeccion_v1';
 
@@ -1055,11 +1062,11 @@ function estadoNube(txt){
 }
 
 function subirFlujo(){
-  if(!NUBE.activa) return;                      // el servidor aun no sabe guardar esto
+  if(!FLUJO_URL || !NUBE.activa) return;        // el servidor aun no sabe guardar esto
   if(NUBE.subiendo){ NUBE.pendiente = true; return; }
   NUBE.subiendo = true;
   estadoNube('Subiendo…');
-  fetch(GS_URL, { method: 'POST',
+  fetch(FLUJO_URL, { method: 'POST',
                   headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                   body: JSON.stringify({ action: 'saveFlujo', datos: DATOS }) })
     .then(r => r.json()).catch(() => null)
@@ -1082,7 +1089,12 @@ function programarSubida(){
 // alla es MAS NUEVA: si Carlos estuvo trabajando aqui sin red, la suya manda y
 // se sube. Devuelve true si hubo que repintar.
 function bajarFlujo(){
-  return fetch(GS_URL + '?tipo=flujo').then(r => r.json()).catch(() => null)
+  if(!FLUJO_URL){
+    NUBE.activa = false;
+    estadoNube('Solo en este navegador');
+    return Promise.resolve(false);
+  }
+  return fetch(FLUJO_URL + '?tipo=flujo').then(r => r.json()).catch(() => null)
     .then(j => {
       const noSirve = !j || typeof j !== 'object' || Array.isArray(j) || j.error ||
                       j.ok === false ||
