@@ -105,6 +105,8 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
 .lin.gasto-mes.ya .ya-box{opacity:1;color:var(--accent2)}
 .sig-eti{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
 .sig-eti.ajus{color:var(--accent2)} .sig-eti.solo{color:var(--morado)}
+.sig-eti.nom{color:#0F766E}
+.pill.nom{color:var(--morado)}
 .mini{background:none;border:1px solid var(--border);color:var(--text3);border-radius:6px;
   padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
 .mini:hover{border-color:var(--accent2);color:var(--accent2)}
@@ -236,6 +238,7 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
       <div class="sub">Lo que entra, lo que sale y lo que queda — mes a mes</div>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="nube-estado" style="font-size:11.5px;color:var(--text3)"></span>
       <label style="font-size:12px;color:var(--text3)">Meses hacia adelante</label>
       <select id="sel-futuro" class="inp" onchange="guardarAjuste('futuro',+this.value);pintar()">
         <option value="3">3</option><option value="6" selected>6</option>
@@ -990,40 +993,125 @@ function datosPorDefecto(){
     // Estado de cada línea de un mes:  { 'YYYY-MM': { 'nom:1': { v, ya } } }
     //   v  = el valor corregido a mano
     //   ya = eso ya pasó: salió o entró, y está dentro del saldo del banco
-    lineas: {}
+    lineas: {},
+    // Cuando se toco por ultima vez. Decide quien manda cuando lo de
+    // este navegador y lo del servidor no coinciden.
+    guardadaEn: 0
   };
 }
 
 let DATOS = cargarDatos();
 
+// Completa lo que falte y respeta lo que Carlos ya escribio. Se usa tanto para
+// lo que hay en este navegador como para lo que baja del servidor.
+function normalizarDatos(raw){
+  const base = datosPorDefecto();
+  const d = { ...base, ...raw, ajustes: { ...base.ajustes, ...(raw.ajustes||{}) },
+              bancos: Array.isArray(raw.bancos) && raw.bancos.length ? raw.bancos : base.bancos,
+              porMes: raw.porMes || {}, extras: raw.extras || {},
+              proyMes: raw.proyMes || {}, proyInv: raw.proyInv || {},
+              lineas: raw.lineas || {} };
+  // La lista sembrada cambio (nombres, valores y categorias). Se reemplaza
+  // solo si Carlos todavia no la ha dado por revisada: si ya la reviso, lo
+  // que el escribio manda y no se le pisa nada.
+  if(d.revisado !== true && (raw.semilla || 1) < SEMILLA_VERSION){
+    d.gastos  = base.gastos;
+    d.semilla = SEMILLA_VERSION;
+  }
+  return d;
+}
+
 function cargarDatos(){
   try {
     const raw = JSON.parse(localStorage.getItem(FLUJO_KEY) || 'null');
-    if(raw && typeof raw === 'object' && Array.isArray(raw.gastos)){
-      const base = datosPorDefecto();
-      const d = { ...base, ...raw, ajustes: { ...base.ajustes, ...(raw.ajustes||{}) },
-                  bancos: Array.isArray(raw.bancos) && raw.bancos.length ? raw.bancos : base.bancos,
-                  porMes: raw.porMes || {}, extras: raw.extras || {},
-                  proyMes: raw.proyMes || {}, proyInv: raw.proyInv || {},
-                  lineas: raw.lineas || {} };
-      // La lista sembrada cambio (nombres, valores y categorias). Se reemplaza
-      // solo si Carlos todavia no la ha dado por revisada: si ya la reviso, lo
-      // que el escribio manda y no se le pisa nada.
-      if(d.revisado !== true && (raw.semilla || 1) < SEMILLA_VERSION){
-        d.gastos  = base.gastos;
-        d.semilla = SEMILLA_VERSION;
-      }
-      return d;
-    }
+    if(raw && typeof raw === 'object' && Array.isArray(raw.gastos)) return normalizarDatos(raw);
   } catch(e){}
   return datosPorDefecto();
 }
 function guardarDatos(){
+  DATOS.guardadaEn = Date.now();
   try { localStorage.setItem(FLUJO_KEY, JSON.stringify(DATOS)); } catch(e){}
   const el = $('g-estado');
   if(el){ el.textContent = 'Guardado ✓'; setTimeout(()=>{ el.textContent=''; }, 1800); }
+  programarSubida();
 }
 function guardarAjuste(k, v){ DATOS.ajustes[k] = v; guardarDatos(); }
+
+// ═══ La proyeccion guardada en la nube ═══════════════════════════════════
+// Carlos trabaja la misma proyeccion desde varios computadores, asi que lo que
+// escribe aqui no puede quedarse en un solo navegador. Se guarda UNA sola — la
+// ultima, tal como esta — al lado de los datos de Nomina, sin historial: eso
+// fue exactamente lo que pidio.
+//
+// Va como texto plano a proposito. Si se manda como application/json el
+// navegador hace antes una peticion OPTIONS que Apps Script no contesta, y el
+// guardado falla en silencio; el cuerpo llega igual a e.postData.contents.
+let NUBE = { activa:false, subiendo:false, pendiente:false, ultima:0 };
+let _flujoTimer = null;
+
+function estadoNube(txt){
+  const el = $('nube-estado');
+  if(el) el.textContent = txt || '';
+}
+
+function subirFlujo(){
+  if(!NUBE.activa) return;                      // el servidor aun no sabe guardar esto
+  if(NUBE.subiendo){ NUBE.pendiente = true; return; }
+  NUBE.subiendo = true;
+  estadoNube('Subiendo…');
+  fetch(GS_URL, { method: 'POST',
+                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                  body: JSON.stringify({ action: 'saveFlujo', datos: DATOS }) })
+    .then(r => r.json()).catch(() => null)
+    .then(j => {
+      NUBE.subiendo = false;
+      if(j && j.ok){ NUBE.ultima = Date.now(); estadoNube('En la nube ✓'); }
+      else estadoNube('⚠ No subio — guardado solo aqui');
+      if(NUBE.pendiente){ NUBE.pendiente = false; subirFlujo(); }
+    });
+}
+
+// No se sube en cada tecla: se espera a que deje de escribir.
+function programarSubida(){
+  if(!NUBE.activa) return;
+  clearTimeout(_flujoTimer);
+  _flujoTimer = setTimeout(subirFlujo, 1200);
+}
+
+// Trae la proyeccion del servidor. Solo reemplaza la de este navegador si la de
+// alla es MAS NUEVA: si Carlos estuvo trabajando aqui sin red, la suya manda y
+// se sube. Devuelve true si hubo que repintar.
+function bajarFlujo(){
+  return fetch(GS_URL + '?tipo=flujo').then(r => r.json()).catch(() => null)
+    .then(j => {
+      const noSirve = !j || typeof j !== 'object' || Array.isArray(j) || j.error ||
+                      j.ok === false ||
+                      (typeof j.codigo === 'string' && typeof j.msg === 'string');
+      if(noSirve){
+        NUBE.activa = false;
+        estadoNube('Solo en este navegador');
+        return false;
+      }
+      NUBE.activa = true;
+      if(j.vacio || !Array.isArray(j.gastos)){    // el servidor todavia no tiene nada
+        estadoNube('En la nube ✓');
+        subirFlujo();
+        return false;
+      }
+      const alla  = Number(j.guardadaEn) || 0;
+      const aqui  = Number(DATOS.guardadaEn) || 0;
+      if(alla <= aqui){
+        estadoNube('En la nube ✓');
+        if(alla < aqui) subirFlujo();             // lo de aqui es mas nuevo
+        return false;
+      }
+      DATOS = normalizarDatos(j);
+      try { localStorage.setItem(FLUJO_KEY, JSON.stringify(DATOS)); } catch(e){}
+      estadoNube('En la nube ✓');
+      return true;
+    })
+    .catch(() => { NUBE.activa = false; estadoNube('Solo en este navegador'); return false; });
+}
 
 // ═══ Lectura de Nómina ═════════════════════════════════════════════════════
 // Primero lo que ya está en este navegador (instantáneo), y en paralelo se
@@ -1053,8 +1141,8 @@ function esRespuestaDeError(data){
 
 function refrescarDesdeServidor(){
   const pedir = (tipo) => fetch(GS_URL + '?tipo=' + tipo).then(r => r.json()).catch(()=>null);
-  return Promise.all([pedir('historial'), pedir('config'), pedir('invoiceOv')])
-    .then(([hist, cfg, ovs]) => {
+  return Promise.all([pedir('historial'), pedir('config'), pedir('invoiceOv'), pedir('borradores')])
+    .then(([hist, cfg, ovs, bors]) => {
       let cambio = false;
       if(Array.isArray(hist) && hist.length){
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(hist)); cambio = true; } catch(e){}
@@ -1063,6 +1151,10 @@ function refrescarDesdeServidor(){
         cuentas = cfg.cuentas;
         if(Array.isArray(cfg.agentes)) agentes = cfg.agentes;
         cambio = true;
+      }
+      // Los borradores son las quincenas que Carlos ya proyectó en Nómina.
+      if(bors && !esRespuestaDeError(bors) && !Array.isArray(bors)){
+        try { localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(bors)); cambio = true; } catch(e){}
       }
       if(ovs && !esRespuestaDeError(ovs)){
         try {
@@ -1074,6 +1166,76 @@ function refrescarDesdeServidor(){
       }
       return cambio;
     });
+}
+
+// ═══ Las quincenas que Carlos ya proyectó en Nómina ════════════════════════
+// Nómina guarda las quincenas que todavía no se aprueban como BORRADOR. Carlos
+// las usa para proyectar: les pone los días que espera de cada agente. Su
+// criterio para saber si una quincena ya está proyectada es justamente ese —
+// que tenga días asignados — así que un borrador sin días no cuenta.
+function quincenaConDias(reg){
+  return (reg.cuentas || []).some(c =>
+    (c.agentes || []).some(a => (Number(a.dias) || 0) > 0 || (Number(a.diasStd) || 0) > 0));
+}
+
+// Un borrador no trae ni la nómina de cada agente ni el Callcenter Check: esas
+// cifras se calculan al aprobar. Aquí se calculan igual que en Nómina, con la
+// configuración que el propio borrador guardó.
+function completarBorrador(reg, borrador){
+  const cfg   = borrador.config || {};
+  const dias  = Number(cfg.dias) || 0;
+  const mgmt  = Number(cfg.mgmt) || 0;
+  const tPctG = Number(cfg.transferPct) || 0;
+  const dPctG = Number(cfg.dollarPct)   || 0;
+
+  const snapC = {};
+  (borrador.cuentasSnap || []).forEach(c => { if(c && c.id) snapC[c.id] = c; });
+  const cuentaDe = id => ({ ...((cuentas || []).find(c => c.id === id) || {}), ...(snapC[id] || {}) });
+
+  let totalDrCheck = 0;
+  (reg.cuentas || []).forEach(c => {
+    const cu = cuentaDe(c.id);
+    (c.agentes || []).forEach(a => {
+      // nominaAgente(): horas × valor × días
+      a.nomina = (Number(a.horas)||0) * (Number(a.valor)||0) * (Number(a.dias)||0);
+    });
+    // Los porcentajes que necesita el consolidado.
+    if(c.tipo === 'own') c.dollarPctOwn  = cu.dollarPctOwn;
+    else                 c.dollarPctReal = cu.dollarPctReal;
+
+    if(c.tipo !== 'dr') return;
+    // calcDr(): drCheck(a) = horas × (valor + mgmt) × días ESTÁNDAR
+    const sub = (c.agentes || []).reduce((t,a) => {
+        const std = a.diasStd !== undefined ? (Number(a.diasStd)||0) : dias;
+        return t + (Number(a.horas)||0) * ((Number(a.valor)||0) + mgmt) * std;
+      }, 0) + (Number(cu.colombian) || 0) + (Number(cu.accountant) || 0);
+    const tPct = cu.transferPctDr !== undefined ? cu.transferPctDr : tPctG;
+    const dPct = cu.dollarPctDr   !== undefined ? cu.dollarPctDr   : dPctG;
+    const tot  = sub + sub * tPct + sub * dPct;
+    c.totalDrCheck = tot;
+    totalDrCheck += tot;
+  });
+
+  reg.resumen = { totalDrCheck };
+  reg.deBorrador = true;
+  return reg;
+}
+
+// Quincenas aprobadas + las que él ya proyectó en Nómina.
+function registrosNomina(){
+  const hist = cargarHistorial();
+  const out  = hist.slice();
+  const keys = new Set(hist.map(h => h.key));
+  let bs = {};
+  try { bs = cargarBorradores(); } catch(e){ bs = {}; }
+  Object.keys(bs).forEach(k => {
+    if(keys.has(k)) return;                  // la aprobada siempre manda
+    let r = null;
+    try { r = registroDesdeBorrador(k, bs[k]); } catch(e){ r = null; }
+    if(!r || !quincenaConDias(r)) return;    // sin días no está proyectada
+    out.push(completarBorrador(r, bs[k]));
+  });
+  return out;
 }
 
 // ═══ Las cifras de cada mes ════════════════════════════════════════════════
@@ -1100,7 +1262,7 @@ function consolidadoQuincena(reg){
 // Todo lo de un mes real: ingresos, egresos y con qué detalle.
 function calcularMes(mk){
   const [anio, mes] = mk.split('-').map(Number);
-  const historial = cargarHistorial();
+  const historial = registrosNomina();
   const delMes = historial.filter(r => r.anio === anio && r.mes === mes);
   const q1 = delMes.find(r => r.quincena === 1);
   const q2 = delMes.find(r => r.quincena === 2);
@@ -1110,7 +1272,8 @@ function calcularMes(mk){
   [q1, q2].forEach((r, i) => {
     if(!r) return;
     const v = (r.resumen && r.resumen.totalDrCheck) || 0;   // crudo: se redondea al final
-    ccCheck += v; ccDet.push({ id: 'cc:' + (i+1), e: 'Callcenter Check · Q' + (i+1), m: R2(v) });
+    ccCheck += v; ccDet.push({ id: 'cc:' + (i+1), e: 'Callcenter Check · Q' + (i+1),
+                               m: R2(v), deNomina: r.deBorrador === true });
   });
 
   const invDet = []; let invTotal = 0, invPendiente = 0;
@@ -1146,7 +1309,8 @@ function calcularMes(mk){
     const c = consolidadoQuincena(r);
     nomTotal += c.total;
     nomDet.push({ id: 'nom:' + (i+1),
-      e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp), m: R2(c.total) });
+      e: 'Nómina Q' + (i+1) + ' · subtotal ' + fmt(c.sub) + ' + dólar ' + fmt(c.comp),
+      m: R2(c.total), deNomina: r.deBorrador === true });
   });
 
   let sigma = 0; const sigDet = [];
@@ -1179,6 +1343,7 @@ function calcularMes(mk){
   const sale  = R2(nomTotal + sigma + gTotal);
   return {
     mk, anio, mes, real: true,
+    deNomina: !!((q1 && q1.deBorrador) || (q2 && q2.deBorrador)),
     completo: !!(q1 && q2), quincenas: (q1?1:0) + (q2?1:0),
     ccCheck: R2(ccCheck), ccDet,
     invTotal: R2(invTotal), invDet, invPendiente: R2(invPendiente),
@@ -1688,7 +1853,9 @@ function filaLinea(mk, d, opciones){
       ? '<span class="sig-eti ajus">lo escribiste tú</span>'
       : (d.proyectado
           ? `<span class="sig-eti solo">${d.base ? (d.base === 1 ? 'según 1 mes' : 'promedio de ' + d.base + ' meses') : 'proyectado'}</span>`
-          : '');
+          : (d.deNomina
+              ? '<span class="sig-eti nom">lo proyectaste en Nómina</span>'
+              : ''));
   const onEdit = o.onEdit || `fijarLinea('${mk}','${esc(d.id)}',this.value)`;
   const onVolver = o.onVolver || `quitarLinea('${mk}','${esc(d.id)}')`;
   const volverA = d.proyectado ? 'la proyección' : 'lo que dice Nómina';
@@ -1717,6 +1884,12 @@ const filaInvoice = (mk, d) => filaLinea(mk, d, {
 });
 
 function detalleMes(m){
+  const avisoNom = (m.deNomina && !m.proyectado) ? `
+    <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border);color:var(--morado)">
+      El Callcenter Check y la nómina de este mes salen de las quincenas que
+      <b>ya proyectaste en Nómina</b> — les asignaste días a los agentes. No son
+      una estimación de este módulo.
+    </div>` : '';
   const avisoEst = !m.proyectado ? '' : `
     <div class="nota" style="padding:9px 16px;border-top:1px solid var(--border)">
       Lo que Nómina ya tiene de este mes manda. Lo demás va marcado
@@ -1807,7 +1980,7 @@ function detalleMes(m){
           </div>
         </div>
       </div>
-      ${avisoParcial}${avisoEst}
+      ${avisoParcial}${avisoNom}${avisoEst}
     </div>`;
 }
 
@@ -1829,7 +2002,8 @@ function pintar(){
     const abierta = _mesAbierto === m.mk;
     const etiqueta = (!m.real
       ? '<span class="pill est">por venir</span>' + (m.ajustado ? '<span class="pill ajus">ajustado</span>' : '')
-      : (m.completo ? '<span class="pill real">mes en curso</span>'
+      : (m.deNomina ? '<span class="pill nom">proyectado en Nómina</span>'
+       : m.completo ? '<span class="pill real">mes en curso</span>'
                     : (m.proyectado
                         ? '<span class="pill parcial">' + m.quincenas + '/2 · resto proyectado</span>'
                         : '<span class="pill parcial">' + m.quincenas + '/2 quincenas</span>')))
@@ -2011,6 +2185,8 @@ document.addEventListener('portal:listo', () => {
   leerCacheLocal();
   aplicarAjustesUI();
   pintar();
+  // La proyección guardada en el servidor: puede venir de otro computador.
+  bajarFlujo().then(cambio => { if(cambio){ aplicarAjustesUI(); pintar(); } }).catch(()=>{});
   // Y en segundo plano, por si otra máquina aprobó una quincena.
   refrescarDesdeServidor().then(cambio => { if(cambio) pintar(); }).catch(()=>{});
 });
