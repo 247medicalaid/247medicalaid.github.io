@@ -13,8 +13,9 @@
   --bg:#f4f5f7; --surface:#ffffff; --surface-2:#f0efec; --border:#e2e3e6;
   --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
   --track:#e7e8ea; --lunch:#d6d7da;
-  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --neutral:#9a9a96;
-  --good-bg:#e6f6e6; --warning-bg:#fff4dc; --critical-bg:#fbe7e7; --neutral-bg:#ecebe8;
+  --good:#188038; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
+  --good-bg:#e6f4ea; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
+  --st-inactivo:#e8710a; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
   --accent:#0E86B4;
 }
 @media (prefers-color-scheme: dark){
@@ -23,7 +24,9 @@
     --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
     --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
     --track:#2c2c29; --lunch:#3d3d39;
+    --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
     --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+    --st-inactivo:#f29d4e; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
     --accent:#0E86B4;
   }
 }
@@ -32,7 +35,9 @@
   --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
   --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
   --track:#2c2c29; --lunch:#3d3d39;
+  --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
   --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+  --st-inactivo:#f29d4e; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
   --accent:#0E86B4;
 }
 *{box-sizing:border-box}
@@ -128,6 +133,18 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 #msg{position:fixed;left:50%;bottom:24px;transform:translate(-50%,160%);background:var(--brand);color:#fff;padding:11px 20px;border-radius:999px;font-weight:600;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:transform .28s;z-index:30;max-width:90vw;text-align:center}
 #msg.show{transform:translate(-50%,0)}
 #msg.err{background:var(--critical)} #msg.ok{background:var(--good)}
+.btn-mini{margin-top:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:7px;padding:3px 9px;font:inherit;font-size:11.5px;font-weight:500;cursor:pointer}
+.btn-mini:hover{border-color:var(--accent);color:var(--text)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
+.modal-bg.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
+.modal h3{margin:0 0 4px;font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:17px}
+.modal p.sub{margin:0 0 16px;color:var(--text-2);font-size:13px}
+.modal label{display:block;font-size:12.5px;font-weight:600;margin:12px 0 4px}
+.modal input[type=time]{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
+.modal .dos{display:flex;gap:10px}.modal .dos>div{flex:1}
+.modal .acc{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.modal .hint{font-size:12px;color:var(--muted);margin-top:6px}
 </style>
 </head>
 <body>
@@ -184,6 +201,26 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
   <button class="btn primary" id="guardar" type="button">Conectar</button>
   <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
 </div>
+<div class="modal-bg" id="modalHorario">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>Horario de <span id="hAgente"></span></h3>
+    <p class="sub">Define la jornada de este agente. Se usa para calcular ausencias y el "fuera de horario".</p>
+    <div class="dos">
+      <div><label for="hIni">Entrada</label><input type="time" id="hIni"></div>
+      <div><label for="hFin">Salida</label><input type="time" id="hFin"></div>
+    </div>
+    <label>Almuerzo (opcional)</label>
+    <div class="dos">
+      <div><input type="time" id="hAlmA" aria-label="Almuerzo desde"></div>
+      <div><input type="time" id="hAlmB" aria-label="Almuerzo hasta"></div>
+    </div>
+    <div class="hint">Deja el almuerzo en blanco si no aplica. Vacía entrada y salida para usar el horario general.</div>
+    <div class="acc">
+      <button class="btn" id="hCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="hGuardar" type="button">Guardar horario</button>
+    </div>
+  </div>
+</div>
 <div id="msg" role="status"></div>
 <div id="tip" role="tooltip"></div>
 
@@ -194,11 +231,11 @@ const API_URL = '';
 const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
 
 const TIPOS = {
-  'Inactivo':        { color: 'var(--serious)',  icon: 'sq',  desc: 'Equipo encendido sin uso de teclado ni mouse' },
-  'Sin señal':       { color: 'var(--critical)', icon: 'x',   desc: 'Equipo apagado, suspendido o monitor detenido' },
-  'Sin conexión':    { color: 'var(--critical)', icon: 'x',   desc: 'No se conectó en todo el día', hatch: true },
-  'Conexión tardía': { color: 'var(--critical)', icon: 'x',   desc: 'Se conectó después de la hora de inicio', hatch: true },
-  'Sin internet':    { color: 'var(--warning)',  icon: 'tri', desc: 'Equipo activo pero sin conexión a internet' }
+  'Inactivo':        { color: 'var(--st-inactivo)',    icon: 'sq',  desc: 'Equipo encendido sin uso de teclado ni mouse' },
+  'Sin señal':       { color: 'var(--st-sinsenal)',    icon: 'x',   desc: 'Equipo apagado, suspendido o monitor detenido' },
+  'Sin conexión':    { color: 'var(--st-sinconexion)', icon: 'x',   desc: 'No se conectó en todo el día' },
+  'Conexión tardía': { color: 'var(--st-tardia)',      icon: 'x',   desc: 'Se conectó después de la hora de inicio' },
+  'Sin internet':    { color: 'var(--st-sininternet)', icon: 'tri', desc: 'Equipo activo pero sin conexión a internet' }
 };
 const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
 
@@ -410,7 +447,8 @@ function fila(a, d){
   const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
 
   return '<div class="row">' +
-    '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small></div>' +
+    '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small>' +
+      '<br><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" type="button">Horario</button></div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
       (d.esHoy ? netHtml(a.vivo) : '') + '</div>' +
@@ -458,6 +496,41 @@ document.addEventListener('click', async ev => {
     else toast(j.error || 'No se pudo solicitar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   setTimeout(() => { b.disabled = false; }, 3000);
+});
+
+let horAgente = null;
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-hor]');
+  if (!b) return;
+  horAgente = b.dataset.hor;
+  $('hAgente').textContent = horAgente;
+  $('hIni').value = b.dataset.ini || '';
+  $('hFin').value = b.dataset.fin || '';
+  const alm = (b.dataset.alm || '').split('-');
+  $('hAlmA').value = alm[0] || '';
+  $('hAlmB').value = alm[1] || '';
+  $('modalHorario').classList.add('show');
+});
+$('hCancelar').addEventListener('click', () => $('modalHorario').classList.remove('show'));
+$('modalHorario').addEventListener('click', ev => { if (ev.target.id === 'modalHorario') $('modalHorario').classList.remove('show'); });
+$('hGuardar').addEventListener('click', async () => {
+  if (S.demo) { toast('En modo ejemplo no se guarda el horario.'); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  const ini = $('hIni').value, fin = $('hFin').value;
+  const aa = $('hAlmA').value, bb = $('hAlmB').value;
+  const alm = (aa && bb) ? (aa + '-' + bb) : '';
+  const btn = $('hGuardar'); btn.disabled = true;
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
+      '&accion=horario&agente=' + encodeURIComponent(horAgente) +
+      '&inicio=' + encodeURIComponent(ini) + '&fin=' + encodeURIComponent(fin) + '&almuerzo=' + encodeURIComponent(alm);
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok) { toast('Horario guardado para ' + horAgente, 'ok'); $('modalHorario').classList.remove('show'); cargar(); }
+    else toast(j.error || 'No se pudo guardar.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+  btn.disabled = false;
 });
 
 $('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[data-c]'); if (b) { S.cuenta = b.dataset.c; pintar(); } });
