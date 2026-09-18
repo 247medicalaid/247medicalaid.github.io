@@ -336,6 +336,28 @@ function pintar(){
     : '<div class="empty">Sin novedades de 10+ minutos.</div>';
 }
 
+var APPMAP = {
+  olk:'Microsoft Outlook', outlook:'Microsoft Outlook',
+  chrome:'Google Chrome', msedge:'Microsoft Edge', 'microsoftedge':'Microsoft Edge', iexplore:'Internet Explorer',
+  firefox:'Mozilla Firefox', opera:'Opera', brave:'Brave',
+  excel:'Microsoft Excel', winword:'Microsoft Word', powerpnt:'PowerPoint', onenote:'OneNote', msaccess:'Access', outlookforwindows:'Microsoft Outlook',
+  teams:'Microsoft Teams', 'ms-teams':'Microsoft Teams', 'msteams':'Microsoft Teams', lync:'Skype Empresarial',
+  ringcentral:'RingCentral', 'ringcentral-classic':'RingCentral', softphone:'Softphone', ooma:'Ooma', weave:'Weave',
+  dialpad:'Dialpad', microsip:'MicroSIP', nextiva:'Nextiva', nextivaapp:'Nextiva', nextivaone:'Nextiva',
+  zoom:'Zoom', slack:'Slack', whatsapp:'WhatsApp', discord:'Discord', telegram:'Telegram',
+  explorer:'Explorador de Windows', notepad:'Bloc de notas', code:'Visual Studio Code', wordpad:'WordPad',
+  acrobat:'Adobe Acrobat', acrord32:'Adobe Reader', acrocef:'Adobe Acrobat',
+  spotify:'Spotify', vlc:'VLC', obs64:'OBS Studio',
+  eclinicalworks:'eClinicalWorks', ecw:'eClinicalWorks',
+  anydesk:'AnyDesk', teamviewer:'TeamViewer', msrdc:'Escritorio remoto', mstsc:'Escritorio remoto',
+  onedrive:'OneDrive', dropbox:'Dropbox', googledrivefs:'Google Drive', 'google drive':'Google Drive'
+};
+function nombreApp(n){
+  if (!n) return '';
+  const k = String(n).toLowerCase().replace(/\.exe$/, '');
+  return APPMAP[k] || n;
+}
+
 function netHtml(v){
   if (!v || v.lat == null) return '';
   const lat = v.lat, loss = v.loss || 0;
@@ -346,7 +368,7 @@ function netHtml(v){
 }
 function progsHtml(v){
   if (!v || !v.programas || !v.programas.length) return '';
-  const items = v.programas.map(p => '<li><span>' + esc(p.n) + '</span><span>' + p.mb + ' MB</span></li>').join('');
+  const items = v.programas.map(p => '<li><span title="' + esc(p.n) + '">' + esc(nombreApp(p.n)) + '</span><span>' + p.mb + ' MB</span></li>').join('');
   return '<details class="progs"><summary>Ver programas (' + v.programas.length + ')</summary><ul>' + items + '</ul></details>';
 }
 function speedHtml(a){
@@ -390,7 +412,7 @@ function fila(a, d){
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small></div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
-      (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(a.vivo.progActivo) + '</b></div>' : '') +
+      (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
       (d.esHoy ? netHtml(a.vivo) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos<br>' +
