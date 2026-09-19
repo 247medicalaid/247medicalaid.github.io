@@ -15,7 +15,7 @@
   --track:#e7e8ea; --lunch:#d6d7da;
   --good:#188038; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
   --good-bg:#e6f4ea; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
-  --st-inactivo:#e8710a; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
+  --st-inactivo:#e8710a; --st-offline:#d93025; --st-activo:#188038; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
   --accent:#0E86B4;
 }
 @media (prefers-color-scheme: dark){
@@ -26,7 +26,7 @@
     --track:#2c2c29; --lunch:#3d3d39;
     --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
     --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-    --st-inactivo:#f29d4e; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+    --st-inactivo:#f29d4e; --st-offline:#f16b5f; --st-activo:#5bb974; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
     --accent:#0E86B4;
   }
 }
@@ -37,7 +37,7 @@
   --track:#2c2c29; --lunch:#3d3d39;
   --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
   --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-  --st-inactivo:#f29d4e; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+  --st-inactivo:#f29d4e; --st-offline:#f16b5f; --st-activo:#5bb974; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
   --accent:#0E86B4;
 }
 *{box-sizing:border-box}
@@ -83,7 +83,8 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
 .tl{position:relative;height:22px;background:var(--track);border-radius:4px}
 .tl .seg{position:absolute;top:0;bottom:0;border-radius:4px;cursor:default}
 .tl .seg:hover{outline:2px solid var(--text);outline-offset:1px}
-.tl .lunch{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,var(--lunch) 0 3px,transparent 3px 7px)}
+.tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo);opacity:.9}
+.tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
 .axis{position:relative;height:16px;margin-top:3px;color:var(--muted);font-size:11px}
 .axis span{position:absolute;transform:translateX(-50%);white-space:nowrap}
@@ -231,12 +232,11 @@ const API_URL = '';
 const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
 
 const TIPOS = {
-  'Inactivo':        { color: 'var(--st-inactivo)',    icon: 'sq',  desc: 'Equipo encendido sin uso de teclado ni mouse' },
-  'Sin señal':       { color: 'var(--st-sinsenal)',    icon: 'x',   desc: 'Equipo apagado, suspendido o monitor detenido' },
-  'Sin conexión':    { color: 'var(--st-sinconexion)', icon: 'x',   desc: 'No se conectó en todo el día' },
-  'Conexión tardía': { color: 'var(--st-tardia)',      icon: 'x',   desc: 'Se conectó después de la hora de inicio' },
-  'Sin internet':    { color: 'var(--st-sininternet)', icon: 'tri', desc: 'Equipo activo pero sin conexión a internet' }
+  'Inactivo': { color: 'var(--st-inactivo)', desc: 'Equipo encendido y conectado, pero sin uso de teclado ni mouse' },
+  'Offline':  { color: 'var(--st-offline)',  desc: 'El computador no reporta: apagado, suspendido, sin internet o el monitor cerrado' }
 };
+function tipoDisp(t){ return t === 'Inactivo' ? 'Inactivo' : 'Offline'; }
+function estadoTxt(t){ return (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') ? 'Offline' : t; }
 const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
 
 const S = { data: null, demo: false, cuenta: 'Todas', solo: false, timer: null, fecha: '' };
@@ -275,8 +275,8 @@ function icono(nivel){
   return '<svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="'+c+'" stroke-width="2"/></svg>';
 }
 function swatch(t){
-  const d = TIPOS[t];
-  return '<i class="sw' + (d.hatch ? ' hatch' : '') + '" style="background-color:' + d.color + '"></i>';
+  const d = TIPOS[tipoDisp(t)] || TIPOS['Offline'];
+  return '<i class="sw" style="background-color:' + d.color + '"></i>';
 }
 
 // ---------------------------------------------------------------- datos
@@ -337,7 +337,7 @@ function pintar(){
   const tiles = d.esHoy ? [
     ['Agentes monitoreados', todos.length, 'en ' + (S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta), ''],
     ['Activos ahora', cnt('verde'), 'trabajando normalmente', 'verde'],
-    ['Requieren atención', cnt('rojo'), '10+ min sin actividad o señal', 'rojo'],
+    ['Requieren atención', cnt('rojo'), '10+ min inactivo u offline', 'rojo'],
     ['En pausa / aviso', cnt('amarillo'), '5–10 min o app cerrada', 'amarillo'],
     ['Tiempo perdido hoy', dur(perdidos) || '0 min', conNov + ' agente(s) con novedades', ''],
     ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició hoy', reinTotal ? 'amarillo' : '']
@@ -352,8 +352,8 @@ function pintar(){
     '</div><div class="num">' + esc(t[1]) + '</div><div class="hint">' + esc(t[2]) + '</div></div>').join('');
 
   // Leyenda
-  $('legend').innerHTML = Object.keys(TIPOS).map(t => '<span>' + swatch(t) + esc(t) + '</span>').join('') +
-    '<span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--lunch) 0 3px,transparent 3px 7px);border:1px solid var(--border)"></i>Almuerzo</span>';
+  $('legend').innerHTML = '<span><i class="sw" style="background:var(--st-activo)"></i>Activo</span>' + Object.keys(TIPOS).map(t => '<span>' + swatch(t) + esc(t) + '</span>').join('') +
+    '<span><i class="sw" style="background:var(--lunch);border:1px solid var(--border)"></i>Almuerzo</span>';
 
   // Filas
   if (!lista.length) {
@@ -368,7 +368,7 @@ function pintar(){
   eps.sort((x, y) => x.ini - y.ini);
   S.eps = eps;
   $('tabla').innerHTML = eps.length ? '<div class="tscroll"><table><thead><tr><th>Agente</th><th>Cuenta</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th style="text-align:right">Duración</th></tr></thead><tbody>' +
-    eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(e.tipo) + '</td><td>' + hora(e.ini) +
+    eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(tipoDisp(e.tipo)) + '</td><td>' + hora(e.ini) +
       '</td><td>' + (e.abierto ? '<b>continúa</b>' : hora(e.fin)) + '</td><td class="num">' + dur(e.min) + '</td></tr>').join('') + '</tbody></table></div>'
     : '<div class="empty">Sin novedades de 10+ minutos.</div>';
 }
@@ -418,7 +418,8 @@ function fila(a, d){
   const e = a.estado;
   let pill;
   if (e) {
-    const txt = e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + e.texto : '') : e.texto;
+    const et = estadoTxt(e.texto);
+    const txt = e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et;
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
   } else {
@@ -431,10 +432,13 @@ function fila(a, d){
   const t0 = a.jIni, t1 = a.jFin, span = Math.max(1, t1 - t0);
   const pct = t => Math.min(100, Math.max(0, (t - t0) / span * 100));
   let tl = '';
+  const cap = d.esHoy ? Math.min(d.generado, t1) : t1;
+  if (a.primera != null && cap > t0) tl += '<div class="base" style="left:0;width:' + pct(cap) + '%"></div>';
   if (a.almuerzoMs) tl += '<div class="lunch" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' + (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
   a.episodios.forEach(ep => {
-    const T = TIPOS[ep.tipo] || TIPOS['Sin señal'];
-    const tip = esc(ep.tipo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(T.desc);
+    const dt = tipoDisp(ep.tipo);
+    const T = TIPOS[dt] || TIPOS['Sin señal'];
+    const tip = esc(tipoDisp(ep.tipo)) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(T.desc);
     tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + '" data-tip="' + tip + '" style="left:' + pct(ep.ini) + '%;width:calc(' +
       (pct(ep.fin) - pct(ep.ini)) + '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
   });
@@ -542,7 +546,7 @@ $('btnCfg').addEventListener('click', mostrarSetup);
 $('csv').addEventListener('click', () => {
   if (!S.eps) return;
   const filas = [['Fecha','Agente','Cuenta','Tipo','Desde','Hasta','Minutos']].concat(
-    S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, e.tipo, hora(e.ini), e.abierto ? 'continúa' : hora(e.fin), e.min]));
+    S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, tipoDisp(e.tipo), hora(e.ini), e.abierto ? 'continúa' : hora(e.fin), e.min]));
   const csv = '\ufeff' + filas.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
