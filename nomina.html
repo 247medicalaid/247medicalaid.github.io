@@ -2046,6 +2046,68 @@ function configEsDeFabrica(){
 function configEsConfiable(){
   return _configConfirmada || !configEsDeFabrica();
 }
+// ¿Lo que MANDA el servidor es, carácter por carácter, la lista de fábrica?
+// El 27/8/2026 pasó exactamente eso: el servidor respondió "bien" con las 9
+// cuentas y los 33 agentes del archivo, y la aplicación se lo creyó. Una
+// respuesta puede ser válida y aun así ser basura.
+function respuestaEsDeFabrica(data){
+  if(!data || !Array.isArray(data.agentes) || !Array.isArray(data.cuentas)) return false;
+  return _mismaLista(data.agentes, _defaultAgentes) && _mismaLista(data.cuentas, _defaultCuentas);
+}
+
+// Qué se llevaría por delante adoptar lo que manda el servidor. Se mide contra
+// lo que hay aquí, y SOLO tiene sentido si lo de aquí es de fiar.
+function loQueQuitaria(data){
+  const idsA = new Set((data.agentes||[]).map(a => a.id));
+  const idsC = new Set((data.cuentas||[]).map(c => c.id));
+  return {
+    agentes: (agentes||[]).filter(a => !idsA.has(a.id)).map(a => a.nombre),
+    cuentas: (cuentas||[]).filter(c => !idsC.has(c.id)).map(c => c.nombre)
+  };
+}
+
+// Borrar un agente o una cuenta a propósito es normal y tiene que seguir
+// funcionando entre navegadores. Lo que no es normal es que desaparezca una
+// cuenta entera o media plantilla de golpe: eso se pregunta, no se aplica.
+function esRecorteSospechoso(q){
+  return q.cuentas.length > 0 || q.agentes.length >= 3;
+}
+
+let _pendienteDelServidor = null;   // la config que se dejó esperando
+
+function avisarDelServidor(titulo, detalle, opciones){
+  let b = $('aviso-servidor');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'aviso-servidor';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:9998;' +
+      'max-width:640px;background:#1A1206;border:1px solid #F2A93B;border-radius:12px;' +
+      'padding:14px 18px;font-family:Inter,sans-serif;font-size:13px;color:#EAF4F6;' +
+      'box-shadow:0 10px 30px rgba(0,0,0,.5);line-height:1.55';
+    document.body.appendChild(b);
+  }
+  b.innerHTML = '<b style="color:#F2A93B">' + titulo + '</b><br>' + detalle +
+    '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">' + opciones + '</div>';
+}
+function cerrarAvisoServidor(){
+  const b = $('aviso-servidor'); if(b) b.remove();
+  _pendienteDelServidor = null;
+}
+// "Sí, acepta lo del servidor" — para el caso en que el recorte sea de verdad.
+function aceptarConfigDelServidor(){
+  const d = _pendienteDelServidor;
+  cerrarAvisoServidor();
+  if(!d) return;
+  agentes = d.agentes; cuentas = d.cuentas;
+  syncIdCounter(); guardarConfigLocal(); recalcAll(); updateBadges();
+}
+// "No, la mía es la buena" — sube lo de aquí y repara el servidor.
+function repararServidorConLoMio(){
+  cerrarAvisoServidor();
+  guardarConfigRemoto();
+  setConexion('loading','Reparando la configuración del servidor…');
+}
+
 function avisarConfigDeFabrica(){
   if(avisarConfigDeFabrica._ya) return;
   avisarConfigDeFabrica._ya = true;
@@ -4148,6 +4210,57 @@ function cargarConfigRemoto(){
   fetch(GS_URL + '?tipo=config')
     .then(r => r.json())
     .then(data => {
+      // ── Guardia A: el servidor manda la lista de fábrica ──────────────
+      // No se adopta NUNCA. Si aquí hay datos buenos, se conservan y se ofrece
+      // reparar el servidor; si no hay nada, no se puede trabajar.
+      if(respuestaEsDeFabrica(data)){
+        if(configEsConfiable()){
+          _configConfirmada = false;       // lo del servidor no cuenta como confirmado
+          avisarDelServidor(
+            '\u26a0 La configuración del servidor está dañada',
+            'El servidor devolvió la lista inicial del programa (' + _defaultCuentas.length +
+            ' cuentas, ' + _defaultAgentes.length + ' agentes), no la tuya. ' +
+            'Este navegador conserva ' + cuentas.length + ' cuentas y ' + agentes.length +
+            ' agentes, y es lo que estás viendo. <b>No se ha perdido nada aquí.</b>',
+            '<button onclick="repararServidorConLoMio()" style="font:600 12px Inter;background:#4CC2EC;' +
+            'color:#04141F;border:0;border-radius:7px;padding:8px 14px;cursor:pointer">' +
+            'Reparar el servidor con lo de este navegador</button>' +
+            '<button onclick="cerrarAvisoServidor()" style="font:600 12px Inter;background:transparent;' +
+            'color:#9FBECB;border:1px solid #2A4A5C;border-radius:7px;padding:8px 14px;cursor:pointer">' +
+            'Ahora no</button>');
+          _configLoaded = true; _checkAndInit(); recalcAll(); updateBadges();
+        } else {
+          _bloquearPorConfig('el servidor tiene la lista de fábrica, no la tuya');
+        }
+        return;
+      }
+
+      // ── Guardia B: lo del servidor se llevaría cuentas o media plantilla ──
+      // Borrar un agente a propósito tiene que seguir funcionando; lo que se
+      // frena es la desaparición masiva, que es la forma que tiene este fallo.
+      if(datosValidos(data) && Array.isArray(data.agentes) && configEsConfiable()){
+        const q = loQueQuitaria(data);
+        if(esRecorteSospechoso(q)){
+          _pendienteDelServidor = { agentes: mergeAgentes(data.agentes), cuentas: data.cuentas };
+          const lista = (n, arr) => arr.length
+            ? '<br>' + n + ': <span style="color:#F2A93B">' + arr.slice(0,6).join(', ') +
+              (arr.length > 6 ? ' y ' + (arr.length - 6) + ' más' : '') + '</span>' : '';
+          avisarDelServidor(
+            '\u26a0 Lo que manda el servidor quitaría cosas que tienes aquí',
+            'Si se acepta, desaparecerían ' + q.cuentas.length + ' cuentas y ' +
+            q.agentes.length + ' agentes.' + lista('Cuentas', q.cuentas) + lista('Agentes', q.agentes) +
+            '<br><br>Si tú los borraste, acepta. Si no, lo de aquí es lo bueno.',
+            '<button onclick="repararServidorConLoMio()" style="font:600 12px Inter;background:#4CC2EC;' +
+            'color:#04141F;border:0;border-radius:7px;padding:8px 14px;cursor:pointer">' +
+            'Conservar lo de aquí y reparar el servidor</button>' +
+            '<button onclick="aceptarConfigDelServidor()" style="font:600 12px Inter;background:transparent;' +
+            'color:#9FBECB;border:1px solid #2A4A5C;border-radius:7px;padding:8px 14px;cursor:pointer">' +
+            'Yo los borré, acepta</button>');
+          _configLoaded = true; _checkAndInit(); recalcAll(); updateBadges();
+          return;
+        }
+      }
+
       if(datosValidos(data) && Array.isArray(data.agentes) && data.agentes.length > 0){
         const savedRecently = (Date.now() - _lastConfigSave) < 15000; // 15 seconds
         const sheetsIsStale = data.agentes.length < agentes.length;
