@@ -5649,6 +5649,12 @@ let INVOICE_RATES = (() => {
 // es el unico que se sabe que persiste: '?tipo=invoiceRates' devuelve {}, o sea
 // que el Apps Script no guarda las tarifas por su via propia, y sin esto viven
 // solo en el navegador donde se escribieron. '__counter__' ya vive ahi igual.
+// El Apps Script de respaldos (el de la Proyeccion, que ya guarda las copias
+// diarias en el Drive). Nomina solo le MANDA el Excel; no lee nada de el, y si
+// no responde, la exportacion sigue funcionando igual: el archivo se descarga
+// como siempre. Vacio = no se sube, solo se descarga.
+const RESPALDO_URL = 'https://script.google.com/macros/s/AKfycbwogMZeGETHjyh6wtshDQvR9v05gqiEGfO3PMmyXWJzon41FFOWypRYnD4WrdA0Q9RS/exec';
+
 const INVOICE_RATES_OV_KEY = '__rates__';
 
 function guardarInvoiceRates(){
@@ -9227,14 +9233,34 @@ async function _doExport(sleep){
   ${ws1}${ws2}${ws3}${ws4}${ws5}${ws6}${ws7}${ws8}
 </Workbook>`;
 
-  const blob=new Blob(['\uFEFF'+xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const contenido = '\uFEFF'+xml;
+  const blob=new Blob([contenido],{type:'application/vnd.ms-excel;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download=`24_7_Medical_Aid_${fecha}.xls`;
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 
-  if(toast){ toast.textContent=`✅ Exportado: 24_7_Medical_Aid_${fecha}.xls`; setTimeout(()=>toast.remove(),3000); }
+  if(toast){ toast.textContent=`✅ Exportado: 24_7_Medical_Aid_${fecha}.xls`; }
+
+  // Y una copia al Drive, en la misma carpeta de los respaldos diarios.
+  // La descarga ya ocurrio: pase lo que pase aqui, el archivo no se pierde.
+  subirExcelAlDrive(contenido, `Excel ${fecha}.xls`, toast);
+}
+
+function subirExcelAlDrive(contenido, nombre, toast){
+  const fin = (txt) => { if(toast){ toast.textContent = txt; setTimeout(()=>toast.remove(), 4000); } };
+  if(!RESPALDO_URL){ fin('✅ Exportado (solo descarga)'); return; }
+  // Texto plano a proposito: con application/json el navegador manda antes una
+  // peticion OPTIONS que Apps Script no contesta, y la subida falla en silencio.
+  fetch(RESPALDO_URL, { method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'guardarExcel', nombre, contenido }) })
+    .then(r => r.json()).catch(() => null)
+    .then(j => {
+      if(j && j.ok) fin(`✅ Exportado · copia en Drive (${Math.round((j.bytes||0)/1024)} KB)`);
+      else fin('✅ Exportado · ⚠ no se pudo subir al Drive');
+    });
 }
 
 
