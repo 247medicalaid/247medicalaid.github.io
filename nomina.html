@@ -2010,6 +2010,43 @@ function syncIdCounter(){
 // Guardar copia de los datos iniciales del código como fallback
 const _defaultAgentes = JSON.parse(JSON.stringify(agentes));
 const _defaultCuentas = JSON.parse(JSON.stringify(cuentas));
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CORTAFUEGOS DE CONFIGURACIÓN
+//  Las listas de arriba son el punto de partida escrito dentro de este archivo
+//  — 9 cuentas y 33 agentes. NO son los datos de Carlos: hoy son 12 cuentas y
+//  61 agentes.
+//
+//  En un navegador recién instalado no hay cache, así que si la lectura de
+//  Sheets no llega, en memoria queda esa lista de fábrica. Antes la aplicación
+//  la pintaba como si fuera buena, y —peor— al primer guardado la mandaba a
+//  Sheets, borrando las cuentas y los agentes reales. Así se pierde una nómina.
+//
+//  A partir de aquí: la configuración solo se considera CONFIABLE si Sheets la
+//  confirmó, o si lo que hay es distinto de la lista de fábrica (o sea, datos
+//  que alguien escribió). Nada que no sea confiable sale hacia Sheets.
+// ═══════════════════════════════════════════════════════════════════════════
+let _configConfirmada = false;   // Sheets respondió con una config utilizable
+
+function _mismaLista(a, b){
+  if(!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((x, i) => x && b[i] && x.id === b[i].id && x.nombre === b[i].nombre);
+}
+function configEsDeFabrica(){
+  return _mismaLista(agentes, _defaultAgentes) && _mismaLista(cuentas, _defaultCuentas);
+}
+function configEsConfiable(){
+  return _configConfirmada || !configEsDeFabrica();
+}
+function avisarConfigDeFabrica(){
+  if(avisarConfigDeFabrica._ya) return;
+  avisarConfigDeFabrica._ya = true;
+  alert('\u26d4 La configuración no se cargó.\n\n' +
+    'Esta pantalla está mostrando la lista inicial del programa (' +
+    _defaultCuentas.length + ' cuentas, ' + _defaultAgentes.length + ' agentes), ' +
+    'no la tuya. No se guardó nada, justamente para no borrar la buena.\n\n' +
+    'Recarga la página y espera a que arriba diga cuántas cuentas y agentes cargó.');
+}
 syncIdCounter(); // set counter based on hardcoded data IDs
 // ═══════════════════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
@@ -3938,6 +3975,9 @@ function agentesParaConfig(){
 }
 
 function guardarConfigLocal(){
+  // Si se guardara la lista de fábrica en el cache, al recargar parecería un
+  // dato legítimo y el cortafuegos ya no la distinguiría.
+  if(!configEsConfiable()) return;
   try {
     // Save complete agent data to local cache including cuenta and all fields
     localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify({
@@ -3958,6 +3998,14 @@ function guardarConfigLocal(){
 let _lastConfigSave = 0; // timestamp of last save
 
 function guardarConfigRemoto(){
+  // saveConfig REEMPLAZA agentes y cuentas en Sheets. Por aquí pasa todo
+  // guardado —el de arranque y el manual—, así que este es el sitio donde el
+  // cortafuegos protege de verdad.
+  if(!configEsConfiable()){
+    setConexion('error','\u26d4 No se guardó: la configuración no cargó');
+    avisarConfigDeFabrica();
+    return;
+  }
   _lastConfigSave = Date.now();
   fetch(GS_URL, {
     method: 'POST',
@@ -4106,7 +4154,9 @@ function cargarConfigRemoto(){
         const agentesAreDefault = agentes.length === _defaultAgentes.length && 
           agentes.every((a,i) => a.id === _defaultAgentes[i]?.id);
         if((savedRecently || sheetsIsStale) && !agentesAreDefault){
-          setConexion('ok', `☁️ ${agentes.length} agentes (local)`);
+          _configConfirmada = true;   // Sheets contestó; se prefiere lo local por más reciente
+          _intentosConfig = 0;
+          setConexion('ok', `☁️ ${cuentas.length} cuentas · ${agentes.length} agentes (local)`);
           // Don't hide overlay yet — historial still loading
           // _configLoaded so _checkAndInit can fire when historial arrives
           _configLoaded = true;
@@ -4124,8 +4174,10 @@ function cargarConfigRemoto(){
           // Also re-apply if we unlocked for editing
           cargarDatosHistoricos(_snapshotAtUnlock);
         }
+        _configConfirmada = true;   // Sheets contestó con datos utilizables
+        _intentosConfig = 0;
         localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify({ agentes: agentesParaConfig(), cuentas }));
-        setConexion('ok', `☁️ ${agentes.length} agentes · ${cuentas.length} cuentas`);
+        setConexion('ok', `☁️ ${cuentas.length} cuentas · ${agentes.length} agentes`);
         _setLoadingMsg('✓ Datos cargados');
         _configLoaded = true;
         _checkAndInit(); // overlay hidden inside _checkAndInit
@@ -4135,9 +4187,14 @@ function cargarConfigRemoto(){
           cargarDatosHistoricos(_snapshotActivo);
         }
       } else {
+        // Sheets no devolvió una configuración utilizable.
+        // ANTES aquí se llamaba a guardarConfig(), que MANDA a Sheets lo que
+        // haya en memoria. En un navegador nuevo eso es la lista de fábrica, y
+        // se llevaba por delante las cuentas y los agentes reales.
+        if(!configEsConfiable()){ _configNoLlego('el servidor respondió vacío'); return; }
         setConexion('loading','Guardando config en Sheets...');
         guardarConfig();
-        setConexion('ok', `Config guardada · ${agentes.length} agentes`);
+        setConexion('ok', `Config guardada · ${cuentas.length} cuentas · ${agentes.length} agentes`);
         _configLoaded = true; _checkAndInit(); // wait for historial
       }
       // If a snapshot is active (approved period), re-apply it after config merge
@@ -4149,15 +4206,76 @@ function cargarConfigRemoto(){
       populatePeriodoSelects();
       actualizarBadgePendiente();
     })
-    .catch(()=>{
-      if(!agentes.length){
-        agentes = JSON.parse(JSON.stringify(_defaultAgentes));
-        cuentas = JSON.parse(JSON.stringify(_defaultCuentas));
-      }
-      inicializarPeriodoActual();
-      setConexion('error', '⚠️ Sin conexión — datos locales');
-      _configLoaded = true; _checkAndInit(); // offline: use cache
-    });
+    .catch(()=>{ _configNoLlego('no hubo respuesta'); });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  La configuración no llegó
+//  Dos situaciones muy distintas, y antes se trataban igual:
+//
+//  • Hay datos reales en este navegador (cache de una sesión anterior). Se
+//    sigue trabajando con ellos y basta con avisar que se está sin conexión.
+//
+//  • NO hay nada: lo que se ve es la lista de fábrica. Aquí la aplicación NO
+//    puede seguir. Apps Script tarda en despertar cuando lleva rato sin uso,
+//    así que primero se reintenta; si aun así no llega, se bloquea la pantalla
+//    en vez de dejar trabajar sobre cuentas y agentes que no son los suyos.
+// ═══════════════════════════════════════════════════════════════════════════
+let _intentosConfig = 0;
+
+function _configNoLlego(motivo){
+  if(configEsConfiable()){
+    inicializarPeriodoActual();
+    setConexion('error', '⚠️ Sin conexión — datos de este navegador');
+    _configLoaded = true; _checkAndInit();
+    return;
+  }
+  _intentosConfig++;
+  if(_intentosConfig <= 3){
+    const espera = _intentosConfig * 2500;
+    _setLoadingMsg('El servidor no contestó (' + motivo + '). Reintentando en ' +
+                   (espera / 1000) + ' s… intento ' + _intentosConfig + ' de 3');
+    setTimeout(cargarConfigRemoto, espera);
+    return;
+  }
+  _bloquearPorConfig(motivo);
+}
+
+function _bloquearPorConfig(motivo){
+  const ov = $('loading-overlay');
+  if(!ov) { avisarConfigDeFabrica(); return; }
+  ov.style.display = 'flex';
+  ov.style.opacity = '1';
+  const bar = $('loading-bar');
+  if(bar) bar.style.animation = 'none';
+  const ico = ov.querySelector('div');
+  if(ico) ico.textContent = '⛔';
+  _setLoadingMsg('');
+  const msg = $('loading-msg');
+  if(msg){
+    msg.style.maxWidth = '460px';
+    msg.style.lineHeight = '1.6';
+    msg.style.textAlign = 'center';
+    msg.innerHTML =
+      '<b style="color:#F2A93B">No se pudo cargar tu configuración</b><br>' +
+      'El servidor no contestó (' + motivo + ') después de 3 intentos.<br><br>' +
+      'La aplicación <b>no sigue</b> a propósito: sin esa lectura mostraría las ' +
+      _defaultCuentas.length + ' cuentas y los ' + _defaultAgentes.length +
+      ' agentes con los que viene de fábrica, que no son los tuyos. Trabajar ' +
+      'sobre eso —o guardarlo— borraría los datos buenos.<br><br>' +
+      '<button id="btn-reintentar-config" style="font:600 13px Inter,sans-serif;' +
+      'background:#4CC2EC;color:#04141F;border:0;border-radius:8px;padding:9px 18px;' +
+      'cursor:pointer">Reintentar</button>';
+    const b = $('btn-reintentar-config');
+    if(b) b.onclick = () => {
+      _intentosConfig = 0;
+      if(bar) bar.style.animation = '';
+      if(ico) ico.textContent = '⏳';
+      msg.innerHTML = 'Reintentando…';
+      cargarConfigRemoto();
+    };
+  }
+  setConexion('error', '⛔ Configuración no cargada');
 }
 
 
