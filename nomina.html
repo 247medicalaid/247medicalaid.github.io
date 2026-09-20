@@ -60,7 +60,11 @@
     display: flex; flex-direction: column;
     padding: 24px 0;
     position: sticky; top: 0; height: 100vh;
+    /* Si la pantalla es baja o el navegador deja menos alto util, el menu se
+       cortaba y no se llegaba al pie. Ahora se desplaza. */
+    overflow-y: auto; overscroll-behavior: contain;
   }
+  .sidebar-footer { margin-top: auto; }
   .main { flex: 1; min-width: 0; padding: 32px; }
 
   /* ─── SIDEBAR ─── */
@@ -1207,7 +1211,11 @@
     </button>
     Quincena activa<br>
     <span id="sidebar-period" style="color:var(--text2)">—</span>
-    <div id="conexion-estado" style="margin-top:8px;font-size:11px;color:var(--text3)">☁️ Conectando...</div>
+    <!-- De donde salieron las cuentas y los agentes que se estan viendo.
+         Va aparte del mensaje de conexion a proposito: ese lo pisa cualquier
+         "guardado ✓" y entonces nunca se alcanza a leer. -->
+    <div id="origen-datos" style="margin-top:8px;font-size:11px;color:var(--text3);line-height:1.4">—</div>
+    <div id="conexion-estado" style="margin-top:4px;font-size:11px;color:var(--text3)">☁️ Conectando...</div>
   </div>
 </nav>
 
@@ -4224,6 +4232,7 @@ function cargarConfigRemoto(){
 let _intentosConfig = 0;
 
 function _configNoLlego(motivo){
+  try { pintarOrigenDatos(); } catch(e){}   // que la linea del pie diga la verdad
   if(configEsConfiable()){
     inicializarPeriodoActual();
     setConexion('error', '⚠️ Sin conexión — datos de este navegador');
@@ -5398,7 +5407,23 @@ function limpiarHistorial(){
   limpiarRemoto();
 }
 
+function pintarOrigenDatos(){
+  const el = $('origen-datos');
+  if(!el) return;
+  const nc = (cuentas||[]).length, na = (agentes||[]).length;
+  if(typeof configEsDeFabrica === 'function' && configEsDeFabrica()){
+    el.innerHTML = '<b style="color:#F2A93B">\u26a0 ' + nc + ' cuentas \u00b7 ' + na +
+                   ' agentes</b><br>lista de f\u00e1brica \u2014 NO son tus datos';
+  } else if(_configConfirmada){
+    el.innerHTML = '\u2601\ufe0f ' + nc + ' cuentas \u00b7 ' + na + ' agentes<br>del servidor';
+  } else {
+    el.innerHTML = '\ud83d\udcbe ' + nc + ' cuentas \u00b7 ' + na +
+                   ' agentes<br>de este navegador';
+  }
+}
+
 function updateBadges(){
+  pintarOrigenDatos();
   $('badge-dr').textContent      = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).length;
   $('badge-own').textContent     = cuentas.filter(c=>c.tipo==='own' && c.activo!==false).length;
   $('badge-agentes').textContent = agentes.filter(a=>a.estado==='active').length;
