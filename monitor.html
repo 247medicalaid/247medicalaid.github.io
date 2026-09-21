@@ -148,6 +148,19 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .modal .dos{display:flex;gap:10px}.modal .dos>div{flex:1}
 .modal .acc{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
 .modal .hint{font-size:12px;color:var(--muted);margin-top:6px}
+.modal input[type=date],.modal select{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
+.modal.ancho{max-width:470px}
+.modal [hidden]{display:none!important}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{margin:0;font-weight:500;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:13px}
+.seg input:checked+span{background:var(--text);color:var(--surface);border-color:var(--text);font-weight:600}
+.seg input:focus-visible+span{outline:2px solid var(--good);outline-offset:2px}
+.modal .hint.mal{color:var(--text);font-weight:600}
+.modal .hint.mal::before{content:"\26a0  "}
+.modal .lista{margin:6px 0 0 18px;padding:0;font-size:12.5px;color:var(--text-2)}
+.modal .enlace{background:none;border:0;color:var(--text-2);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0;margin-top:14px}
 </style>
 </head>
 <body>
@@ -176,7 +189,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <span id="cuentas"></span>
     <span class="spacer"></span>
     <button class="chip" id="soloAlertas" type="button" aria-pressed="false">Solo con novedades</button>
-    <button class="btn" id="csv" type="button">Exportar CSV</button>
+    <button class="btn" id="csv" type="button">Exportar reporte</button>
   </div>
   <div class="tiles" id="tiles"></div>
   <section class="card">
@@ -221,6 +234,34 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <div class="acc">
       <button class="btn" id="hCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="hGuardar" type="button">Guardar horario</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalReporte">
+  <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="rTitulo">
+    <h3 id="rTitulo">Exportar reporte de conexiones</h3>
+    <p class="sub">Por agente y agrupado por cuenta: inicio y fin de sesión, ausencias de 10 a 30 min y de más de 30 min, con su tiempo total.</p>
+    <label>Periodo</label>
+    <div class="seg" role="radiogroup" aria-label="Periodo">
+      <label><input type="radio" name="rTipo" value="dia" checked><span>Día</span></label>
+      <label><input type="radio" name="rTipo" value="semana"><span>Semana</span></label>
+      <label><input type="radio" name="rTipo" value="quincena"><span>Quincena</span></label>
+      <label><input type="radio" name="rTipo" value="mes"><span>Mes</span></label>
+      <label><input type="radio" name="rTipo" value="rango"><span>Varias semanas</span></label>
+    </div>
+    <div id="rRefBox"><label for="rRef">Fecha dentro del periodo</label><input type="date" id="rRef"></div>
+    <div id="rRangoBox" class="dos" hidden>
+      <div><label for="rDesde">Desde</label><input type="date" id="rDesde"></div>
+      <div><label for="rHasta">Hasta</label><input type="date" id="rHasta"></div>
+    </div>
+    <div class="hint" id="rResumen"></div>
+    <label for="rCuenta">Cuenta</label>
+    <select id="rCuenta"></select>
+    <ul class="lista"><li><b>Resumen</b>: una fila por agente, agrupados por cuenta.</li><li><b>Detalle diario</b>: cada día de cada agente.</li><li><b>Novedades</b>: cada ausencia con su hora.</li></ul>
+    <button class="enlace" id="rCsv" type="button">Solo las novedades del día que estoy viendo (CSV)</button>
+    <div class="acc">
+      <button class="btn" id="rCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="rDescargar" type="button">Descargar Excel</button>
     </div>
   </div>
 </div>
@@ -546,16 +587,282 @@ $('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.d
 $('hoy').addEventListener('click', () => { S.fecha = ''; cargar(); });
 $('btnRef').addEventListener('click', cargar);
 $('btnCfg').addEventListener('click', mostrarSetup);
-$('csv').addEventListener('click', () => {
-  if (!S.eps) return;
+// ================================================================ REPORTES
+// Reporte de conexiones por agente (día, semana, quincena, mes o rango) en Excel.
+const DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function fISO(d){ return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0'); }
+function dISO(s){ return new Date(s + 'T12:00:00Z'); }
+function masDias(s, n){ const d = dISO(s); d.setUTCDate(d.getUTCDate() + n); return fISO(d); }
+function fCorta(s){ const d = dISO(s); return d.getUTCDate() + ' ' + MESES_ES[d.getUTCMonth()].slice(0,3) + ' ' + d.getUTCFullYear(); }
+function nDias(a, b){ return Math.round((dISO(b) - dISO(a)) / 86400000) + 1; }
+
+function rangoPeriodo(tipo, ref, desde, hasta){
+  const d = dISO(ref), y = d.getUTCFullYear(), m = d.getUTCMonth(), dia = d.getUTCDate();
+  const finMes = fISO(new Date(Date.UTC(y, m + 1, 0, 12)));
+  if (tipo === 'dia') return { desde: ref, hasta: ref, nombre: 'Día' };
+  if (tipo === 'semana') { const lun = masDias(ref, -((d.getUTCDay() + 6) % 7)); return { desde: lun, hasta: masDias(lun, 6), nombre: 'Semana' }; }
+  if (tipo === 'quincena') return dia <= 15
+    ? { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: fISO(new Date(Date.UTC(y, m, 15, 12))), nombre: '1ra quincena' }
+    : { desde: fISO(new Date(Date.UTC(y, m, 16, 12))), hasta: finMes, nombre: '2da quincena' };
+  if (tipo === 'mes') return { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: finMes, nombre: 'Mes' };
+  return { desde: desde, hasta: hasta, nombre: 'Rango' };
+}
+
+function hoyLocal(){
+  const tz = (S.data && S.data.config.zona) || 'America/New_York';
+  if (S.demo && S.data) return S.data.fecha;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+}
+
+function abrirReporte(){
+  const ref = (S.data && S.data.fecha) || hoyLocal();
+  if (!$('rRef').value) $('rRef').value = ref;
+  if (!$('rDesde').value) $('rDesde').value = masDias(ref, -13);
+  if (!$('rHasta').value) $('rHasta').value = ref;
+  const cuentas = S.data ? [...new Set(S.data.agentes.map(a => a.cuenta))].sort() : [];
+  $('rCuenta').innerHTML = '<option value="Todas">Todas las cuentas</option>' + cuentas.map(c => '<option' + (c === S.cuenta ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  actualizarRango();
+  $('modalReporte').classList.add('show');
+}
+function periodoElegido(){
+  const tipo = (document.querySelector('input[name=rTipo]:checked') || {}).value || 'dia';
+  return Object.assign({ tipo }, rangoPeriodo(tipo, $('rRef').value || hoyLocal(), $('rDesde').value, $('rHasta').value));
+}
+function actualizarRango(){
+  const p = periodoElegido();
+  const esRango = p.tipo === 'rango';
+  $('rRefBox').hidden = esRango; $('rRangoBox').hidden = !esRango;
+  let txt = '', err = '';
+  if (!p.desde || !p.hasta) err = 'Elige las fechas.';
+  else if (p.desde > p.hasta) err = 'La fecha inicial es posterior a la final.';
+  else if (nDias(p.desde, p.hasta) > 93) err = 'Máximo 93 días por reporte.';
+  else txt = (p.desde === p.hasta ? fCorta(p.desde) : fCorta(p.desde) + ' → ' + fCorta(p.hasta)) + ' · ' + nDias(p.desde, p.hasta) + (p.desde === p.hasta ? ' día' : ' días');
+  $('rResumen').textContent = err || txt;
+  $('rResumen').className = 'hint' + (err ? ' mal' : '');
+  $('rDescargar').disabled = !!err;
+}
+
+async function pedirReporte(desde, hasta){
+  if (S.demo) return demoReporte(desde, hasta);
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=reporte&desde=' + desde + '&hasta=' + hasta;
+  const r = await fetch(q, { redirect: 'follow' });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error === undefined ? 'el servidor aún no tiene la función de reportes' : j.error);
+  if (!Array.isArray(j.filas)) throw new Error('el servidor aún no tiene la función de reportes (falta publicar la nueva versión del script)');
+  return j;
+}
+
+// Datos de ejemplo para ?demo=1
+function demoReporte(desde, hasta){
+  const hoy = DEMO.fecha, filas = [];
+  let semilla = 7;
+  const rnd = () => { semilla = (semilla * 9301 + 49297) % 233280; return semilla / 233280; };
+  for (let f = desde; f <= hasta && f <= hoy; f = masDias(f, 1)) {
+    const wd = dISO(f).getUTCDay();
+    if (wd === 0 || wd === 6) continue;
+    const base = Date.parse(f + 'T08:00:00-04:00');
+    DEMO.agentes.forEach((a, k) => {
+      const sin = rnd() < 0.06;
+      const tarde = rnd() < 0.2 ? Math.round(10 + rnd() * 25) : 0;
+      const ini = base - 300000 + Math.round(rnd() * 9) * 60000 + tarde * 60000;
+      const salida = rnd() < 0.12 ? Math.round(10 + rnd() * 50) : 0;
+      const fin = base + 9 * 3600000 - salida * 60000 + Math.round(rnd() * 6) * 60000;
+      const eps = [];
+      if (tarde) eps.push({ t: 'Conexión tardía', i: base, f: base + tarde * 60000, m: tarde });
+      const n = Math.floor(rnd() * 4);
+      for (let e = 0; e < n; e++) {
+        const m = rnd() < 0.3 ? Math.round(31 + rnd() * 40) : Math.round(10 + rnd() * 20);
+        const i = base + (1 + e * 2) * 3600000 + Math.round(rnd() * 50) * 60000;
+        eps.push({ t: rnd() < 0.6 ? 'Inactivo' : 'Sin señal', i, f: i + m * 60000, m });
+      }
+      if (salida) eps.push({ t: 'Salida anticipada', i: base + 9 * 3600000 - salida * 60000, f: base + 9 * 3600000, m: salida });
+      const aus = eps.filter(e => e.t === 'Inactivo' || e.t === 'Sin señal');
+      const a10 = aus.filter(e => e.m <= 30), a30 = aus.filter(e => e.m > 30), sum = l => l.reduce((s, e) => s + e.m, 0);
+      filas.push(sin ? { fecha: f, agente: a.agente, cuenta: a.cuenta, laboral: true, estado: 'Sin conexión', primera: null, ultima: null,
+          minTarde: 0, minSalida: 0, aus10: 0, minAus10: 0, aus30: 0, minAus30: 0, minAus: 0, latidos: 0, eps: [] }
+        : { fecha: f, agente: a.agente, cuenta: a.cuenta, laboral: true, estado: f === hoy ? 'En curso' : 'Conectado', primera: ini, ultima: fin,
+          minTarde: tarde, minSalida: salida, aus10: a10.length, minAus10: sum(a10), aus30: a30.length, minAus30: sum(a30),
+          minAus: sum(a10) + sum(a30), latidos: 400, eps, enCurso: f === hoy });
+    });
+  }
+  return { ok: true, desde, hasta, hoy, zona: DEMO.config.zona, filas };
+}
+
+// ---- Excel (formato XML de Excel 2003, igual que la exportación de Nómina)
+function excelReporte(rep, p, cuentaSel){
+  const tz = rep.zona || (S.data && S.data.config.zona) || 'America/New_York';
+  const fmtH = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hourCycle: 'h23' });
+  const fraccion = ms => { if (ms == null) return null; const [h, m] = fmtH.format(new Date(ms)).split(':').map(Number); return (h * 60 + m) / 1440; };
+  const x = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+  const ST = {
+    tit:   '<Font ss:FontName="Calibri" ss:Size="15" ss:Bold="1" ss:Color="#0B2239"/>',
+    sub:   '<Font ss:FontName="Calibri" ss:Size="10" ss:Color="#4B5563"/>',
+    hdr:   '<Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B2239" ss:Pattern="Solid"/>',
+    cta:   '<Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1" ss:Color="#0B2239"/><Interior ss:Color="#D6ECF6" ss:Pattern="Solid"/>',
+    ag:    '<Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F3F5" ss:Pattern="Solid"/>',
+    t:     '<Font ss:FontName="Calibri" ss:Size="10"/>',
+    tc:    '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/>',
+    n:     '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="0;-0;&quot;–&quot;"/>',
+    hr:    '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="h:mm AM/PM"/>',
+    du:    '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="[h]:mm;;&quot;–&quot;"/>',
+    fe:    '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="mm/dd/yyyy"/>',
+    st:    '<Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E5E7EB" ss:Pattern="Solid"/>',
+    stn:   '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E5E7EB" ss:Pattern="Solid"/><NumberFormat ss:Format="0;-0;&quot;–&quot;"/>',
+    stdu:  '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E5E7EB" ss:Pattern="Solid"/><NumberFormat ss:Format="[h]:mm;;&quot;–&quot;"/>',
+    sinc:  '<Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#7A4B00"/><Interior ss:Color="#FCE9B2" ss:Pattern="Solid"/>',
+    nota:  '<Font ss:FontName="Calibri" ss:Size="9" ss:Italic="1" ss:Color="#6B7280"/>'
+  };
+  const estilos = '<Styles>' + Object.keys(ST).map(k => '<Style ss:ID="' + k + '">' + ST[k] + '</Style>').join('') + '</Styles>';
+  const C = (v, s) => {
+    if (v == null || v === '') return '<Cell ss:StyleID="' + s + '"/>';
+    if (typeof v === 'number') return '<Cell ss:StyleID="' + s + '"><Data ss:Type="Number">' + v + '</Data></Cell>';
+    if (v instanceof Date) return '<Cell ss:StyleID="' + s + '"><Data ss:Type="DateTime">' + v.toISOString().slice(0, 10) + 'T00:00:00.000</Data></Cell>';
+    return '<Cell ss:StyleID="' + s + '"><Data ss:Type="String">' + x(v) + '</Data></Cell>';
+  };
+  const Cm = (v, s, n) => '<Cell ss:StyleID="' + s + '" ss:MergeAcross="' + (n - 1) + '"><Data ss:Type="String">' + x(v) + '</Data></Cell>';
+  const Row = (celdas, h) => '<Row' + (h ? ' ss:Height="' + h + '"' : '') + '>' + celdas + '</Row>';
+  const hoja = (nombre, anchos, filas, congelar) =>
+    '<Worksheet ss:Name="' + x(nombre) + '"><Table>' + anchos.map(w => '<Column ss:Width="' + w + '"/>').join('') + filas.join('') + '</Table>' +
+    '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>' + congelar +
+    '</SplitHorizontal><TopRowBottomPane>' + congelar + '</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>';
+
+  const d1440 = m => (m || 0) / 1440;
+  const periodoTxt = p.nombre + ': ' + (rep.desde === rep.hasta ? fCorta(rep.desde) : fCorta(rep.desde) + ' al ' + fCorta(rep.hasta));
+  const cab = (titulo, n) => [
+    Row(Cm(titulo, 'tit', n), 22),
+    Row(Cm(periodoTxt + ' · ' + (cuentaSel === 'Todas' ? 'Todas las cuentas' : 'Cuenta ' + cuentaSel) + ' · Hora ' + tz.replace('America/', '').replace('_', ' '), 'sub', n)),
+    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
+    Row('')
+  ];
+
+  const filas = rep.filas.filter(f => cuentaSel === 'Todas' || f.cuenta === cuentaSel);
+  const porCuenta = {};
+  filas.forEach(f => { ((porCuenta[f.cuenta || 'Sin cuenta'] = porCuenta[f.cuenta || 'Sin cuenta'] || {})[f.agente] = (porCuenta[f.cuenta || 'Sin cuenta'][f.agente] || [])).push(f); });
+  const cuentas = Object.keys(porCuenta).sort((a, b) => a.localeCompare(b));
+  const promedio = l => l.length ? l.reduce((s, v) => s + v, 0) / l.length : null;
+  const conDatos = l => l.filter(f => f.latidos > 0);
+
+  // ---- Hoja 1: Resumen por agente
+  const H1 = ['Agente','Días conectado','Días sin conexión','Inicio de sesión (promedio)','Inicio más tarde','Fin de sesión (promedio)','Fin más temprano',
+    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas'];
+  const r1 = cab('Reporte de conexiones por agente — Resumen', H1.length);
+  const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0 });
+  const sumar = (t, l) => { const c = conDatos(l);
+    t.dc += c.length; t.ds += l.filter(f => f.estado === 'Sin conexión').length;
+    l.forEach(f => { t.a10 += f.aus10; t.m10 += f.minAus10; t.a30 += f.aus30; t.m30 += f.minAus30; t.mt += f.minAus;
+      if (f.minTarde) { t.nt++; t.tt += f.minTarde; } if (f.minSalida) { t.ns++; t.ts += f.minSalida; } }); return t; };
+  const celdasTot = (t, sN, sD) => C(t.dc, sN) + C(t.ds, sN) + C('', sN) + C('', sN) + C('', sN) + C('', sN) +
+    C(t.a10, sN) + C(d1440(t.m10), sD) + C(t.a30, sN) + C(d1440(t.m30), sD) + C(d1440(t.mt), sD) + C(t.nt, sN) + C(d1440(t.tt), sD) + C(t.ns, sN) + C(d1440(t.ts), sD);
+  const gran = tot();
+  cuentas.forEach(cta => {
+    r1.push(Row(Cm(cta, 'cta', H1.length), 20));
+    r1.push(Row(H1.map(h => C(h, 'hdr')).join(''), 30));
+    const tc = tot();
+    Object.keys(porCuenta[cta]).sort((a, b) => a.localeCompare(b)).forEach(ag => {
+      const l = porCuenta[cta][ag], c = conDatos(l), t = sumar(tot(), l);
+      sumar(tc, l); sumar(gran, l);
+      const ini = c.map(f => fraccion(f.primera)).filter(v => v != null);
+      const fin = c.filter(f => !f.enCurso).map(f => fraccion(f.ultima)).filter(v => v != null);
+      r1.push(Row(C(ag, 't') + C(t.dc, 'n') + C(t.ds, 'n') +
+        C(promedio(ini), 'hr') + C(ini.length ? Math.max(...ini) : null, 'hr') + C(promedio(fin), 'hr') + C(fin.length ? Math.min(...fin) : null, 'hr') +
+        C(t.a10, 'n') + C(d1440(t.m10), 'du') + C(t.a30, 'n') + C(d1440(t.m30), 'du') + C(d1440(t.mt), 'du') +
+        C(t.nt, 'n') + C(d1440(t.tt), 'du') + C(t.ns, 'n') + C(d1440(t.ts), 'du')));
+    });
+    r1.push(Row(C('Total ' + cta, 'st') + celdasTot(tc, 'stn', 'stdu')));
+    r1.push(Row(''));
+  });
+  if (cuentas.length > 1) r1.push(Row(C('TOTAL GENERAL', 'st') + celdasTot(gran, 'stn', 'stdu')));
+  if (!filas.length) r1.push(Row(Cm('No hay registros en este periodo.', 'nota', H1.length)));
+
+  // ---- Hoja 2: Detalle diario
+  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Estado'];
+  const r2 = cab('Reporte de conexiones por agente — Detalle diario', H2.length);
+  cuentas.forEach(cta => {
+    r2.push(Row(Cm(cta, 'cta', H2.length), 20));
+    Object.keys(porCuenta[cta]).sort((a, b) => a.localeCompare(b)).forEach(ag => {
+      r2.push(Row(Cm(ag, 'ag', H2.length)));
+      r2.push(Row(H2.map(h => C(h, 'hdr')).join(''), 30));
+      const l = porCuenta[cta][ag].slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
+      l.forEach(f => {
+        const sin = f.estado === 'Sin conexión';
+        r2.push(Row(C(dISO(f.fecha), 'fe') + C(DIAS_ES[dISO(f.fecha).getUTCDay()], 'tc') +
+          (sin ? Cm('No se conectó', 'sinc', 2) : C(fraccion(f.primera), 'hr') + C(f.enCurso ? 'en curso' : fraccion(f.ultima), f.enCurso ? 'tc' : 'hr')) +
+          C(f.aus10, 'n') + C(d1440(f.minAus10), 'du') + C(f.aus30, 'n') + C(d1440(f.minAus30), 'du') + C(d1440(f.minAus), 'du') +
+          C(d1440(f.minTarde), 'du') + C(d1440(f.minSalida), 'du') + C(f.estado, 'tc')));
+      });
+      const t = sumar(tot(), l);
+      r2.push(Row(C('Total', 'st') + C(t.dc + ' día(s)', 'st') + C('', 'st') + C('', 'st') + C(t.a10, 'stn') + C(d1440(t.m10), 'stdu') + C(t.a30, 'stn') +
+        C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C('', 'st')));
+      r2.push(Row(''));
+    });
+  });
+
+  // ---- Hoja 3: Novedades (cada ausencia)
+  const H3 = ['Cuenta','Agente','Fecha','Tipo','Desde','Hasta','Minutos','Categoría'];
+  const r3 = cab('Reporte de conexiones por agente — Novedades', H3.length);
+  r3.push(Row(H3.map(h => C(h, 'hdr')).join(''), 22));
+  const nombreTipo = t => t === 'Conexión tardía' ? 'Llegada tarde' : t === 'Salida anticipada' ? 'Salida anticipada' : t === 'Inactivo' ? 'Inactivo' : 'Offline';
+  let nNov = 0;
+  cuentas.forEach(cta => Object.keys(porCuenta[cta]).sort((a, b) => a.localeCompare(b)).forEach(ag =>
+    porCuenta[cta][ag].slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(f => (f.eps || []).forEach(e => {
+      const aus = e.t === 'Inactivo' || e.t === 'Sin señal' || e.t === 'Sin internet';
+      nNov++;
+      r3.push(Row(C(cta, 't') + C(ag, 't') + C(dISO(f.fecha), 'fe') + C(nombreTipo(e.t), 't') + C(fraccion(e.i), 'hr') +
+        C(e.a ? 'continúa' : fraccion(e.f), e.a ? 'tc' : 'hr') + C(e.m, 'n') + C(aus ? (e.m > 30 ? 'Más de 30 min' : '10 a 30 min') : '—', 'tc')));
+    }))));
+  if (!nNov) r3.push(Row(Cm('Sin novedades en este periodo.', 'nota', H3.length)));
+
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+    estilos +
+    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60], r1, 4) +
+    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 90], r2, 4) +
+    hoja('Novedades', [110, 110, 72, 100, 70, 70, 60, 90], r3, 5) +
+    '</Workbook>';
+  return { xml, filas: filas.length, novedades: nNov };
+}
+
+async function descargarReporte(){
+  const p = periodoElegido();
+  const cta = $('rCuenta').value || 'Todas';
+  const btn = $('rDescargar');
+  btn.disabled = true; btn.textContent = 'Preparando…';
+  try {
+    const rep = await pedirReporte(p.desde, p.hasta);
+    const { xml, filas } = excelReporte(rep, p, cta);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel;charset=utf-8' }));
+    a.download = 'reporte_conexiones_' + (cta === 'Todas' ? '' : cta.replace(/[^\w]+/g, '_') + '_') + rep.desde + (rep.desde === rep.hasta ? '' : '_a_' + rep.hasta) + '.xls';
+    document.body.appendChild(a); a.click(); a.remove();
+    if (rep.incompleto) toast('Reporte descargado, pero faltaron días por calcular. Descárgalo de nuevo en un minuto para completarlo.', 'err');
+    else toast('Reporte descargado: ' + filas + ' registro(s) de agente por día.', 'ok');
+    $('modalReporte').classList.remove('show');
+  } catch (e) { toast('No se pudo generar el reporte: ' + e.message, 'err'); }
+  btn.textContent = 'Descargar Excel'; btn.disabled = false; actualizarRango();
+}
+
+function csvNovedadesDia(){
+  if (!S.eps || !S.data) return;
   const filas = [['Fecha','Agente','Cuenta','Tipo','Desde','Hasta','Minutos']].concat(
     S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, tipoDisp(e.tipo), hora(e.ini), e.abierto ? 'continúa' : hora(e.fin), e.min]));
-  const csv = '\ufeff' + filas.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const csv = '﻿' + filas.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   a.download = 'novedades_agentes_' + S.data.fecha + '.csv';
   a.click();
-});
+}
+
+$('csv').addEventListener('click', abrirReporte);
+$('rCancelar').addEventListener('click', () => $('modalReporte').classList.remove('show'));
+$('modalReporte').addEventListener('click', ev => { if (ev.target.id === 'modalReporte') $('modalReporte').classList.remove('show'); });
+$('modalReporte').addEventListener('change', actualizarRango);
+$('modalReporte').addEventListener('input', actualizarRango);
+$('rDescargar').addEventListener('click', descargarReporte);
+$('rCsv').addEventListener('click', () => { csvNovedadesDia(); $('modalReporte').classList.remove('show'); });
 
 function mostrarSetup(){
   $('app').hidden = true; $('setup').hidden = false;
