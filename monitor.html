@@ -12,10 +12,10 @@
   --brand:#04141F; --brand-ink:#ffffff;
   --bg:#f4f5f7; --surface:#ffffff; --surface-2:#f0efec; --border:#e2e3e6;
   --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
-  --track:#e7e8ea; --lunch:#d6d7da;
-  --good:#188038; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
-  --good-bg:#e6f4ea; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
-  --st-inactivo:#e8710a; --st-offline:#d93025; --st-activo:#188038; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
+  --track:#e7e8ea; --lunch:#B4B5BA;
+  --good:#1A8FC0; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
+  --good-bg:#E3F3FA; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
+  --st-inactivo:#E0A100; --st-offline:#6A6C71; --st-raya:rgba(0,0,0,.55); --st-activo:#1A8FC0; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
   --accent:#0E86B4;
 }
 @media (prefers-color-scheme: dark){
@@ -23,10 +23,10 @@
     color-scheme: dark;
     --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
     --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
-    --track:#2c2c29; --lunch:#3d3d39;
-    --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
-    --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-    --st-inactivo:#f29d4e; --st-offline:#f16b5f; --st-activo:#5bb974; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+    --track:#2c2c29; --lunch:#5E5E58;
+    --good:#4CC2EC; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
+    --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+    --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#4CC2EC; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
     --accent:#0E86B4;
   }
 }
@@ -34,10 +34,10 @@
   color-scheme: dark;
   --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
   --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
-  --track:#2c2c29; --lunch:#3d3d39;
-  --good:#5bb974; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
-  --good-bg:#10301a; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-  --st-inactivo:#f29d4e; --st-offline:#f16b5f; --st-activo:#5bb974; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+  --track:#2c2c29; --lunch:#5E5E58;
+  --good:#4CC2EC; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
+  --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
+  --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#4CC2EC; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
   --accent:#0E86B4;
 }
 *{box-sizing:border-box}
@@ -92,7 +92,9 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
 .axis span:last-child{transform:translateX(-100%)}
 .nums{font-size:12.5px;color:var(--text-2);text-align:right}
 .nums b{color:var(--text);font-size:15px}
-.hatch{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 2px,transparent 2px 6px)}
+/* Offline va rayado: se reconoce por la textura, no solo por el color, que es
+   lo que falla con el daltonismo. Las rayas cambian de tono con el tema. */
+.hatch{background-image:repeating-linear-gradient(135deg,var(--st-raya) 0 2px,transparent 2px 5px)}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:9px 16px;border-bottom:1px solid var(--border);font-size:13px}
 th{color:var(--text-2);font-weight:600;background:var(--surface-2)}
@@ -233,7 +235,7 @@ const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"gene
 
 const TIPOS = {
   'Inactivo': { color: 'var(--st-inactivo)', desc: 'Equipo encendido y conectado, pero sin uso de teclado ni mouse' },
-  'Offline':  { color: 'var(--st-offline)',  desc: 'El computador no reporta: apagado, suspendido, sin internet o el monitor cerrado' }
+  'Offline':  { color: 'var(--st-offline)', hatch: true, desc: 'El computador no reporta: apagado, suspendido, sin internet o el monitor cerrado' }
 };
 function tipoDisp(t){ return t === 'Inactivo' ? 'Inactivo' : 'Offline'; }
 function estadoTxt(t){ return (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') ? 'Offline' : t; }
@@ -276,7 +278,7 @@ function icono(nivel){
 }
 function swatch(t){
   const d = TIPOS[tipoDisp(t)] || TIPOS['Offline'];
-  return '<i class="sw" style="background-color:' + d.color + '"></i>';
+  return '<i class="sw' + (d.hatch ? ' hatch' : '') + '" style="background-color:' + d.color + '"></i>';
 }
 
 // ---------------------------------------------------------------- datos
@@ -401,7 +403,8 @@ function netHtml(v){
   let color = 'var(--good)';
   if (lat > 150 || loss > 5) color = 'var(--critical)';
   else if (lat > 80 || loss > 0) color = 'var(--warning)';
-  return '<div class="app">Internet: <b style="color:' + color + '">' + lat + ' ms' + (loss > 0 ? ' \u00b7 ' + loss + '% p\u00e9rdida' : '') + '</b></div>';
+  const aviso = color === 'var(--good)' ? '' : '\u26a0 ';
+  return '<div class="app">Internet: <b style="color:' + color + '">' + aviso + lat + ' ms' + (loss > 0 ? ' \u00b7 ' + loss + '% p\u00e9rdida' : '') + '</b></div>';
 }
 function progsHtml(v){
   if (!v || !v.programas || !v.programas.length) return '';
