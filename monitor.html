@@ -62,6 +62,15 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
 .banner{border-radius:10px;padding:10px 14px;margin-bottom:14px;font-weight:500}
 .banner.demo{background:var(--warning-bg)}
 .banner.err{background:var(--critical-bg)}
+.banner.aviso{background:var(--warning-bg);border:1px solid var(--warning);font-weight:400}
+.banner.aviso .viejo{color:var(--text-2)}
+.sincuenta{display:inline-block;margin-top:5px;font-size:12px;font-weight:700;border:1px solid var(--warning);background:var(--warning-bg);border-radius:6px;padding:2px 7px}
+.crow{display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:6px;align-items:center;margin-bottom:6px}
+.crow input{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;min-width:0}
+.crow .cnt{font-size:11.5px;color:var(--text-2);min-width:36px;text-align:right}
+.crow .quitar{margin-top:0}
+#cLista{max-height:46vh;overflow:auto;padding-right:2px}
+.modal .hint ul{margin:6px 0 6px 18px;padding:0}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
 .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
 .tile .lbl{color:var(--text-2);font-size:12.5px;display:flex;align-items:center;gap:6px}
@@ -176,6 +185,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <span id="quien"></span>
     <span id="upd"></span>
     <button class="btn" id="btnRef" type="button">Actualizar</button>
+    <button class="btn" id="btnCuentas" type="button" title="Cuentas que ofrece el instalador">Cuentas</button>
     <button class="btn" id="btnCfg" type="button" title="Cambiar URL o token">Ajustes</button>
     <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
   </div>
@@ -183,6 +193,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 
 <main id="app">
   <div id="banner"></div>
+  <div id="avisoCuentas"></div>
   <div class="filters" role="toolbar" aria-label="Filtros">
     <input type="date" id="fecha" aria-label="Fecha">
     <button class="chip" id="hoy" type="button">Hoy</button>
@@ -265,6 +276,20 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     </div>
   </div>
 </div>
+<div class="modal-bg" id="modalCuentas">
+  <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
+    <h3 id="cTitulo">Cuentas del instalador</h3>
+    <p class="sub">Estas son las opciones que ve el instalador del monitor al elegir la cuenta del agente. Los cambios aplican de inmediato: no hace falta un instalador nuevo.</p>
+    <div id="cLista"></div>
+    <button class="btn-mini" id="cAgregar" type="button">+ Agregar cuenta</button>
+    <div class="hint">Cambiar el nombre de una cuenta equivale a quitarla: sus agentes quedarán como “Agente sin cuenta asignada” hasta reinstalar el monitor en su equipo.</div>
+    <div id="cAviso"></div>
+    <div class="acc">
+      <button class="btn" id="cCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="cGuardar" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 <div id="msg" role="status"></div>
 <div id="tip" role="tooltip"></div>
 
@@ -272,7 +297,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 // Opcional: pegue aquí la URL de la aplicación web para no tener que escribirla en cada navegador.
 const API_URL = '';
 
-const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
+const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"cuentas":[{"n":"Total Sleep","app":"RingCentral"},{"n":"Pulmonary","app":"Ooma"},{"n":"Alonso Medical","app":"Weave"},{"n":"White Wilson","app":"Dialpad"},{"n":"Lake Nona Medical Center","app":"MicroSIP"},{"n":"Cardiovascular","app":"Nextiva"},{"n":"Gastroenterology","app":"Nextiva"}],"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
 
 const TIPOS = {
   'Inactivo': { color: 'var(--st-inactivo)', desc: 'Equipo encendido y conectado, pero sin uso de teclado ni mouse' },
@@ -358,6 +383,7 @@ function pintar(){
   $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado);
   if (S.demo) $('banner').innerHTML = '<div class="banner demo">Está viendo datos de ejemplo. Use Ajustes para conectar su servidor.</div>';
   $('fecha').value = d.fecha;
+  marcarSinCuenta(d);
 
   // Cuentas
   const cuentas = ['Todas', ...Array.from(new Set(d.agentes.map(a => a.cuenta).filter(Boolean))).sort()];
@@ -496,6 +522,7 @@ function fila(a, d){
 
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small>' +
+      (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
       '<br><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" type="button">Horario</button></div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
@@ -863,6 +890,90 @@ $('modalReporte').addEventListener('change', actualizarRango);
 $('modalReporte').addEventListener('input', actualizarRango);
 $('rDescargar').addEventListener('click', descargarReporte);
 $('rCsv').addEventListener('click', () => { csvNovedadesDia(); $('modalReporte').classList.remove('show'); });
+
+// ================================================================ CUENTAS
+// La lista de cuentas vive en el servidor (pestaña "Cuentas"). El instalador la
+// descarga, así que editarla aquí no requiere un instalador nuevo.
+const normC = s => String(s == null ? '' : s).trim().toLowerCase();
+function cuentasValidas(d){ return (d && Array.isArray(d.cuentas)) ? new Set(d.cuentas.map(c => normC(c.n))) : null; }
+function marcarSinCuenta(d){
+  const cs = cuentasValidas(d);
+  d.agentes.forEach(a => { a.sinCuenta = !!cs && a.activo !== false && !cs.has(normC(a.cuenta)); });
+  const sin = d.agentes.filter(a => a.sinCuenta);
+  $('avisoCuentas').innerHTML = sin.length
+    ? '<div class="banner aviso">⚠ <b>' + sin.length + (sin.length === 1 ? ' agente sin cuenta asignada' : ' agentes sin cuenta asignada') + ':</b> ' +
+      sin.map(a => esc(a.agente) + ' <span class="viejo">(tenía “' + esc(a.cuenta || 'sin cuenta') + '”)</span>').join(', ') +
+      '. Reinstale el monitor en ' + (sin.length === 1 ? 'su equipo' : 'sus equipos') + ' y elija la cuenta correcta.</div>'
+    : '';
+}
+
+function abrirCuentas(){
+  if (!S.data) return;
+  if (!Array.isArray(S.data.cuentas)) { toast('El servidor aún no tiene la lista de cuentas. Publique la nueva versión del script del Monitor.', 'err'); return; }
+  S.editCuentas = S.data.cuentas.map(c => ({ n: c.n, app: c.app, orig: c.n }));
+  S.confirmarQuitar = false;
+  pintarCuentas();
+  $('modalCuentas').classList.add('show');
+}
+function agentesDe(nombre){ return (S.data ? S.data.agentes : []).filter(a => a.activo !== false && normC(a.cuenta) === normC(nombre)); }
+function pintarCuentas(){
+  $('cLista').innerHTML = S.editCuentas.map((c, i) => {
+    const n = c.orig ? agentesDe(c.orig).length : 0;
+    return '<div class="crow">' +
+      '<input data-ci="' + i + '" data-k="n" value="' + esc(c.n) + '" placeholder="Nombre de la cuenta" aria-label="Nombre de la cuenta">' +
+      '<input data-ci="' + i + '" data-k="app" value="' + esc(c.app) + '" placeholder="Programa de teléfono" aria-label="Programa de teléfono">' +
+      '<span class="cnt" title="Agentes activos en esta cuenta">' + (n ? n + ' ag.' : '') + '</span>' +
+      '<button type="button" class="btn-mini quitar" data-quitar="' + i + '" aria-label="Quitar ' + esc(c.n || 'cuenta') + '">Quitar</button></div>';
+  }).join('') || '<div class="hint">No hay cuentas. Agregue al menos una.</div>';
+  $('cAviso').innerHTML = '';
+  S.confirmarQuitar = false;
+  $('cGuardar').textContent = 'Guardar cambios';
+}
+function afectados(){
+  // Cuentas originales que desaparecen (quitadas o renombradas) y que tienen agentes activos
+  const quedan = new Set(S.editCuentas.map(c => normC(c.n)));
+  const out = [];
+  S.data.cuentas.forEach(c => { if (!quedan.has(normC(c.n))) { const ag = agentesDe(c.n); if (ag.length) out.push({ n: c.n, ag }); } });
+  return out;
+}
+async function guardarCuentas(){
+  const lista = S.editCuentas.map(c => ({ n: c.n.trim(), app: c.app.trim() })).filter(c => c.n);
+  const vistos = new Set();
+  for (const c of lista) { if (vistos.has(normC(c.n))) { $('cAviso').innerHTML = '<div class="hint mal">La cuenta “' + esc(c.n) + '” está repetida.</div>'; return; } vistos.add(normC(c.n)); }
+  if (!lista.length) { $('cAviso').innerHTML = '<div class="hint mal">La lista no puede quedar vacía.</div>'; return; }
+  const af = afectados();
+  if (af.length && !S.confirmarQuitar) {
+    $('cAviso').innerHTML = '<div class="hint mal">Estas cuentas se quitan pero tienen agentes activos. Quedarán como “Agente sin cuenta asignada” hasta reinstalar el monitor en sus equipos:<ul>' +
+      af.map(x => '<li><b>' + esc(x.n) + '</b>: ' + x.ag.map(a => esc(a.agente)).join(', ') + '</li>').join('') + '</ul>Pulse otra vez para confirmar.</div>';
+    S.confirmarQuitar = true;
+    $('cGuardar').textContent = 'Sí, guardar de todos modos';
+    return;
+  }
+  const btn = $('cGuardar'); btn.disabled = true;
+  try {
+    let nuevas;
+    if (S.demo) nuevas = lista;
+    else {
+      const url = apiUrl(), tok = store.get('token');
+      const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=guardarCuentas&lista=' + encodeURIComponent(JSON.stringify(lista));
+      const j = await (await fetch(q, { redirect: 'follow' })).json();
+      if (!j.ok) throw new Error(j.error || 'no se pudo guardar');
+      nuevas = j.cuentas;
+    }
+    S.data.cuentas = nuevas;
+    $('modalCuentas').classList.remove('show');
+    pintar();
+    toast('Lista de cuentas guardada (' + nuevas.length + '). El instalador ya ofrece esta lista.', 'ok');
+  } catch (e) { $('cAviso').innerHTML = '<div class="hint mal">No se pudo guardar: ' + esc(e.message) + '</div>'; }
+  btn.disabled = false;
+}
+$('btnCuentas').addEventListener('click', abrirCuentas);
+$('cCancelar').addEventListener('click', () => $('modalCuentas').classList.remove('show'));
+$('modalCuentas').addEventListener('click', ev => { if (ev.target.id === 'modalCuentas') $('modalCuentas').classList.remove('show'); });
+$('cLista').addEventListener('input', ev => { const i = ev.target.dataset.ci; if (i == null) return; S.editCuentas[+i][ev.target.dataset.k] = ev.target.value; S.confirmarQuitar = false; $('cGuardar').textContent = 'Guardar cambios'; $('cAviso').innerHTML = ''; });
+$('cLista').addEventListener('click', ev => { const b = ev.target.closest('[data-quitar]'); if (!b) return; S.editCuentas.splice(+b.dataset.quitar, 1); pintarCuentas(); });
+$('cAgregar').addEventListener('click', () => { S.editCuentas.push({ n: '', app: '', orig: null }); pintarCuentas(); const ins = $('cLista').querySelectorAll('input[data-k=n]'); if (ins.length) ins[ins.length - 1].focus(); });
+$('cGuardar').addEventListener('click', guardarCuentas);
 
 function mostrarSetup(){
   $('app').hidden = true; $('setup').hidden = false;
