@@ -4659,8 +4659,31 @@ function firmaBorrador(b){
 }
 // Mezcla lo que bajó del servidor con lo que aún no está confirmado allá.
 // Devuelve { borradores, pendientes: [keys que hay que volver a mandar] }.
+// "20/9/2026, 2:29:04 p. m." (toLocaleString es-CO) → milisegundos, o 0.
+function _msDeSavedAt(s){
+  const m = String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])?/i);
+  if(!m) return 0;
+  let h = parseInt(m[4]);
+  if(m[7]){ const pm = m[7].toLowerCase() === 'p'; if(pm && h < 12) h += 12; if(!pm && h === 12) h = 0; }
+  return new Date(+m[3], +m[2]-1, +m[1], h, +m[5], +(m[6]||0)).getTime();
+}
 function fusionarBorradoresRemotos(remoto){
   const local = cargarBorradores();
+  // Primera vez con esta versión: lo que se guardó en este navegador mientras el
+  // servidor lo rechazaba (sesión vencida) no quedó marcado como pendiente. Si
+  // la copia local es más nueva que la del servidor, se rescata y se reenvía.
+  if(localStorage.getItem(DRAFT_PEND_KEY) === null){
+    const p0 = {};
+    Object.keys(local).forEach(k => {
+      const l = local[k], r = remoto[k];
+      if(!l || !l.agentesSnap) return;
+      if(r && firmaBorrador(r) === firmaBorrador(l)) return;
+      const tl = Number(l.savedTs) || _msDeSavedAt(l.savedAt);
+      const tr = r ? (Number(r.savedTs) || _msDeSavedAt(r.savedAt)) : 0;
+      if(tl > tr) p0[k] = { ts: tl, firma: firmaBorrador(l) };
+    });
+    _setPendBorr(p0);
+  }
   const pend  = _pendBorr();
   const out   = Object.assign({}, remoto);
   const pendientes = [];
