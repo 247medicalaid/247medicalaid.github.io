@@ -3711,6 +3711,7 @@ function guardarBorradorAuto(){
   const borrador = capturarBorrador();
   guardarBorradorLocal(key, borrador);
   guardarBorradorRemoto(key, borrador, ()=>{});
+  _firmaAlEntrar = firmaBorrador(borrador);
 }
 
 function updateCuentaPct(id, campo, val){
@@ -3981,6 +3982,7 @@ function inicializarPeriodoActual(){
   recalcAll();
   actualizarBadgePendiente();
   _ultimoSelPeriodo = { a: $('q-anio').value, m: $('q-mes').value, q: $('q-num').value };
+  _marcarFirmaEntrada();
 }
 
 // ── POST: guardar un registro en Sheets ──
@@ -4636,16 +4638,62 @@ function cargarBorradores(){
   try { return JSON.parse(localStorage.getItem(DRAFT_CACHE_KEY) || '{}'); } catch{ return {}; }
 }
 
+// ── Borradores pendientes de confirmar en el servidor ──────────────────────
+// Guardar un borrador tarda unos segundos en llegar a Sheets. Si mientras tanto
+// se abre Proyección o se recarga Nómina, llega del servidor la versión VIEJA
+// y pisaba el cache local: los días que Carlos acababa de poner en 0 volvían a
+// aparecer. Cada borrador guardado queda anotado como pendiente (con su huella)
+// hasta que el servidor devuelve esa misma versión; mientras tanto, la copia
+// local manda sobre lo que baje del servidor.
+const DRAFT_PEND_KEY = 'callcenter_borradores_pend';
+function _pendBorr(){ try { return JSON.parse(localStorage.getItem(DRAFT_PEND_KEY) || '{}') || {}; } catch(e){ return {}; } }
+function _setPendBorr(p){ try { localStorage.setItem(DRAFT_PEND_KEY, JSON.stringify(p)); } catch(e){} }
+function firmaBorrador(b){
+  if(!b) return '';
+  const c = b.config || {};
+  return JSON.stringify([c.dias, c.transferPct, c.dollarPct, c.mgmt,
+    (b.agentesSnap||[]).map(a => [a.id, a.cuenta, a.estado, a.horas, a.valor, a.tipoPago||'empresa',
+      a.dias, a.diasStd, a.diasCobrar === undefined ? null : a.diasCobrar]),
+    (b.cuentasSnap||[]).map(s => [s.id, s.colombian, s.accountant, s.accountantReal, s.transferFeeReal,
+      s.dollarPctReal, s.dollarPctOwn, s.transferPctDr, s.dollarPctDr, s.cobroAgente, s.qdaysOwn])]);
+}
+// Mezcla lo que bajó del servidor con lo que aún no está confirmado allá.
+// Devuelve { borradores, pendientes: [keys que hay que volver a mandar] }.
+function fusionarBorradoresRemotos(remoto){
+  const local = cargarBorradores();
+  const pend  = _pendBorr();
+  const out   = Object.assign({}, remoto);
+  const pendientes = [];
+  Object.keys(pend).forEach(k => {
+    const p = pend[k] || {};
+    const r = remoto[k], l = local[k];
+    if(r && (firmaBorrador(r) === p.firma || (Number(r.savedTs)||0) >= (Number(p.ts)||0))){
+      delete pend[k];                       // el servidor ya lo tiene
+    } else if(l && firmaBorrador(l) === p.firma){
+      out[k] = l; pendientes.push(k);       // sigue sin llegar: manda la copia local
+    } else {
+      delete pend[k];
+    }
+  });
+  _setPendBorr(pend);
+  return { borradores: out, pendientes };
+}
+
 function guardarBorradorLocal(key, datos){
   const borradores = cargarBorradores();
   borradores[key] = datos;
   localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(borradores));
+  const pend = _pendBorr();
+  pend[key] = { ts: Number(datos && datos.savedTs) || Date.now(), firma: firmaBorrador(datos) };
+  _setPendBorr(pend);
 }
 
 function eliminarBorradorLocal(key){
   const borradores = cargarBorradores();
   delete borradores[key];
   localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(borradores));
+  const pend = _pendBorr();
+  if(pend[key]){ delete pend[key]; _setPendBorr(pend); }
 }
 
 function getBorradorRemoto(key, callback){
@@ -4655,12 +4703,53 @@ function getBorradorRemoto(key, callback){
     .catch(() => callback(null));
 }
 
-function guardarBorradorRemoto(key, datos, onDone){
-  fetch(GS_URL, {
+function _postBorrador(key, datos){
+  return fetch(GS_URL, {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action:'saveBorrador', key, datos })
-  }).then(()=>{ if(onDone) onDone(); }).catch(()=>{ if(onDone) onDone(); });
+  });
+}
+function guardarBorradorRemoto(key, datos, onDone){
+  _postBorrador(key, datos)
+    .then(()=>{ if(onDone) onDone(); verificarBorradorRemoto(key, datos, 1); })
+    .catch(()=>{ if(onDone) onDone(); verificarBorradorRemoto(key, datos, 1); });
+}
+// El POST es "no-cors": el navegador no deja leer la respuesta, así que no hay
+// forma de saber si Sheets lo guardó. Se pregunta de vuelta y, si no está, se
+// reintenta; si tampoco, se avisa en pantalla en vez de callar.
+function verificarBorradorRemoto(key, datos, intento){
+  const firma = firmaBorrador(datos);
+  setTimeout(() => {
+    const p = _pendBorr()[key];
+    if(!p || p.firma !== firma) return;                 // ya hubo otro guardado encima
+    // Se pide la lista completa (la misma que ya usan Nómina y Proyección al abrir)
+    fetch(GS_URL + '?tipo=borradores').then(x => x.json()).catch(() => null).then(todos => {
+      if(!todos || !datosValidos(todos)) todos = {};
+      const r = todos[key];
+      const p2 = _pendBorr();
+      if(!p2[key] || p2[key].firma !== firma) return;
+      if(r && firmaBorrador(r) === firma){
+        delete p2[key]; _setPendBorr(p2);
+        return;
+      }
+      if(intento < 3){
+        _postBorrador(key, datos).catch(()=>{})
+          .then(() => verificarBorradorRemoto(key, datos, intento + 1));
+      } else {
+        const et = (typeof periodoLabelDeKey === 'function') ? periodoLabelDeKey(key) : key;
+        setConexion('error', 'El borrador de ' + et + ' no quedó en el servidor (queda en este navegador)');
+        avisoBorradorNoGuardado(key);
+      }
+    });
+  }, intento === 1 ? 2500 : 4000);
+}
+function avisoBorradorNoGuardado(key){
+  const t = document.createElement('div');
+  t.textContent = '\u26a0 El borrador ' + key + ' no se pudo confirmar en Google Sheets. Sigue guardado en este navegador y se volverá a enviar al abrir Nómina.';
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;max-width:420px;background:var(--surface);border:2px solid var(--danger);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 12000);
 }
 
 function eliminarBorradorRemoto(key){
@@ -4678,7 +4767,10 @@ function cargarBorradoresRemoto(){
     .then(data => {
       if(datosValidos(data)){
         // data es un objeto { key: borrador, ... }
-        localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(data));
+        const fx = fusionarBorradoresRemotos(data);
+        localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(fx.borradores));
+        // Lo que quedó sin llegar al servidor se vuelve a mandar
+        fx.pendientes.forEach(k => guardarBorradorRemoto(k, fx.borradores[k], ()=>{}));
         actualizarBadgePendiente();
         populatePeriodoSelects();
       }
@@ -4693,6 +4785,7 @@ function capturarBorrador(){
   return {
     key: getCurrentKey(),
     savedAt: new Date().toLocaleString('es-CO'),
+    savedTs: Date.now(),
     config: { dias: qdays(), transferPct: qtransf(), dollarPct: qdollar(), mgmt: qmgmt() },
     agentesSnap: agentes.map(a => ({
       id: a.id, nombre: a.nombre, cuenta: a.cuenta,
@@ -4768,6 +4861,7 @@ function guardarBorrador(){
   const borrador = capturarBorrador();
   // Guardar local inmediatamente
   guardarBorradorLocal(key, borrador);
+  _firmaAlEntrar = firmaBorrador(borrador);
   // Guardar en Sheets en background
   setConexion('loading','Guardando borrador...');
   guardarBorradorRemoto(key, borrador, () => {
@@ -4997,7 +5091,35 @@ function actualizarBadgePendiente(){
 }
 
 let _ultimoSelPeriodo = null; // {a,m,q} para restaurar el selector si el usuario cancela
+let _firmaAlEntrar = null;   // cómo estaba la quincena sin cerrar al abrirla
+function _marcarFirmaEntrada(){
+  try {
+    const k = getCurrentKey();
+    _firmaAlEntrar = cargarHistorial().some(h => h.key === k) ? null : firmaBorrador(capturarBorrador());
+  } catch(e){ _firmaAlEntrar = null; }
+}
 function onPeriodoChange(){
+  // Quincena SIN CERRAR que dejamos con cambios que no se guardaron: se guardan
+  // como borrador antes de salir, igual que se hace con una re-abierta.
+  if(!_periodoDesbloqueado && _ultimoSelPeriodo && _firmaAlEntrar !== null){
+    try {
+      const kPrev = buildPeriodoKey(parseInt(_ultimoSelPeriodo.a), parseInt(_ultimoSelPeriodo.m), parseInt(_ultimoSelPeriodo.q));
+      if(!cargarHistorial().some(h => h.key === kPrev)){
+        const b = capturarBorrador();
+        b.key = kPrev;
+        if(firmaBorrador(b) !== _firmaAlEntrar){
+          guardarBorradorLocal(kPrev, b);
+          guardarBorradorRemoto(kPrev, b, ()=>{});
+          const t = document.createElement('div');
+          t.textContent = '\ud83d\udcbe Cambios de ' + kPrev + ' guardados al salir';
+          t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--accent2);color:var(--accent2);padding:10px 18px;border-radius:10px;font-size:13px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+          document.body.appendChild(t);
+          setTimeout(()=>t.remove(), 2500);
+        }
+      }
+    } catch(e){}
+  }
+  _firmaAlEntrar = null;
   // Si la quincena que dejamos está re-abierta, se guardan sus cambios antes de salir
   // (igual que el autoguardado de una quincena sin cerrar) — no se pierde nada.
   if(_periodoDesbloqueado && _ultimoSelPeriodo){
@@ -5043,6 +5165,7 @@ function onPeriodoChange(){
   actualizarBadgePendiente();
   recalcAll();
   _ultimoSelPeriodo = { a: $('q-anio').value, m: $('q-mes').value, q: $('q-num').value };
+  _marcarFirmaEntrada();
 }
 
 function cargarDatosHistoricos(registro){

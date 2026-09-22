@@ -1150,6 +1150,30 @@ function esRespuestaDeError(data){
   return false;
 }
 
+// Misma huella que usa Nómina (callcenter_borradores_pend) para saber si el
+// servidor ya tiene la versión que se guardó.
+function firmaBorrador(b){
+  if(!b) return '';
+  const c = b.config || {};
+  return JSON.stringify([c.dias, c.transferPct, c.dollarPct, c.mgmt,
+    (b.agentesSnap||[]).map(a => [a.id, a.cuenta, a.estado, a.horas, a.valor, a.tipoPago||'empresa',
+      a.dias, a.diasStd, a.diasCobrar === undefined ? null : a.diasCobrar]),
+    (b.cuentasSnap||[]).map(s => [s.id, s.colombian, s.accountant, s.accountantReal, s.transferFeeReal,
+      s.dollarPctReal, s.dollarPctOwn, s.transferPctDr, s.dollarPctDr, s.cobroAgente, s.qdaysOwn])]);
+}
+function fusionarBorradoresPendientes(remoto){
+  let pend = {}, local = {};
+  try { pend  = JSON.parse(localStorage.getItem('callcenter_borradores_pend') || '{}') || {}; } catch(e){}
+  try { local = JSON.parse(localStorage.getItem(DRAFT_CACHE_KEY) || '{}') || {}; } catch(e){}
+  const out = Object.assign({}, remoto);
+  Object.keys(pend).forEach(k => {
+    const p = pend[k] || {}, r = remoto[k], l = local[k];
+    if(r && (firmaBorrador(r) === p.firma || (Number(r.savedTs)||0) >= (Number(p.ts)||0))) return;
+    if(l && firmaBorrador(l) === p.firma) out[k] = l;
+  });
+  return out;
+}
+
 function refrescarDesdeServidor(){
   const pedir = (tipo) => fetch(GS_URL + '?tipo=' + tipo).then(r => r.json()).catch(()=>null);
   return Promise.all([pedir('historial'), pedir('config'), pedir('invoiceOv'), pedir('borradores')])
@@ -1164,8 +1188,10 @@ function refrescarDesdeServidor(){
         cambio = true;
       }
       // Los borradores son las quincenas que Carlos ya proyectó en Nómina.
+      // Si Nómina guardó uno hace segundos y todavía no llegó a Sheets, el
+      // servidor trae la versión vieja: esa quincena se deja como está aquí.
       if(bors && !esRespuestaDeError(bors) && !Array.isArray(bors)){
-        try { localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(bors)); cambio = true; } catch(e){}
+        try { localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(fusionarBorradoresPendientes(bors))); cambio = true; } catch(e){}
       }
       if(ovs && !esRespuestaDeError(ovs)){
         try {
