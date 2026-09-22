@@ -170,6 +170,8 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .modal .hacc{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px}
 .modal .hacc .enlace{margin-top:0}
 .hoyhor{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.btns-mini{display:flex;flex-wrap:wrap;gap:6px}
+.modal input[type=text]{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
 @media (max-width:560px){.hsem{grid-template-columns:1fr 1fr}.hsem .cab{display:none}.hsem .dia{grid-column:1 / span 2;margin-top:6px}.hsem .libre{grid-column:1 / span 2}
 .hsem .hc span{display:block}}
 .modal [hidden]{display:none!important}
@@ -240,6 +242,21 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
   <input id="inTok" placeholder="pn_...">
   <button class="btn primary" id="guardar" type="button">Conectar</button>
   <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
+</div>
+<div class="modal-bg" id="modalAgente">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitulo">
+    <h3 id="aTitulo">Nombre y cuenta</h3>
+    <p class="sub">Cambia cómo se llama el agente y a qué cuenta pertenece, sin reinstalar el monitor en su computador.</p>
+    <label for="aNombre">Nombre del agente</label>
+    <input type="text" id="aNombre" autocomplete="off">
+    <label for="aCuenta">Cuenta</label>
+    <select id="aCuenta"></select>
+    <div class="hint">El computador del agente sigue mandando el nombre viejo; el servidor lo traduce solo. El historial anterior queda con el nombre nuevo. Al cambiar la cuenta, el equipo ya no podrá modificarla.</div>
+    <div class="acc">
+      <button class="btn" id="aCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="aGuardar" type="button">Guardar</button>
+    </div>
+  </div>
 </div>
 <div class="modal-bg" id="modalHorario">
   <div class="modal semana" role="dialog" aria-modal="true" aria-labelledby="hTitulo">
@@ -532,7 +549,8 @@ function fila(a, d){
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small>' +
       (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
-      '<br><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>' +
+      '<br><div class="btns-mini"><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>' +
+      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button></div>' +
       (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
@@ -581,6 +599,42 @@ document.addEventListener('click', async ev => {
     else toast(j.error || 'No se pudo solicitar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   setTimeout(() => { b.disabled = false; }, 3000);
+});
+
+let edAgente = null;
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-edit]');
+  if (!b) return;
+  edAgente = b.dataset.edit;
+  $('aNombre').value = edAgente;
+  const cuentas = (S.data && S.data.cuentas) || [];
+  const actual = b.dataset.cta || '';
+  const nombres = cuentas.map(c => c.n);
+  if (actual && !nombres.some(n => n.toLowerCase() === actual.toLowerCase())) nombres.unshift(actual);
+  $('aCuenta').innerHTML = nombres.map(n => '<option value="' + esc(n) + '"' + (n.toLowerCase() === actual.toLowerCase() ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+  $('modalAgente').classList.add('show');
+});
+$('aCancelar').addEventListener('click', () => $('modalAgente').classList.remove('show'));
+$('modalAgente').addEventListener('click', ev => { if (ev.target.id === 'modalAgente') $('modalAgente').classList.remove('show'); });
+$('aGuardar').addEventListener('click', async () => {
+  if (S.demo) { toast('En modo ejemplo no se guardan cambios.'); return; }
+  const nombre = $('aNombre').value.trim(), cuenta = $('aCuenta').value;
+  if (!nombre) { toast('Escribe un nombre.', 'err'); return; }
+  if (/[|;]/.test(nombre)) { toast('El nombre no puede tener | ni ;', 'err'); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  const btn = $('aGuardar'); btn.disabled = true;
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
+      '&accion=agente&agente=' + encodeURIComponent(edAgente) +
+      '&nuevo=' + encodeURIComponent(nombre) + '&cuenta=' + encodeURIComponent(cuenta);
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); cargar(); }
+    else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+    else toast(j.error || 'No se pudo guardar.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+  btn.disabled = false;
 });
 
 let horAgente = null;
