@@ -989,7 +989,7 @@
    petición de datos. */
 (function () {
   var APP    = 'nomina';
-  var API    = 'PEGA_AQUI_LA_URL_DEL_APPS_SCRIPT_DEL_PORTAL';
+  var API    = 'https://script.google.com/macros/s/AKfycbxEjSzo6gtP7rnVfc0JOAkZSvD6pTNYRvgcjoY_y_RrKMKOpRbDj4BBDMpzv_KuARxNNA/exec';
   var PORTAL = 'https://247medicalaid.github.io/';
   var CLAVE  = 'portal247.sesion';
 
@@ -4725,6 +4725,13 @@ function verificarBorradorRemoto(key, datos, intento){
     if(!p || p.firma !== firma) return;                 // ya hubo otro guardado encima
     // Se pide la lista completa (la misma que ya usan Nómina y Proyección al abrir)
     fetch(GS_URL + '?tipo=borradores').then(x => x.json()).catch(() => null).then(todos => {
+      if(todos && todos.codigo === 'NO_SESSION'){
+        // La sesión del portal (12 h) venció: el servidor rechaza todo. No se
+        // reintenta; queda pendiente y se manda al volver a entrar.
+        setConexion('error', 'Sesión del portal vencida: lo guardado queda en este navegador');
+        avisoSesionVencida();
+        return;
+      }
       if(!todos || !datosValidos(todos)) todos = {};
       const r = todos[key];
       const p2 = _pendBorr();
@@ -4743,6 +4750,14 @@ function verificarBorradorRemoto(key, datos, intento){
       }
     });
   }, intento === 1 ? 2500 : 4000);
+}
+function avisoSesionVencida(){
+  if(document.getElementById('aviso-sesion-vencida')) return;
+  const t = document.createElement('div');
+  t.id = 'aviso-sesion-vencida';
+  t.innerHTML = '\u26a0 <b>Tu sesión del portal venció.</b> Google Sheets no está aceptando cambios. Lo que guardes queda en este navegador y se enviará solo cuando vuelvas a entrar. <a href="https://247medicalaid.github.io/" style="color:var(--accent2)">Entrar de nuevo por el portal</a>';
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;max-width:440px;background:var(--surface);border:2px solid var(--danger);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+  document.body.appendChild(t);
 }
 function avisoBorradorNoGuardado(key){
   const t = document.createElement('div');
