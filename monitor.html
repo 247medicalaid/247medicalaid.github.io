@@ -1065,13 +1065,15 @@ $('rCsv').addEventListener('click', () => { csvNovedadesDia(); $('modalReporte')
 // ============================================================== VERSIONES
 // Cada latido trae la versión del monitor instalado en el equipo. Así se ve
 // a qué computadores les falta la actualización, sin llevar una lista aparte.
+// '2' y '2.0' son la misma version: Sheets a veces guarda el numero sin decimales
+const normV = v => { const t = String(v == null ? '' : v).trim().replace(/-net$/, ''); const n = Number(t); return (t !== '' && isFinite(n)) ? String(n) : t; };
 function versionHtml(a, d) {
   if (!a.latidos) return '';
   const v = (a.vivo && a.vivo.version) || '';
   const esperada = (d.config && d.config.versionAgente) || '';
   if (!v) return '<small class="winuser">Monitor: <span class="sincuenta" title="Este equipo no reporta versión: tiene una instalación anterior.">\u26a0 versión anterior</span></small>';
-  if (esperada && v !== esperada) return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) + '.">\u26a0 falta actualizar</span></small>';
-  return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> \u2713</small>';
+  if (esperada && normV(v) !== normV(esperada)) return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) + '.">\u26a0 falta actualizar</span></small>';
+  return '<small class="winuser">Monitor <b>v' + esc(esperada) + '</b> \u2713</small>';
 }
 
 function avisoVersiones(d) {
@@ -1080,7 +1082,7 @@ function avisoVersiones(d) {
   const esperada = (d.config && d.config.versionAgente) || '';
   const conDatos = d.agentes.filter(a => a.latidos > 0 && a.activo !== false);
   if (!d.esHoy || !esperada || !conDatos.length) { el.innerHTML = ''; return; }
-  const viejos = conDatos.filter(a => ((a.vivo && a.vivo.version) || '') !== esperada);
+  const viejos = conDatos.filter(a => normV((a.vivo && a.vivo.version) || '') !== normV(esperada));
   el.innerHTML = viejos.length
     ? '<div class="banner aviso">⚠ <b>' + viejos.length + ' de ' + conDatos.length +
       (viejos.length === 1 ? ' equipo no tiene' : ' equipos no tienen') + ' la versión ' + esc(esperada) + ' del monitor:</b> ' +
