@@ -159,6 +159,19 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .modal .hint{font-size:12px;color:var(--muted);margin-top:6px}
 .modal input[type=date],.modal select{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
 .modal.ancho{max-width:470px}
+.modal.semana{max-width:640px;max-height:calc(100vh - 32px);overflow:auto}
+.hsem{display:grid;grid-template-columns:92px 1fr 1fr 1fr 1fr;gap:6px 8px;align-items:center;margin-top:10px}
+.hsem .cab{font-size:11.5px;font-weight:600;color:var(--text-2)}
+.hsem .dia{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin:0;cursor:pointer}
+.hsem .dia input{width:16px;height:16px;accent-color:var(--accent);margin:0}
+.hsem input[type=time]{padding:6px 6px;font-size:13px}
+.hsem .libre{grid-column:2 / span 4;font-size:12.5px;color:var(--muted);font-style:italic;padding:6px 2px}
+.hsem .hc{display:block;margin:0;font-weight:400}.hsem .hc span{display:none;font-size:11px;color:var(--muted);margin-bottom:2px}
+.modal .hacc{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px}
+.modal .hacc .enlace{margin-top:0}
+.hoyhor{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+@media (max-width:560px){.hsem{grid-template-columns:1fr 1fr}.hsem .cab{display:none}.hsem .dia{grid-column:1 / span 2;margin-top:6px}.hsem .libre{grid-column:1 / span 2}
+.hsem .hc span{display:block}}
 .modal [hidden]{display:none!important}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg label{margin:0;font-weight:500;cursor:pointer}
@@ -229,19 +242,15 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
   <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
 </div>
 <div class="modal-bg" id="modalHorario">
-  <div class="modal" role="dialog" aria-modal="true">
-    <h3>Horario de <span id="hAgente"></span></h3>
-    <p class="sub">Define la jornada de este agente. Se usa para calcular ausencias y el "fuera de horario".</p>
-    <div class="dos">
-      <div><label for="hIni">Entrada</label><input type="time" id="hIni"></div>
-      <div><label for="hFin">Salida</label><input type="time" id="hFin"></div>
+  <div class="modal semana" role="dialog" aria-modal="true" aria-labelledby="hTitulo">
+    <h3 id="hTitulo">Horario de <span id="hAgente"></span></h3>
+    <p class="sub">Define la jornada y el almuerzo de cada día. Se usa para calcular ausencias, el aviso de "no se conectó" y el "fuera de horario". Desmarca los días que el agente no trabaja.</p>
+    <div class="hsem" id="hSem"></div>
+    <div class="hacc">
+      <button class="enlace" id="hCopiar" type="button">Copiar el primer día a los demás días marcados</button>
+      <button class="enlace" id="hGeneral" type="button">Volver al horario general (08:00–17:00, lunes a viernes)</button>
     </div>
-    <label>Almuerzo (opcional)</label>
-    <div class="dos">
-      <div><input type="time" id="hAlmA" aria-label="Almuerzo desde"></div>
-      <div><input type="time" id="hAlmB" aria-label="Almuerzo hasta"></div>
-    </div>
-    <div class="hint">Deja el almuerzo en blanco si no aplica. Vacía entrada y salida para usar el horario general.</div>
+    <div class="hint" id="hAviso">El almuerzo es opcional: déjalo en blanco si ese día no aplica.</div>
     <div class="acc">
       <button class="btn" id="hCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="hGuardar" type="button">Guardar horario</button>
@@ -489,7 +498,7 @@ function fila(a, d){
   let pill;
   if (e) {
     const et = estadoTxt(e.texto);
-    const txt = e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et;
+    const txt = e.texto === 'Día libre' ? 'Día libre' : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
   } else {
@@ -523,7 +532,8 @@ function fila(a, d){
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small>' +
       (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
-      '<br><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" type="button">Horario</button></div>' +
+      '<br><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>' +
+      (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
       (d.esHoy ? netHtml(a.vivo) : '') + '</div>' +
@@ -574,38 +584,137 @@ document.addEventListener('click', async ev => {
 });
 
 let horAgente = null;
+const DIAS_H = [['lun','Lunes'],['mar','Martes'],['mie','Miércoles'],['jue','Jueves'],['vie','Viernes'],['sab','Sábado'],['dom','Domingo']];
+function h12(t) { if (!t) return ''; const p = t.split(':'); let h = +p[0]; const a = h >= 12 ? 'p.m.' : 'a.m.'; h = h % 12 || 12; return h + ':' + p[1] + ' ' + a; }
+function horarioCorto(a) {
+  if (a.diaLibre || a.horario === 'Día libre') return 'día libre';
+  if (!a.hInicio || !a.hFin) return a.horario || '';
+  let t = h12(a.hInicio) + ' – ' + h12(a.hFin);
+  const al = (a.hAlmuerzo || '').split('-');
+  if (al.length === 2 && al[0] && al[1]) t += ' · almuerzo ' + h12(al[0]) + ' – ' + h12(al[1]);
+  return t;
+}
+function leerSemanaTxt(txt) {
+  const out = {};
+  String(txt || '').split(/[;\n]+/).forEach(p => {
+    const m = p.trim().toLowerCase().match(/^([a-z]{3})\s*=\s*(.+)$/);
+    if (!m) return;
+    const v = m[2].trim();
+    if (v === 'libre') { out[m[1]] = null; return; }
+    const h = v.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})(?:\/(\d{1,2}:\d{2})-(\d{1,2}:\d{2}))?$/);
+    if (h) out[m[1]] = { i: h[1].padStart(5, '0'), f: h[2].padStart(5, '0'), aa: h[3] ? h[3].padStart(5, '0') : '', ab: h[4] ? h[4].padStart(5, '0') : '' };
+  });
+  return out;
+}
+function pintarSemana(sem) {
+  let h = '<span class="cab">Día</span><span class="cab">Entrada</span><span class="cab">Salida</span><span class="cab">Almuerzo desde</span><span class="cab">Almuerzo hasta</span>';
+  DIAS_H.forEach(([k, n]) => {
+    const d = sem[k];
+    h += '<label class="dia"><input type="checkbox" data-trab="' + k + '"' + (d ? ' checked' : '') + '> ' + n + '</label>';
+    if (d) {
+      const inp = (c, et, val) => '<label class="hc"><span>' + et + '</span><input type="time" data-k="' + k + '" data-c="' + c + '" aria-label="' + n + ' ' + et.toLowerCase() + '" value="' + (val || '') + '"></label>';
+      h += inp('i', 'Entrada', d.i) + inp('f', 'Salida', d.f) + inp('aa', 'Almuerzo desde', d.aa) + inp('ab', 'Almuerzo hasta', d.ab);
+    } else {
+      h += '<span class="libre">No trabaja</span>';
+    }
+  });
+  $('hSem').innerHTML = h;
+}
+function semanaDelModal() {
+  const sem = {};
+  DIAS_H.forEach(([k]) => {
+    const c = $('hSem').querySelector('[data-trab="' + k + '"]');
+    if (!c || !c.checked) { sem[k] = null; return; }
+    const v = x => { const el = $('hSem').querySelector('input[data-k="' + k + '"][data-c="' + x + '"]'); return el ? el.value : ''; };
+    sem[k] = { i: v('i'), f: v('f'), aa: v('aa'), ab: v('ab') };
+  });
+  return sem;
+}
+let semEdit = {};
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-hor]');
   if (!b) return;
   horAgente = b.dataset.hor;
   $('hAgente').textContent = horAgente;
-  $('hIni').value = b.dataset.ini || '';
-  $('hFin').value = b.dataset.fin || '';
-  const alm = (b.dataset.alm || '').split('-');
-  $('hAlmA').value = alm[0] || '';
-  $('hAlmB').value = alm[1] || '';
+  let sem = b.dataset.sem ? leerSemanaTxt(b.dataset.sem) : null;
+  if (!sem || !Object.values(sem).some(Boolean)) {
+    // Sin horario por día: se parte del horario actual, de lunes a viernes
+    const alm = (b.dataset.alm || '').split('-');
+    const base = { i: b.dataset.ini || '08:00', f: b.dataset.fin || '17:00', aa: alm[0] || '', ab: alm[1] || '' };
+    sem = { lun: { ...base }, mar: { ...base }, mie: { ...base }, jue: { ...base }, vie: { ...base }, sab: null, dom: null };
+  }
+  semEdit = sem;
+  pintarSemana(semEdit);
+  $('hAviso').textContent = 'El almuerzo es opcional: déjalo en blanco si ese día no aplica.';
+  $('hAviso').classList.remove('mal');
   $('modalHorario').classList.add('show');
+});
+$('hSem').addEventListener('change', ev => {
+  const c = ev.target.closest('[data-trab]');
+  if (!c) return;
+  semEdit = semanaDelModal();
+  const k = c.dataset.trab;
+  if (c.checked) {
+    // Al marcar un día, se copia el último día marcado (o 08:00–17:00)
+    const prev = DIAS_H.map(d => d[0]).filter(x => x !== k && semEdit[x]).pop();
+    semEdit[k] = prev ? { ...semEdit[prev] } : { i: '08:00', f: '17:00', aa: '', ab: '' };
+  }
+  pintarSemana(semEdit);
+});
+$('hCopiar').addEventListener('click', () => {
+  semEdit = semanaDelModal();
+  const primero = DIAS_H.map(d => d[0]).find(k => semEdit[k]);
+  if (!primero) { toast('Marca al menos un día.', 'err'); return; }
+  DIAS_H.forEach(([k]) => { if (semEdit[k]) semEdit[k] = { ...semEdit[primero] }; });
+  pintarSemana(semEdit);
+  toast('Copiado el horario del ' + DIAS_H.find(d => d[0] === primero)[1].toLowerCase() + '.');
 });
 $('hCancelar').addEventListener('click', () => $('modalHorario').classList.remove('show'));
 $('modalHorario').addEventListener('click', ev => { if (ev.target.id === 'modalHorario') $('modalHorario').classList.remove('show'); });
-$('hGuardar').addEventListener('click', async () => {
+async function enviarHorario(params, msgOk) {
   if (S.demo) { toast('En modo ejemplo no se guarda el horario.'); return; }
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
-  const ini = $('hIni').value, fin = $('hFin').value;
-  const aa = $('hAlmA').value, bb = $('hAlmB').value;
-  const alm = (aa && bb) ? (aa + '-' + bb) : '';
   const btn = $('hGuardar'); btn.disabled = true;
   try {
-    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
-      '&accion=horario&agente=' + encodeURIComponent(horAgente) +
-      '&inicio=' + encodeURIComponent(ini) + '&fin=' + encodeURIComponent(fin) + '&almuerzo=' + encodeURIComponent(alm);
+    let q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=horario&agente=' + encodeURIComponent(horAgente);
+    Object.keys(params).forEach(k => { q += '&' + k + '=' + encodeURIComponent(params[k]); });
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok) { toast('Horario guardado para ' + horAgente, 'ok'); $('modalHorario').classList.remove('show'); cargar(); }
+    if (j.ok) {
+      if (params.semana && j.semana === undefined) {
+        toast('El servidor todavía no tiene la versión con horario por día. Publica la nueva versión del Apps Script.', 'err');
+      } else { toast(msgOk, 'ok'); $('modalHorario').classList.remove('show'); cargar(); }
+    }
     else toast(j.error || 'No se pudo guardar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
+}
+$('hGuardar').addEventListener('click', () => {
+  const sem = semanaDelModal();
+  const partes = [], errores = [];
+  DIAS_H.forEach(([k, n]) => {
+    const d = sem[k];
+    if (!d) { partes.push(k + '=libre'); return; }
+    let err = '';
+    if (!d.i || !d.f) err = n + ': falta la hora de entrada o de salida';
+    else if (d.f <= d.i) err = n + ': la salida debe ser después de la entrada';
+    else if ((d.aa && !d.ab) || (!d.aa && d.ab)) err = n + ': completa las dos horas del almuerzo o déjalas en blanco';
+    else if (d.aa && d.ab <= d.aa) err = n + ': el almuerzo debe terminar después de empezar';
+    else if (d.aa && (d.aa < d.i || d.ab > d.f)) err = n + ': el almuerzo debe estar dentro de la jornada';
+    if (err) { errores.push(err); return; }
+    partes.push(k + '=' + d.i + '-' + d.f + (d.aa ? '/' + d.aa + '-' + d.ab : ''));
+  });
+  if (errores.length) { $('hAviso').textContent = errores[0]; $('hAviso').classList.add('mal'); return; }
+  const primero = DIAS_H.map(d => d[0]).find(k => sem[k]);
+  if (!primero) { $('hAviso').textContent = 'El agente debe trabajar al menos un día.'; $('hAviso').classList.add('mal'); return; }
+  const p = sem[primero];
+  // Columnas Inicio/Fin/Almuerzo quedan con el primer día trabajado (referencia); manda la columna HorarioSemanal
+  enviarHorario({ inicio: p.i, fin: p.f, almuerzo: p.aa ? p.aa + '-' + p.ab : '', semana: partes.join(';') }, 'Horario guardado para ' + horAgente);
+});
+$('hGeneral').addEventListener('click', () => {
+  if (!confirm('¿Quitar el horario por día de ' + horAgente + ' y usar el horario general (08:00–17:00, lunes a viernes)?')) return;
+  enviarHorario({ inicio: '', fin: '', almuerzo: '', semana: '' }, horAgente + ' usa ahora el horario general');
 });
 
 $('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[data-c]'); if (b) { S.cuenta = b.dataset.c; pintar(); } });
