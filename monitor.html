@@ -1155,6 +1155,16 @@ async function pedirEquipos(){
   return d.equipos || [];
 }
 
+// La fecha de instalacion puede volver como '2025-11-16' o como fecha completa,
+// segun como la haya guardado la hoja. Se aceptan las dos y se descarta lo que no
+// sea una fecha valida, en vez de escribir "Invalid Date" en el Excel.
+function fechaInst(v){
+  if (!v) return null;
+  const s = String(v).trim();
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function excelEquipos(equipos){
   const x = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   const ST = {
@@ -1193,7 +1203,7 @@ function excelEquipos(equipos){
       C(e.agente, 'tb') + C(e.equipo, 't') + C(e.usuario, 't') + C(e.email, 't') +
       C(e.marca, 't') + C(e.modelo, 't') +
       (falta(e.serie) ? C('sin dato', 'falta') : C(e.serie, 'tc')) +
-      C(e.windows, 't') + (e.instalado ? C(new Date(e.instalado + 'T00:00:00'), 'fe') : C('', 'tc')) +
+      C(e.windows, 't') + C(fechaInst(e.instalado), fechaInst(e.instalado) ? 'fe' : 'tc') +
       C(e.ramGb, 'n') + C(e.discoGb, 'n') + C(e.libreGb, 'n') +
       (e.visto ? C(new Date(e.visto), 'fe') : C('', 'tc'))
     ));
