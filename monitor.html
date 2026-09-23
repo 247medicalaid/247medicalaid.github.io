@@ -90,6 +90,11 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .row:last-child{border-bottom:0}
 .who b{display:block;font-weight:600}
 .who small{color:var(--text-2)}
+/* El nombre de la practica es lo que mas se busca al leer la tarjeta, asi que
+   va mas grande, en negrita y en el color de acento; el nombre del equipo se
+   queda discreto para que no compitan. */
+.who .cuenta{color:var(--accent);font-weight:700;font-size:13.5px;letter-spacing:.1px}
+.who .equipo{color:var(--muted)}
 .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-weight:600;font-size:12.5px;white-space:nowrap}
 .pill.verde{background:var(--good-bg)} .pill.amarillo{background:var(--warning-bg)} .pill.rojo{background:var(--critical-bg)} .pill.gris{background:var(--neutral-bg)}
 .pill svg{flex:none}
@@ -207,6 +212,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <span id="upd"></span>
     <button class="btn" id="btnRef" type="button">Actualizar</button>
     <button class="btn" id="btnCuentas" type="button" title="Cuentas que ofrece el instalador">Cuentas</button>
+    <button class="btn" id="btnEquipos" type="button" title="Inventario: qué portátil tiene asignado cada agente">Equipos</button>
     <button class="btn" id="btnCfg" type="button" title="Cambiar URL o token">Ajustes</button>
     <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
   </div>
@@ -507,6 +513,35 @@ function netHtml(v){
   const aviso = color === 'var(--good)' ? '' : '\u26a0 ';
   return '<div class="app">Internet: <b style="color:' + color + '">' + aviso + lat + ' ms' + (loss > 0 ? ' \u00b7 ' + loss + '% p\u00e9rdida' : '') + '</b></div>';
 }
+// Pantallas conectadas y estado de energia (nuevo en la 2.5).
+// Aviso en ambar y con el simbolo ⚠ delante: nunca solo por color.
+function equipoHtml(a, d){
+  const v = a.vivo;
+  if (!v) return '';
+  const esperadas = (d.config && d.config.pantallasEsperadas) || 2;
+  let out = '';
+
+  if (v.pantallas != null) {
+    const pocas = v.pantallas < esperadas;
+    const tit = pocas
+      ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
+      : 'Está usando ' + v.pantallas + ' pantallas.';
+    out += '<div class="app">Pantallas: <b style="color:' + (pocas ? 'var(--warning)' : 'inherit') + '" title="' + tit + '">' +
+           (pocas ? '\u26a0 ' : '') + v.pantallas + '</b>' +
+           (a.minUnaPantalla ? ' <span class="mbps">' + dur(a.minUnaPantalla) + ' hoy con una</span>' : '') + '</div>';
+  }
+
+  if (v.energia === 'bat' || v.energia === 'ac') {
+    const bat = v.energia === 'bat';
+    const pct = (v.bateria != null && v.bateria >= 0) ? ' ' + v.bateria + '%' : '';
+    out += '<div class="app">Energía: <b style="color:' + (bat ? 'var(--warning)' : 'inherit') + '" title="' +
+           (bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.') + '">' +
+           (bat ? '\u26a0 en batería' + pct : 'enchufado' + pct) + '</b>' +
+           (bat && a.minBateria ? ' <span class="mbps">' + dur(a.minBateria) + ' hoy</span>' : '') + '</div>';
+  }
+  return out;
+}
+
 function progsHtml(v){
   if (!v || !v.programas || !v.programas.length) return '';
   const items = v.programas.map(p => '<li><span title="' + esc(p.n) + '">' + esc(nombreApp(p.n)) + '</span><span>' + p.mb + ' MB</span></li>').join('');
@@ -555,7 +590,8 @@ function fila(a, d){
   const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
 
   return '<div class="row">' +
-    '<div class="who"><b>' + esc(a.agente) + '</b><small>' + esc(a.cuenta) + ' · ' + esc(a.equipo || '') + '</small>' +
+    '<div class="who"><b>' + esc(a.agente) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
+      (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
       (a.usuario ? '<small class="winuser">Usuario de Windows: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Hoy iniciaron sesión varios usuarios en este equipo: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' usuarios hoy</span>' : '') + '</small>' : '') +
@@ -566,7 +602,7 @@ function fila(a, d){
       (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
-      (d.esHoy ? netHtml(a.vivo) : '') + '</div>' +
+      (d.esHoy ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
@@ -1108,6 +1144,93 @@ function csvNovedadesDia(){
 }
 
 $('csv').addEventListener('click', abrirReporte);
+// ============================================================ EQUIPOS
+// Inventario: qué portátil tiene asignado cada agente. Lo manda el agente en su
+// latido de arranque, así que un equipo aparece aquí la primera vez que enciende
+// con la versión 2.5 o posterior.
+async function pedirEquipos(){
+  const r = await fetch(API + '?accion=equipos&token=' + encodeURIComponent(TOKEN));
+  const d = await r.json();
+  if (!d.ok) throw new Error(d.error || 'no se pudo leer el inventario');
+  return d.equipos || [];
+}
+
+function excelEquipos(equipos){
+  const x = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const ST = {
+    tit:  '<Font ss:FontName="Calibri" ss:Size="15" ss:Bold="1" ss:Color="#0B2239"/>',
+    sub:  '<Font ss:FontName="Calibri" ss:Size="10" ss:Color="#4B5563"/>',
+    hdr:  '<Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B2239" ss:Pattern="Solid"/>',
+    t:    '<Font ss:FontName="Calibri" ss:Size="10"/>',
+    tb:   '<Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/>',
+    tc:   '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/>',
+    n:    '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="0;-0;&quot;–&quot;"/>',
+    fe:   '<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><NumberFormat ss:Format="mm/dd/yyyy"/>',
+    falta:'<Alignment ss:Horizontal="Center"/><Font ss:FontName="Calibri" ss:Size="10" ss:Italic="1" ss:Color="#7A4B00"/><Interior ss:Color="#FCE9B2" ss:Pattern="Solid"/>',
+    nota: '<Font ss:FontName="Calibri" ss:Size="9" ss:Italic="1" ss:Color="#6B7280"/>'
+  };
+  const estilos = '<Styles>' + Object.keys(ST).map(k => '<Style ss:ID="' + k + '">' + ST[k] + '</Style>').join('') + '</Styles>';
+  const C = (v, s) => {
+    if (v == null || v === '') return '<Cell ss:StyleID="' + s + '"/>';
+    if (typeof v === 'number') return '<Cell ss:StyleID="' + s + '"><Data ss:Type="Number">' + v + '</Data></Cell>';
+    if (v instanceof Date) return '<Cell ss:StyleID="' + s + '"><Data ss:Type="DateTime">' + v.toISOString().slice(0, 10) + 'T00:00:00.000</Data></Cell>';
+    return '<Cell ss:StyleID="' + s + '"><Data ss:Type="String">' + x(v) + '</Data></Cell>';
+  };
+  const Cm = (v, s, n) => '<Cell ss:StyleID="' + s + '" ss:MergeAcross="' + (n - 1) + '"><Data ss:Type="String">' + x(v) + '</Data></Cell>';
+  const Row = c => '<Row>' + c + '</Row>';
+  const cols = ['Agente', 'Equipo', 'Usuario de Windows', 'Correo', 'Marca', 'Modelo', 'Número de serie', 'Windows', 'Windows instalado', 'RAM (GB)', 'Disco (GB)', 'Libre (GB)', 'Última señal'];
+  const nc = cols.length;
+
+  const filas = [
+    Row(Cm('Equipos asignados — 24/7 Medical Aid', 'tit', nc)),
+    Row(Cm('Generado ' + new Date().toLocaleString('es-US') + ' · ' + equipos.length + ' equipo(s)', 'sub', nc)),
+    Row(Cm('', 'sub', nc)),
+    Row(cols.map(c => C(c, 'hdr')).join(''))
+  ];
+  equipos.forEach(e => {
+    const falta = v => (v === '' || v == null);
+    filas.push(Row(
+      C(e.agente, 'tb') + C(e.equipo, 't') + C(e.usuario, 't') + C(e.email, 't') +
+      C(e.marca, 't') + C(e.modelo, 't') +
+      (falta(e.serie) ? C('sin dato', 'falta') : C(e.serie, 'tc')) +
+      C(e.windows, 't') + (e.instalado ? C(new Date(e.instalado + 'T00:00:00'), 'fe') : C('', 'tc')) +
+      C(e.ramGb, 'n') + C(e.discoGb, 'n') + C(e.libreGb, 'n') +
+      (e.visto ? C(new Date(e.visto), 'fe') : C('', 'tc'))
+    ));
+  });
+  filas.push(Row(Cm('', 'nota', nc)));
+  filas.push(Row(Cm('Los datos los envía el monitor de cada equipo al encenderse. Un equipo aparece aquí la primera vez que arranca con la versión 2.5 o posterior. "Sin dato" en el número de serie significa que el fabricante no lo dejó grabado en el BIOS.', 'nota', nc)));
+
+  const anchos = [120, 100, 100, 150, 90, 150, 120, 150, 90, 65, 70, 70, 80];
+  const xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' + estilos +
+    '<Worksheet ss:Name="Equipos"><Table>' + anchos.map(w => '<Column ss:Width="' + w + '"/>').join('') + filas.join('') + '</Table>' +
+    '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>4</SplitHorizontal>' +
+    '<TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet></Workbook>';
+  return xml;
+}
+
+async function descargarEquipos(){
+  const btn = $('btnEquipos');
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparando…';
+  try {
+    const equipos = await pedirEquipos();
+    if (!equipos.length) {
+      toast('Todavía no hay equipos en el inventario. Cada equipo se registra la primera vez que enciende con el monitor 2.5 o posterior.', 'err');
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['﻿' + excelEquipos(equipos)], { type: 'application/vnd.ms-excel;charset=utf-8' }));
+      a.download = 'equipos_asignados_' + new Date().toISOString().slice(0, 10) + '.xls';
+      document.body.appendChild(a); a.click(); a.remove();
+      const sinSerie = equipos.filter(e => !e.serie).length;
+      toast('Inventario descargado: ' + equipos.length + ' equipo(s)' + (sinSerie ? ', ' + sinSerie + ' sin número de serie' : '') + '.', 'ok');
+    }
+  } catch (e) { toast('No se pudo generar el inventario: ' + e.message, 'err'); }
+  btn.textContent = antes; btn.disabled = false;
+}
+
+$('btnEquipos').addEventListener('click', descargarEquipos);
 $('rCancelar').addEventListener('click', () => $('modalReporte').classList.remove('show'));
 $('modalReporte').addEventListener('click', ev => { if (ev.target.id === 'modalReporte') $('modalReporte').classList.remove('show'); });
 $('modalReporte').addEventListener('change', actualizarRango);
