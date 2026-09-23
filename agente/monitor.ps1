@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.4'
+$Version = '2.5'
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'
@@ -59,6 +59,36 @@ public static class Monitor247Win {
     }
     public static int ForegroundPid() {
         uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return (int)pid;
+    }
+
+    // ---- Pantallas activas del escritorio (nuevo en la 2.5) ----
+    delegate bool EnumMonitorsProc(IntPtr h, IntPtr dc, IntPtr r, IntPtr d);
+    [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, EnumMonitorsProc fn, IntPtr data);
+    public static int Pantallas() {
+        try {
+            int n = 0;
+            EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, delegate(IntPtr h, IntPtr dc, IntPtr r, IntPtr d) { n++; return true; }, IntPtr.Zero);
+            return n;
+        } catch { return -1; }
+    }
+
+    // ---- Enchufado o en bateria (nuevo en la 2.5) ----
+    [StructLayout(LayoutKind.Sequential)]
+    struct SPS { public byte AC; public byte Flag; public byte Pct; public byte Sys; public int Vida; public int VidaTotal; }
+    [DllImport("kernel32.dll")] static extern bool GetSystemPowerStatus(out SPS s);
+    // "ac" enchufado, "bat" en bateria, "fijo" sin bateria, "" no se sabe
+    public static string Energia() {
+        try {
+            SPS s;
+            if (!GetSystemPowerStatus(out s)) return "";
+            if ((s.Flag & 128) != 0) return "fijo";
+            if (s.AC == 1) return "ac";
+            if (s.AC == 0) return "bat";
+            return "";
+        } catch { return ""; }
+    }
+    public static int Bateria() {
+        try { SPS s; if (!GetSystemPowerStatus(out s)) return -1; return s.Pct <= 100 ? s.Pct : -1; } catch { return -1; }
     }
 }
 '@
@@ -183,6 +213,70 @@ function Invoke-SpeedTest {
 # al actualizador, que es quien descarga, verifica la huella, respalda y
 # reinicia. Si no se puede despertar, el actualizador vera el aviso en su ciclo
 # de cinco minutos.
+# ---------------------------------------------------------------------
+# Inventario del equipo (nuevo en la 2.5). Se arma una vez y se guarda en
+# estado\equipo.json; se rehace si falta o tiene mas de 7 dias. Solo viaja
+# en el latido de arranque, porque cambia muy poco.
+# ---------------------------------------------------------------------
+function Get-Inventario {
+    $cache = Join-Path $EstadoDir 'equipo.json'
+    try {
+        if ((Test-Path $cache) -and ((Get-Date).ToUniversalTime() - (Get-Item $cache).LastWriteTimeUtc).TotalDays -lt 7) {
+            $viejo = Get-Content $cache -Raw -Encoding UTF8
+            if ($viejo -and $viejo.Trim().StartsWith('{')) { return ($viejo | ConvertFrom-Json) }
+        }
+    } catch { }
+
+    $rBios = 'HKLM:\HARDWARE\DESCRIPTION\System\BIOS'
+    $rWin  = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    function RegVal($ruta, $nombre) {
+        try { $v = (Get-ItemProperty -Path $ruta -Name $nombre -ErrorAction Stop).$nombre; if ($null -eq $v) { '' } else { ([string]$v).Trim() } }
+        catch { '' }
+    }
+
+    $marca  = RegVal $rBios 'SystemManufacturer'
+    $modelo = RegVal $rBios 'SystemProductName'
+    if (-not $modelo) { $modelo = RegVal $rBios 'SystemFamily' }
+
+    $serie = ''
+    try {
+        $s = ([string](Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop).SerialNumber).Trim()
+        if ($s.Length -gt 64) { $s = $s.Substring(0, 64) }
+        if ($s.ToLowerInvariant() -notin @('none', 'default string', 'to be filled by o.e.m.', 'system serial number')) { $serie = $s }
+    } catch { }
+
+    $nombreWin = RegVal $rWin 'ProductName'
+    $verWin    = RegVal $rWin 'DisplayVersion'
+    $buildWin  = RegVal $rWin 'CurrentBuild'
+    # Windows 11 sigue diciendo "Windows 10" en ProductName; la compilacion lo delata
+    $b = 0; [int]::TryParse($buildWin, [ref]$b) | Out-Null
+    if ($b -ge 22000 -and $nombreWin -match 'Windows 10') { $nombreWin = $nombreWin -replace 'Windows 10', 'Windows 11' }
+    $windows = (($nombreWin + ' ' + $verWin).Trim() + $(if ($buildWin) { " ($buildWin)" } else { '' }))
+
+    $instalado = ''
+    try {
+        $seg = (Get-ItemProperty -Path $rWin -Name 'InstallDate' -ErrorAction Stop).InstallDate
+        if ($seg) { $instalado = ([DateTime]'1970-01-01T00:00:00Z').ToUniversalTime().AddSeconds([int64]$seg).ToString('yyyy-MM-dd') }
+    } catch { }
+
+    $ramGb = 0
+    try { $ramGb = [int][math]::Round((Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory / 1GB) } catch { }
+
+    $discoGb = 0; $libreGb = 0
+    try {
+        $u = (Get-Item $env:WINDIR).PSDrive
+        $discoGb = [int][math]::Round(($u.Used + $u.Free) / 1GB)
+        $libreGb = [int][math]::Round($u.Free / 1GB)
+    } catch { }
+
+    $inv = [ordered]@{
+        marca = $marca; modelo = $modelo; serie = $serie; windows = $windows
+        instalado = $instalado; ramGb = $ramGb; discoGb = $discoGb; libreGb = $libreGb
+    }
+    try { [IO.File]::WriteAllText($cache, ($inv | ConvertTo-Json -Compress), $Utf8) } catch { }
+    return $inv
+}
+
 function Request-Actualizacion {
     # El aviso va dentro de 'estado', la unica carpeta donde el agente tiene
     # permiso de escritura (corre como usuario normal). Hasta la 2.3 se escribia
@@ -232,6 +326,9 @@ while ($true) {
 
         if ($primerCiclo) { Write-Log "diag: leyendo programas" }
         $idle = [int][Monitor247Win]::IdleSeconds()
+        $pant = [int][Monitor247Win]::Pantallas(); if ($pant -lt 0) { $pant = $null }
+        $ener = [string][Monitor247Win]::Energia()
+        $bat  = [int][Monitor247Win]::Bateria();  if ($bat -lt 0)  { $bat  = $null }
         $pa   = Get-ProgActivo
         $at   = Test-AppTelefono
         $pr   = @(Get-Programas)
@@ -240,8 +337,12 @@ while ($true) {
             id = [guid]::NewGuid().ToString('N'); ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
             agente = [string]$cfg.agente; cuenta = [string]$cfg.cuenta; equipo = $env:COMPUTERNAME; usuario = $env:USERNAME
             email = (Get-CorreoWindows)
-            idle = $idle; app = $at; inicio = $primerEnvio; progActivo = $pa; lat = $lat; loss = $net.loss; mbps = $mbps; progs = $pr
+            idle = $idle; app = $at; inicio = $primerEnvio; progActivo = $pa; lat = $lat; loss = $net.loss; mbps = $mbps
+            pantallas = $pant; energia = $ener; bateria = $bat
+            progs = $pr
         }
+        # El inventario del equipo solo viaja en el latido de arranque.
+        if ($primerEnvio) { $beat.equipo_info = Get-Inventario }
         $primerEnvio = $false
         [IO.File]::AppendAllText($ColaFile, ($beat | ConvertTo-Json -Depth 8 -Compress) + "`r`n", $Utf8)
 

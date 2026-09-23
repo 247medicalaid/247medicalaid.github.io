@@ -33,7 +33,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.4";
+        const string Version = "2.5";
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
@@ -62,6 +62,197 @@ namespace Monitor247
             lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
             if (!GetLastInputInfo(ref lii)) return 0;
             return unchecked(((uint)Environment.TickCount - lii.dwTime) / 1000);
+        }
+
+
+        // ---------------- Pantallas y energia (nuevo en la 2.5) ----------------
+        // Pantallas ACTIVAS del escritorio. Ojo: si el agente cierra la tapa y usa
+        // solo el monitor externo, Windows reporta 1. Se decidio contar asi, a
+        // sabiendas, y revisar a mano los pocos casos de tapa cerrada.
+        delegate bool EnumMonitorsProc(IntPtr hMonitor, IntPtr hdc, IntPtr lprc, IntPtr dwData);
+        [DllImport("user32.dll")]
+        static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, EnumMonitorsProc lpfn, IntPtr dwData);
+
+        static int Pantallas()
+        {
+            try
+            {
+                int n = 0;
+                EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero,
+                    delegate (IntPtr h, IntPtr dc, IntPtr r, IntPtr d) { n++; return true; }, IntPtr.Zero);
+                return n;
+            }
+            catch { return -1; }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct SYSTEM_POWER_STATUS
+        {
+            public byte ACLineStatus;      // 0 = bateria, 1 = enchufado, 255 = desconocido
+            public byte BatteryFlag;       // 128 = no hay bateria (equipo de escritorio)
+            public byte BatteryLifePercent;
+            public byte SystemStatusFlag;
+            public int BatteryLifeTime;
+            public int BatteryFullLifeTime;
+        }
+        [DllImport("kernel32.dll")]
+        static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS s);
+
+        // Devuelve "ac" (enchufado), "bat" (en bateria), "fijo" (sin bateria) o "" si no se sabe.
+        static string Energia(out int porcentaje)
+        {
+            porcentaje = -1;
+            try
+            {
+                SYSTEM_POWER_STATUS s;
+                if (!GetSystemPowerStatus(out s)) return "";
+                if (s.BatteryLifePercent <= 100) porcentaje = s.BatteryLifePercent;
+                if ((s.BatteryFlag & 128) != 0) return "fijo";   // no tiene bateria
+                if (s.ACLineStatus == 1) return "ac";
+                if (s.ACLineStatus == 0) return "bat";
+                return "";
+            }
+            catch { return ""; }
+        }
+
+        // ---------------- Inventario del equipo (nuevo en la 2.5) ----------------
+        // Se arma una vez y se guarda en estado\equipo.json; se rehace si el archivo
+        // falta o tiene mas de 7 dias. Solo viaja en el latido de arranque, no en
+        // todos, porque cambia muy poco.
+        [StructLayout(LayoutKind.Sequential)]
+        class MEMORYSTATUSEX
+        {
+            public uint dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile;
+            public ulong ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual;
+        }
+        [DllImport("kernel32.dll")]
+        static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX m);
+
+        static string RegLeer(string ruta, string nombre)
+        {
+            try
+            {
+                using (RegistryKey k = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64).OpenSubKey(ruta))
+                {
+                    if (k == null) return "";
+                    object v = k.GetValue(nombre);
+                    return v == null ? "" : v.ToString().Trim();
+                }
+            }
+            catch { return ""; }
+        }
+
+        // El numero de serie no esta en el registro; hay que preguntarselo al BIOS.
+        // Es la unica consulta que necesita lanzar un proceso, y pasa una vez por semana.
+        static string SerieBios()
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("powershell.exe",
+                    "-NoProfile -ExecutionPolicy Bypass -Command \"(Get-CimInstance -ClassName Win32_BIOS).SerialNumber\"");
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                using (Process p = Process.Start(psi))
+                {
+                    string s = p.StandardOutput.ReadToEnd();
+                    if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } return ""; }
+                    s = (s == null ? "" : s.Trim());
+                    // Algunos equipos devuelven relleno del fabricante en vez de una serie
+                    if (s.Length > 64) s = s.Substring(0, 64);
+                    string b = s.ToLowerInvariant();
+                    if (b == "none" || b == "default string" || b == "to be filled by o.e.m." || b == "system serial number") return "";
+                    return s;
+                }
+            }
+            catch { return ""; }
+        }
+
+        static string InventarioJson()
+        {
+            const string RUTA_BIOS = @"HARDWARE\DESCRIPTION\System\BIOS";
+            const string RUTA_WIN = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+
+            string marca = RegLeer(RUTA_BIOS, "SystemManufacturer");
+            string modelo = RegLeer(RUTA_BIOS, "SystemProductName");
+            string familia = RegLeer(RUTA_BIOS, "SystemFamily");
+            if (modelo.Length == 0) modelo = familia;
+            string serie = SerieBios();
+
+            string winNombre = RegLeer(RUTA_WIN, "ProductName");
+            string winVer = RegLeer(RUTA_WIN, "DisplayVersion");
+            string winBuild = RegLeer(RUTA_WIN, "CurrentBuild");
+            // Windows 11 sigue diciendo "Windows 10" en ProductName; la compilacion lo delata
+            int build = 0;
+            int.TryParse(winBuild, out build);
+            if (build >= 22000 && winNombre.IndexOf("Windows 10", StringComparison.OrdinalIgnoreCase) >= 0)
+                winNombre = winNombre.Replace("Windows 10", "Windows 11");
+            string windows = (winNombre + " " + winVer).Trim() + (winBuild.Length > 0 ? " (" + winBuild + ")" : "");
+
+            string instalado = "";
+            try
+            {
+                object v = null;
+                using (RegistryKey k = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64).OpenSubKey(RUTA_WIN))
+                    if (k != null) v = k.GetValue("InstallDate");
+                if (v != null)
+                {
+                    long seg = Convert.ToInt64(v);
+                    instalado = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(seg)
+                        .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                }
+            }
+            catch { }
+
+            int ramGb = 0;
+            try
+            {
+                MEMORYSTATUSEX m = new MEMORYSTATUSEX();
+                if (GlobalMemoryStatusEx(m)) ramGb = (int)Math.Round(m.ullTotalPhys / 1073741824.0);
+            }
+            catch { }
+
+            int discoGb = 0, libreGb = 0;
+            try
+            {
+                DriveInfo d = new DriveInfo(Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.System)));
+                discoGb = (int)Math.Round(d.TotalSize / 1073741824.0);
+                libreGb = (int)Math.Round(d.TotalFreeSpace / 1073741824.0);
+            }
+            catch { }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append("\"marca\":\"").Append(Esc(marca)).Append("\",");
+            sb.Append("\"modelo\":\"").Append(Esc(modelo)).Append("\",");
+            sb.Append("\"serie\":\"").Append(Esc(serie)).Append("\",");
+            sb.Append("\"windows\":\"").Append(Esc(windows)).Append("\",");
+            sb.Append("\"instalado\":\"").Append(Esc(instalado)).Append("\",");
+            sb.Append("\"ramGb\":").Append(ramGb.ToString(CultureInfo.InvariantCulture)).Append(",");
+            sb.Append("\"discoGb\":").Append(discoGb.ToString(CultureInfo.InvariantCulture)).Append(",");
+            sb.Append("\"libreGb\":").Append(libreGb.ToString(CultureInfo.InvariantCulture));
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        static string InventarioCache()
+        {
+            string f = Path.Combine(Path.Combine(BaseDir, "estado"), "equipo.json");
+            try
+            {
+                if (File.Exists(f) && (DateTime.UtcNow - File.GetLastWriteTimeUtc(f)).TotalDays < 7)
+                {
+                    string viejo = File.ReadAllText(f, Utf8).Trim();
+                    if (viejo.StartsWith("{") && viejo.EndsWith("}")) return viejo;
+                }
+            }
+            catch { }
+            string nuevo = InventarioJson();
+            try { File.WriteAllText(f, nuevo, Utf8); } catch { }
+            return nuevo;
         }
 
         static void Main()
@@ -309,6 +500,9 @@ namespace Monitor247
         static string ConstruirBeat(string ag, string cu, string eq, string us, uint idle, object app,
             bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps)
         {
+            int bat;
+            string energia = Energia(out bat);
+            int pantallas = Pantallas();
             string appTxt = (app == null) ? "null" : (((bool)app) ? "true" : "false");
             StringBuilder sb = new StringBuilder();
             sb.Append("{");
@@ -326,6 +520,9 @@ namespace Monitor247
             sb.Append("\"lat\":").Append(lat < 0 ? "null" : lat.ToString(CultureInfo.InvariantCulture)).Append(",");
             sb.Append("\"loss\":").Append(loss.ToString("0.###", CultureInfo.InvariantCulture)).Append(",");
             sb.Append("\"mbps\":").Append(mbps < 0 ? "null" : mbps.ToString(CultureInfo.InvariantCulture)).Append(",");
+            sb.Append("\"pantallas\":").Append(pantallas < 0 ? "null" : pantallas.ToString(CultureInfo.InvariantCulture)).Append(",");
+            sb.Append("\"energia\":\"").Append(Esc(energia)).Append("\",");
+            sb.Append("\"bateria\":").Append(bat < 0 ? "null" : bat.ToString(CultureInfo.InvariantCulture)).Append(",");
             sb.Append("\"progs\":[");
             for (int i = 0; i < progs.Count; i++)
             {
@@ -333,6 +530,12 @@ namespace Monitor247
                 sb.Append("{\"n\":\"").Append(Esc((string)progs[i][0])).Append("\",\"mb\":").Append(((int)progs[i][1]).ToString(CultureInfo.InvariantCulture)).Append("}");
             }
             sb.Append("]}");
+            // El inventario del equipo solo viaja en el latido de arranque: cambia muy
+            // poco y no tiene sentido repetirlo cada minuto.
+            if (inicio) {
+                string inv = InventarioCache();
+                sb.Insert(sb.Length - 1, ",\"equipo_info\":" + inv);
+            }
             return sb.ToString();
         }
 
