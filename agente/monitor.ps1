@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 #  Monitor 24/7 Medical Aid - Agente de actividad (Windows) - respaldo
 #  Version PowerShell (se usa solo si el equipo no puede compilar el .exe).
 #  Cada minuto envia: inactividad, programa activo, programas abiertos con
@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.3'
+$Version = '2.4'
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'
@@ -184,7 +184,11 @@ function Invoke-SpeedTest {
 # reinicia. Si no se puede despertar, el actualizador vera el aviso en su ciclo
 # de cinco minutos.
 function Request-Actualizacion {
-    try { [IO.File]::WriteAllText((Join-Path $Base 'forzar.txt'), (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'), $Utf8) }
+    # El aviso va dentro de 'estado', la unica carpeta donde el agente tiene
+    # permiso de escritura (corre como usuario normal). Hasta la 2.3 se escribia
+    # en la carpeta principal y Windows lo rechazaba: el boton no hacia nada.
+    $sello = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    try { [IO.File]::WriteAllText((Join-Path $EstadoDir 'forzar.txt'), $sello, $Utf8) }
     catch { Write-Log "No se pudo dejar el aviso de actualizacion: $($_.Exception.Message)"; return }
     try { Start-ScheduledTask -TaskName 'Monitor247_Actualizador' -ErrorAction Stop; Write-Log 'Actualizacion pedida desde el panel: actualizador lanzado' }
     catch { Write-Log "Actualizacion pedida desde el panel; el actualizador la tomara en su proximo ciclo ($($_.Exception.Message))" }

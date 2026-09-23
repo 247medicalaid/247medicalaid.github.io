@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 #  Monitor 24/7 Medical Aid - Actualizador remoto
 #  Lo ejecuta la tarea programada "Monitor247_Actualizador" como SYSTEM
 #  cada 5 minutos. En operacion normal solo consulta el servidor una vez
@@ -19,7 +19,12 @@ $VersionFile  = Join-Path $Destino 'version.txt'
 $PendienteFil = Join-Path $Destino 'pendiente.txt'
 $BloqueoFile  = Join-Path $Destino 'bloqueo.txt'
 $UltChequeo   = Join-Path $Destino 'ultimo-chequeo.txt'
-$ForzarFile   = Join-Path $Destino 'forzar.txt'
+# El aviso de "actualizar ya" lo deja el agente, que corre como usuario normal
+# y solo tiene permiso de escritura dentro de 'estado'. Hasta la 2.3 se buscaba
+# en la carpeta principal, donde el agente no puede escribir: por eso el boton
+# del panel nunca funcionaba. Se miran las dos rutas por compatibilidad.
+$ForzarFile   = Join-Path $EstadoDir 'forzar.txt'
+$ForzarViejo  = Join-Path $Destino 'forzar.txt'
 $LogFile      = Join-Path $Destino 'actualizar.log'
 $Exe          = Join-Path $Destino 'Monitor247.exe'
 $Ps1          = Join-Path $Destino 'monitor.ps1'
@@ -244,9 +249,13 @@ try {
     # agente (corre como usuario, por eso escribe un archivo nuevo en vez de
     # borrar el del ultimo chequeo, que es de SYSTEM).
     $forzado = $false
-    if (Test-Path $ForzarFile) {
-        $marca = LeerTexto $ForzarFile
-        Remove-Item $ForzarFile -Force -ErrorAction SilentlyContinue
+    $avisoEn = $null
+    if     (Test-Path $ForzarFile)  { $avisoEn = $ForzarFile }
+    elseif (Test-Path $ForzarViejo) { $avisoEn = $ForzarViejo }
+    if ($avisoEn) {
+        $marca = LeerTexto $avisoEn
+        Remove-Item $avisoEn -Force -ErrorAction SilentlyContinue
+        Remove-Item $ForzarViejo -Force -ErrorAction SilentlyContinue
         $forzado = $true
         try {
             $cuandoF = [DateTime]::Parse($marca, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)

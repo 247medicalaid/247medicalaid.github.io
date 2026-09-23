@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 //  Monitor 24/7 Medical Aid - Agente nativo (Windows, .NET Framework)
 //  Cada minuto envia al servidor:
 //    - segundos sin teclado/mouse (actividad del equipo)
@@ -33,7 +33,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.3";
+        const string Version = "2.4";
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
@@ -453,7 +453,11 @@ namespace Monitor247
         {
             try
             {
-                File.WriteAllText(Path.Combine(BaseDir, "forzar.txt"),
+                // Dentro de "estado": es la unica carpeta donde el agente tiene
+                // permiso de escritura. Hasta la 2.3 se escribia en la carpeta
+                // principal y Windows lo rechazaba, asi que el boton del panel
+                // nunca despertaba al actualizador.
+                File.WriteAllText(Path.Combine(Path.Combine(BaseDir, "estado"), "forzar.txt"),
                     DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), Utf8);
             }
             catch (Exception ex) { Log("No se pudo dejar el aviso de actualizacion: " + ex.Message); return; }
