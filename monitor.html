@@ -1142,7 +1142,10 @@ function versionHtml(a, d) {
   const v = (a.vivo && a.vivo.version) || '';
   const esperada = (d.config && d.config.versionAgente) || '';
   if (!v) return '<small class="winuser">Monitor: <span class="sincuenta" title="Este equipo no reporta versión: tiene una instalación anterior.">\u26a0 versión anterior</span></small>';
-  if (esperada && normV(v) !== normV(esperada)) {
+  // Atrasado es el que tiene MENOS que la version al dia, no el que no coincide:
+  // un equipo que ya va por delante (porque el servidor aun no publico la
+  // version nueva) esta al dia, no le falta nada.
+  if (esperada && !verAlMenos(v, esperada)) {
     const pedido = estadoActualizacion(a, d);
     if (pedido) {
       const txt = pedido.estado === 'enviada' ? '\u23f3 actualizando…' : '\u23f3 actualización pedida';
@@ -1158,7 +1161,7 @@ function versionHtml(a, d) {
     return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) +
            '. Este equipo es anterior a la ' + VERSION_BOTON + ', así que no se puede pedir desde aquí: se actualiza solo dentro de la próxima hora.">\u26a0 falta actualizar</span></small>';
   }
-  return '<small class="winuser">Monitor <b>v' + esc(esperada) + '</b> \u2713</small>';
+  return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> \u2713</small>';
 }
 
 function avisoVersiones(d) {
@@ -1167,12 +1170,12 @@ function avisoVersiones(d) {
   const esperada = (d.config && d.config.versionAgente) || '';
   const conDatos = d.agentes.filter(a => a.latidos > 0 && a.activo !== false);
   if (!d.esHoy || !esperada || !conDatos.length) { el.innerHTML = ''; return; }
-  const viejos = conDatos.filter(a => normV((a.vivo && a.vivo.version) || '') !== normV(esperada));
+  const viejos = conDatos.filter(a => !verAlMenos((a.vivo && a.vivo.version) || '', esperada));
   el.innerHTML = viejos.length
     ? '<div class="banner aviso">⚠ <b>' + viejos.length + ' de ' + conDatos.length +
-      (viejos.length === 1 ? ' equipo no tiene' : ' equipos no tienen') + ' la versión ' + esc(esperada) + ' del monitor:</b> ' +
+      (viejos.length === 1 ? ' equipo no llega' : ' equipos no llegan') + ' a la versión ' + esc(esperada) + ' del monitor:</b> ' +
       viejos.map(a => esc(a.agente) + ' <span class="viejo">(' + esc(a.equipo || 'equipo') + (a.vivo && a.vivo.version ? ' · v' + esc(a.vivo.version) : '') + ')</span>').join(', ') + '</div>'
-    : '<div class="banner ok">\u2713 Los ' + conDatos.length + ' equipos con señal hoy tienen la versión ' + esc(esperada) + ' del monitor.</div>';
+    : '<div class="banner ok">\u2713 Los ' + conDatos.length + ' equipos con señal hoy tienen el monitor al día (' + esc(esperada) + ' o posterior).</div>';
 }
 
 // ================================================================ CUENTAS
