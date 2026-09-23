@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.0'
+$Version = '2.1'
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'

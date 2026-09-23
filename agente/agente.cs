@@ -27,13 +27,13 @@ using System.Threading;
 [assembly: System.Reflection.AssemblyTitle("Monitor 24-7 Medical Aid")]
 [assembly: System.Reflection.AssemblyProduct("Monitor 24-7 Medical Aid")]
 [assembly: System.Reflection.AssemblyCompany("24/7 Medical Aid")]
-[assembly: System.Reflection.AssemblyFileVersion("2.0.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("2.1.0.0")]
 
 namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.0";
+        const string Version = "2.1";
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
