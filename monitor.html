@@ -669,10 +669,34 @@ $('aGuardar').addEventListener('click', async () => {
     const j = await r.json();
     if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); cargar(); }
     else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+    else if (/ya hay un agente llamado/i.test(j.error || '')) await ofrecerUnir(nombre, url, tok);
     else toast(j.error || 'No se pudo guardar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 });
+
+// Dos tarjetas del mismo agente: pasa cuando en la instalación se escribe el
+// nombre distinto (una letra basta). En vez de dejar el error, se ofrece unir:
+// se conserva el agente que ya estaba y el equipo puede seguir mandando el
+// nombre viejo, porque el servidor lo traduce en cada latido. No se pierde
+// historial: lo de antes también se lee con el nombre bueno.
+async function ofrecerUnir(existente, url, tok) {
+  const msg = 'Ya hay un agente llamado "' + existente + '".\n\n' +
+    '¿Unir "' + edAgente + '" con "' + existente + '"?\n\n' +
+    'Se conserva "' + existente + '" y la tarjeta de "' + edAgente + '" desaparece. ' +
+    'El computador puede seguir reportando con el nombre viejo; el servidor lo traduce solo. ' +
+    'No se pierde el historial.';
+  if (!confirm(msg)) return;
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
+      '&accion=fusionar&agente=' + encodeURIComponent(edAgente) + '&nuevo=' + encodeURIComponent(existente);
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); cargar(); }
+    else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+    else toast(j.error || 'No se pudieron unir.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+}
 
 let horAgente = null;
 const DIAS_H = [['lun','Lunes'],['mar','Martes'],['mie','Miércoles'],['jue','Jueves'],['vie','Viernes'],['sab','Sábado'],['dom','Domingo']];
