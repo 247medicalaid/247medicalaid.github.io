@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.1'
+$Version = '2.2'
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'
@@ -178,6 +178,18 @@ function Invoke-SpeedTest {
     } catch { return -1 }
 }
 
+# El panel pidio actualizar este equipo sin esperar la revision de cada hora.
+# Aqui no se actualiza nada: solo se deja el aviso y, si se puede, se despierta
+# al actualizador, que es quien descarga, verifica la huella, respalda y
+# reinicia. Si no se puede despertar, el actualizador vera el aviso en su ciclo
+# de cinco minutos.
+function Request-Actualizacion {
+    try { [IO.File]::WriteAllText((Join-Path $Base 'forzar.txt'), (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'), $Utf8) }
+    catch { Write-Log "No se pudo dejar el aviso de actualizacion: $($_.Exception.Message)"; return }
+    try { Start-ScheduledTask -TaskName 'Monitor247_Actualizador' -ErrorAction Stop; Write-Log 'Actualizacion pedida desde el panel: actualizador lanzado' }
+    catch { Write-Log "Actualizacion pedida desde el panel; el actualizador la tomara en su proximo ciclo ($($_.Exception.Message))" }
+}
+
 function Send-Lote([object[]]$beats) {
     $body = @{ token = $cfg.token; version = $Version; beats = $beats } | ConvertTo-Json -Depth 8 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
@@ -244,6 +256,7 @@ while ($true) {
         try { [IO.File]::WriteAllText($UltimoFile, ($Version + '|' + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')), $Utf8) } catch { }
         if ($primerCiclo) { Write-Log "diag: primer envio OK" }
         if ($respuesta -and $respuesta.IndexOf('"cmd":"speedtest"') -ge 0) { $haceSpeed = $true }
+        if ($respuesta -and $respuesta.IndexOf('"actualizar":true') -ge 0) { Request-Actualizacion }
         if ($fallosSeguidos -gt 0) { Write-Log "Conexion restablecida; enviados $enviados latidos pendientes" }
         $fallosSeguidos = 0
     } catch {

@@ -33,7 +33,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.1";
+        const string Version = "2.2";
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
@@ -42,7 +42,7 @@ namespace Monitor247
         const int PingPuerto = 443;
         const string SpeedUrl = "https://speed.cloudflare.com/__down?bytes=10000000"; // 10 MB
 
-        static string DataDir, ColaFile, LogFile, UltimoFile;
+        static string DataDir, ColaFile, LogFile, UltimoFile, BaseDir;
         static string correoCache = null;
         static DateTime correoCacheTs = DateTime.MinValue;
         static readonly UTF8Encoding Utf8 = new UTF8Encoding(false);
@@ -80,6 +80,7 @@ namespace Monitor247
         static void Correr()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            BaseDir = baseDir;
             string configFile = Path.Combine(baseDir, "config.json");
             DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Monitor247");
             Directory.CreateDirectory(DataDir);
@@ -145,6 +146,7 @@ namespace Monitor247
                     File.WriteAllText(ColaFile, "", Utf8);
                     try { File.WriteAllText(UltimoFile, Version + "|" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), Utf8); } catch { }
                     if (respuesta.IndexOf("\"cmd\":\"speedtest\"") >= 0) haceSpeed = true;
+                    if (respuesta.IndexOf("\"actualizar\":true") >= 0) PedirActualizacion();
                     if (fallos > 0) Log("Conexion restablecida; enviados " + enviados + " latidos pendientes");
                     fallos = 0;
                 }
@@ -439,6 +441,34 @@ namespace Monitor247
         {
             if (s == null) return "";
             return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", " ").Replace("\n", " ");
+        }
+
+        // El panel pidio actualizar este equipo sin esperar la revision de cada
+        // hora. Aqui no se actualiza nada: solo se deja el aviso y, si se puede,
+        // se despierta al actualizador, que es quien descarga, verifica la
+        // huella, compila, respalda y reinicia. Si no se puede despertar (el
+        // agente corre como usuario normal), el actualizador vera el aviso en su
+        // ciclo de cinco minutos.
+        static void PedirActualizacion()
+        {
+            try
+            {
+                File.WriteAllText(Path.Combine(BaseDir, "forzar.txt"),
+                    DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), Utf8);
+            }
+            catch (Exception ex) { Log("No se pudo dejar el aviso de actualizacion: " + ex.Message); return; }
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("schtasks.exe", "/Run /TN \"Monitor247_Actualizador\"");
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                Process.Start(psi);
+                Log("Actualizacion pedida desde el panel: actualizador lanzado");
+            }
+            catch (Exception ex)
+            {
+                Log("Actualizacion pedida desde el panel; el actualizador la tomara en su proximo ciclo (" + ex.Message + ")");
+            }
         }
 
         static void Log(string msg)
