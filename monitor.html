@@ -66,6 +66,10 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
 .banner.ok{background:var(--good-bg);border:1px solid var(--good);font-weight:400}
 .banner.aviso .viejo{color:var(--text-2)}
 .sincuenta{display:inline-block;margin-top:5px;font-size:12px;font-weight:700;border:1px solid var(--warning);background:var(--warning-bg);border-radius:6px;padding:2px 7px}
+button.sincuenta{font-family:inherit;color:inherit;cursor:pointer}
+button.sincuenta:hover{filter:brightness(1.15)}
+button.sincuenta:disabled{cursor:default;opacity:.75}
+.sincuenta.encurso{border-color:var(--accent2);background:transparent;color:var(--accent2)}
 .crow{display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .crow input{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;min-width:0}
 .crow .cnt{font-size:11.5px;color:var(--text-2);min-width:36px;text-align:right}
@@ -609,6 +613,31 @@ document.addEventListener('click', async ev => {
   setTimeout(() => { b.disabled = false; }, 3000);
 });
 
+// Pedir la actualización de un equipo sin esperar la revisión de cada hora.
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('[data-upd]');
+  if (!b) return;
+  const ag = b.dataset.upd;
+  if (S.demo) { toast('En modo ejemplo no se actualiza ningún equipo.'); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  b.disabled = true;
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=actualizar&agente=' + encodeURIComponent(ag);
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok) {
+      toast('Actualización pedida para ' + ag + '. Sale en el próximo latido y termina en un par de minutos.', 'ok');
+      if (S.data) {
+        S.data.actualizaciones = S.data.actualizaciones || {};
+        S.data.actualizaciones[String(ag).trim().toLowerCase()] = { estado: 'pendiente', desde: Date.now() };
+        pintar();
+      }
+      setTimeout(() => { if (!document.hidden) cargar(); }, 70000);
+    } else { toast(j.error || 'No se pudo pedir la actualización.', 'err'); b.disabled = false; }
+  } catch (e) { toast('Error: ' + e.message, 'err'); b.disabled = false; }
+});
+
 let edAgente = null;
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-edit]');
@@ -1067,12 +1096,44 @@ $('rCsv').addEventListener('click', () => { csvNovedadesDia(); $('modalReporte')
 // a qué computadores les falta la actualización, sin llevar una lista aparte.
 // '2' y '2.0' son la misma version: Sheets a veces guarda el numero sin decimales
 const normV = v => { const t = String(v == null ? '' : v).trim().replace(/-net$/, ''); const n = Number(t); return (t !== '' && isFinite(n)) ? String(n) : t; };
+// Desde la 2.2 el equipo entiende la orden "actualizar" que viaja en la
+// respuesta del latido, así que la insignia puede ser un botón. En versiones
+// anteriores no hay a quién pedirle nada: se deja el aviso como estaba.
+const VERSION_BOTON = '2.2';
+function verPartes(v){ return String(v == null ? '' : v).trim().replace(/-net$/, '').split('.').map(x => parseInt(x, 10) || 0); }
+function verAlMenos(v, minimo){
+  const a = verPartes(v), b = verPartes(minimo);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0, y = b[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+function estadoActualizacion(a, d){
+  const m = (d && d.actualizaciones) || {};
+  return m[String(a.agente || '').trim().toLowerCase()] || null;
+}
 function versionHtml(a, d) {
   if (!a.latidos) return '';
   const v = (a.vivo && a.vivo.version) || '';
   const esperada = (d.config && d.config.versionAgente) || '';
   if (!v) return '<small class="winuser">Monitor: <span class="sincuenta" title="Este equipo no reporta versión: tiene una instalación anterior.">\u26a0 versión anterior</span></small>';
-  if (esperada && normV(v) !== normV(esperada)) return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) + '.">\u26a0 falta actualizar</span></small>';
+  if (esperada && normV(v) !== normV(esperada)) {
+    const pedido = estadoActualizacion(a, d);
+    if (pedido) {
+      const txt = pedido.estado === 'enviada' ? '\u23f3 actualizando…' : '\u23f3 actualización pedida';
+      const tit = pedido.estado === 'enviada'
+        ? 'El equipo recibió la orden. Termina en un par de minutos y la versión cambia sola.'
+        : 'La orden sale en el próximo latido del equipo (máximo un minuto).';
+      return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta encurso" title="' + tit + '">' + txt + '</span></small>';
+    }
+    if (verAlMenos(v, VERSION_BOTON)) {
+      return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <button class="sincuenta" data-upd="' + esc(a.agente) +
+             '" title="Actualizar este equipo ahora, sin esperar la revisión de cada hora. La versión al día es la ' + esc(esperada) + '.">\u26a0 actualizar ahora</button></small>';
+    }
+    return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) +
+           '. Este equipo es anterior a la ' + VERSION_BOTON + ', así que no se puede pedir desde aquí: se actualiza solo dentro de la próxima hora.">\u26a0 falta actualizar</span></small>';
+  }
   return '<small class="winuser">Monitor <b>v' + esc(esperada) + '</b> \u2713</small>';
 }
 
