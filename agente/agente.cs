@@ -33,7 +33,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.2";
+        const string Version = "2.3";
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;

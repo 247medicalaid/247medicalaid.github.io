@@ -2,9 +2,9 @@
 #  Monitor 24/7 Medical Aid - Actualizador remoto
 #  Lo ejecuta la tarea programada "Monitor247_Actualizador" como SYSTEM
 #  cada 5 minutos. En operacion normal solo consulta el servidor una vez
-#  por hora; durante la hora siguiente a una actualizacion revisa en cada
-#  ciclo para confirmar que el equipo siguio reportando, y si no, devuelve
-#  la version anterior.
+#  por hora; despues de una actualizacion revisa en cada ciclo, durante 12
+#  ciclos CON EL EQUIPO ENCENDIDO, que el agente siga reportando, y si no,
+#  devuelve la version anterior.
 #  Si el panel pide actualizar un equipo, el agente deja "forzar.txt" y aqui
 #  se consulta de inmediato, sin esperar la hora.
 #  No toca ningun dato del agente: solo reemplaza el programa del monitor.
@@ -26,8 +26,13 @@ $Ps1          = Join-Path $Destino 'monitor.ps1'
 $Tarea        = 'Monitor247_Agente'
 $BaseUrlFijo  = 'https://247medicalaid.github.io/agente/'
 $MinutosRutina = 55      # en operacion normal, consultar una vez por hora
-$MinutosGracia = 15      # espera antes de exigir que el agente haya reportado
-$MinutosVigila = 60      # tiempo que se vigila una version recien instalada
+# La vigilancia de una version recien instalada se cuenta en CICLOS, no en
+# minutos de reloj: este script corre cada 5 minutos, y solo corre si el equipo
+# esta encendido. Contando ciclos, un equipo que se apaga o se suspende no
+# parece un agente caido (el 22/9 el portatil se suspendio de noche y la 2.2 se
+# devolvio sola por eso).
+$CiclosGracia = 3        # ~15 min encendido antes de exigir que el agente reporte
+$CiclosVigila = 12       # ~60 min encendido de vigilancia
 $Utf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Log([string]$m) {
@@ -82,7 +87,9 @@ function BuscarCsc {
 
 # ---------------------------------------------------------------------
 # 1) Verificar una actualizacion recien aplicada
-#    pendiente.txt = "<version>|<fecha UTC de la actualizacion>"
+#    pendiente.txt = "<version>|<fecha UTC de la actualizacion>|<ciclos vigilados>"
+#    Los ciclos solo avanzan cuando este script corre, o sea con el equipo
+#    encendido: asi un equipo apagado o suspendido no cuenta como agente caido.
 # ---------------------------------------------------------------------
 function VerificarPendiente {
     $p = LeerTexto $PendienteFil
@@ -91,8 +98,11 @@ function VerificarPendiente {
     if ($partes.Count -lt 2) { Remove-Item $PendienteFil -Force -ErrorAction SilentlyContinue; return $false }
     $ver = $partes[0]
     $desde = [DateTime]::Parse($partes[1], [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
-    $mins = ([DateTime]::UtcNow - $desde).TotalMinutes
-    if ($mins -lt $MinutosGracia) { return $true }   # aun es pronto: se revisa en el proximo ciclo
+    $ciclos = 0
+    if ($partes.Count -ge 3) { [int]::TryParse($partes[2], [ref]$ciclos) | Out-Null }
+    $ciclos = $ciclos + 1
+    EscribirTexto $PendienteFil ($ver + '|' + $partes[1] + '|' + $ciclos)
+    if ($ciclos -lt $CiclosGracia) { return $true }   # aun es pronto: se revisa en el proximo ciclo
 
     # El agente escribe aqui cada vez que logra enviar: "<version>|<fecha UTC>"
     $u = LeerTexto (Join-Path $EstadoDir 'ultimo.txt')
@@ -111,9 +121,9 @@ function VerificarPendiente {
         Remove-Item $PendienteFil -Force -ErrorAction SilentlyContinue
         return $false
     }
-    if ($mins -lt $MinutosVigila) { return $true }   # sigue en observacion
+    if ($ciclos -lt $CiclosVigila) { return $true }   # sigue en observacion
 
-    Log "La version $ver no reporto en $([int]$mins) minutos: se devuelve la version anterior."
+    Log "La version $ver no reporto en $ciclos revisiones con el equipo encendido: se devuelve la version anterior."
     Revertir $ver
     return $false
 }
