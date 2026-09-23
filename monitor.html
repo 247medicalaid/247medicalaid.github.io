@@ -1149,10 +1149,14 @@ $('csv').addEventListener('click', abrirReporte);
 // latido de arranque, así que un equipo aparece aquí la primera vez que enciende
 // con la versión 2.5 o posterior.
 async function pedirEquipos(){
-  const r = await fetch(API + '?accion=equipos&token=' + encodeURIComponent(TOKEN));
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=equipos';
+  const r = await fetch(q, { redirect: 'follow' });
   const d = await r.json();
   if (!d.ok) throw new Error(d.error || 'no se pudo leer el inventario');
-  return d.equipos || [];
+  if (!Array.isArray(d.equipos)) throw new Error('el servidor aún no tiene el inventario (falta publicar la nueva versión del script)');
+  return d.equipos;
 }
 
 // La fecha de instalacion puede volver como '2025-11-16' o como fecha completa,
