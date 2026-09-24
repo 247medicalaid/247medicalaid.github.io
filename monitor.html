@@ -702,6 +702,9 @@ function speedHtml(a){
 function fila(a, d){
   const e = a.estado;
   const inact = a.activo === false;   // desactivado: tarjeta reducida
+  // Con fecha de baja de hoy todavía cuenta el día completo: la tarjeta sigue
+  // entera, pero el botón ya ofrece Reactivar para no desactivarlo dos veces.
+  const conBaja = inact || !!a.baja;
   let pill;
   if (e) {
     const et = estadoTxt(e.texto);
@@ -788,10 +791,12 @@ function fila(a, d){
       (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>') +
       '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button>' +
       (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Cambio de turno por un día o una temporada">Cambio de turno</button>') +
-      '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (a.activo === false ? '1' : '0') + '" type="button" title="' +
-        (a.activo === false ? 'Vuelve a la lista de agentes' : 'Deja de contar desde el día siguiente a la fecha de baja') + '">' +
-        (a.activo === false ? 'Reactivar' : 'Desactivar') + '</button></div>' +
-      (a.activo === false ? '<span class="bajainfo">Inactivo desde ' + esc(a.baja || 'fecha sin registrar') +
+      '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (conBaja ? '1' : '0') + '" type="button" title="' +
+        (conBaja ? 'Vuelve a la lista de agentes y borra la fecha de baja' : 'Deja de contar desde el día siguiente a la fecha de baja') + '">' +
+        (conBaja ? 'Reactivar' : 'Desactivar') + '</button></div>' +
+      (conBaja ? '<span class="bajainfo">' +
+        (inact ? 'Inactivo desde ' + esc(a.baja || 'fecha sin registrar')
+               : 'Baja el ' + esc(a.baja) + ' \u00b7 pasa a Inactivos al día siguiente') +
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
       (a.horario && !inact ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
         (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') + '</div>' +
@@ -883,7 +888,7 @@ document.addEventListener('click', async ev => {
   if (!b) return;
   const ag = b.dataset.baja;
   if (b.dataset.act === '1') {
-    if (!confirm('¿Reactivar a "' + ag + '"?\n\nVuelve a la lista de agentes y desde hoy se le vuelve a exigir su horario.')) return;
+    if (!confirm('¿Reactivar a "' + ag + '"?\n\nSe borra la fecha de baja y vuelve a la lista de agentes; desde hoy se le vuelve a exigir su horario.')) return;
     await enviarBaja(ag, '1', '', '');
     return;
   }
