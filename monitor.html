@@ -100,11 +100,16 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .pill svg{flex:none}
 .app{font-size:12px;color:var(--text-2);margin-top:4px}
 .tl{position:relative;height:22px;background:var(--track);border-radius:4px}
-.tl .seg{position:absolute;top:0;bottom:0;border-radius:4px;cursor:default}
+.tl .seg{position:absolute;top:0;bottom:0;border-radius:4px;cursor:pointer}
+/* Autorizado: sigue visible pero atenuado, con un \u2713 encima. Nunca se
+   distingue solo por el color. */
+.tl .seg.just{opacity:.4;box-shadow:inset 0 0 0 2px var(--text)}
+.tl .seg.just::after{content:'\\2713';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text);opacity:.9}
 .tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
 .tl .base,.tl .lunch{cursor:default}
 .tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo);opacity:.9}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
+.autok{color:var(--text-2)}
 .tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
 .axis{position:relative;height:16px;margin-top:3px;color:var(--muted);font-size:11px}
 .axis span{position:absolute;transform:translateX(-50%);white-space:nowrap}
@@ -168,6 +173,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .tlista .det{color:var(--text-2);flex:1}
 .tlista .vig{color:var(--accent);font-weight:600}
 .tlista .vacia{color:var(--text-2);font-size:12.5px}
+.modal select{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:inherit}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
 .modal-bg.show{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
@@ -321,6 +327,31 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <div class="acc">
       <button class="btn" id="tCancelar" type="button">Cerrar</button>
       <button class="btn primary" id="tGuardar" type="button">Guardar turno</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalAut">
+  <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="auTitulo">
+    <h3 id="auTitulo">Autorizar periodo de <span id="auAgente"></span></h3>
+    <p class="sub">El tramo se sigue viendo en la barra, marcado como autorizado y con su motivo, pero deja de contar como tiempo perdido.</p>
+    <div class="trow">
+      <div><label for="auDesdeF">Desde</label><input type="date" id="auDesdeF"></div>
+      <div><label for="auDesdeH">Hora</label><input type="time" id="auDesdeH"></div>
+    </div>
+    <div class="trow">
+      <div><label for="auHastaF">Hasta</label><input type="date" id="auHastaF"></div>
+      <div><label for="auHastaH">Hora</label><input type="time" id="auHastaH"></div>
+    </div>
+    <button class="enlace" id="auDia" type="button">Autorizar el día completo</button>
+    <label for="auMotivo">Motivo</label>
+    <select id="auMotivo"></select>
+    <label for="auNota">Nota <span class="opc">(opcional)</span></label>
+    <input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad">
+    <div class="hint" id="auAviso">Para vacaciones o incapacidad puedes poner un rango de varios días.</div>
+    <div id="auLista" class="tlista"></div>
+    <div class="acc">
+      <button class="btn" id="auCancelar" type="button">Cerrar</button>
+      <button class="btn primary" id="auGuardar" type="button">Autorizar</button>
     </div>
   </div>
 </div>
@@ -659,9 +690,17 @@ function fila(a, d){
   a.episodios.forEach(ep => {
     const dt = tipoDisp(ep.tipo);
     const T = TIPOS[dt] || TIPOS['Sin señal'];
-    const tip = esc(tipoDisp(ep.tipo)) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(T.desc);
-    tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + '" data-tip="' + tip + '" style="left:' + pct(ep.ini) + '%;width:calc(' +
-      (pct(ep.fin) - pct(ep.ini)) + '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
+    const j = ep.justificado;
+    const titulo = j ? '\u2713 Autorizado · ' + tipoDisp(ep.tipo) : tipoDisp(ep.tipo);
+    const desc = j ? (j.motivo + (j.nota ? ' — ' + j.nota : '') + (j.autorizo ? ' (autorizó ' + j.autorizo + ')' : '') +
+                      '. No cuenta como tiempo perdido. Clic para cambiarlo.')
+                   : (T.desc + ' Clic para autorizar este periodo.');
+    const tip = esc(titulo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(desc);
+    tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + (j ? ' just' : '') + '" data-tip="' + tip + '"' +
+      ' data-aut="' + esc(a.agente) + '" data-ini="' + ep.ini + '" data-fin="' + ep.fin + '"' +
+      (j ? ' data-fila="' + j.fila + '"' : '') +
+      ' style="left:' + pct(ep.ini) + '%;width:calc(' + (pct(ep.fin) - pct(ep.ini)) +
+      '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
   });
   if (d.esHoy && d.generado >= t0 && d.generado <= t1) tl += '<div class="now" style="left:' + pct(d.generado) + '%" title="Ahora"></div>';
   const marcas = [];
@@ -689,7 +728,8 @@ function fila(a, d){
       almuerzoHtml(a) +
       (d.esHoy ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
-    '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos<br>' +
+    '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
+      (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' autorizados</span>' : '') + '<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
       (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
       (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
@@ -1112,7 +1152,7 @@ function excelReporte(rep, p, cuentaSel){
   const cab = (titulo, n) => [
     Row(Cm(titulo, 'tit', n), 22),
     Row(Cm(periodoTxt + ' · ' + (cuentaSel === 'Todas' ? 'Todas las cuentas' : 'Cuenta ' + cuentaSel) + ' · Hora ' + tz.replace('America/', '').replace('_', ' '), 'sub', n)),
-    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. El almuerzo que se descuenta es el real (la pausa más larga cerca de la hora fijada), no la hora del horario; lo que pase del tiempo asignado cuenta como ausencia. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
+    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. El almuerzo que se descuenta es el real (la pausa más larga cerca de la hora fijada), no la hora del horario; lo que pase del tiempo asignado cuenta como ausencia. Los periodos autorizados (permisos, vacaciones, problemas técnicos…) se registran aparte y no cuentan como ausencia. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
     Row('')
   ];
 
@@ -1125,18 +1165,19 @@ function excelReporte(rep, p, cuentaSel){
 
   // ---- Hoja 1: Resumen por agente
   const H1 = ['Agente','Días conectado','Días sin conexión','Inicio de sesión (promedio)','Inicio más tarde','Fin de sesión (promedio)','Fin más temprano',
-    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas','Almuerzos extendidos (#)','Tiempo de más','Días sin almuerzo (#)'];
+    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas','Almuerzos extendidos (#)','Tiempo de más','Días sin almuerzo (#)','Tiempo autorizado'];
   const r1 = cab('Reporte de conexiones por agente — Resumen', H1.length);
-  const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0, nax:0, tax:0, nsa:0 });
+  const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0, nax:0, tax:0, nsa:0, taut:0 });
   const sumar = (t, l) => { const c = conDatos(l);
     t.dc += c.length; t.ds += l.filter(f => f.estado === 'Sin conexión').length;
     l.forEach(f => { t.a10 += f.aus10; t.m10 += f.minAus10; t.a30 += f.aus30; t.m30 += f.minAus30; t.mt += f.minAus;
       if (f.minTarde) { t.nt++; t.tt += f.minTarde; } if (f.minSalida) { t.ns++; t.ts += f.minSalida; }
       if (f.almExceso) { t.nax++; t.tax += f.almExceso; }
-      if (f.latidos > 0 && f.sinAlmuerzo) t.nsa++; }); return t; };
+      if (f.latidos > 0 && f.sinAlmuerzo) t.nsa++;
+      t.taut += (f.autorizado || 0); }); return t; };
   const celdasTot = (t, sN, sD) => C(t.dc, sN) + C(t.ds, sN) + C('', sN) + C('', sN) + C('', sN) + C('', sN) +
     C(t.a10, sN) + C(d1440(t.m10), sD) + C(t.a30, sN) + C(d1440(t.m30), sD) + C(d1440(t.mt), sD) + C(t.nt, sN) + C(d1440(t.tt), sD) + C(t.ns, sN) + C(d1440(t.ts), sD) +
-    C(t.nax, sN) + C(d1440(t.tax), sD) + C(t.nsa, sN);
+    C(t.nax, sN) + C(d1440(t.tax), sD) + C(t.nsa, sN) + C(d1440(t.taut), sD);
   const gran = tot();
   cuentas.forEach(cta => {
     r1.push(Row(Cm(cta, 'cta', H1.length), 20));
@@ -1151,7 +1192,7 @@ function excelReporte(rep, p, cuentaSel){
         C(promedio(ini), 'hr') + C(ini.length ? Math.max(...ini) : null, 'hr') + C(promedio(fin), 'hr') + C(fin.length ? Math.min(...fin) : null, 'hr') +
         C(t.a10, 'n') + C(d1440(t.m10), 'du') + C(t.a30, 'n') + C(d1440(t.m30), 'du') + C(d1440(t.mt), 'du') +
         C(t.nt, 'n') + C(d1440(t.tt), 'du') + C(t.ns, 'n') + C(d1440(t.ts), 'du') +
-        C(t.nax, 'n') + C(d1440(t.tax), 'du') + C(t.nsa, 'n')));
+        C(t.nax, 'n') + C(d1440(t.tax), 'du') + C(t.nsa, 'n') + C(d1440(t.taut), 'du')));
     });
     r1.push(Row(C('Total ' + cta, 'st') + celdasTot(tc, 'stn', 'stdu')));
     r1.push(Row(''));
@@ -1160,7 +1201,7 @@ function excelReporte(rep, p, cuentaSel){
   if (!filas.length) r1.push(Row(Cm('No hay registros en este periodo.', 'nota', H1.length)));
 
   // ---- Hoja 2: Detalle diario
-  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Almuerzo','Estado'];
+  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Almuerzo','Autorizado','Estado'];
   const r2 = cab('Reporte de conexiones por agente — Detalle diario', H2.length);
   cuentas.forEach(cta => {
     r2.push(Row(Cm(cta, 'cta', H2.length), 20));
@@ -1176,11 +1217,12 @@ function excelReporte(rep, p, cuentaSel){
           C(d1440(f.minTarde), 'du') + C(d1440(f.minSalida), 'du') +
           (sin ? C('', 'tc') : (f.sinAlmuerzo ? C('sin tomar', 'sinc')
              : C(d1440(f.almuerzo), f.almExceso ? 'sinc' : 'du'))) +
+          C(d1440(f.autorizado), 'du') +
           C(f.estado, 'tc')));
       });
       const t = sumar(tot(), l);
       r2.push(Row(C('Total', 'st') + C(t.dc + ' día(s)', 'st') + C('', 'st') + C('', 'st') + C(t.a10, 'stn') + C(d1440(t.m10), 'stdu') + C(t.a30, 'stn') +
-        C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C(d1440(t.tax), 'stdu') + C('', 'st')));
+        C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C(d1440(t.tax), 'stdu') + C(d1440(t.taut), 'stdu') + C('', 'st')));
       r2.push(Row(''));
     });
   });
@@ -1203,8 +1245,8 @@ function excelReporte(rep, p, cuentaSel){
   const xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
     estilos +
-    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70], r1, 4) +
-    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 90], r2, 4) +
+    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70, 72], r1, 4) +
+    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 70, 90], r2, 4) +
     hoja('Novedades', [110, 110, 72, 100, 70, 70, 60, 90], r3, 5) +
     '</Workbook>';
   return { xml, filas: filas.length, novedades: nNov };
@@ -1338,6 +1380,99 @@ $('tLista').addEventListener('click', async ev => {
 
 $('tCancelar').addEventListener('click', () => $('modalTurno').classList.remove('show'));
 $('modalTurno').addEventListener('click', ev => { if (ev.target.id === 'modalTurno') $('modalTurno').classList.remove('show'); });
+// ===================================================== AUTORIZAR PERIODOS
+// Clic en un tramo de la barra: se autoriza ese rato con un motivo. El tramo no
+// desaparece — queda marcado y deja de contar como tiempo perdido.
+let autAgente = '', autFila = 0;
+
+const sello = ms => { const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return { f: d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()), h: p(d.getHours()) + ':' + p(d.getMinutes()) }; };
+
+async function pintarAutorizaciones(){
+  const cont = $('auLista');
+  cont.innerHTML = '<div class="vacia">Cargando…</div>';
+  try {
+    const j = await apiTurno({ accion: 'autorizaciones', agente: autAgente });
+    if (!j.ok) throw new Error(j.error || 'no se pudo leer');
+    if (!Array.isArray(j.autorizaciones)) throw new Error('el servidor aún no tiene las autorizaciones (falta publicar la nueva versión del script)');
+    if (!j.autorizaciones.length) { cont.innerHTML = '<div class="vacia">Sin autorizaciones registradas para ' + esc(autAgente) + '.</div>'; return; }
+    cont.innerHTML = '<div class="tit">Autorizaciones de este agente</div>' + j.autorizaciones.map(t => {
+      const mismoDia = t.desde.slice(0,10) === t.hasta.slice(0,10);
+      const txt = mismoDia ? fCortaISO(t.desde.slice(0,10)) + ' ' + t.desde.slice(11) + '–' + t.hasta.slice(11)
+                           : fCortaISO(t.desde.slice(0,10)) + ' – ' + fCortaISO(t.hasta.slice(0,10));
+      return '<div class="fila"><span class="fechas">' + esc(txt) + '</span>' +
+             '<span class="det">' + esc(t.motivo) + (t.nota ? ' · ' + esc(t.nota) : '') + '</span>' +
+             '<button class="enlace" data-quitaraut="' + t.fila + '" type="button">Quitar</button></div>';
+    }).join('');
+  } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
+}
+
+function abrirAutorizar(ag, iniMs, finMs, fila){
+  autAgente = ag; autFila = Number(fila) || 0;
+  $('auAgente').textContent = ag;
+  const a = sello(Number(iniMs)), b = sello(Number(finMs));
+  $('auDesdeF').value = a.f; $('auDesdeH').value = a.h;
+  $('auHastaF').value = b.f; $('auHastaH').value = b.h;
+  const sel = $('auMotivo');
+  if (!sel.options.length) MOTIVOS_AUT.forEach(m => sel.add(new Option(m, m)));
+  $('auNota').value = '';
+  $('auAviso').textContent = autFila
+    ? 'Este periodo ya está autorizado. Si guardas, se reemplaza la autorización.'
+    : 'Para vacaciones o incapacidad puedes poner un rango de varios días.';
+  $('auAviso').classList.remove('mal');
+  $('auGuardar').textContent = autFila ? 'Guardar cambios' : 'Autorizar';
+  $('modalAut').classList.add('show');
+  pintarAutorizaciones();
+}
+
+const MOTIVOS_AUT = ['Conectado desde otro equipo', 'Sin la aplicación instalada', 'Permiso autorizado',
+  'Vacaciones', 'Enfermedad', 'Problema técnico', 'Capacitación o reunión', 'Cita médica o diligencia', 'Otro'];
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-aut]');
+  if (!b) return;
+  abrirAutorizar(b.dataset.aut, b.dataset.ini, b.dataset.fin, b.dataset.fila);
+});
+
+$('auDia').addEventListener('click', () => {
+  const f = $('auDesdeF').value || (S.data && S.data.fecha);
+  $('auDesdeF').value = f; $('auDesdeH').value = '00:00';
+  $('auHastaF').value = f; $('auHastaH').value = '23:59';
+});
+
+$('auGuardar').addEventListener('click', async () => {
+  if (S.demo) { toast('En modo ejemplo no se autoriza nada.'); return; }
+  const mal = m => { $('auAviso').textContent = m; $('auAviso').classList.add('mal'); };
+  const d = $('auDesdeF').value, dh = $('auDesdeH').value;
+  const h = $('auHastaF').value, hh2 = $('auHastaH').value;
+  if (!d || !dh || !h || !hh2) return mal('Completa las dos fechas con su hora.');
+  if ((h + ' ' + hh2) <= (d + ' ' + dh)) return mal('El fin debe ser posterior al inicio.');
+  const btn = $('auGuardar'); btn.disabled = true;
+  try {
+    const quien = (S.portalUser && (S.portalUser.nombre || S.portalUser.username)) || '';
+    const j = await apiTurno({ accion: 'autorizar', agente: autAgente, desde: d + ' ' + dh, hasta: h + ' ' + hh2,
+      motivo: $('auMotivo').value, nota: $('auNota').value, autorizo: quien, fila: autFila });
+    if (j.ok) { toast('Periodo autorizado para ' + autAgente + '.', 'ok'); autFila = 0; pintarAutorizaciones(); cargar(); }
+    else mal(j.error || 'No se pudo autorizar.');
+  } catch (e) { mal('Error: ' + e.message); }
+  btn.disabled = false;
+});
+
+$('auLista').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-quitaraut]');
+  if (!b) return;
+  if (!confirm('¿Quitar esta autorización? Ese periodo volverá a contar como tiempo perdido.')) return;
+  b.disabled = true;
+  try {
+    const j = await apiTurno({ accion: 'autorizar_borrar', fila: b.dataset.quitaraut });
+    if (j.ok) { toast('Autorización quitada.', 'ok'); pintarAutorizaciones(); cargar(); }
+    else toast(j.error || 'No se pudo quitar.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+});
+
+$('auCancelar').addEventListener('click', () => $('modalAut').classList.remove('show'));
+$('modalAut').addEventListener('click', ev => { if (ev.target.id === 'modalAut') $('modalAut').classList.remove('show'); });
 // ============================================================ EQUIPOS
 // Inventario: qué portátil tiene asignado cada agente. Lo manda el agente en su
 // latido de arranque, así que un equipo aparece aquí la primera vez que enciende
