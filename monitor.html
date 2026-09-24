@@ -548,6 +548,9 @@ function almuerzoHtml(a){
   const al = a.almuerzo;
   if (!al || !a.laboral) return '';
   if (!al.tomado) {
+    // Mientras la ventana de almuerzo siga abierta no se avisa: puede que aún no
+    // haya salido. Avisar antes de tiempo llenaría el panel de falsos avisos.
+    if (al.pendiente) return '<div class="app">Almuerzo: <b>aún no</b></div>';
     return '<div class="app">Almuerzo: <b style="color:var(--warning)" title="No se detectó un descanso de al menos 10 minutos cerca de la hora de almuerzo. No se le descontó nada de la jornada.">' +
            '\u26a0 sin tomar</b></div>';
   }
