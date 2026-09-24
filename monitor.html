@@ -110,6 +110,8 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo);opacity:.9}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .autok{color:var(--text-2)}
+.tl .brk{position:absolute;top:0;bottom:0;background:var(--lunch);opacity:.75;border-radius:3px;box-shadow:inset 0 0 0 1px var(--text-2)}
+.tl .brk:hover{outline:2px solid var(--text);outline-offset:1px}
 .tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
 .axis{position:relative;height:16px;margin-top:3px;color:var(--muted);font-size:11px}
 .axis span{position:absolute;transform:translateX(-50%);white-space:nowrap}
@@ -632,6 +634,22 @@ function almuerzoHtml(a){
          esc(tramo) + ' · ' + dur(al.tomadoMin) + '</b></div>';
 }
 
+// Dos descansos de 15 minutos al dia, sin hora fija: se reconocen las dos
+// pausas mas largas. Lo que pase de 15 en cada una cuenta como tiempo perdido.
+function descansosHtml(a){
+  const ds = a.descansos;
+  if (!ds || !ds.length || !a.laboral) return '';
+  const conExceso = ds.filter(d => d.excesoMin > 0);
+  const detalle = ds.map(d => hora(d.ini) + ' · ' + dur(Math.min(d.tomadoMin, 15)) +
+    (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')).join(' — ');
+  const tit = conExceso.length
+    ? 'Se reconocen 15 minutos por descanso; los minutos de más cuentan como tiempo perdido.'
+    : 'Los dos descansos más largos del día, hasta 15 minutos cada uno. No cuentan como tiempo perdido.';
+  return '<div class="app">Descanso' + (ds.length > 1 ? 's' : '') + ': <b' +
+    (conExceso.length ? ' style="color:var(--warning)"' : '') + ' title="' + esc(tit) + '">' +
+    (conExceso.length ? '\u26a0 ' : '') + esc(detalle) + '</b></div>';
+}
+
 function progsHtml(v){
   if (!v || !v.programas || !v.programas.length) return '';
   const items = v.programas.map(p => '<li><span title="' + esc(p.n) + '">' + esc(nombreApp(p.n)) + '</span><span>' + p.mb + ' MB</span></li>').join('');
@@ -687,6 +705,14 @@ function fila(a, d){
     tl += '<div class="lunch" data-tip="' + esc(tipAlm) + '" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' +
       (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
   }
+  (a.descansosMs || []).forEach((c, i) => {
+    const d = (a.descansos || [])[i] || {};
+    const extra = d.excesoMin ? ' \u00b7 ' + d.excesoMin + ' min de más, que cuentan como ausencia' : '';
+    const tip = 'Descanso|' + hora(c[0]) + ' – ' + hora(c[0] + Math.min(d.tomadoMin || 0, 15) * 60000) + '|' +
+      dur(Math.min(d.tomadoMin || 0, 15)) + '|Uno de los dos descansos de 15 minutos del día' + extra + '.';
+    tl += '<div class="brk" data-tip="' + esc(tip) + '" style="left:' + pct(c[0]) + '%;width:' +
+      Math.max(0.4, pct(c[1]) - pct(c[0])) + '%"></div>';
+  });
   a.episodios.forEach(ep => {
     const dt = tipoDisp(ep.tipo);
     const T = TIPOS[dt] || TIPOS['Sin señal'];
@@ -725,7 +751,7 @@ function fila(a, d){
         (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
-      almuerzoHtml(a) +
+      almuerzoHtml(a) + descansosHtml(a) +
       (d.esHoy ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
@@ -1152,7 +1178,7 @@ function excelReporte(rep, p, cuentaSel){
   const cab = (titulo, n) => [
     Row(Cm(titulo, 'tit', n), 22),
     Row(Cm(periodoTxt + ' · ' + (cuentaSel === 'Todas' ? 'Todas las cuentas' : 'Cuenta ' + cuentaSel) + ' · Hora ' + tz.replace('America/', '').replace('_', ' '), 'sub', n)),
-    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. El almuerzo que se descuenta es el real (la pausa más larga cerca de la hora fijada), no la hora del horario; lo que pase del tiempo asignado cuenta como ausencia. Los periodos autorizados (permisos, vacaciones, problemas técnicos…) se registran aparte y no cuentan como ausencia. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
+    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. El almuerzo que se descuenta es el real (la pausa más larga cerca de la hora fijada), no la hora del horario; lo que pase del tiempo asignado cuenta como ausencia. Los periodos autorizados (permisos, vacaciones, problemas técnicos…) se registran aparte y no cuentan como ausencia. Cada agente tiene dos descansos de 15 minutos al día, sin hora fija: se reconocen las dos pausas más largas y lo que pase de 15 minutos en cada una sí cuenta. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
     Row('')
   ];
 
@@ -1165,19 +1191,19 @@ function excelReporte(rep, p, cuentaSel){
 
   // ---- Hoja 1: Resumen por agente
   const H1 = ['Agente','Días conectado','Días sin conexión','Inicio de sesión (promedio)','Inicio más tarde','Fin de sesión (promedio)','Fin más temprano',
-    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas','Almuerzos extendidos (#)','Tiempo de más','Días sin almuerzo (#)','Tiempo autorizado'];
+    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas','Almuerzos extendidos (#)','Tiempo de más','Días sin almuerzo (#)','Tiempo autorizado','Tiempo descansos','Descansos de más'];
   const r1 = cab('Reporte de conexiones por agente — Resumen', H1.length);
-  const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0, nax:0, tax:0, nsa:0, taut:0 });
+  const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0, nax:0, tax:0, nsa:0, taut:0, tdes:0, tdex:0 });
   const sumar = (t, l) => { const c = conDatos(l);
     t.dc += c.length; t.ds += l.filter(f => f.estado === 'Sin conexión').length;
     l.forEach(f => { t.a10 += f.aus10; t.m10 += f.minAus10; t.a30 += f.aus30; t.m30 += f.minAus30; t.mt += f.minAus;
       if (f.minTarde) { t.nt++; t.tt += f.minTarde; } if (f.minSalida) { t.ns++; t.ts += f.minSalida; }
       if (f.almExceso) { t.nax++; t.tax += f.almExceso; }
       if (f.latidos > 0 && f.sinAlmuerzo) t.nsa++;
-      t.taut += (f.autorizado || 0); }); return t; };
+      t.taut += (f.autorizado || 0); t.tdes += (f.descansos || 0); t.tdex += (f.descExceso || 0); }); return t; };
   const celdasTot = (t, sN, sD) => C(t.dc, sN) + C(t.ds, sN) + C('', sN) + C('', sN) + C('', sN) + C('', sN) +
     C(t.a10, sN) + C(d1440(t.m10), sD) + C(t.a30, sN) + C(d1440(t.m30), sD) + C(d1440(t.mt), sD) + C(t.nt, sN) + C(d1440(t.tt), sD) + C(t.ns, sN) + C(d1440(t.ts), sD) +
-    C(t.nax, sN) + C(d1440(t.tax), sD) + C(t.nsa, sN) + C(d1440(t.taut), sD);
+    C(t.nax, sN) + C(d1440(t.tax), sD) + C(t.nsa, sN) + C(d1440(t.taut), sD) + C(d1440(t.tdes), sD) + C(d1440(t.tdex), sD);
   const gran = tot();
   cuentas.forEach(cta => {
     r1.push(Row(Cm(cta, 'cta', H1.length), 20));
@@ -1192,7 +1218,8 @@ function excelReporte(rep, p, cuentaSel){
         C(promedio(ini), 'hr') + C(ini.length ? Math.max(...ini) : null, 'hr') + C(promedio(fin), 'hr') + C(fin.length ? Math.min(...fin) : null, 'hr') +
         C(t.a10, 'n') + C(d1440(t.m10), 'du') + C(t.a30, 'n') + C(d1440(t.m30), 'du') + C(d1440(t.mt), 'du') +
         C(t.nt, 'n') + C(d1440(t.tt), 'du') + C(t.ns, 'n') + C(d1440(t.ts), 'du') +
-        C(t.nax, 'n') + C(d1440(t.tax), 'du') + C(t.nsa, 'n') + C(d1440(t.taut), 'du')));
+        C(t.nax, 'n') + C(d1440(t.tax), 'du') + C(t.nsa, 'n') + C(d1440(t.taut), 'du') +
+        C(d1440(t.tdes), 'du') + C(d1440(t.tdex), 'du')));
     });
     r1.push(Row(C('Total ' + cta, 'st') + celdasTot(tc, 'stn', 'stdu')));
     r1.push(Row(''));
@@ -1201,7 +1228,7 @@ function excelReporte(rep, p, cuentaSel){
   if (!filas.length) r1.push(Row(Cm('No hay registros en este periodo.', 'nota', H1.length)));
 
   // ---- Hoja 2: Detalle diario
-  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Almuerzo','Autorizado','Estado'];
+  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Almuerzo','Descansos','Autorizado','Estado'];
   const r2 = cab('Reporte de conexiones por agente — Detalle diario', H2.length);
   cuentas.forEach(cta => {
     r2.push(Row(Cm(cta, 'cta', H2.length), 20));
@@ -1217,12 +1244,13 @@ function excelReporte(rep, p, cuentaSel){
           C(d1440(f.minTarde), 'du') + C(d1440(f.minSalida), 'du') +
           (sin ? C('', 'tc') : (f.sinAlmuerzo ? C('sin tomar', 'sinc')
              : C(d1440(f.almuerzo), f.almExceso ? 'sinc' : 'du'))) +
+          C(d1440(f.descansos), f.descExceso ? 'sinc' : 'du') +
           C(d1440(f.autorizado), 'du') +
           C(f.estado, 'tc')));
       });
       const t = sumar(tot(), l);
       r2.push(Row(C('Total', 'st') + C(t.dc + ' día(s)', 'st') + C('', 'st') + C('', 'st') + C(t.a10, 'stn') + C(d1440(t.m10), 'stdu') + C(t.a30, 'stn') +
-        C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C(d1440(t.tax), 'stdu') + C(d1440(t.taut), 'stdu') + C('', 'st')));
+        C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C(d1440(t.tax), 'stdu') + C(d1440(t.tdes), 'stdu') + C(d1440(t.taut), 'stdu') + C('', 'st')));
       r2.push(Row(''));
     });
   });
@@ -1245,8 +1273,8 @@ function excelReporte(rep, p, cuentaSel){
   const xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
     estilos +
-    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70, 72], r1, 4) +
-    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 70, 90], r2, 4) +
+    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70, 72, 72, 70], r1, 4) +
+    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 70, 70, 90], r2, 4) +
     hoja('Novedades', [110, 110, 72, 100, 70, 70, 60, 90], r3, 5) +
     '</Workbook>';
   return { xml, filas: filas.length, novedades: nNov };
