@@ -101,7 +101,8 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .app{font-size:12px;color:var(--text-2);margin-top:4px}
 .tl{position:relative;height:22px;background:var(--track);border-radius:4px}
 .tl .seg{position:absolute;top:0;bottom:0;border-radius:4px;cursor:default}
-.tl .seg:hover{outline:2px solid var(--text);outline-offset:1px}
+.tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
+.tl .base,.tl .lunch{cursor:default}
 .tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo);opacity:.9}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
@@ -157,6 +158,16 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 #msg.err{background:var(--critical)} #msg.ok{background:var(--good)}
 .btn-mini{margin-top:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:7px;padding:3px 9px;font:inherit;font-size:11.5px;font-weight:500;cursor:pointer}
 .btn-mini:hover{border-color:var(--accent);color:var(--text)}
+.trow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.trow .opc{font-weight:400;color:var(--text-2)}
+.tlista{margin-top:14px;border-top:1px solid var(--border);padding-top:10px;max-height:190px;overflow:auto}
+.tlista .tit{font-size:12.5px;font-weight:600;margin-bottom:6px}
+.tlista .fila{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border)}
+.tlista .fila:last-child{border-bottom:0}
+.tlista .fechas{font-weight:600;white-space:nowrap}
+.tlista .det{color:var(--text-2);flex:1}
+.tlista .vig{color:var(--accent);font-weight:600}
+.tlista .vacia{color:var(--text-2);font-size:12.5px}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
 .modal-bg.show{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
@@ -284,6 +295,32 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <div class="acc">
       <button class="btn" id="hCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="hGuardar" type="button">Guardar horario</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalTurno">
+  <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="tTitulo">
+    <h3 id="tTitulo">Cambio de turno de <span id="tAgente"></span></h3>
+    <p class="sub">Para un día suelto o una temporada. No toca el horario de siempre: cada día se calcula con el turno que regía ese día, así que cambiar un turno no altera lo que ya pasó.</p>
+    <div class="trow">
+      <div><label for="tDesde">Desde</label><input type="date" id="tDesde"></div>
+      <div><label for="tHasta">Hasta <span class="opc">(vacío = un solo día)</span></label><input type="date" id="tHasta"></div>
+    </div>
+    <div class="trow">
+      <div><label for="tIni">Entrada</label><input type="time" id="tIni"></div>
+      <div><label for="tFin">Salida</label><input type="time" id="tFin"></div>
+    </div>
+    <div class="trow">
+      <div><label for="tAlmA">Almuerzo desde <span class="opc">(opcional)</span></label><input type="time" id="tAlmA"></div>
+      <div><label for="tAlmB">Almuerzo hasta</label><input type="time" id="tAlmB"></div>
+    </div>
+    <label for="tMotivo">Motivo <span class="opc">(opcional)</span></label>
+    <input type="text" id="tMotivo" maxlength="120" placeholder="Ej. cambio de turno pedido por el agente">
+    <div class="hint" id="tAviso">El turno más específico manda: uno de un solo día pesa más que uno de una semana.</div>
+    <div id="tLista" class="tlista"></div>
+    <div class="acc">
+      <button class="btn" id="tCancelar" type="button">Cerrar</button>
+      <button class="btn primary" id="tGuardar" type="button">Guardar turno</button>
     </div>
   </div>
 </div>
@@ -594,8 +631,31 @@ function fila(a, d){
   const pct = t => Math.min(100, Math.max(0, (t - t0) / span * 100));
   let tl = '';
   const cap = d.esHoy ? Math.min(d.generado, t1) : t1;
-  if (a.primera != null && cap > t0) tl += '<div class="base" style="left:0;width:' + pct(cap) + '%"></div>';
-  if (a.almuerzoMs) tl += '<div class="lunch" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' + (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
+  // La franja azul cubre desde la entrada hasta ahora; encima se pintan las
+  // novedades y el almuerzo. Las tres llevan su propio globo de informacion.
+  if (a.primera != null && cap > t0) {
+    // Solo datos directos: el tramo conectado y en qué se fue. Calcular aquí un
+    // "tiempo trabajado" restaría dos veces la llegada tarde, que empieza antes
+    // de la primera señal.
+    const conectado = Math.max(0, Math.round((cap - a.primera) / 60000));
+    const partes = [];
+    if (a.minPerdidos) partes.push(dur(a.minPerdidos) + ' en novedades');
+    if (a.almuerzo && a.almuerzo.tomado) partes.push(dur(a.almuerzo.tomadoMin) + ' de almuerzo');
+    const tipBase = 'Conectado|' + hora(a.primera) + ' – ' + (d.esHoy ? 'ahora' : hora(a.ultima)) + '|' +
+      dur(conectado) + '|' + (partes.length ? 'De ese tiempo: ' + partes.join(' y ') + '.'
+        : 'Sin novedades en la jornada.');
+    tl += '<div class="base" data-tip="' + esc(tipBase) + '" style="left:0;width:' + pct(cap) + '%"></div>';
+  }
+  if (a.almuerzoMs) {
+    const al = a.almuerzo || {};
+    const extra = al.excesoMin ? ' \u00b7 ' + al.excesoMin + ' min de más, que cuentan como ausencia'
+                : (al.faltanteMin ? ' \u00b7 ' + al.faltanteMin + ' min menos de lo asignado' : '');
+    const tipAlm = 'Almuerzo|' + hora(a.almuerzoMs[0]) + ' – ' + hora(a.almuerzoMs[0] + (al.tomadoMin || 0) * 60000) + '|' +
+      dur(al.tomadoMin || 0) + ' de ' + dur(al.duracionMin || 0) + ' asignados|' +
+      'Descanso detectado a partir de la pausa más larga cerca de la hora del horario' + extra + '.';
+    tl += '<div class="lunch" data-tip="' + esc(tipAlm) + '" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' +
+      (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
+  }
   a.episodios.forEach(ep => {
     const dt = tipoDisp(ep.tipo);
     const T = TIPOS[dt] || TIPOS['Sin señal'];
@@ -620,8 +680,10 @@ function fila(a, d){
       (d.esHoy ? versionHtml(a, d) : '') +
       (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
       '<br><div class="btns-mini"><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>' +
-      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button></div>' +
-      (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) + '</span>' : '') + '</div>' +
+      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button>' +
+      '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Cambio de turno por un día o una temporada">Cambio de turno</button></div>' +
+      (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
+        (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
       almuerzoHtml(a) +
@@ -804,6 +866,11 @@ function semanaDelModal() {
   });
   return sem;
 }
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-turno]');
+  if (b) abrirTurno(b.dataset.turno);
+});
+
 let semEdit = {};
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-hor]');
@@ -1174,6 +1241,103 @@ function csvNovedadesDia(){
 }
 
 $('csv').addEventListener('click', abrirReporte);
+// ========================================================== CAMBIO DE TURNO
+// Un turno con fechas de vigencia. El horario de siempre no se toca: cada día
+// se calcula con el turno que regía ese día, así que cambiar el turno de la
+// próxima semana no altera lo que ya pasó.
+let turAgente = '';
+
+function apiTurno(params){
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  let q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok);
+  Object.keys(params).forEach(k => { q += '&' + k + '=' + encodeURIComponent(params[k]); });
+  return fetch(q, { redirect: 'follow' }).then(r => r.json());
+}
+
+function fCortaISO(s){
+  if (!s) return '';
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('es-US', { day: '2-digit', month: 'short' });
+}
+
+async function pintarTurnos(){
+  const cont = $('tLista');
+  cont.innerHTML = '<div class="vacia">Cargando…</div>';
+  try {
+    const j = await apiTurno({ accion: 'turnos', agente: turAgente });
+    if (!j.ok) throw new Error(j.error || 'no se pudo leer');
+    if (!Array.isArray(j.turnos)) throw new Error('el servidor aún no tiene los turnos (falta publicar la nueva versión del script)');
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (!j.turnos.length) { cont.innerHTML = '<div class="vacia">Todavía no hay turnos registrados para ' + esc(turAgente) + '.</div>'; return; }
+    cont.innerHTML = '<div class="tit">Turnos registrados</div>' + j.turnos.map(t => {
+      const vigente = t.desde <= hoy && (!t.hasta || t.hasta >= hoy);
+      const fechas = t.hasta && t.hasta !== t.desde ? fCortaISO(t.desde) + ' – ' + fCortaISO(t.hasta)
+                   : (t.hasta ? fCortaISO(t.desde) : 'desde ' + fCortaISO(t.desde));
+      const horas = t.semana ? 'horario por día' : (t.inicio + '–' + t.fin + (t.almuerzo ? ' · almuerzo ' + t.almuerzo : ''));
+      return '<div class="fila"><span class="fechas' + (vigente ? ' vig' : '') + '">' + esc(fechas) + '</span>' +
+             '<span class="det">' + esc(horas) + (t.motivo ? ' · ' + esc(t.motivo) : '') + '</span>' +
+             '<button class="enlace" data-borrar="' + t.fila + '" type="button">Quitar</button></div>';
+    }).join('');
+  } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer el historial: ' + esc(e.message) + '</div>'; }
+}
+
+function abrirTurno(ag){
+  turAgente = ag;
+  $('tAgente').textContent = ag;
+  const hoy = new Date().toISOString().slice(0, 10);
+  $('tDesde').value = (S.data && S.data.fecha) || hoy;
+  $('tHasta').value = '';
+  const a = (S.data && S.data.agentes || []).find(x => x.agente === ag);
+  $('tIni').value = (a && a.hInicio) || '08:00';
+  $('tFin').value = (a && a.hFin) || '17:00';
+  const alm = ((a && a.hAlmuerzo) || '').split('-');
+  $('tAlmA').value = alm[0] || ''; $('tAlmB').value = alm[1] || '';
+  $('tMotivo').value = '';
+  $('tAviso').textContent = 'El turno más específico manda: uno de un solo día pesa más que uno de una semana.';
+  $('tAviso').classList.remove('mal');
+  $('modalTurno').classList.add('show');
+  pintarTurnos();
+}
+
+$('tGuardar').addEventListener('click', async () => {
+  if (S.demo) { toast('En modo ejemplo no se guardan turnos.'); return; }
+  const desde = $('tDesde').value, hasta = $('tHasta').value;
+  const ini = $('tIni').value, fin = $('tFin').value;
+  const aa = $('tAlmA').value, ab = $('tAlmB').value;
+  const mal = m => { $('tAviso').textContent = m; $('tAviso').classList.add('mal'); };
+  if (!desde) return mal('Falta la fecha de inicio.');
+  if (!ini || !fin) return mal('Falta la hora de entrada o de salida.');
+  if (fin <= ini) return mal('La salida debe ser después de la entrada.');
+  if ((aa && !ab) || (!aa && ab)) return mal('Completa las dos horas del almuerzo o déjalas en blanco.');
+  if (aa && ab <= aa) return mal('El almuerzo debe terminar después de empezar.');
+  if (aa && (aa < ini || ab > fin)) return mal('El almuerzo debe estar dentro del turno.');
+  if (hasta && hasta < desde) return mal('La fecha de fin no puede ser anterior a la de inicio.');
+
+  const btn = $('tGuardar'); btn.disabled = true;
+  try {
+    const j = await apiTurno({ accion: 'turno_guardar', agente: turAgente, desde: desde,
+      hasta: hasta || desde, inicio: ini, fin: fin, almuerzo: aa ? aa + '-' + ab : '', motivo: $('tMotivo').value });
+    if (j.ok) { toast('Turno guardado para ' + turAgente + '.', 'ok'); $('tMotivo').value = ''; pintarTurnos(); cargar(); }
+    else mal(j.error || 'No se pudo guardar.');
+  } catch (e) { mal('Error: ' + e.message); }
+  btn.disabled = false;
+});
+
+$('tLista').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-borrar]');
+  if (!b) return;
+  if (!confirm('¿Quitar este turno? El día vuelve a calcularse con el horario de siempre.')) return;
+  b.disabled = true;
+  try {
+    const j = await apiTurno({ accion: 'turno_borrar', fila: b.dataset.borrar });
+    if (j.ok) { toast('Turno quitado.', 'ok'); pintarTurnos(); cargar(); }
+    else toast(j.error || 'No se pudo quitar.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+});
+
+$('tCancelar').addEventListener('click', () => $('modalTurno').classList.remove('show'));
+$('modalTurno').addEventListener('click', ev => { if (ev.target.id === 'modalTurno') $('modalTurno').classList.remove('show'); });
 // ============================================================ EQUIPOS
 // Inventario: qué portátil tiene asignado cada agente. Lo manda el agente en su
 // latido de arranque, así que un equipo aparece aquí la primera vez que enciende
