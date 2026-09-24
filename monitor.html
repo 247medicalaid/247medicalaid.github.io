@@ -201,6 +201,13 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .hoyhor{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 .winuser{display:block;color:var(--text-2)}
 .btns-mini{display:flex;flex-wrap:wrap;gap:6px}
+#inactivos{margin-top:16px;border-top:1px dashed var(--border);padding-top:8px}
+#inactivos>summary{cursor:pointer;font-weight:600;color:var(--text-2);padding:6px 2px;list-style:none;display:flex;align-items:center;gap:6px}
+#inactivos>summary::before{content:'\25b8';font-size:12px}
+#inactivos[open]>summary::before{content:'\25be'}
+#inactivos>summary .nota{font-weight:400;font-size:12px;color:var(--muted)}
+#inactivos .row{opacity:.72}
+.bajainfo{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 .modal input[type=text]{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
 @media (max-width:560px){.hsem{grid-template-columns:1fr 1fr}.hsem .cab{display:none}.hsem .dia{grid-column:1 / span 2;margin-top:6px}.hsem .libre{grid-column:1 / span 2}
 .hsem .hc span{display:block}}
@@ -253,6 +260,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
   <section class="card">
     <h2>Agentes <span class="legend" id="legend"></span></h2>
     <div id="rows"></div>
+    <details id="inactivos" hidden><summary id="inactSum"></summary><div id="rowsInact"></div></details>
   </section>
   <section class="card">
     <h2>Novedades del día (10+ minutos)</h2>
@@ -287,6 +295,23 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <div class="acc">
       <button class="btn" id="aCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="aGuardar" type="button">Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalBaja">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bTitulo">
+    <h3 id="bTitulo">Desactivar a <span id="bAgente"></span></h3>
+    <p class="sub">Deja de contar desde el día siguiente a la fecha de baja. No se borra nada: los días anteriores quedan exactamente igual y se pueden seguir consultando.</p>
+    <label for="bFecha">Último día que trabajó</label>
+    <input type="date" id="bFecha">
+    <label for="bMotivo">Motivo</label>
+    <select id="bMotivo"></select>
+    <label for="bNota">Detalle (opcional)</label>
+    <input type="text" id="bNota" autocomplete="off" maxlength="80" placeholder="Ej.: entregó el equipo el viernes">
+    <div class="hint">Queda en la sección <b>Inactivos</b>, al final de la lista de agentes. Se puede reactivar en cualquier momento. Aunque su computador siga enviando señales, ya no aparece en los totales, ni en los avisos, ni en el reporte de la tarde.</div>
+    <div class="acc">
+      <button class="btn" id="bCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="bGuardar" type="button">Desactivar</button>
     </div>
   </div>
 </div>
@@ -500,7 +525,9 @@ function pintar(){
   if (!cuentas.includes(S.cuenta)) S.cuenta = 'Todas';
   $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c) + '" aria-pressed="' + (c === S.cuenta) + '">' + esc(c) + '</button> ').join('');
 
-  let lista = d.agentes.filter(a => S.cuenta === 'Todas' || a.cuenta === S.cuenta);
+  const delFiltro = d.agentes.filter(a => S.cuenta === 'Todas' || a.cuenta === S.cuenta);
+  const bajas = delFiltro.filter(a => a.activo === false);
+  let lista = delFiltro.filter(a => a.activo !== false);
   const todos = lista;
   if (S.solo) lista = lista.filter(a => a.episodios.length || (a.estado && a.estado.nivel !== 'verde' && a.estado.nivel !== 'gris'));
   lista.sort((a, b) => {
@@ -539,6 +566,17 @@ function pintar(){
     $('rows').innerHTML = '<div class="empty">' + (d.agentes.length ? 'Sin agentes para este filtro.' : 'Aún no hay agentes. Aparecerán 1–2 minutos después de instalar el monitor en cada computador.') + '</div>';
   } else {
     $('rows').innerHTML = lista.map(a => fila(a, d)).join('');
+  }
+
+  // Agentes desactivados: van aparte, al final y plegados. No entran en los
+  // recuadros de arriba ni en el aviso de versiones.
+  const det = $('inactivos');
+  det.hidden = !bajas.length;
+  if (bajas.length) {
+    bajas.sort((a, b) => (b.baja || '').localeCompare(a.baja || '') || a.agente.localeCompare(b.agente));
+    $('inactSum').innerHTML = 'Inactivos (' + bajas.length + ')' +
+      '<span class="nota">no cuentan en los totales · se conserva todo su historial</span>';
+    $('rowsInact').innerHTML = bajas.map(a => fila(a, d)).join('');
   }
 
   // Tabla de novedades
@@ -663,10 +701,12 @@ function speedHtml(a){
 
 function fila(a, d){
   const e = a.estado;
+  const inact = a.activo === false;   // desactivado: tarjeta reducida
   let pill;
   if (e) {
     const et = estadoTxt(e.texto);
-    const txt = e.texto === 'Día libre' ? 'Día libre' : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
+    const txt = (e.texto === 'Día libre' || e.texto === 'Desactivado') ? e.texto
+              : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
   } else {
@@ -742,24 +782,30 @@ function fila(a, d){
       (a.usuario ? '<small class="winuser">Usuario de Windows: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Hoy iniciaron sesión varios usuarios en este equipo: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' usuarios hoy</span>' : '') + '</small>' : '') +
-      (d.esHoy ? versionHtml(a, d) : '') +
+      (d.esHoy && !inact ? versionHtml(a, d) : '') +
       (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
-      '<br><div class="btns-mini"><button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>' +
+      '<br><div class="btns-mini">' +
+      (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>') +
       '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button>' +
-      '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Cambio de turno por un día o una temporada">Cambio de turno</button></div>' +
-      (a.horario ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
+      (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Cambio de turno por un día o una temporada">Cambio de turno</button>') +
+      '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (a.activo === false ? '1' : '0') + '" type="button" title="' +
+        (a.activo === false ? 'Vuelve a la lista de agentes' : 'Deja de contar desde el día siguiente a la fecha de baja') + '">' +
+        (a.activo === false ? 'Reactivar' : 'Desactivar') + '</button></div>' +
+      (a.activo === false ? '<span class="bajainfo">Inactivo desde ' + esc(a.baja || 'fecha sin registrar') +
+        (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
+      (a.horario && !inact ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
         (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') + '</div>' +
     '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
       (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
       almuerzoHtml(a) + descansosHtml(a) +
-      (d.esHoy ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
+      (d.esHoy && !inact ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
       (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' autorizados</span>' : '') + '<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
       (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
       (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
-      (d.esHoy ? progsHtml(a.vivo) + speedHtml(a) : '') + '</div>' +
+      (d.esHoy && !inact ? progsHtml(a.vivo) + speedHtml(a) : '') + '</div>' +
   '</div>';
 }
 
@@ -825,11 +871,67 @@ document.addEventListener('click', async ev => {
   } catch (e) { toast('Error: ' + e.message, 'err'); b.disabled = false; }
 });
 
-let edAgente = null;
+// ------------------------------------------------- desactivar / reactivar
+const MOTIVOS_BAJA = ['Renuncia', 'Fin de contrato', 'Despido', 'Licencia larga', 'Equipo de prueba', 'Otro'];
+function hoyISO(){
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+let bajaAgente = null;
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('[data-baja]');
+  if (!b) return;
+  const ag = b.dataset.baja;
+  if (b.dataset.act === '1') {
+    if (!confirm('¿Reactivar a "' + ag + '"?\n\nVuelve a la lista de agentes y desde hoy se le vuelve a exigir su horario.')) return;
+    await enviarBaja(ag, '1', '', '');
+    return;
+  }
+  bajaAgente = ag;
+  $('bAgente').textContent = ag;
+  $('bFecha').max = hoyISO();
+  $('bFecha').value = hoyISO();
+  $('bMotivo').innerHTML = MOTIVOS_BAJA.map(m => '<option>' + esc(m) + '</option>').join('');
+  $('bNota').value = '';
+  $('modalBaja').classList.add('show');
+});
+$('bCancelar').addEventListener('click', () => $('modalBaja').classList.remove('show'));
+$('modalBaja').addEventListener('click', ev => { if (ev.target.id === 'modalBaja') $('modalBaja').classList.remove('show'); });
+$('bGuardar').addEventListener('click', async () => {
+  const btn = $('bGuardar'); btn.disabled = true;
+  const nota = $('bNota').value.trim();
+  await enviarBaja(bajaAgente, '0', $('bFecha').value, $('bMotivo').value + (nota ? ' — ' + nota : ''));
+  btn.disabled = false;
+});
+async function enviarBaja(ag, activo, fecha, motivo){
+  if (S.demo) { toast('En modo ejemplo no se guardan cambios.'); return; }
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  try {
+    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
+      '&accion=baja&agente=' + encodeURIComponent(ag) + '&activo=' + activo +
+      '&fecha=' + encodeURIComponent(fecha || '') + '&motivo=' + encodeURIComponent(motivo || '');
+    const r = await fetch(q, { redirect: 'follow' });
+    const j = await r.json();
+    if (j.ok && j.agente) {
+      toast(activo === '1' ? j.agente + ' vuelve a la lista de agentes.' : j.agente + ' queda inactivo desde el ' + j.baja + '.', 'ok');
+      $('modalBaja').classList.remove('show');
+      cargar();
+    } else if (j.agentes || j.ok) {
+      toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+    } else {
+      toast(j.error || 'No se pudo guardar.', 'err');
+    }
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
+}
+
+let edAgente = null, edBaja = false;
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-edit]');
   if (!b) return;
   edAgente = b.dataset.edit;
+  const ficha = ((S.data && S.data.agentes) || []).find(a => a.agente === edAgente);
+  edBaja = !!(ficha && ficha.activo === false);
   $('aNombre').value = edAgente;
   const cuentas = (S.data && S.data.cuentas) || [];
   const actual = b.dataset.cta || '';
@@ -845,6 +947,16 @@ $('aGuardar').addEventListener('click', async () => {
   const nombre = $('aNombre').value.trim(), cuenta = $('aCuenta').value;
   if (!nombre) { toast('Escribe un nombre.', 'err'); return; }
   if (/[|;]/.test(nombre)) { toast('El nombre no puede tener | ni ;', 'err'); return; }
+  // Renombrar a un agente inactivo es lo que se hace al reasignar su equipo a
+  // otra persona. Conviene avisar: el historial viejo pasa a llamarse como el
+  // agente nuevo, porque es la misma ficha.
+  if (edBaja && nombre.toLowerCase() !== edAgente.toLowerCase() &&
+      !confirm('"' + edAgente + '" está inactivo.\n\n' +
+        'Si lo renombras a "' + nombre + '", todo el historial de "' + edAgente + '" ' +
+        'queda a nombre de "' + nombre + '": es la misma ficha, no una nueva.\n\n' +
+        'Si lo que quieres es entregarle el equipo a alguien más y empezar de cero, ' +
+        'instala el monitor en ese computador con el nombre nuevo y deja esta ficha inactiva.\n\n' +
+        '¿Renombrar de todos modos?')) { return; }
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
   const btn = $('aGuardar'); btn.disabled = true;
