@@ -110,7 +110,7 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .row:hover .meta .mi{background:var(--surface)}
 .meta .mi i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
 .meta .mi b{color:var(--text);font-weight:600}
-.meta .mi .sub{color:var(--muted)}
+.meta .mi .sub{color:var(--muted);font-weight:400}
 /* Fichas dentro de las columnas laterales: caben en poco ancho, así que
    pueden partirse en dos líneas. */
 .meta.mini{gap:5px;margin-top:7px}
@@ -748,12 +748,14 @@ function descansosHtml(a){
   const ds = a.descansos;
   if (!ds || !ds.length || !a.laboral) return '';
   const conExceso = ds.filter(d => d.excesoMin > 0);
-  const horas = ds.map(d => hora(d.ini)).join(' · ');
-  const extra = ds.map(d => dur(Math.min(d.tomadoMin, 15)) + (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')).join(' · ');
+  // En orden de reloj y con su duración al lado, para leer de un vistazo cuál
+  // fue el de la mañana y cuál el de la tarde.
+  const partes = ds.map(d => esc(hora(d.ini)) + ' <span class="sub">' +
+    esc(dur(Math.min(d.tomadoMin, 15)) + (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')) + '</span>');
   const tit = conExceso.length
     ? 'Se reconocen 15 minutos por descanso; los minutos de más cuentan como tiempo perdido.'
-    : 'Los dos descansos más largos del día, hasta 15 minutos cada uno. No cuentan como tiempo perdido.';
-  return mi('Descanso' + (ds.length > 1 ? 's' : ''), esc(horas), conExceso.length ? 'warn' : '', tit, esc(extra));
+    : 'La pausa más parecida a un descanso de 15 minutos en cada mitad de la jornada. No cuentan como tiempo perdido.';
+  return mi('Descanso' + (ds.length > 1 ? 's' : ''), partes.join(' · '), conExceso.length ? 'warn' : '', tit);
 }
 
 function progsHtml(v){
