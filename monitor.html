@@ -98,7 +98,12 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 /* Alrededor de la barra: arriba el horario del día y sus descansos, abajo el
    teléfono y el programa. */
 .tlwrap .meta{margin:0 0 9px}
-.tlwrap .meta.post{margin:11px 0 0}
+.tlwrap .meta.post{margin:10px 0 0}
+.tlwrap .meta.post + .meta.post{margin-top:7px}
+/* Almuerzo y descansos van siempre en la misma fila: si no caben, el texto se
+   parte dentro de la ficha en vez de bajar una ficha debajo de la otra. */
+.tlwrap .meta.tomado{flex-wrap:nowrap;align-items:flex-start;gap:6px}
+.tlwrap .meta.tomado .mi{white-space:normal;min-width:0;padding:4px 9px;gap:6px}
 .meta{display:flex;flex-wrap:wrap;gap:7px;align-items:stretch}
 .meta .mi{display:inline-flex;align-items:baseline;gap:7px;background:var(--surface-2);border:1px solid var(--border);
   border-radius:8px;padding:4px 10px;font-size:12px;color:var(--text-2);white-space:nowrap;max-width:100%}
@@ -112,7 +117,7 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .nums .pill{margin-bottom:9px;white-space:normal;text-align:left}
 /* En poco ancho la ficha se parte con criterio: la etiqueta y el dato nunca se
    separan, y el detalle largo baja a su propia línea. */
-.meta.mini .mi{white-space:normal;flex-wrap:wrap;padding:3px 8px;font-size:11.5px}
+.meta.mini .mi{white-space:normal;flex-wrap:wrap;padding:2px 8px;font-size:11.5px;line-height:1.5}
 .meta.mini .mi i,.meta.mini .mi b{white-space:nowrap}
 .meta.mini .mi .sub{flex-basis:100%}
 .nums .meta.mini{justify-content:flex-end;margin-bottom:2px}
@@ -184,6 +189,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .row .who{grid-column:auto}
   .row .nums{grid-column:auto;text-align:left}
   .row .tlwrap{grid-column:1/-1;order:3}
+  .tlwrap .meta.tomado{flex-wrap:wrap}
   .grupo .gp{margin-left:0;width:100%}
   main,header{padding-left:16px;padding-right:16px}
   .legend{margin-left:0}
@@ -693,17 +699,17 @@ function equipoHtml(a, d){
   if (v.pantallas != null) {
     const pocas = v.pantallas < esperadas;
     out += mi('Pantallas', String(v.pantallas), pocas ? 'warn' : '',
-      pocas ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
-            : 'Está usando ' + v.pantallas + ' pantallas.',
-      a.minUnaPantalla ? dur(a.minUnaPantalla) + ' hoy con una' : '');
+      (pocas ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
+             : 'Está usando ' + v.pantallas + ' pantallas.') +
+      (a.minUnaPantalla ? ' Hoy lleva ' + dur(a.minUnaPantalla) + ' con una sola.' : ''));
   }
 
   if (v.energia === 'bat' || v.energia === 'ac') {
     const bat = v.energia === 'bat';
     const pct = (v.bateria != null && v.bateria >= 0) ? ' ' + v.bateria + '%' : '';
-    out += mi('Energía', (bat ? 'en batería' : 'enchufado') + pct, bat ? 'warn' : '',
-      bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.',
-      (bat && a.minBateria) ? dur(a.minBateria) + ' hoy' : '');
+    out += mi('Energía', (bat ? 'batería' : 'enchufado') + pct, bat ? 'warn' : '',
+      (bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.') +
+      ((bat && a.minBateria) ? ' Hoy lleva ' + dur(a.minBateria) + ' con batería.' : ''));
   }
   return out;
 }
@@ -731,7 +737,7 @@ function almuerzoHtml(a){
   if (al.excesoMin > 0) {
     return mi('Almuerzo', tramo, 'warn',
       'Se le descontó el tiempo asignado (' + al.duracionMin + ' min). Los ' + al.excesoMin + ' min de más cuentan como tiempo perdido.',
-      dur(al.tomadoMin) + ' · ' + al.excesoMin + ' min de más');
+      dur(al.tomadoMin) + ' · +' + al.excesoMin + ' min');
   }
   return mi('Almuerzo', tramo, '', 'Descanso detectado. El horario solo se usa como referencia.', dur(al.tomadoMin));
 }
@@ -856,8 +862,10 @@ function fila(a, d){
   if (marcas[marcas.length - 1] !== t1) { if (t1 - marcas[marcas.length - 1] < paso * 2700000) marcas.pop(); marcas.push(t1); }
   const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
 
-  // Arriba de la barra, el día; abajo, en qué está ahora mismo.
-  const arriba = fHorario + almuerzoHtml(a) + descansosHtml(a);
+  // Arriba de la barra, la jornada asignada. Debajo, lo que de verdad pasó
+  // (almuerzo y descansos) y, en otra fila, en qué está ahora mismo.
+  const arriba = fHorario;
+  const tomado = almuerzoHtml(a) + descansosHtml(a);
   const abajo = app + (envivo && a.vivo && a.vivo.progActivo
     ? mi('Programa', esc(nombreApp(a.vivo.progActivo)), '', 'Programa en primer plano en la última señal.') : '');
 
@@ -884,6 +892,7 @@ function fila(a, d){
     '<div class="tlwrap">' +
       (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
       '<div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div>' +
+      (tomado ? '<div class="meta post tomado">' + tomado + '</div>' : '') +
       (abajo ? '<div class="meta post">' + abajo + '</div>' : '') + '</div>' +
     '<div class="nums">' + pill +
       '<div><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
