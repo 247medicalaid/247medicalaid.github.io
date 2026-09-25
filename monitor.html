@@ -163,7 +163,7 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo)}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .autok{color:var(--text-2)}
-.tl .brk{position:absolute;top:0;bottom:0;background:var(--lunch);opacity:.75;border-radius:3px;box-shadow:inset 0 0 0 1px var(--text-2)}
+.tl .brk{position:absolute;top:0;bottom:0;background:var(--lunch);opacity:.75;border-radius:3px;box-shadow:inset 0 0 0 1px var(--text-2);cursor:pointer}
 .tl .brk:hover{outline:2px solid var(--text);outline-offset:1px}
 .tl .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
 .axis{position:relative;height:16px;margin-top:3px;color:var(--muted);font-size:11px}
@@ -858,8 +858,11 @@ function fila(a, d){
     const d = (a.descansos || [])[i] || {};
     const extra = d.excesoMin ? ' \u00b7 ' + d.excesoMin + ' min de más, que cuentan como ausencia' : '';
     const tip = 'Descanso|' + hora(c[0]) + ' – ' + hora(c[0] + Math.min(d.tomadoMin || 0, 15) * 60000) + '|' +
-      dur(Math.min(d.tomadoMin || 0, 15)) + '|Uno de los dos descansos de 15 minutos del día' + extra + '.';
-    tl += '<div class="brk" data-tip="' + esc(tip) + '" style="left:' + pct(c[0]) + '%;width:' +
+      dur(Math.min(d.tomadoMin || 0, 15)) + '|Uno de los dos descansos de 15 minutos del día' + extra +
+      '. Clic si no fue un descanso: al autorizar el periodo deja de contarse como tal.';
+    tl += '<div class="brk" data-tip="' + esc(tip) + '"' +
+      ' data-aut="' + esc(a.agente) + '" data-ini="' + c[0] + '" data-fin="' + (d.finTomado || c[1]) + '"' +
+      ' style="left:' + pct(c[0]) + '%;width:' +
       Math.max(0.4, pct(c[1]) - pct(c[0])) + '%"></div>';
   });
   a.episodios.forEach(ep => {
