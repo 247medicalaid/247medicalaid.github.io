@@ -13,9 +13,9 @@
   --bg:#f4f5f7; --surface:#ffffff; --surface-2:#f0efec; --border:#e2e3e6;
   --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
   --track:#e7e8ea; --lunch:#B4B5BA;
-  --good:#1A8FC0; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
+  --good:#0B72A8; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
   --good-bg:#E3F3FA; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
-  --st-inactivo:#E0A100; --st-offline:#6A6C71; --st-raya:rgba(0,0,0,.55); --st-activo:#1A8FC0; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
+  --st-inactivo:#E0A100; --st-offline:#6A6C71; --st-raya:rgba(0,0,0,.55); --st-activo:#0B72A8; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
   --accent:#0E86B4;
 }
 @media (prefers-color-scheme: dark){
@@ -24,9 +24,9 @@
     --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
     --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
     --track:#2c2c29; --lunch:#5E5E58;
-    --good:#4CC2EC; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
+    --good:#29A8E8; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
     --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-    --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#4CC2EC; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+    --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
     --accent:#0E86B4;
   }
 }
@@ -35,9 +35,9 @@
   --bg:#111211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
   --text:#ffffff; --text-2:#c3c2b7; --muted:#9a998f;
   --track:#2c2c29; --lunch:#5E5E58;
-  --good:#4CC2EC; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
+  --good:#29A8E8; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
   --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-  --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#4CC2EC; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+  --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
   --accent:#0E86B4;
 }
 *{box-sizing:border-box}
@@ -86,9 +86,52 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-weight:400;font-size:12.5px;color:var(--text-2);margin-left:auto}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sw{width:14px;height:10px;border-radius:3px;display:inline-block}
-.row{display:grid;grid-template-columns:210px 190px 1fr 190px;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+/* Dos filas: arriba quien / estado / jornada / totales; abajo, a lo ancho, los
+   datos del dia (almuerzo, descansos, equipo) en fichas sueltas. Asi la
+   columna del medio deja de ser una lista apretada de seis lineas. */
+.row{display:grid;grid-template-columns:250px 150px minmax(0,1fr) 195px;grid-template-rows:auto 1fr;gap:12px 18px;align-items:start;padding:18px 18px 16px;border-bottom:1px solid var(--border)}
 .row:last-child{border-bottom:0}
-.who b{display:block;font-weight:600}
+.row:hover{background:var(--surface-2)}
+.row .who{grid-column:1;grid-row:1 / span 2}
+.row .est{grid-column:2;grid-row:1;padding-top:1px}
+.row .est .pill{white-space:normal}
+.row .tlwrap{grid-column:3;grid-row:1}
+.row .nums{grid-column:4;grid-row:1 / span 2}
+.row .meta{grid-column:2 / 4;grid-row:2;align-self:start}
+.meta{display:flex;flex-wrap:wrap;gap:7px;align-items:stretch}
+.meta .mi{display:inline-flex;align-items:baseline;gap:7px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:8px;padding:4px 10px;font-size:12px;color:var(--text-2);white-space:nowrap;max-width:100%}
+.row:hover .meta .mi{background:var(--surface)}
+.meta .mi i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.meta .mi b{color:var(--text);font-weight:600}
+.meta .mi .sub{color:var(--muted)}
+/* Fichas dentro de las columnas laterales: caben en poco ancho, así que
+   pueden partirse en dos líneas. */
+.meta.mini{gap:5px;margin-top:7px}
+/* En poco ancho la ficha se parte con criterio: la etiqueta y el dato nunca se
+   separan, y el detalle largo baja a su propia línea. */
+.meta.mini .mi{white-space:normal;flex-wrap:wrap;padding:3px 8px;font-size:11.5px}
+.meta.mini .mi i,.meta.mini .mi b{white-space:nowrap}
+.meta.mini .mi .sub{flex-basis:100%}
+.nums .meta.mini{justify-content:flex-end;margin-bottom:2px}
+.nums .meta.mini .mi{justify-content:flex-end;text-align:right}
+/* La versión del monitor cierra la columna izquierda. */
+.who .ver{margin-top:10px}
+.who .ver .winuser{color:var(--muted);font-size:11.5px}
+/* El aviso nunca depende solo del color: la ficha lleva ⚠ delante. */
+.meta .mi.warn{border-color:var(--warning);background:var(--warning-bg)}
+.meta .mi.warn b,.meta .mi.warn i{color:var(--serious)}
+.meta .mi.crit{border-color:var(--critical);background:var(--critical-bg)}
+.meta .mi.crit b,.meta .mi.crit i{color:var(--critical)}
+/* Cabecera de cuenta: los agentes van agrupados por practica. */
+.grupo{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:11px 18px;background:var(--surface-2);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+#rows > .grupo:first-child{border-top:0}
+.grupo .gc{font-weight:700;color:var(--accent);font-size:14px;letter-spacing:.2px}
+.grupo .gn{font-size:12px;color:var(--muted)}
+.grupo .gp{margin-left:auto;font-size:12.5px;color:var(--text-2)}
+.grupo .gp b{color:var(--text);font-weight:600}
+.who > b{display:block;font-weight:600;font-size:14.5px}
 .who small{color:var(--text-2)}
 /* El nombre de la practica es lo que mas se busca al leer la tarjeta, asi que
    va mas grande, en negrita y en el color de acento; el nombre del equipo se
@@ -107,7 +150,7 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .tl .seg.just::after{content:'\\2713';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text);opacity:.9}
 .tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
 .tl .base,.tl .lunch{cursor:default}
-.tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo);opacity:.9}
+.tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo)}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .autok{color:var(--text-2)}
 .tl .brk{position:absolute;top:0;bottom:0;background:var(--lunch);opacity:.75;border-radius:3px;box-shadow:inset 0 0 0 1px var(--text-2)}
@@ -136,13 +179,18 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .primary{background:var(--brand);color:#fff;border-color:var(--brand);margin-top:16px}
 @media (max-width:900px){
   .row{grid-template-columns:1fr 1fr}
-  .row .tlwrap{grid-column:1/-1;order:3}
+  .row .who,.row .est{grid-column:auto;grid-row:auto}
+  .row .nums{grid-column:auto;grid-row:auto}
+  .row .tlwrap{grid-column:1/-1;grid-row:auto;order:3}
+  .row .meta{grid-column:1/-1;grid-row:auto;order:4}
   .row .nums{text-align:left}
+  .grupo .gp{margin-left:0;width:100%}
   main,header{padding-left:16px;padding-right:16px}
   .legend{margin-left:0}
 }
 @media (max-width:600px){
   .axis span:not(:first-child):not(:last-child){display:none}
+  .meta .mi{white-space:normal}
   .tile .num{font-size:24px}
 }
 .tscroll{overflow-x:auto}
@@ -162,7 +210,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .mbps{font-size:12px;color:var(--text-2)}
 #msg{position:fixed;left:50%;bottom:24px;transform:translate(-50%,160%);background:var(--brand);color:#fff;padding:11px 20px;border-radius:999px;font-weight:600;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:transform .28s;z-index:30;max-width:90vw;text-align:center}
 #msg.show{transform:translate(-50%,0)}
-#msg.err{background:var(--critical)} #msg.ok{background:var(--good)}
+#msg.err{background:var(--critical)} #msg.ok{background:var(--good);color:#04141F}
 .btn-mini{margin-top:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:7px;padding:3px 9px;font:inherit;font-size:11.5px;font-weight:500;cursor:pointer}
 .btn-mini:hover{border-color:var(--accent);color:var(--text)}
 .trow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -530,10 +578,6 @@ function pintar(){
   let lista = delFiltro.filter(a => a.activo !== false);
   const todos = lista;
   if (S.solo) lista = lista.filter(a => a.episodios.length || (a.estado && a.estado.nivel !== 'verde' && a.estado.nivel !== 'gris'));
-  lista.sort((a, b) => {
-    const na = a.estado ? NIVEL[a.estado.nivel] : 0, nb = b.estado ? NIVEL[b.estado.nivel] : 0;
-    return (na - nb) || (b.minPerdidos - a.minPerdidos) || a.agente.localeCompare(b.agente);
-  });
 
   // Tiles
   const cnt = n => todos.filter(a => a.estado && a.estado.nivel === n).length;
@@ -565,7 +609,11 @@ function pintar(){
   if (!lista.length) {
     $('rows').innerHTML = '<div class="empty">' + (d.agentes.length ? 'Sin agentes para este filtro.' : 'Aún no hay agentes. Aparecerán 1–2 minutos después de instalar el monitor en cada computador.') + '</div>';
   } else {
-    $('rows').innerHTML = lista.map(a => fila(a, d)).join('');
+    $('rows').innerHTML = porCuenta(lista).map(g =>
+      '<div class="grupo"><span class="gc">' + esc(g.cuenta) + '</span>' +
+      '<span class="gn">' + g.agentes.length + (g.agentes.length === 1 ? ' agente' : ' agentes') + '</span>' +
+      '<span class="gp"><b>' + (dur(g.perdidos) || '0 min') + '</b> perdidos</span></div>' +
+      g.agentes.map(a => fila(a, d)).join('')).join('');
   }
 
   // Agentes desactivados: van aparte, al final y plegados. No entran en los
@@ -588,6 +636,18 @@ function pintar(){
     eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(tipoDisp(e.tipo)) + '</td><td>' + hora(e.ini) +
       '</td><td>' + (e.abierto ? '<b>continúa</b>' : hora(e.fin)) + '</td><td class="num">' + dur(e.min) + '</td></tr>').join('') + '</tbody></table></div>'
     : '<div class="empty">Sin novedades de 10+ minutos.</div>';
+}
+
+/* Agrupa por cuenta y ordena de mayor a menor tiempo perdido: primero las
+   cuentas que más tiempo perdieron y, dentro de cada una, los agentes. */
+function porCuenta(lista){
+  const g = {};
+  lista.forEach(a => { const c = a.cuenta || 'Sin cuenta asignada'; (g[c] = g[c] || []).push(a); });
+  return Object.keys(g).map(c => ({
+    cuenta: c,
+    agentes: g[c].sort((x, y) => (y.minPerdidos - x.minPerdidos) || x.agente.localeCompare(y.agente)),
+    perdidos: g[c].reduce((s, a) => s + a.minPerdidos, 0)
+  })).sort((x, y) => (y.perdidos - x.perdidos) || x.cuenta.localeCompare(y.cuenta));
 }
 
 var APPMAP = {
@@ -615,11 +675,12 @@ function nombreApp(n){
 function netHtml(v){
   if (!v || v.lat == null) return '';
   const lat = v.lat, loss = v.loss || 0;
-  let color = 'var(--good)';
-  if (lat > 150 || loss > 5) color = 'var(--critical)';
-  else if (lat > 80 || loss > 0) color = 'var(--warning)';
-  const aviso = color === 'var(--good)' ? '' : '\u26a0 ';
-  return '<div class="app">Internet: <b style="color:' + color + '">' + aviso + lat + ' ms' + (loss > 0 ? ' \u00b7 ' + loss + '% p\u00e9rdida' : '') + '</b></div>';
+  let nivel = '';
+  if (lat > 150 || loss > 5) nivel = 'crit';
+  else if (lat > 80 || loss > 0) nivel = 'warn';
+  return mi('Internet', lat + ' ms', nivel,
+    nivel ? 'Latencia alta o con pérdida de paquetes: las llamadas pueden cortarse.' : 'Latencia normal.',
+    loss > 0 ? loss + '% pérdida' : '');
 }
 // Pantallas conectadas y estado de energia (nuevo en la 2.5).
 // Aviso en ambar y con el simbolo ⚠ delante: nunca solo por color.
@@ -631,45 +692,48 @@ function equipoHtml(a, d){
 
   if (v.pantallas != null) {
     const pocas = v.pantallas < esperadas;
-    const tit = pocas
-      ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
-      : 'Está usando ' + v.pantallas + ' pantallas.';
-    out += '<div class="app">Pantallas: <b style="color:' + (pocas ? 'var(--warning)' : 'inherit') + '" title="' + tit + '">' +
-           (pocas ? '\u26a0 ' : '') + v.pantallas + '</b>' +
-           (a.minUnaPantalla ? ' <span class="mbps">' + dur(a.minUnaPantalla) + ' hoy con una</span>' : '') + '</div>';
+    out += mi('Pantallas', String(v.pantallas), pocas ? 'warn' : '',
+      pocas ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
+            : 'Está usando ' + v.pantallas + ' pantallas.',
+      a.minUnaPantalla ? dur(a.minUnaPantalla) + ' hoy con una' : '');
   }
 
   if (v.energia === 'bat' || v.energia === 'ac') {
     const bat = v.energia === 'bat';
     const pct = (v.bateria != null && v.bateria >= 0) ? ' ' + v.bateria + '%' : '';
-    out += '<div class="app">Energía: <b style="color:' + (bat ? 'var(--warning)' : 'inherit') + '" title="' +
-           (bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.') + '">' +
-           (bat ? '\u26a0 en batería' + pct : 'enchufado' + pct) + '</b>' +
-           (bat && a.minBateria ? ' <span class="mbps">' + dur(a.minBateria) + ' hoy</span>' : '') + '</div>';
+    out += mi('Energía', (bat ? 'en batería' : 'enchufado') + pct, bat ? 'warn' : '',
+      bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.',
+      (bat && a.minBateria) ? dur(a.minBateria) + ' hoy' : '');
   }
   return out;
 }
 
 // El almuerzo que se muestra es el REAL, detectado a partir del descanso mas
 // largo cerca de la hora fijada; la hora del horario es solo una referencia.
+/* Una ficha del renglon de abajo. `val` y `extra` ya vienen escapados. */
+function mi(rot, val, nivel, tit, extra){
+  return '<span class="mi' + (nivel ? ' ' + nivel : '') + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' +
+    '<i>' + esc(rot) + '</i><b>' + (nivel ? '\u26a0 ' : '') + val + '</b>' +
+    (extra ? '<span class="sub">' + extra + '</span>' : '') + '</span>';
+}
+
 function almuerzoHtml(a){
   const al = a.almuerzo;
   if (!al || !a.laboral) return '';
   if (!al.tomado) {
     // Mientras la ventana de almuerzo siga abierta no se avisa: puede que aún no
     // haya salido. Avisar antes de tiempo llenaría el panel de falsos avisos.
-    if (al.pendiente) return '<div class="app">Almuerzo: <b>aún no</b></div>';
-    return '<div class="app">Almuerzo: <b style="color:var(--warning)" title="No se detectó un descanso de al menos 10 minutos cerca de la hora de almuerzo. No se le descontó nada de la jornada.">' +
-           '\u26a0 sin tomar</b></div>';
+    if (al.pendiente) return mi('Almuerzo', 'aún no', '', 'Todavía está dentro de la ventana de almuerzo.');
+    return mi('Almuerzo', 'sin tomar', 'warn',
+      'No se detectó un descanso de al menos 10 minutos cerca de la hora de almuerzo. No se le descontó nada de la jornada.');
   }
-  const tramo = hora(al.ini) + '–' + hora(al.ini + al.tomadoMin * 60000);
+  const tramo = esc(hora(al.ini) + '–' + hora(al.ini + al.tomadoMin * 60000));
   if (al.excesoMin > 0) {
-    return '<div class="app">Almuerzo: <b style="color:var(--warning)" title="Se le descontó el tiempo asignado (' + al.duracionMin +
-           ' min). Los ' + al.excesoMin + ' min de más cuentan como tiempo perdido.">\u26a0 ' + esc(tramo) + ' · ' +
-           dur(al.tomadoMin) + ' (' + al.excesoMin + ' de más)</b></div>';
+    return mi('Almuerzo', tramo, 'warn',
+      'Se le descontó el tiempo asignado (' + al.duracionMin + ' min). Los ' + al.excesoMin + ' min de más cuentan como tiempo perdido.',
+      dur(al.tomadoMin) + ' · ' + al.excesoMin + ' min de más');
   }
-  return '<div class="app">Almuerzo: <b title="Descanso detectado. El horario solo se usa como referencia.">' +
-         esc(tramo) + ' · ' + dur(al.tomadoMin) + '</b></div>';
+  return mi('Almuerzo', tramo, '', 'Descanso detectado. El horario solo se usa como referencia.', dur(al.tomadoMin));
 }
 
 // Dos descansos de 15 minutos al dia, sin hora fija: se reconocen las dos
@@ -678,14 +742,12 @@ function descansosHtml(a){
   const ds = a.descansos;
   if (!ds || !ds.length || !a.laboral) return '';
   const conExceso = ds.filter(d => d.excesoMin > 0);
-  const detalle = ds.map(d => hora(d.ini) + ' · ' + dur(Math.min(d.tomadoMin, 15)) +
-    (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')).join(' — ');
+  const horas = ds.map(d => hora(d.ini)).join(' · ');
+  const extra = ds.map(d => dur(Math.min(d.tomadoMin, 15)) + (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')).join(' · ');
   const tit = conExceso.length
     ? 'Se reconocen 15 minutos por descanso; los minutos de más cuentan como tiempo perdido.'
     : 'Los dos descansos más largos del día, hasta 15 minutos cada uno. No cuentan como tiempo perdido.';
-  return '<div class="app">Descanso' + (ds.length > 1 ? 's' : '') + ': <b' +
-    (conExceso.length ? ' style="color:var(--warning)"' : '') + ' title="' + esc(tit) + '">' +
-    (conExceso.length ? '\u26a0 ' : '') + esc(detalle) + '</b></div>';
+  return mi('Descanso' + (ds.length > 1 ? 's' : ''), esc(horas), conExceso.length ? 'warn' : '', tit, esc(extra));
 }
 
 function progsHtml(v){
@@ -702,6 +764,9 @@ function speedHtml(a){
 function fila(a, d){
   const e = a.estado;
   const inact = a.activo === false;   // desactivado: tarjeta reducida
+  const envivo = d.esHoy && !inact;
+  const fEquipo = envivo ? equipoHtml(a, d) : '';   // pantallas y energía: van con el usuario de Windows
+  const fNet = envivo ? netHtml(a.vivo) : '';        // internet: va junto a "Medir velocidad"
   // Con fecha de baja de hoy todavía cuenta el día completo: la tarjeta sigue
   // entera, pero el botón ya ofrece Reactivar para no desactivarlo dos veces.
   const conBaja = inact || !!a.baja;
@@ -716,7 +781,8 @@ function fila(a, d){
     pill = a.episodios.length ? '<span class="pill rojo">' + icono('rojo') + a.episodios.length + ' novedad(es)</span>'
                               : '<span class="pill verde">' + icono('verde') + 'Sin novedades</span>';
   }
-  const app = e && e.app === false ? 'App de teléfono: <b>cerrada</b>' : (e && e.app === true ? 'App de teléfono: abierta' : '');
+  const app = (e && e.app === false) ? mi('Teléfono', 'cerrada', 'warn', 'La app de teléfono de la cuenta no está abierta.')
+            : ((e && e.app === true) ? mi('Teléfono', 'abierta', '', 'La app de teléfono de la cuenta está abierta.') : '');
 
   // Línea de tiempo de la jornada
   const t0 = a.jIni, t1 = a.jFin, span = Math.max(1, t1 - t0);
@@ -785,7 +851,7 @@ function fila(a, d){
       (a.usuario ? '<small class="winuser">Usuario de Windows: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Hoy iniciaron sesión varios usuarios en este equipo: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' usuarios hoy</span>' : '') + '</small>' : '') +
-      (d.esHoy && !inact ? versionHtml(a, d) : '') +
+      (fEquipo ? '<div class="meta mini">' + fEquipo + '</div>' : '') +
       (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
       '<br><div class="btns-mini">' +
       (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>') +
@@ -799,18 +865,21 @@ function fila(a, d){
                : 'Baja el ' + esc(a.baja) + ' \u00b7 pasa a Inactivos al día siguiente') +
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
       (a.horario && !inact ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
-        (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') + '</div>' +
-    '<div>' + pill + (app ? '<div class="app">' + app + '</div>' : '') +
-      (d.esHoy && a.vivo && a.vivo.progActivo ? '<div class="app">Programa: <b>' + esc(nombreApp(a.vivo.progActivo)) + '</b></div>' : '') +
-      almuerzoHtml(a) + descansosHtml(a) +
-      (d.esHoy && !inact ? netHtml(a.vivo) + equipoHtml(a, d) : '') + '</div>' +
+        (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') +
+      (envivo ? '<div class="ver">' + versionHtml(a, d) + '</div>' : '') + '</div>' +
+    '<div class="est">' + pill + '</div>' +
     '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
     '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
       (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' autorizados</span>' : '') + '<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
       (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
       (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
-      (d.esHoy && !inact ? progsHtml(a.vivo) + speedHtml(a) : '') + '</div>' +
+      (envivo ? progsHtml(a.vivo) : '') +
+      (fNet ? '<div class="meta mini">' + fNet + '</div>' : '') +
+      (envivo ? speedHtml(a) : '') + '</div>' +
+    // Renglon de abajo: todo lo del dia en fichas, a lo ancho de la tarjeta.
+    '<div class="meta">' + almuerzoHtml(a) + descansosHtml(a) + app +
+      (envivo && a.vivo && a.vivo.progActivo ? mi('Programa', esc(nombreApp(a.vivo.progActivo)), '', 'Programa en primer plano en la última señal.') : '') + '</div>' +
   '</div>';
 }
 
