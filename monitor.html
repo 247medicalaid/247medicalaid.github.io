@@ -603,10 +603,13 @@ function pintar(){
   const sumaMin = l => l.reduce((s, a) => s + a.minPerdidos, 0);
   const nov = l => l.filter(a => a.episodios.length).length;
   const dividir = S.cuenta === 'Todas' && aparte.length > 0 && propios.length > 0;
+  // El conteo va sobre el total de SU grupo: "8 de 14" y "8 de 11" se leen
+  // distinto aunque los dos ochos coincidan.
+  const deN = (l) => nov(l) + ' de ' + l.length + (l.length === 1 ? ' agente' : ' agentes') + ' con novedades';
   const tPerdido = dividir
-    ? [['Tiempo perdido hoy', dur(sumaMin(propios)) || '0 min', nov(propios) + ' agente(s) con novedades · sin Cardio ni Gastro', ''],
-       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', nov(aparte) + ' agente(s) con novedades · seguimiento aparte', '']]
-    : [['Tiempo perdido hoy', dur(perdidos) || '0 min', conNov + ' agente(s) con novedades', '']];
+    ? [['Tiempo perdido hoy', dur(sumaMin(propios)) || '0 min', deN(propios) + ' · sin Cardio ni Gastro', ''],
+       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · seguimiento aparte', '']]
+    : [['Tiempo perdido hoy', dur(perdidos) || '0 min', deN(todos) + '', '']];
   const tPerdidoAyer = dividir
     ? [['Tiempo perdido', dur(sumaMin(propios)) || '0 min', 'sin Cardio ni Gastro', ''],
        ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', 'seguimiento aparte', '']]
