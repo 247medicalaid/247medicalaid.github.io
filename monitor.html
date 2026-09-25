@@ -497,6 +497,9 @@ const TIPOS = {
 function tipoDisp(t){ return t === 'Inactivo' ? 'Inactivo' : 'Offline'; }
 function estadoTxt(t){ return (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') ? 'Offline' : t; }
 const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
+// Cuentas sobre las que no hay la misma injerencia: su tiempo perdido se
+// muestra aparte para que no distorsione el seguimiento de las demas.
+const CUENTAS_APARTE = ['Cardiovascular', 'Gastroenterology'];
 
 const S = { data: null, demo: false, cuenta: 'Todas', solo: false, timer: null, fecha: '' };
 const $ = id => document.getElementById(id);
@@ -593,20 +596,35 @@ function pintar(){
   const perdidos = todos.reduce((s, a) => s + a.minPerdidos, 0);
   const conNov = todos.filter(a => a.episodios.length).length;
   const reinTotal = todos.reduce((s, a) => s + (a.reinicios || 0), 0);
+  // Cardio y Gastro van por su cuenta. Solo tiene sentido separarlos cuando se
+  // están viendo todas las cuentas; si ya hay un filtro puesto, sobra.
+  const aparte = todos.filter(a => CUENTAS_APARTE.some(c => normC(c) === normC(a.cuenta)));
+  const propios = todos.filter(a => aparte.indexOf(a) < 0);
+  const sumaMin = l => l.reduce((s, a) => s + a.minPerdidos, 0);
+  const nov = l => l.filter(a => a.episodios.length).length;
+  const dividir = S.cuenta === 'Todas' && aparte.length > 0 && propios.length > 0;
+  const tPerdido = dividir
+    ? [['Tiempo perdido hoy', dur(sumaMin(propios)) || '0 min', nov(propios) + ' agente(s) con novedades · sin Cardio ni Gastro', ''],
+       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', nov(aparte) + ' agente(s) con novedades · seguimiento aparte', '']]
+    : [['Tiempo perdido hoy', dur(perdidos) || '0 min', conNov + ' agente(s) con novedades', '']];
+  const tPerdidoAyer = dividir
+    ? [['Tiempo perdido', dur(sumaMin(propios)) || '0 min', 'sin Cardio ni Gastro', ''],
+       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', 'seguimiento aparte', '']]
+    : [['Tiempo perdido', dur(perdidos) || '0 min', 'suma de la jornada', '']];
   const tiles = d.esHoy ? [
     ['Agentes monitoreados', todos.length, 'en ' + (S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta), ''],
     ['Activos ahora', cnt('verde'), 'trabajando normalmente', 'verde'],
     ['Requieren atención', cnt('rojo'), '10+ min inactivo u offline', 'rojo'],
     ['En pausa / aviso', cnt('amarillo'), '5–10 min o app cerrada', 'amarillo'],
-    ['Tiempo perdido hoy', dur(perdidos) || '0 min', conNov + ' agente(s) con novedades', ''],
     ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició hoy', reinTotal ? 'amarillo' : '']
-  ] : [
+  ].concat([]) : [
     ['Agentes', todos.length, S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta, ''],
     ['Con novedades', conNov, 'episodios de 10+ minutos', 'rojo'],
-    ['Tiempo perdido', dur(perdidos) || '0 min', 'suma de la jornada', ''],
     ['Episodios', todos.reduce((s, a) => s + a.episodios.length, 0), 'en el día', ''],
     ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició', '']
   ];
+  // El bloque de tiempo perdido va antes de los cierres del monitor.
+  tiles.splice(tiles.length - 1, 0, ...(d.esHoy ? tPerdido : tPerdidoAyer));
   $('tiles').innerHTML = tiles.map(t => '<div class="tile"><div class="lbl">' + (t[3] ? icono(t[3]) : '') + esc(t[0]) +
     '</div><div class="num">' + esc(t[1]) + '</div><div class="hint">' + esc(t[2]) + '</div></div>').join('');
 
