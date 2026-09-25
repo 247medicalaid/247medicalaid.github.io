@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -89,15 +89,16 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 /* Dos filas: arriba quien / estado / jornada / totales; abajo, a lo ancho, los
    datos del dia (almuerzo, descansos, equipo) en fichas sueltas. Asi la
    columna del medio deja de ser una lista apretada de seis lineas. */
-.row{display:grid;grid-template-columns:250px 150px minmax(0,1fr) 195px;grid-template-rows:auto 1fr;gap:12px 18px;align-items:start;padding:18px 18px 16px;border-bottom:1px solid var(--border)}
+.row{display:grid;grid-template-columns:250px minmax(0,1fr) 205px;gap:14px 20px;align-items:start;padding:18px 18px 16px;border-bottom:1px solid var(--border)}
 .row:last-child{border-bottom:0}
 .row:hover{background:var(--surface-2)}
-.row .who{grid-column:1;grid-row:1 / span 2}
-.row .est{grid-column:2;grid-row:1;padding-top:1px}
-.row .est .pill{white-space:normal}
-.row .tlwrap{grid-column:3;grid-row:1}
-.row .nums{grid-column:4;grid-row:1 / span 2}
-.row .meta{grid-column:2 / 4;grid-row:2;align-self:start}
+.row .who{grid-column:1}
+.row .tlwrap{grid-column:2}
+.row .nums{grid-column:3}
+/* Alrededor de la barra: arriba el horario del día y sus descansos, abajo el
+   teléfono y el programa. */
+.tlwrap .meta{margin:0 0 9px}
+.tlwrap .meta.post{margin:11px 0 0}
 .meta{display:flex;flex-wrap:wrap;gap:7px;align-items:stretch}
 .meta .mi{display:inline-flex;align-items:baseline;gap:7px;background:var(--surface-2);border:1px solid var(--border);
   border-radius:8px;padding:4px 10px;font-size:12px;color:var(--text-2);white-space:nowrap;max-width:100%}
@@ -108,6 +109,7 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 /* Fichas dentro de las columnas laterales: caben en poco ancho, así que
    pueden partirse en dos líneas. */
 .meta.mini{gap:5px;margin-top:7px}
+.nums .pill{margin-bottom:9px;white-space:normal;text-align:left}
 /* En poco ancho la ficha se parte con criterio: la etiqueta y el dato nunca se
    separan, y el detalle largo baja a su propia línea. */
 .meta.mini .mi{white-space:normal;flex-wrap:wrap;padding:3px 8px;font-size:11.5px}
@@ -179,11 +181,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .primary{background:var(--brand);color:#fff;border-color:var(--brand);margin-top:16px}
 @media (max-width:900px){
   .row{grid-template-columns:1fr 1fr}
-  .row .who,.row .est{grid-column:auto;grid-row:auto}
-  .row .nums{grid-column:auto;grid-row:auto}
-  .row .tlwrap{grid-column:1/-1;grid-row:auto;order:3}
-  .row .meta{grid-column:1/-1;grid-row:auto;order:4}
-  .row .nums{text-align:left}
+  .row .who{grid-column:auto}
+  .row .nums{grid-column:auto;text-align:left}
+  .row .tlwrap{grid-column:1/-1;order:3}
   .grupo .gp{margin-left:0;width:100%}
   main,header{padding-left:16px;padding-right:16px}
   .legend{margin-left:0}
@@ -767,6 +767,17 @@ function fila(a, d){
   const envivo = d.esHoy && !inact;
   const fEquipo = envivo ? equipoHtml(a, d) : '';   // pantallas y energía: van con el usuario de Windows
   const fNet = envivo ? netHtml(a.vivo) : '';        // internet: va junto a "Medir velocidad"
+  // El horario del día encabeza la barra de tiempo, junto al almuerzo real.
+  let fHorario = '';
+  if (a.horario && !inact) {
+    const libre = a.diaLibre || a.horario === 'Día libre';
+    const al = (a.hAlmuerzo || '').split('-');
+    const almTxt = (!libre && al.length === 2 && al[0] && al[1]) ? 'almuerzo ' + h12(al[0]) + ' – ' + h12(al[1]) : '';
+    const horas = libre ? 'día libre' : ((a.hInicio && a.hFin) ? h12(a.hInicio) + ' – ' + h12(a.hFin) : (a.horario || ''));
+    fHorario = mi(d.esHoy ? 'Hoy' : 'Ese día', esc(horas), '',
+      a.turno ? (a.turno.motivo || 'Turno registrado para esta fecha') : 'Jornada asignada para este día.',
+      esc(almTxt) + (a.turno ? (almTxt ? ' · ' : '') + 'turno especial' : ''));
+  }
   // Con fecha de baja de hoy todavía cuenta el día completo: la tarjeta sigue
   // entera, pero el botón ya ofrece Reactivar para no desactivarlo dos veces.
   const conBaja = inact || !!a.baja;
@@ -845,6 +856,11 @@ function fila(a, d){
   if (marcas[marcas.length - 1] !== t1) { if (t1 - marcas[marcas.length - 1] < paso * 2700000) marcas.pop(); marcas.push(t1); }
   const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
 
+  // Arriba de la barra, el día; abajo, en qué está ahora mismo.
+  const arriba = fHorario + almuerzoHtml(a) + descansosHtml(a);
+  const abajo = app + (envivo && a.vivo && a.vivo.progActivo
+    ? mi('Programa', esc(nombreApp(a.vivo.progActivo)), '', 'Programa en primer plano en la última señal.') : '');
+
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
       (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
@@ -864,22 +880,20 @@ function fila(a, d){
         (inact ? 'Inactivo desde ' + esc(a.baja || 'fecha sin registrar')
                : 'Baja el ' + esc(a.baja) + ' \u00b7 pasa a Inactivos al día siguiente') +
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
-      (a.horario && !inact ? '<span class="hoyhor">' + (d.esHoy ? 'Hoy: ' : 'Ese día: ') + esc(horarioCorto(a)) +
-        (a.turno ? ' <span class="vig" title="' + esc(a.turno.motivo || 'Turno registrado para esta fecha') + '">· turno especial</span>' : '') + '</span>' : '') +
       (envivo ? '<div class="ver">' + versionHtml(a, d) + '</div>' : '') + '</div>' +
-    '<div class="est">' + pill + '</div>' +
-    '<div class="tlwrap"><div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div></div>' +
-    '<div class="nums"><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
+    '<div class="tlwrap">' +
+      (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
+      '<div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div>' +
+      (abajo ? '<div class="meta post">' + abajo + '</div>' : '') + '</div>' +
+    '<div class="nums">' + pill +
+      '<div><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
       (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' autorizados</span>' : '') + '<br>' +
       (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
       (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
       (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
       (envivo ? progsHtml(a.vivo) : '') +
       (fNet ? '<div class="meta mini">' + fNet + '</div>' : '') +
-      (envivo ? speedHtml(a) : '') + '</div>' +
-    // Renglon de abajo: todo lo del dia en fichas, a lo ancho de la tarjeta.
-    '<div class="meta">' + almuerzoHtml(a) + descansosHtml(a) + app +
-      (envivo && a.vivo && a.vivo.progActivo ? mi('Programa', esc(nombreApp(a.vivo.progActivo)), '', 'Programa en primer plano en la última señal.') : '') + '</div>' +
+      (envivo ? speedHtml(a) : '') + '</div></div>' +
   '</div>';
 }
 
