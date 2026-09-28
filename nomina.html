@@ -160,10 +160,53 @@
   .kpi-val.red { color: var(--danger); }
   .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
+  /* ─── PANTALLAS ANGOSTAS ───────────────────────────────────────────
+     En un celular (o en la pantalla interna de un plegable) el menu de
+     240 px se comia mas de un tercio del ancho y la vista quedaba en
+     350 px. Aqui el menu se guarda detras de un boton y la informacion
+     ocupa toda la pantalla. */
+  #menu-btn, #menu-fondo { display: none; }
+
+  @media (max-width: 900px) {
+    #menu-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      position: fixed; top: 10px; left: 10px; z-index: 70;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 9px 13px; font-family: 'Inter', sans-serif; font-size: 13px;
+      font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    }
+    .sidebar {
+      position: fixed; top: 0; left: 0; z-index: 80;
+      width: min(290px, 86vw); height: 100vh;
+      transform: translateX(-102%); transition: transform .22s ease;
+      box-shadow: 0 0 40px rgba(0,0,0,.5);
+    }
+    body.menu-abierto .sidebar { transform: none; }
+    #menu-fondo { position: fixed; inset: 0; z-index: 75; background: rgba(0,0,0,.55); }
+    body.menu-abierto #menu-fondo { display: block; }
+    .main { padding: 58px 14px 30px; }
+    .page-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 20px; }
+    .page-title { font-size: 22px; }
+    .header-meta { flex-wrap: wrap; }
+    .cards-row { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .quincena-bar { gap: 14px; padding: 14px; margin-bottom: 20px; }
+    .divider { display: none; }
+    .table-header { flex-wrap: wrap; gap: 8px; }
+    .table-wrap { margin-bottom: 20px; }
+    /* El boton de volver al portal no debe taparse con el contenido. */
+    #pg-volver { bottom: 10px; right: 10px; }
+  }
+
   /* ─── TABLE ─── */
+  /* Antes era overflow:hidden y en pantallas angostas la tabla se cortaba sin
+     manera de llegar a lo que quedaba fuera. Ahora se desplaza de lado. */
   .table-wrap {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden; margin-bottom: 28px;
+    border-radius: var(--radius); overflow: auto; margin-bottom: 28px;
+    -webkit-overflow-scrolling: touch;
   }
   .table-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -1123,6 +1166,10 @@
 }
 </style>
 <div class="app">
+
+<!-- Solo se ven en pantallas angostas: abren y cierran el menu lateral. -->
+<button id="menu-btn" type="button" aria-label="Abrir el menú" aria-expanded="false">☰ Menú</button>
+<div id="menu-fondo"></div>
 
 <!-- ── SIDEBAR ── -->
 <nav class="sidebar">
@@ -10293,6 +10340,35 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
   img.addEventListener('error', fallar);
   if(img.complete && img.naturalWidth === 0) fallar();
 });
+</script>
+<script>
+/* Menu lateral en pantallas angostas. En pantalla grande no hace nada:
+   el boton y el fondo estan ocultos por CSS. */
+(function () {
+  var btn = document.getElementById('menu-btn');
+  var fondo = document.getElementById('menu-fondo');
+  var lateral = document.querySelector('.sidebar');
+  if (!btn || !fondo || !lateral) return;
+  function cerrar() {
+    document.body.classList.remove('menu-abierto');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+  btn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var abierto = document.body.classList.toggle('menu-abierto');
+    btn.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+  });
+  fondo.addEventListener('click', cerrar);
+  // Elegir una vista cierra el menu: en el celular estorba dejarlo abierto.
+  lateral.addEventListener('click', function (ev) {
+    if (ev.target.closest && ev.target.closest('.nav-btn')) cerrar();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') cerrar();
+  });
+  // Al volver a pantalla ancha el menu vuelve a estar siempre a la vista.
+  addEventListener('resize', function () { if (innerWidth > 900) cerrar(); });
+})();
 </script>
 </body>
 </html>
