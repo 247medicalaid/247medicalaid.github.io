@@ -425,8 +425,14 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 </div>
 <div class="modal-bg" id="modalAut">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="auTitulo">
-    <h3 id="auTitulo">Autorizar periodo de <span id="auAgente"></span></h3>
-    <p class="sub">El tramo se sigue viendo en la barra, marcado como autorizado y con su motivo, pero deja de contar como tiempo perdido.</p>
+    <h3 id="auTitulo">Este periodo de <span id="auAgente"></span></h3>
+    <label>¿Qué fue este periodo?</label>
+    <div class="seg" role="radiogroup" aria-label="Qué fue este periodo" id="auQue">
+      <label><input type="radio" name="auQue" value="perdido"><span>Tiempo perdido</span></label>
+      <label><input type="radio" name="auQue" value="descanso"><span>Descanso</span></label>
+      <label><input type="radio" name="auQue" value="autorizado"><span>Periodo autorizado</span></label>
+    </div>
+    <p class="sub" id="auSub"></p>
     <div class="trow">
       <div><label for="auDesdeF">Desde</label><input type="date" id="auDesdeF"></div>
       <div><label for="auDesdeH">Hora</label><input type="time" id="auDesdeH"></div>
@@ -435,16 +441,19 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
       <div><label for="auHastaF">Hasta</label><input type="date" id="auHastaF"></div>
       <div><label for="auHastaH">Hora</label><input type="time" id="auHastaH"></div>
     </div>
-    <button class="enlace" id="auDia" type="button">Autorizar el día completo</button>
-    <label for="auMotivo">Motivo</label>
-    <select id="auMotivo"></select>
-    <label for="auNota">Nota <span class="opc">(opcional)</span></label>
-    <input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad">
+    <div id="auCampos">
+      <button class="enlace" id="auDia" type="button">Autorizar el día completo</button>
+      <label for="auMotivo">Motivo</label>
+      <select id="auMotivo"></select>
+      <label for="auNota">Nota <span class="opc">(opcional)</span></label>
+      <input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad">
+    </div>
+    <button class="enlace" id="auAuto" type="button" hidden>Volver a lo automático (quitar mi marca)</button>
     <div class="hint" id="auAviso">Para vacaciones o incapacidad puedes poner un rango de varios días.</div>
     <div id="auLista" class="tlista"></div>
     <div class="acc">
       <button class="btn" id="auCancelar" type="button">Cerrar</button>
-      <button class="btn primary" id="auGuardar" type="button">Autorizar</button>
+      <button class="btn primary" id="auGuardar" type="button">Guardar</button>
     </div>
   </div>
 </div>
@@ -892,14 +901,24 @@ function fila(a, d){
     tl += '<div class="lunch" data-tip="' + esc(tipAlm) + '" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' +
       (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
   }
+  // Lo que Carlos corrigió a mano en este día, para poder ofrecerle deshacerlo.
+  const marcasDesc = a.marcasDesc || [];
+  const marcaDe = (ini, fin) => {
+    const m = marcasDesc.filter(x => ini < x.fin && fin > x.ini)[0];
+    return m ? m.fila : 0;
+  };
   (a.descansosMs || []).forEach((c, i) => {
     const d = (a.descansos || [])[i] || {};
+    const fT = d.finTomado || c[1];
+    const mf = marcaDe(c[0], fT);
     const extra = d.excesoMin ? ' \u00b7 ' + d.excesoMin + ' min de más, que cuentan como ausencia' : '';
     const tip = 'Descanso|' + hora(c[0]) + ' – ' + hora(c[0] + Math.min(d.tomadoMin || 0, 15) * 60000) + '|' +
-      dur(Math.min(d.tomadoMin || 0, 15)) + '|Uno de los dos descansos de 15 minutos del día' + extra +
-      '. Clic si no fue un descanso: al autorizar el periodo deja de contarse como tal.';
+      dur(Math.min(d.tomadoMin || 0, 15)) + '|' +
+      (mf ? 'Lo marcaste tú como descanso' : 'Uno de los dos descansos de 15 minutos del día') + extra +
+      '. Clic para cambiarlo: si no fue un descanso, vuelve a contar como tiempo perdido.';
     tl += '<div class="brk" data-tip="' + esc(tip) + '"' +
-      ' data-aut="' + esc(a.agente) + '" data-ini="' + c[0] + '" data-fin="' + (d.finTomado || c[1]) + '"' +
+      ' data-aut="' + esc(a.agente) + '" data-ini="' + c[0] + '" data-fin="' + fT + '"' +
+      ' data-desc="1" data-marca="' + mf + '"' +
       ' style="left:' + pct(c[0]) + '%;width:' +
       Math.max(0.4, pct(c[1]) - pct(c[0])) + '%"></div>';
   });
@@ -910,10 +929,11 @@ function fila(a, d){
     const titulo = j ? '\u2713 Autorizado · ' + tipoDisp(ep.tipo) : tipoDisp(ep.tipo);
     const desc = j ? (j.motivo + (j.nota ? ' — ' + j.nota : '') + (j.autorizo ? ' (autorizó ' + j.autorizo + ')' : '') +
                       '. No cuenta como tiempo perdido. Clic para cambiarlo.')
-                   : (T.desc + ' Clic para autorizar este periodo.');
+                   : (T.desc + ' Clic para cambiarlo: puedes autorizarlo o contarlo como descanso.');
     const tip = esc(titulo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(desc);
     tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + (j ? ' just' : '') + '" data-tip="' + tip + '"' +
       ' data-aut="' + esc(a.agente) + '" data-ini="' + ep.ini + '" data-fin="' + ep.fin + '"' +
+      ' data-marca="' + marcaDe(ep.ini, ep.fin) + '"' +
       (j ? ' data-fila="' + j.fila + '"' : '') +
       ' style="left:' + pct(ep.ini) + '%;width:calc(' + (pct(ep.fin) - pct(ep.ini)) +
       '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
@@ -1716,8 +1736,26 @@ async function pintarAutorizaciones(){
   } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
 }
 
-function abrirAutorizar(ag, iniMs, finMs, fila){
+// Un mismo tramo puede ser tres cosas, y Carlos decide cuál: tiempo perdido,
+// uno de los dos descansos del día, o un periodo autorizado con su motivo.
+let autMarca = 0, autEraDesc = false;
+
+function auQue(){ const r = document.querySelector('input[name="auQue"]:checked'); return r ? r.value : 'perdido'; }
+
+function pintarAuQue(){
+  const q = auQue();
+  $('auCampos').hidden = q !== 'autorizado';
+  $('auSub').textContent =
+    q === 'autorizado' ? 'El tramo se sigue viendo en la barra, marcado como autorizado y con su motivo, pero deja de contar como tiempo perdido.'
+  : q === 'descanso'  ? 'Cuenta como uno de los dos descansos de 15 minutos del día. Lo que pase de 15 minutos sí cuenta como tiempo perdido.'
+                      : 'Cuenta completo como tiempo perdido. Si yo lo había tomado por descanso, dejo de hacerlo.';
+  $('auGuardar').textContent = q === 'autorizado' ? (autFila ? 'Guardar cambios' : 'Autorizar')
+                             : (q === 'descanso' ? 'Marcar como descanso' : 'Contar como tiempo perdido');
+}
+
+function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
   autAgente = ag; autFila = Number(fila) || 0;
+  autMarca = Number(marca) || 0; autEraDesc = esDesc === '1' || esDesc === true;
   $('auAgente').textContent = ag;
   const a = sello(Number(iniMs)), b = sello(Number(finMs));
   $('auDesdeF').value = a.f; $('auDesdeH').value = a.h;
@@ -1725,11 +1763,15 @@ function abrirAutorizar(ag, iniMs, finMs, fila){
   const sel = $('auMotivo');
   if (!sel.options.length) MOTIVOS_AUT.forEach(m => sel.add(new Option(m, m)));
   $('auNota').value = '';
+  const inicial = autFila ? 'autorizado' : (autEraDesc ? 'descanso' : 'perdido');
+  document.querySelectorAll('input[name="auQue"]').forEach(r => { r.checked = (r.value === inicial); });
+  $('auAuto').hidden = !autMarca;
   $('auAviso').textContent = autFila
     ? 'Este periodo ya está autorizado. Si guardas, se reemplaza la autorización.'
-    : 'Para vacaciones o incapacidad puedes poner un rango de varios días.';
+    : (autMarca ? 'Este tramo lo marcaste tú a mano.'
+                : 'Para vacaciones o incapacidad puedes poner un rango de varios días.');
   $('auAviso').classList.remove('mal');
-  $('auGuardar').textContent = autFila ? 'Guardar cambios' : 'Autorizar';
+  pintarAuQue();
   $('modalAut').classList.add('show');
   pintarAutorizaciones();
 }
@@ -1740,8 +1782,9 @@ const MOTIVOS_AUT = ['Conectado desde otro equipo', 'Sin la aplicación instalad
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-aut]');
   if (!b) return;
-  abrirAutorizar(b.dataset.aut, b.dataset.ini, b.dataset.fin, b.dataset.fila);
+  abrirAutorizar(b.dataset.aut, b.dataset.ini, b.dataset.fin, b.dataset.fila, b.dataset.marca, b.dataset.desc);
 });
+$('auQue').addEventListener('change', pintarAuQue);
 
 $('auDia').addEventListener('click', () => {
   const f = $('auDesdeF').value || (S.data && S.data.fecha);
@@ -1750,20 +1793,51 @@ $('auDia').addEventListener('click', () => {
 });
 
 $('auGuardar').addEventListener('click', async () => {
-  if (S.demo) { toast('En modo ejemplo no se autoriza nada.'); return; }
+  if (S.demo) { toast('En modo ejemplo no se guarda nada.'); return; }
   const mal = m => { $('auAviso').textContent = m; $('auAviso').classList.add('mal'); };
   const d = $('auDesdeF').value, dh = $('auDesdeH').value;
   const h = $('auHastaF').value, hh2 = $('auHastaH').value;
   if (!d || !dh || !h || !hh2) return mal('Completa las dos fechas con su hora.');
   if ((h + ' ' + hh2) <= (d + ' ' + dh)) return mal('El fin debe ser posterior al inicio.');
+  const q = auQue();
+  if (q !== 'autorizado' && d !== h) return mal('Un descanso empieza y termina el mismo día.');
   const btn = $('auGuardar'); btn.disabled = true;
   try {
     const quien = (S.portalUser && (S.portalUser.nombre || S.portalUser.username)) || '';
-    const j = await apiTurno({ accion: 'autorizar', agente: autAgente, desde: d + ' ' + dh, hasta: h + ' ' + hh2,
-      motivo: $('auMotivo').value, nota: $('auNota').value, autorizo: quien, fila: autFila });
-    if (j.ok) { toast('Periodo autorizado para ' + autAgente + '.', 'ok'); autFila = 0; pintarAutorizaciones(); cargar(); }
-    else mal(j.error || 'No se pudo autorizar.');
+    if (q === 'autorizado') {
+      const j = await apiTurno({ accion: 'autorizar', agente: autAgente, desde: d + ' ' + dh, hasta: h + ' ' + hh2,
+        motivo: $('auMotivo').value, nota: $('auNota').value, autorizo: quien, fila: autFila });
+      if (j.ok) { toast('Periodo autorizado para ' + autAgente + '.', 'ok'); autFila = 0; pintarAutorizaciones(); cargar(); }
+      else mal(j.error || 'No se pudo autorizar.');
+    } else {
+      // Si el tramo estaba autorizado, esa autorización deja de tener sentido.
+      if (autFila) { await apiTurno({ accion: 'autorizar_borrar', fila: autFila }); autFila = 0; }
+      let j = { ok: true };
+      if (q === 'descanso' || autEraDesc || autMarca) {
+        j = await apiTurno({ accion: 'descanso_marcar', agente: autAgente, desde: d + ' ' + dh,
+          hasta: h + ' ' + hh2, tipo: q === 'descanso' ? 'descanso' : 'no', nota: quien });
+      }
+      if (j.agentes) mal('El servidor todavía no tiene esta opción: falta publicar la nueva versión del script.');
+      else if (j.ok) {
+        toast(q === 'descanso' ? 'Marcado como descanso de ' + autAgente + '.'
+                               : 'Ese rato vuelve a contar como tiempo perdido.', 'ok');
+        autMarca = 0; pintarAutorizaciones(); cargar();
+      } else mal(j.error || 'No se pudo guardar.');
+    }
   } catch (e) { mal('Error: ' + e.message); }
+  btn.disabled = false;
+});
+
+$('auAuto').addEventListener('click', async () => {
+  if (S.demo) { toast('En modo ejemplo no se guarda nada.'); return; }
+  if (!autMarca) return;
+  const btn = $('auAuto'); btn.disabled = true;
+  try {
+    const j = await apiTurno({ accion: 'descanso_borrar', fila: autMarca });
+    if (j.agentes) toast('El servidor todavía no tiene esta opción: falta publicar la nueva versión del script.', 'err');
+    else if (j.ok) { toast('Listo: ese tramo vuelve a calcularse solo.', 'ok'); autMarca = 0; $('auAuto').hidden = true; cargar(); }
+    else toast(j.error || 'No se pudo quitar la marca.', 'err');
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 });
 
