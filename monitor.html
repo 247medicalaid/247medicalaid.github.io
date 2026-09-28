@@ -860,7 +860,9 @@ function fila(a, d){
   let pill;
   if (e) {
     const et = estadoTxt(e.texto);
+    // 'Autorizado' se explica solo (y con su motivo): no es estar fuera de horario.
     const txt = (e.texto === 'Día libre' || e.texto === 'Desactivado') ? e.texto
+              : e.texto === 'Autorizado' ? e.texto + (e.motivo ? ' · ' + e.motivo : '')
               : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
