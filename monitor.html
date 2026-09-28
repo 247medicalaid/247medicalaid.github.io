@@ -598,19 +598,22 @@ function pintar(){
   const bajas = delFiltro.filter(a => a.activo === false);
   let lista = delFiltro.filter(a => a.activo !== false);
   const todos = lista;
-  if (S.solo) lista = lista.filter(a => a.episodios.length || (a.estado && a.estado.nivel !== 'verde' && a.estado.nivel !== 'gris'));
+  if (S.solo) lista = lista.filter(a => a.episodios.some(e => !e.justificado) || (a.estado && a.estado.nivel !== 'verde' && a.estado.nivel !== 'gris'));
 
   // Tiles
   const cnt = n => todos.filter(a => a.estado && a.estado.nivel === n).length;
   const perdidos = todos.reduce((s, a) => s + a.minPerdidos, 0);
-  const conNov = todos.filter(a => a.episodios.length).length;
+  // Un periodo autorizado tiene su motivo escrito y no suma tiempo perdido:
+  // tampoco debe hacer que el agente cuente como «con novedades».
+  const sinAutorizar = a => a.episodios.some(e => !e.justificado);
+  const conNov = todos.filter(sinAutorizar).length;
   const reinTotal = todos.reduce((s, a) => s + (a.reinicios || 0), 0);
   // Cardio y Gastro van por su cuenta. Solo tiene sentido separarlos cuando se
   // están viendo todas las cuentas; si ya hay un filtro puesto, sobra.
   const aparte = todos.filter(a => CUENTAS_APARTE.some(c => normC(c) === normC(a.cuenta)));
   const propios = todos.filter(a => aparte.indexOf(a) < 0);
   const sumaMin = l => l.reduce((s, a) => s + a.minPerdidos, 0);
-  const nov = l => l.filter(a => a.episodios.length).length;
+  const nov = l => l.filter(sinAutorizar).length;
   const dividir = S.cuenta === 'Todas' && aparte.length > 0 && propios.length > 0;
   // El conteo va sobre el total de SU grupo: "8 de 14" y "8 de 11" se leen
   // distinto aunque los dos ochos coincidan.
@@ -632,7 +635,7 @@ function pintar(){
   ].concat([]) : [
     ['Agentes', todos.length, S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta, '', 'todos'],
     ['Con novedades', conNov, 'episodios de 10+ minutos', 'rojo', 'nov'],
-    ['Episodios', todos.reduce((s, a) => s + a.episodios.length, 0), 'en el día', '', 'nov'],
+    ['Episodios', todos.reduce((s, a) => s + a.episodios.filter(e => !e.justificado).length, 0), 'sin contar los autorizados', '', 'nov'],
     ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició', '', 'cierres']
   ];
   // El bloque de tiempo perdido va antes de los cierres del monitor.
@@ -644,9 +647,9 @@ function pintar(){
     verde: a => a.estado && a.estado.nivel === 'verde',
     rojo: a => a.estado && a.estado.nivel === 'rojo',
     amarillo: a => a.estado && a.estado.nivel === 'amarillo',
-    nov: a => a.episodios.length > 0,
-    novPropios: a => a.episodios.length > 0 && aparte.indexOf(a) < 0,
-    novAparte: a => a.episodios.length > 0 && aparte.indexOf(a) >= 0,
+    nov: sinAutorizar,
+    novPropios: a => sinAutorizar(a) && aparte.indexOf(a) < 0,
+    novAparte: a => sinAutorizar(a) && aparte.indexOf(a) >= 0,
     cierres: a => (a.reinicios || 0) > 0
   };
   const focoValido = tiles.some(t => t[4] && t[4] !== 'todos' && t[4] === S.foco);
