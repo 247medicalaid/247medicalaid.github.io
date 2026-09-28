@@ -79,8 +79,16 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
 .panel .det-h b{color:var(--morado);font-size:12.5px;letter-spacing:.02em}
 .det-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
 @media(max-width:860px){.det-grid{grid-template-columns:1fr}
+  .det-col+.det-col{border-left:none;border-top:1px solid var(--border)}
+  /* Sin la fila de encabezados, las cifras quedaban sueltas sin saber de que
+     eran. Cada una lleva ahora su propia etiqueta al lado. */
   .mes-h{display:none}
-  .mes-f{grid-template-columns:1fr 1fr;gap:6px}}
+  .mes-f{grid-template-columns:1fr 1fr;gap:7px 12px}
+  .mes-f .n{grid-column:1/-1}
+  .mes-f .v{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12.5px}
+  .mes-f .v::before{content:attr(data-r);font-family:'Inter',sans-serif;font-size:9px;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--text3);white-space:nowrap}
+  .mes-f .v:last-child{border-left:none;padding-left:0}}
 .det-col{padding:14px 16px}
 .det-col+.det-col{border-left:1px solid var(--border)}
 .det-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:9px}
@@ -2053,13 +2061,13 @@ function pintar(){
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMes('${m.mk}');}">
         <span class="n"><span class="flecha" style="transform:rotate(${abierta?90:0}deg)">▶</span>
           ${MESES[m.mes-1]} ${m.anio} ${etiqueta}</span>
-        <span class="v ent">${fmt(m.ccCheck)}</span>
-        <span class="v ent">${fmt(m.invTotal)}</span>
-        <span class="v sal">${fmt(m.nomTotal)}</span>
-        <span class="v sal">${fmt(m.sigma)}</span>
-        <span class="v sal">${fmt(m.gTotal)}</span>
-        <span class="v ${m.neto>=0?'neto-pos':'neto-neg'}">${m.neto<0?'▼ ':''}${fmt(m.neto)}</span>
-        <span class="v ${m.saldo<0?'saldo-neg':'saldo-pos'}">${m.saldo<0?'⚠ ':''}${fmt(m.saldo)}</span>
+        <span class="v ent" data-r="⬆ Callcenter Check">${fmt(m.ccCheck)}</span>
+        <span class="v ent" data-r="⬆ Invoices">${fmt(m.invTotal)}</span>
+        <span class="v sal" data-r="⬇ Nómina">${fmt(m.nomTotal)}</span>
+        <span class="v sal" data-r="⬇ Sigma">${fmt(m.sigma)}</span>
+        <span class="v sal" data-r="⬇ Gastos">${fmt(m.gTotal)}</span>
+        <span class="v ${m.neto>=0?'neto-pos':'neto-neg'}" data-r="= Queda">${m.neto<0?'▼ ':''}${fmt(m.neto)}</span>
+        <span class="v ${m.saldo<0?'saldo-neg':'saldo-pos'}" data-r="Saldo en banco">${m.saldo<0?'⚠ ':''}${fmt(m.saldo)}</span>
       </div>
       ${abierta ? detalleMes(m) : ''}
     </div>`;
