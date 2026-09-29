@@ -168,7 +168,14 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .tl .seg.just.hatch{background-image:repeating-linear-gradient(135deg,rgba(4,20,31,.42) 0 2px,transparent 2px 5px)}
 .tl .seg.just::after{content:'\2713';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#04141F;opacity:.85}
 .tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
-.tl .base,.tl .lunch{cursor:default}
+.tl .base,.tl .lunch,.tl .extra{cursor:default}
+/* Lo que pasó fuera del turno asignado (entró antes o se quedó después).
+   Mismo azul, pero más delgado y con borde, para que no se confunda con la
+   jornada: se distingue por la forma, no solo por el color. */
+.tl .extra{position:absolute;top:26%;bottom:26%;border-radius:3px;background:var(--st-activo);
+  opacity:.6;box-shadow:inset 0 0 0 1px var(--text-2)}
+/* Marcas de inicio y fin del turno cuando la barra se extiende más allá. */
+.tl .lim{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--text-2);opacity:.7}
 .tl .base{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--st-activo)}
 .tl .lunch{position:absolute;top:0;bottom:0;background:var(--lunch)}
 .autok{color:var(--text-2)}
@@ -887,11 +894,19 @@ function fila(a, d){
   const app = (e && e.app === false) ? mi('Teléfono', 'cerrada', 'warn', 'La app de teléfono de la cuenta no está abierta.')
             : ((e && e.app === true) ? mi('Teléfono', 'abierta', '', 'La app de teléfono de la cuenta está abierta.') : '');
 
-  // Línea de tiempo de la jornada
-  const t0 = a.jIni, t1 = a.jFin, span = Math.max(1, t1 - t0);
+  // Línea de tiempo de la jornada. Si el agente entró antes de su hora o se
+  // quedó después, la barra se estira hasta una hora por cada lado para que ese
+  // rato se vea; si no, queda exactamente en el turno, como siempre.
+  const MARGEN = 3600000;
+  const antes = (a.primera != null && a.primera < a.jIni)
+    ? Math.max(a.jIni - MARGEN, a.primera - 300000) : a.jIni;
+  const finReal = Math.max(a.ultima || 0, d.esHoy ? Math.min(d.generado, (a.ultima || 0) + 60000) : 0);
+  const despues = (finReal > a.jFin)
+    ? Math.min(a.jFin + MARGEN, finReal + 300000) : a.jFin;
+  const t0 = antes, t1 = despues, span = Math.max(1, t1 - t0);
   const pct = t => Math.min(100, Math.max(0, (t - t0) / span * 100));
   let tl = '';
-  const cap = d.esHoy ? Math.min(d.generado, t1) : t1;
+  const cap = d.esHoy ? Math.min(d.generado, a.jFin) : a.jFin;
   // La franja azul cubre desde la entrada hasta ahora; encima se pintan las
   // novedades y el almuerzo. Las tres llevan su propio globo de informacion.
   if (a.primera != null && cap > t0) {
@@ -905,8 +920,29 @@ function fila(a, d){
     const tipBase = 'Conectado|' + hora(a.primera) + ' – ' + (d.esHoy ? 'ahora' : hora(a.ultima)) + '|' +
       dur(conectado) + '|' + (partes.length ? 'De ese tiempo: ' + partes.join(' y ') + '.'
         : 'Sin novedades en la jornada.');
-    tl += '<div class="base" data-tip="' + esc(tipBase) + '" style="left:0;width:' + pct(cap) + '%"></div>';
+    tl += '<div class="base" data-tip="' + esc(tipBase) + '" style="left:' + pct(a.jIni) +
+      '%;width:' + Math.max(0, pct(cap) - pct(a.jIni)) + '%"></div>';
   }
+  // Horas fuera del turno: antes de entrar y después de salir. Se pintan aparte
+  // para que se distingan de la jornada asignada.
+  if (a.primera != null && a.primera < a.jIni) {
+    const min = Math.round((a.jIni - a.primera) / 60000);
+    const tipA = 'Antes del turno|' + hora(a.primera) + ' \u2013 ' + hora(a.jIni) + '|' + dur(min) +
+      '|Se conectó antes de su hora de entrada. No cuenta como tiempo perdido ni como turno.';
+    tl += '<div class="extra" data-tip="' + esc(tipA) + '" style="left:' + pct(a.primera) +
+      '%;width:' + Math.max(0.4, pct(a.jIni) - pct(a.primera)) + '%"></div>';
+  }
+  if (finReal > a.jFin) {
+    const hasta = Math.min(finReal, t1);
+    const min = Math.round((hasta - a.jFin) / 60000);
+    const tipD = 'Después del turno|' + hora(a.jFin) + ' \u2013 ' + hora(hasta) + '|' + dur(min) +
+      '|Siguió conectado después de su hora de salida. No cuenta como tiempo perdido ni como turno.';
+    tl += '<div class="extra" data-tip="' + esc(tipD) + '" style="left:' + pct(a.jFin) +
+      '%;width:' + Math.max(0.4, pct(hasta) - pct(a.jFin)) + '%"></div>';
+  }
+  // Rayas verticales en la entrada y la salida cuando la barra se sale del turno.
+  if (t0 < a.jIni) tl += '<div class="lim" style="left:' + pct(a.jIni) + '%"></div>';
+  if (t1 > a.jFin) tl += '<div class="lim" style="left:' + pct(a.jFin) + '%"></div>';
   if (a.almuerzoMs) {
     const al = a.almuerzo || {};
     const extra = al.excesoMin ? ' \u00b7 ' + al.excesoMin + ' min de más, que cuentan como ausencia'
@@ -955,10 +991,13 @@ function fila(a, d){
       '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
   });
   if (d.esHoy && d.generado >= t0 && d.generado <= t1) tl += '<div class="now" style="left:' + pct(d.generado) + '%" title="Ahora"></div>';
+  // Las horas se cuentan desde la entrada del turno para los dos lados, así la
+  // barra extendida sigue marcando horas en punto reconocibles.
   const marcas = [];
   const horas = Math.round(span / 3600000);
   const paso = horas > 10 ? 3 : 2;
-  for (let i = 0; i <= horas; i += paso) marcas.push(t0 + i * 3600000);
+  for (let m = a.jIni; m <= t1; m += paso * 3600000) marcas.push(m);
+  for (let m = a.jIni - paso * 3600000; m >= t0; m -= paso * 3600000) marcas.unshift(m);
   if (marcas[marcas.length - 1] !== t1) { if (t1 - marcas[marcas.length - 1] < paso * 2700000) marcas.pop(); marcas.push(t1); }
   const axis = marcas.map(m => '<span style="left:' + pct(m) + '%">' + hora(m) + '</span>').join('');
 
