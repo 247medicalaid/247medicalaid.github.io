@@ -256,6 +256,9 @@ tr:hover td{background:var(--surface2);}
 /* ─── CHARTS ─── */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
 @media(max-width:700px){.chart-row{grid-template-columns:1fr;}}
+/* Evolucion y tendencia mensual van juntas, pequenas, al final de la pagina. */
+.chart-row-fin{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-width:980px;margin-top:24px;}
+.chart-row-fin .chart-card{padding:14px;}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:18px;}
 .chart-title{font-size:10px;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px;}
 
@@ -3245,6 +3248,37 @@ function renderAll(){
   try { renderOomaOfficePanel(main); } catch(err){ console.error('renderOomaOfficePanel:', err); }
 
   renderDeadTime(main,agents);
+
+  try { juntarGraficasFinales(main); } catch(err){ console.error('juntarGraficasFinales:', err); }
+}
+
+// Carlos quiere ver juntas, pequenas y al final de la pagina la grafica de
+// EVOLUCION y la de TENDENCIA MENSUAL. En vez de duplicar el codigo que las
+// dibuja, se mueven las tarjetas ya armadas a una fila propia al final: los
+// graficos se construyen despues (setTimeout de 50 ms) y no les importa donde
+// haya quedado su canvas. Si en la vista actual solo hay una, se deja donde
+// estaba, porque no hay con quien ponerla al lado.
+function juntarGraficasFinales(main){
+  const tarjetas = [];
+  const ev = document.getElementById('ch2');
+  if(ev){ const c = ev.closest('.chart-card'); if(c) tarjetas.push(c); }
+  document.querySelectorAll('.chart-card').forEach(c => {
+    const t = c.querySelector('.chart-title');
+    if(t && t.textContent.indexOf('TENDENCIA MENSUAL') !== -1 && tarjetas.indexOf(c) === -1)
+      tarjetas.push(c);
+  });
+  if(tarjetas.length < 2) return;
+
+  const filasViejas = new Set(tarjetas.map(c => c.parentElement));
+  const fin = document.createElement('div');
+  fin.className = 'chart-row chart-row-fin';
+  tarjetas.forEach(c => fin.appendChild(c));
+  main.appendChild(fin);
+
+  // Las filas que quedaron vacias se van, para no dejar su margen suelto.
+  filasViejas.forEach(f => {
+    if(f && !f.children.length && f.parentElement) f.parentElement.removeChild(f);
+  });
 }
 
 // ─── KPIS ──────────────────────────────────────────────────────────────────
@@ -3785,7 +3819,7 @@ function renderCharts(container,agents){
         
       </div>
     </div>
-    <canvas id="ch2" height="200"></canvas>`;
+    <div style="position:relative;height:190px;"><canvas id="ch2"></canvas></div>`;
 
   row.appendChild(c2);
   container.appendChild(row);
@@ -3975,7 +4009,7 @@ function renderCharts(container,agents){
       ch2Instance=new Chart(ctx2,{
         type:'bar',
         data:{labels:ch2Labels, datasets:cleanDs2},
-        options:{responsive:true,
+        options:{responsive:true, maintainAspectRatio:false,
           plugins:{
             legend:{position:'bottom',labels:{font:{family:'DM Mono',size:10},boxWidth:12}},
             tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y+'/día'}},
@@ -4373,7 +4407,7 @@ function renderAbandonedPanel(container, agents){
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:3px;background:#92600a;display:inline-block;border-radius:1px;"></span>Tasa %</span>
     </div>
-    <div style="position:relative;height:200px;"><canvas id="abMonthChart"></canvas></div>`;
+    <div style="position:relative;height:190px;"><canvas id="abMonthChart"></canvas></div>`;
   chartRow.appendChild(monthCard);
 
   // Last week abandoned by day chart — TWO separate: Cardio + Gastro
@@ -4713,7 +4747,7 @@ function renderAdvantageAbandonedPanel(container, agents){
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:3px;background:#92600a;display:inline-block;border-radius:1px;"></span>Tasa %</span>
     </div>
-    <div style="position:relative;height:200px;"><canvas id="advMonthChart"></canvas></div>`;
+    <div style="position:relative;height:190px;"><canvas id="advMonthChart"></canvas></div>`;
   chartRow.appendChild(monthCard);
 
   // Weekly day chart
@@ -4903,7 +4937,7 @@ function renderAlonsoAbandonedPanel(container, agents){
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:3px;background:#7a3a1a;display:inline-block;border-radius:1px;"></span>Tasa %</span>
     </div>
-    <div style="position:relative;height:200px;"><canvas id="alMonthChart"></canvas></div>`;
+    <div style="position:relative;height:190px;"><canvas id="alMonthChart"></canvas></div>`;
   chartRow.appendChild(monthCard);
 
   // Weekly day chart
