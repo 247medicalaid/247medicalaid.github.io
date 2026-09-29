@@ -580,7 +580,18 @@ async function cargar(){
     $('banner').innerHTML = '';
     pintar();
   } catch (e) {
-    $('banner').innerHTML = '<div class="banner err">No se pudo cargar: ' + esc(e.message) + '. Revise la URL y el token en Ajustes.</div>';
+    // Antes cualquier fallo mandaba a revisar la URL y el token, incluso cuando
+    // el problema era la conexion y no habia nada que revisar. Ahora se separa
+    // "la peticion no llego" de "el servidor dijo que no".
+    const m = String((e && e.message) || e);
+    const sinRed = (e instanceof TypeError) ||
+      /NetworkError|Failed to fetch|Load failed|NetworkError when/i.test(m);
+    const aviso = sinRed
+      ? 'Sin respuesta del servidor. Casi siempre es la conexi\u00f3n a internet o Google que tard\u00f3 de m\u00e1s; no hay nada que cambiar en Ajustes. Lo vuelvo a intentar solo en menos de un minuto.'
+      : (/token/i.test(m)
+          ? 'El servidor rechaz\u00f3 el token. Rev\u00edsalo en Ajustes.'
+          : 'No se pudo cargar: ' + m + '. Revise la URL y el token en Ajustes.');
+    $('banner').innerHTML = '<div class="banner err">' + esc(aviso) + '</div>';
     $('upd').textContent = '';
   }
 }
