@@ -3768,18 +3768,9 @@ function renderCharts(container,agents){
 
   // ── Chart 1: con selector de vista ──────────────────────────────────────
   const curWkLabel = state.weeks.length>0 ? weekLabel(state.weeks[state.weekIdx]) : '';
-  const c1=document.createElement('div');
-  c1.className='chart-card';
-  c1.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div class="chart-title" style="margin:0" id="ch1-title">${state.filter!=='all'?state.filter.toUpperCase()+' · ':''}TIEMPO EN LLAMADA VS TIEMPO MUERTO · ${curWkLabel}</div>
-      <div style="display:flex;gap:4px;">
-        <button onclick="ch1Switch('vs',this)" class="ctrl-btn active" id="ch1-btn-vs" style="padding:3px 9px;font-size:10px;">Llamada vs Muerto</button>
-        <button onclick="ch1Switch('duration',this)" class="ctrl-btn" id="ch1-btn-duration" style="padding:3px 9px;font-size:10px;">T. Llamada 4 sem</button>
-        <button onclick="ch1Switch('dead',this)" class="ctrl-btn" id="ch1-btn-dead" style="padding:3px 9px;font-size:10px;">T. Muerto 4 sem</button>
-      </div>
-    </div>
-    <canvas id="ch1" height="200"></canvas>`;
+  // El grafico "Tiempo en llamada vs Tiempo muerto" se retiro a pedido de Carlos.
+  // buildCh1() sigue abajo y no hace nada sin su canvas, por si hay que devolverlo.
+  // El tiempo muerto se sigue viendo en la tabla y en el detalle de >10 min.
 
   // ── Chart 2: Evolución llamadas últimas 4 semanas ────────────────────────
   const c2=document.createElement('div');
@@ -3796,7 +3787,7 @@ function renderCharts(container,agents){
     </div>
     <canvas id="ch2" height="200"></canvas>`;
 
-  row.appendChild(c1); row.appendChild(c2);
+  row.appendChild(c2);
   container.appendChild(row);
 
   const sorted=sortAgents(agents.filter(a=>!isNoAgent(a.name)));
@@ -4389,27 +4380,8 @@ function renderAbandonedPanel(container, agents){
   const showCardio = (f === 'all' || f === 'Cardiovascular');
   const showGastro = (f === 'all' || f === 'Gastroenterology');
 
-  const cardioCard = document.createElement('div');
-  cardioCard.className = 'chart-card';
-  cardioCard.innerHTML = `
-    <div class="chart-title">CARDIOVASCULAR — SEMANA DEL ${selWeekLbl} · CONTESTADAS VS ABANDONADAS POR DÍA</div>
-    <div style="display:flex;gap:16px;margin-bottom:8px;font-size:10px;align-items:center;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#0E86B4;display:inline-block;"></span>Contestadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
-    </div>
-    <div style="position:relative;height:200px;"><canvas id="abWeekChartCardio"></canvas></div>`;
-  if(showCardio) chartRow.appendChild(cardioCard);
-
-  const gastroCard = document.createElement('div');
-  gastroCard.className = 'chart-card';
-  gastroCard.innerHTML = `
-    <div class="chart-title">GASTROENTEROLOGY — SEMANA DEL ${selWeekLbl} · CONTESTADAS VS ABANDONADAS POR DÍA</div>
-    <div style="display:flex;gap:16px;margin-bottom:8px;font-size:10px;align-items:center;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#0E86B4;display:inline-block;"></span>Contestadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
-    </div>
-    <div style="position:relative;height:200px;"><canvas id="abWeekChartGastro"></canvas></div>`;
-  if(showGastro) chartRow.appendChild(gastroCard);
+  // Las tarjetas de "contestadas vs abandonadas por dia" se retiraron a pedido
+  // de Carlos. makeWeekChart() no hace nada sin su canvas.
   sec.appendChild(chartRow);
   container.appendChild(sec);
 
@@ -4935,16 +4907,8 @@ function renderAlonsoAbandonedPanel(container, agents){
   chartRow.appendChild(monthCard);
 
   // Weekly day chart
-  const weekCard = document.createElement('div');
-  weekCard.className = 'chart-card';
-  weekCard.innerHTML = `
-    <div class="chart-title">ALONSO MEDICAL — SEMANA DEL ${selWeekLbl} · CONTESTADAS VS ABANDONADAS POR DÍA</div>
-    <div style="display:flex;gap:16px;margin-bottom:8px;font-size:10px;align-items:center;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#0E86B4;display:inline-block;"></span>Contestadas</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#C81F29;display:inline-block;"></span>Abandonadas</span>
-    </div>
-    <div style="position:relative;height:210px;"><canvas id="alWeekChart"></canvas></div>`;
-  chartRow.appendChild(weekCard);
+  // La tarjeta de "contestadas vs abandonadas por dia" se retiro a pedido de
+  // Carlos. El grafico de abajo no hace nada sin su canvas.
   sec.appendChild(chartRow);
   container.appendChild(sec);
 
