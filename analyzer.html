@@ -28,26 +28,35 @@
 body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-height:100vh;}
 
 /* ─── HEADER ─── */
-.header{background:#0E86B4;color:#fff;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(14,134,180,.25);}
-.logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.5px;color:#fff;line-height:1.2;}
-.logo-sub{font-size:10px;opacity:.7;letter-spacing:1.5px;font-family:'DM Mono',monospace;color:#fff;}
-.header-meta{font-size:11px;opacity:.6;letter-spacing:1px;color:#fff;}
+.header{background:var(--surface);color:var(--ink);padding:11px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:200;border-bottom:1px solid var(--border);box-shadow:0 1px 2px rgba(4,20,31,.06);}
+.header .brandmark img{height:30px;}
+.logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;}
+.logo-sub{font-size:10px;opacity:.7;letter-spacing:1.5px;font-family:'DM Mono',monospace;}
+.header-meta{font-size:11px;letter-spacing:1px;color:var(--muted);}
 
 /* ─── UPLOAD ─── */
-.upload-row{display:grid;grid-template-columns:2fr 1fr 2fr 2fr 1fr;gap:14px;padding:24px 32px;border-bottom:1px solid var(--border);}
+.upload-row{display:grid;grid-template-columns:2fr 1.35fr 2fr 1.05fr;gap:14px;padding:18px 32px;
+  border-bottom:1px solid var(--border);align-items:start;}
 .upload-row input[type=file]{display:none;}
-.upload-group{display:flex;flex-direction:row;gap:8px;border:2px solid var(--group-color,var(--advantage));border-radius:10px;padding:8px;position:relative;}
+.upload-group{display:flex;flex-direction:row;gap:8px;border:1.5px solid var(--group-color,var(--advantage));border-radius:10px;padding:7px;position:relative;}
 .upload-group-label{position:absolute;top:-10px;left:12px;background:var(--bg);padding:0 6px;font-size:10px;font-family:'DM Mono',monospace;font-weight:700;color:var(--group-color,var(--advantage));letter-spacing:.08em;}
 @media(max-width:900px){.upload-row{grid-template-columns:1fr 1fr;}}
+/* Dentro de un grupo las dos zonas se igualan entre si, aunque el grupo no se
+   iguale con los demas de la fila. */
+.upload-group>.upload-zone{flex:1 1 0;min-width:0;}
 @media(max-width:500px){.upload-row{grid-template-columns:1fr;}}
-.upload-zone{border:2px dashed var(--border);border-radius:6px;padding:22px 18px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.upload-zone{border:2px dashed var(--border);border-radius:6px;padding:10px 14px 10px 46px;text-align:left;cursor:pointer;transition:all .15s;background:var(--surface);position:relative;min-width:0;}
 .upload-zone:hover,.upload-zone.over{border-color:var(--ink);background:var(--surface2);}
-.upload-zone:hover{border-color:var(--ink);background:var(--surface2);}
 .upload-zone.loaded{border-style:solid;border-color:var(--green);background:var(--green-bg);}
-.uz-platform{font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
-.uz-icon{font-size:26px;margin-bottom:6px;}
-.uz-title{font-size:13px;font-weight:500;margin-bottom:2px;}
-.uz-sub{font-size:11px;color:var(--muted);}
+/* El icono sale del flujo y se pega a la izquierda: asi la caja mide lo que
+   mide el texto y no lo que median el emoji grande mas tres lineas centradas.
+   Cada zona tiene un numero distinto de lineas de ayuda, por eso no se usa una
+   rejilla de areas fijas. */
+.uz-icon{position:absolute;left:13px;top:11px;font-size:20px;line-height:1;margin:0;}
+.uz-platform{font-size:8.5px;letter-spacing:1.4px;color:var(--muted);margin-bottom:3px;}
+.uz-title{font-size:12px;font-weight:500;line-height:1.25;margin-bottom:1px;}
+.uz-sub{font-size:10px;color:var(--muted);line-height:1.35;}
+.uz-limpiar{margin-top:6px;}
 /* Limpiar la pila de archivos acumulados de una zona de carga. */
 .uz-limpiar{display:inline-block;margin-top:8px;font-size:10px;letter-spacing:.5px;
   color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:3px 10px;
@@ -282,6 +291,33 @@ tr:hover td{background:var(--surface2);}
 .gap-item.critical .gap-min{color:var(--red);}
 .gap-item.lunch{border-color:var(--muted);background:var(--surface);opacity:0.75;}
 .gap-item.warning .gap-min{color:var(--yellow);}
+
+/* ─── DETALLE MENSUAL POR AGENTE ──────────────────────────────────────────
+   Esta tabla se perdia entre las demas: el color de la cuenta iba puesto en el
+   <tr> de la cabecera, pero la regla global de th lo tapaba con el gris de
+   siempre, asi que nunca se vio. Ahora la cabecera lleva el color de verdad y
+   las tres filas de cierre — total, abandonadas y tasa — se leen de un vistazo.
+   --tm-color y --tm-bg los pone buildMonthlyAgentTable segun la cuenta. */
+.tabla-mes{border-top:3px solid var(--tm-color,var(--blue));padding-top:14px;}
+.tabla-mes .tm-tit{font-size:10px;font-weight:700;letter-spacing:1.5px;
+  color:var(--tm-color,var(--blue));margin-bottom:10px;}
+.tabla-mes table{width:100%;border-collapse:collapse;font-size:11px;font-family:'DM Mono',monospace;}
+.tabla-mes th{background:var(--tm-color,var(--blue));color:#fff;border-bottom:none;
+  padding:7px 9px;font-size:9px;letter-spacing:1px;font-weight:600;text-align:center;white-space:nowrap;}
+.tabla-mes th:first-child{text-align:left;border-radius:4px 0 0 0;}
+.tabla-mes th:last-child{border-radius:0 4px 0 0;}
+.tabla-mes td{padding:6px 9px;text-align:center;border-bottom:1px solid var(--border);}
+.tabla-mes td:first-child{text-align:left;font-weight:500;}
+.tabla-mes .tm-met{font-size:9px;color:var(--muted);}
+.tabla-mes .tm-val{color:var(--tm-color,var(--blue));font-weight:600;}
+.tabla-mes tr.tm-par td{background:var(--surface2);}
+.tabla-mes tr.tm-total td{background:var(--tm-bg,var(--blue-bg));font-weight:700;
+  border-top:2px solid var(--tm-color,var(--blue));border-bottom:none;}
+.tabla-mes tr.tm-total .tm-val{font-weight:700;}
+.tabla-mes tr.tm-aband td{background:var(--red-bg);color:var(--red);font-weight:700;border-bottom:none;}
+.tabla-mes tr.tm-tasa td{background:var(--yellow-bg);font-weight:700;border-bottom:none;}
+.tabla-mes tr.tm-aband .tm-met,.tabla-mes tr.tm-tasa .tm-met,
+.tabla-mes tr.tm-total .tm-met{color:var(--muted);}
 
 /* ─── CHARTS ─── */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
@@ -549,12 +585,12 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
 
 <div class="header">
   <div class="marca-bloque">
-      <div class="brandmark brandmark-oscuro">
-        <img src="https://247medical-aid.com/logo-247-light.svg"
+      <div class="brandmark brandmark-claro">
+        <img src="https://247medical-aid.com/logo-247-dark.svg"
              alt="24/7 Medical AID Call Center">
         <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
       </div>
-      <div class="marca-sub" style="color:rgba(255,255,255,.6)">Call Center Analytics</div>
+      <div class="marca-sub" style="color:#0E86B4">Analizador de llamadas</div>
     </div>
   <div class="header-meta" id="headerMeta">SIN DATOS</div>
 </div>
@@ -577,7 +613,7 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     <div class="upload-zone" id="zone-nextivaAll" ondragover="drag(event,'nextivaAll')" ondragleave="dleave(event,'nextivaAll')" ondrop="drop(event,'nextivaAll')"" onclick="document.getElementById('fna').click()" style="border:1px dashed var(--cardio);border-radius:6px;">
       <div class="uz-platform" style="color:var(--cardio)">TODAS LAS LLAMADAS</div>
       <div class="uz-icon">📵</div>
-      <div class="uz-title" id="fna-title">Subir CSV Ext 4444 7700 7701</div>
+      <div class="uz-title" id="fna-title">Ext. 4444 · 7700 · 7701</div>
       <div class="uz-sub" id="fna-sub">Para calcular abandonadas</div>
     </div>
   </div>
@@ -586,8 +622,8 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     <div class="uz-platform">OOMA · MAB PULMONARY</div>
     <div class="uz-icon">🫁</div>
     <div class="uz-title" id="fo-title">Subir CSV de Ooma</div>
-    <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · Ext 1004 Alejandra · Ext 1003 Diana</div>
-    <div class="uz-sub" style="margin-top:5px;opacity:.75">Varios archivos a la vez, o de uno en uno para ir sumando meses</div>
+    <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · 1004 Alejandra · 1003 Diana</div>
+    <div class="uz-sub" style="margin-top:4px;opacity:.75">Varios archivos, o de uno en uno para sumar meses</div>
     <span class="uz-limpiar" id="fo-limpiar" style="display:none" onclick="event.stopPropagation();limpiarOoma()">✕ Vaciar y empezar de nuevo</span>
   </div>
 
@@ -607,7 +643,7 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     <div class="upload-zone" id="zone-alonsoSms" ondragover="drag(event,'alonsoSms')" ondragleave="dleave(event,'alonsoSms')" ondrop="drop(event,'alonsoSms')" onclick="document.getElementById('fals').click()" style="border:1px dashed var(--alonso);border-radius:6px;">
       <div class="uz-platform" style="color:var(--alonso)">REPORTE DE SMS</div>
       <div class="uz-icon">💬</div>
-      <div class="uz-title" id="fals-title">Subir CSV de SMS de Weave</div>
+      <div class="uz-title" id="fals-title">Subir CSV de SMS</div>
       <div class="uz-sub" id="fals-sub">Mensajes manuales por agente</div>
     </div>
     </div>
@@ -3292,6 +3328,18 @@ function renderAll(){
 // otras.
 function ordenarSecciones(main){
   const hijos = [...main.children];
+
+  // El reporte de abandonadas va arriba del todo, antes de cualquier tabla:
+  // es el numero por el que Carlos empieza a mirar el panel.
+  const ancla = main.querySelector(':scope > .goal-bar')
+             || main.querySelector(':scope > .kpi-row')
+             || main.querySelector(':scope > .week-nav');
+  if(ancla){
+    let ref = ancla;
+    hijos.filter(c => c.textContent.indexOf('LLAMADAS ABANDONADAS —') !== -1)
+         .forEach(sec => { ref.after(sec); ref = sec; });
+  }
+
   const detalle = hijos.filter(c => c.textContent.indexOf('DETALLE MENSUAL POR AGENTE') !== -1).pop();
   if(!detalle) return;
   const mover = hijos.filter(c =>
@@ -4656,9 +4704,13 @@ function renderAbandonedPanel(container, agents){
 // ─── MONTHLY AGENT TABLE HELPER ─────────────────────────────────────────────
 function buildMonthlyAgentTable(agentsList, monthKeys, monthLabels, ab, headerColor){
   const tableCard = document.createElement('div');
-  tableCard.className = 'chart-card';
-  tableCard.style.cssText = 'margin-top:14px;overflow-x:auto;';
+  tableCard.className = 'chart-card tabla-mes';
   const hColor = `rgb(${headerColor[0]},${headerColor[1]},${headerColor[2]})`;
+  // El color de la cuenta mezclado con blanco al 10%, solido: un rgba por celda
+  // deja costuras visibles donde se tocan los bordes de las columnas.
+  const mez = c => Math.round(c*0.12 + 255*0.88);
+  const hBg = `rgb(${mez(headerColor[0])},${mez(headerColor[1])},${mez(headerColor[2])})`;
+  tableCard.style.cssText = 'margin-top:14px;overflow-x:auto;--tm-color:'+hColor+';--tm-bg:'+hBg+';';
 
   // Si ab tiene byAgentMonth (derivado del match Todas vs Atendidas), usarlo — tiene todo el histórico
   // Si no, caer a byDay del agente (solo el CSV actual)
@@ -4690,49 +4742,38 @@ function buildMonthlyAgentTable(agentsList, monthKeys, monthLabels, ab, headerCo
   const abandByMonth = monthKeys.map(mk => ab?.byMonth?.[mk]?.abandoned || 0);
   const totalByMonth  = monthKeys.map(mk => ab?.byMonth?.[mk]?.total    || 0);
 
-  let tHtml = `<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;">DETALLE MENSUAL POR AGENTE</div>`;
-  tHtml += `<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:'DM Mono',monospace;">`;
-  tHtml += `<tr style="background:${hColor};color:#fff;">`;
-  tHtml += `<th style="text-align:left;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;">AGENTE</th>`;
-  tHtml += `<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;">MÉT.</th>`;
-  monthLabels.forEach(lbl => { tHtml += `<th style="text-align:center;padding:5px 8px;font-size:9px;letter-spacing:1px;font-weight:600;">${lbl}</th>`; });
-  tHtml += `</tr>`;
+  let tHtml = `<div class="tm-tit">DETALLE MENSUAL POR AGENTE</div>`;
+  tHtml += `<table><thead><tr>`;
+  tHtml += `<th>AGENTE</th><th>MÉT.</th>`;
+  monthLabels.forEach(lbl => { tHtml += `<th>${lbl}</th>`; });
+  tHtml += `</tr></thead><tbody>`;
 
   agentMonthData.forEach((agent, idx) => {
-    const bg = idx%2===0 ? 'var(--surface2)' : 'var(--surface)';
-    tHtml += `<tr style="background:${bg};">`;
-    tHtml += `<td style="padding:5px 8px;font-weight:500;">${agent.name}</td>`;
-    tHtml += `<td style="text-align:center;padding:5px 8px;font-size:9px;color:var(--muted);">CONT.</td>`;
+    tHtml += `<tr class="${idx%2===0?'tm-par':''}">`;
+    tHtml += `<td>${agent.name}</td><td class="tm-met">CONT.</td>`;
     monthKeys.forEach(mk => {
-      const v = agent.byMonth[mk]?.answered || 0;
-      tHtml += `<td style="text-align:center;padding:5px 8px;color:#0E86B4;font-weight:600;">${v}</td>`;
+      tHtml += `<td class="tm-val">${agent.byMonth[mk]?.answered || 0}</td>`;
     });
     tHtml += `</tr>`;
   });
 
-  tHtml += `<tr style="background:var(--surface2);border-top:2px solid var(--border);">`;
-  tHtml += `<td style="padding:5px 8px;font-weight:700;color:var(--ink);">TOTAL EQUIPO</td>`;
-  tHtml += `<td style="text-align:center;padding:5px 8px;font-size:9px;color:var(--muted);">CONT.</td>`;
-  monthKeys.forEach(mk => { tHtml += `<td style="text-align:center;padding:5px 8px;font-weight:700;color:#0E86B4;">${teamContestByMonth[mk]||0}</td>`; });
+  tHtml += `<tr class="tm-total"><td>TOTAL EQUIPO</td><td class="tm-met">CONT.</td>`;
+  monthKeys.forEach(mk => { tHtml += `<td class="tm-val">${teamContestByMonth[mk]||0}</td>`; });
   tHtml += `</tr>`;
 
   if(ab && ab.byMonth){
-    tHtml += `<tr style="background:#fff5f5;border-top:1px solid #fbd5d5;">`;
-    tHtml += `<td style="padding:5px 8px;font-weight:700;color:#C81F29;">ABANDONADAS</td>`;
-    tHtml += `<td style="text-align:center;padding:5px 8px;font-size:9px;color:var(--muted);">TOTAL</td>`;
-    abandByMonth.forEach(v => { tHtml += `<td style="text-align:center;padding:5px 8px;font-weight:700;color:#C81F29;">${v}</td>`; });
+    tHtml += `<tr class="tm-aband"><td>ABANDONADAS</td><td class="tm-met">TOTAL</td>`;
+    abandByMonth.forEach(v => { tHtml += `<td>${v}</td>`; });
     tHtml += `</tr>`;
-    tHtml += `<tr style="background:#fffbe6;border-top:1px solid #fde4a8;">`;
-    tHtml += `<td style="padding:5px 8px;font-weight:700;color:#92600a;">TASA ABANDONO</td>`;
-    tHtml += `<td style="text-align:center;padding:5px 8px;font-size:9px;color:var(--muted);">%</td>`;
+    tHtml += `<tr class="tm-tasa"><td style="color:var(--yellow)">TASA ABANDONO</td><td class="tm-met">%</td>`;
     totalByMonth.forEach((tot,i) => {
       const tasa = tot ? Math.round(abandByMonth[i]/tot*100) : 0;
-      const tc = tasa>50?'#C81F29':tasa>35?'#92600a':'#166534';
-      tHtml += `<td style="text-align:center;padding:5px 8px;font-weight:700;color:${tc};">${tasa}%</td>`;
+      const tc = tasa>50?'var(--red)':tasa>35?'var(--yellow)':'var(--green)';
+      tHtml += `<td style="color:${tc}">${tasa}%</td>`;
     });
     tHtml += `</tr>`;
   }
-  tHtml += `</table>`;
+  tHtml += `</tbody></table>`;
   tableCard.innerHTML = tHtml;
   return tableCard;
 }
