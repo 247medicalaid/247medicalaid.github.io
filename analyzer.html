@@ -62,6 +62,11 @@ input[type=file]{display:none;}
 /* ── ELEGIR AGENTES ──────────────────────────────────────────────────────
    Quien no este marcado desaparece de todo el modulo: graficas, tablas,
    ranking y reportes. La eleccion se guarda en este navegador. */
+/* El boton de elegir agentes tiene que verse: es la unica forma de quitar de
+   las graficas a los que estorban, y antes pasaba desapercibido. */
+.ag-btn{border-color:#0E86B4;color:#0E86B4;background:#eaf6fb;font-weight:700;}
+.ag-btn:hover{background:#0E86B4;color:#fff;border-color:#0E86B4;}
+.ag-btn.active{background:#0E86B4;color:#fff;border-color:#0E86B4;}
 .ag-fondo{position:fixed;inset:0;background:rgba(4,20,31,.55);z-index:900;display:none;}
 .ag-fondo.abierto{display:block;}
 .ag-panel{position:fixed;z-index:901;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -552,21 +557,9 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
   </div>
 
 
-  <div class="upload-group">
-    <div class="upload-group-label">VOIP3 · ADVANTAGE MEDICAL</div>
-    <div class="upload-zone" id="zone-advantage" ondragover="drag(event,'advantage')" ondragleave="dleave(event,'advantage')" ondrop="drop(event,'advantage')" onclick="document.getElementById('fv').click()" style="border:1px dashed var(--advantage);border-radius:6px;">
-      <div class="uz-platform" style="color:var(--advantage)">LLAMADAS</div>
-      <div class="uz-icon">🏨</div>
-      <div class="uz-title" id="fv-title">Subir XLSX de Advantage (Llamadas)</div>
-      <div class="uz-sub" id="fv-sub">Heiling · Laura · Mariana · Santiago</div>
-    </div>
-      <div class="upload-zone" id="zone-advantage-abandoned" ondragover="drag(event,'advantage-abandoned')" ondragleave="dleave(event,'advantage-abandoned')" ondrop="drop(event,'advantage-abandoned')"" onclick="document.getElementById('fva').click()" style="border:1px dashed var(--advantage);border-radius:6px;">
-      <div class="uz-platform" style="color:var(--advantage)">ABANDONADAS</div>
-      <div class="uz-icon">📵</div>
-      <div class="uz-title" id="fva-title">Subir XLSX de Advantage (Abandonadas)</div>
-      <div class="uz-sub" id="fva-sub">Llamadas no contestadas</div>
-    </div>
-    </div>
+  <!-- Advantage Medical salió del analisis: ya no se trabaja con esa cuenta.
+       El codigo que la procesaba sigue ahí por si vuelve; sin archivo cargado
+       no aparece en ninguna parte. -->
 
   <div class="upload-group" style="--group-color:var(--alonso);">
     <div class="upload-group-label" style="color:var(--alonso);">WEAVE · ALONSO MEDICAL</div>
@@ -609,11 +602,9 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
   <button class="ctrl-btn cardio" onclick="setFilter('Cardiovascular',this)">Cardiovascular</button>
   <button class="ctrl-btn gastro" onclick="setFilter('Gastroenterology',this)">Gastroenterology</button>
   <button class="ctrl-btn mab" onclick="setFilter('MAB Pulmonary',this)">MAB Pulmonary</button>
-    <button class="ctrl-btn advantage" onclick="setFilter('Advantage Medical',this)">Advantage Medical</button>
     <button class="ctrl-btn alonso" onclick="setFilter('Alonso Medical',this)">Alonso Medical</button>
     <button class="ctrl-btn tsm" onclick="setFilter('Total Sleep',this)">Total Sleep</button>
-  <span class="ctrl-label" style="margin-left:10px;">AGENTES:</span>
-  <button class="ctrl-btn" id="agBtn" onclick="abrirAgentes()" title="Elegir qué agentes se ven en todo el módulo">Todos</button>
+  <button class="ctrl-btn ag-btn" id="agBtn" onclick="abrirAgentes()" title="Elegir qué agentes se ven en todo el módulo">👥 Agentes: todos</button>
   <span class="ctrl-label" style="margin-left:10px;">ORDENAR:</span>
   <button class="ctrl-btn active" id="sort-calls" onclick="setSort('calls',this)">Llamadas</button>
   <button class="ctrl-btn" id="sort-dur" onclick="setSort('duration',this)">Duración</button>
@@ -1912,7 +1903,8 @@ function analyzeAdvantage(rows, abandonedRows){
 function parseWeaveTime(s){
   if(!s) return null;
   try{
-    const m=String(s).trim().match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+    // Un formato usa '2026-09-29 12:22:16' y el otro '2026-09-29T03:02:00Z'.
+    const m=String(s).trim().match(/(\d{4})-(\d{2})-(\d{2})[\sT](\d{1,2}):(\d{2}):(\d{2})/);
     if(!m) return null;
     // Weave timestamps are stored in UTC. Convert to Eastern Time (America/New_York)
     // respecting EST/EDT automatically (Intl handles DST transitions).
@@ -1930,11 +1922,31 @@ function parseWeaveTime(s){
     return new Date(+parts.year, +parts.month-1, +parts.day, hh, +parts.minute, +parts.second);
   }catch{return null;}
 }
+/*
+ * Weave llama a la misma persona de dos maneras: en el reporte de SMS (y en el
+ * formato viejo de llamadas) con su correo, y en el formato nuevo de llamadas
+ * con su nombre real. Sin esta tabla, quien contesta llamadas Y escribe SMS
+ * aparece partido en dos agentes.
+ *
+ * Las tres ultimas son seguras: el propio reporte nuevo trae el correo pegado
+ * al apellido ("tiffany.alonsomedical Perez"). Las tres primeras se dedujeron
+ * por apellido y nombre; si alguna esta mal, se corrige aqui.
+ */
+const ALONSO_ALIAS = {
+  'lacevedo942':              'Laura Katalina Acevedo',
+  'garciayeseniam1':          'Yesenia Garcia',
+  'karina_alonsomedical':     'Karina Paez',
+  'christy.alonsomedical2024':'Christy Gonzalez',
+  'tiffany.alonsomedical':    'Tiffany Perez',
+  'vazquezlilianny625':       'Vazquezlilianny Vazquez'
+};
+
 // Convert a Weave "Office User" email into a readable agent name
 function weaveAgentName(email){
   if(!email) return null;
   let local = String(email).trim().toLowerCase().split('@')[0];
   if(!local) return null;
+  if(ALONSO_ALIAS[local]) return ALONSO_ALIAS[local];
   const original = local;
   // strip practice-name markers and trailing digits
   local = local.replace(/\.?alonsomedical2?0?2?4?/g,'')
@@ -2036,8 +2048,33 @@ function analyzeTSM(rows){
                ||(y.calls_in+y.calls_out)-(x.calls_in+x.calls_out));
 }
 
+/**
+ * Weave entrega el historial de llamadas en dos formatos distintos, y a veces
+ * uno esta mas al dia que el otro. Aqui se reconoce cual es por sus columnas y
+ * se traduce el nuevo al vocabulario del viejo, para que el analisis siga
+ * siendo uno solo.
+ *
+ *   viejo: Date/Time · Call Type · Result · Duration · Office User
+ *   nuevo: call_start_time (UTC) · call_direction · call_status ·
+ *          duration_secs · office_user
+ */
+function normalizarWeave(rows){
+  if(!rows || !rows.length) return rows || [];
+  const cols = rows[0] || {};
+  const esNuevo = ('call_start_time (UTC)' in cols) || ('call_status' in cols) ||
+                  ('call_direction' in cols);
+  if(!esNuevo) return rows;
+  return rows.map(r => ({
+    'Date/Time':   r['call_start_time (UTC)'] || r['call_start_time'] || '',
+    'Call Type':   r['call_direction'] || '',
+    'Result':      r['call_status'] || '',
+    'Duration':    r['duration_secs'] || 0,
+    'Office User': r['office_user'] || ''
+  }));
+}
+
 function analyzeAlonso(rows, smsRows){
-  rows = rows || [];
+  rows = normalizarWeave(rows || []);
   if(!rows.length && !(smsRows && smsRows.length)) return [];
   const agents={};
   // Map normalized email -> canonical display name (first one seen wins)
@@ -3016,7 +3053,9 @@ function pintarAgentes(){
     : '';
   const btn = document.getElementById('agBtn');
   if(btn){
-    btn.textContent = (!lista.length || dentro === lista.length) ? 'Todos' : dentro + ' de ' + lista.length;
+    btn.textContent = (!lista.length || dentro === lista.length)
+      ? '\ud83d\udc65 Agentes: todos'
+      : '\ud83d\udc65 Agentes: ' + dentro + ' de ' + lista.length;
     btn.classList.toggle('active', !!lista.length && dentro !== lista.length);
   }
 }
