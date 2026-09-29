@@ -572,10 +572,96 @@ function swatch(t){
 // ---------------------------------------------------------------- datos
 function apiUrl(){ return API_URL || store.get('url'); }
 
+/* ── DIAS PASADOS GUARDADOS EN ESTE NAVEGADOR ──────────────────────────────
+   Un dia que ya paso no cambia, pero armarlo cuesta unos 8 segundos: 5 son el
+   peaje fijo de Apps Script (despertar el script y abrir la hoja) y el resto,
+   releer los miles de latidos de ese dia. Guardando aqui el dia ya armado,
+   volver a abrirlo es instantaneo, sin pedir nada al servidor.
+   HOY no se guarda nunca: cambia cada minuto.
+   Todo se borra en cuanto se autoriza un periodo, se marca un descanso o se
+   cambia un horario o un nombre, porque eso si cambia como se calcula un dia. */
+// Al cambiar el formato de lo que manda el servidor, sube este numero: los dias
+// guardados con el formato viejo se descartan en vez de pintarse a medias.
+const DIAS_FORMATO = 1;
+const DIAS_CLAVE = 'mon247_dias_v' + DIAS_FORMATO;
+const DIAS_MAX = 30;
+
+function hoyLocal(){
+  const d = new Date();
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function isoLocal(d){
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function diasGuardados(){
+  try { const o = JSON.parse(localStorage.getItem(DIAS_CLAVE) || '{}');
+        return (o && typeof o === 'object') ? o : {}; } catch(e){ return {}; }
+}
+function diaGuardado(f){
+  if (!f || f >= hoyLocal()) return null;      // hoy y el futuro, nunca de memoria
+  const o = diasGuardados();
+  return o[f] || null;
+}
+function guardarDia(f, j){
+  if (!f || !j || !j.ok || j.esHoy || f >= hoyLocal()) return;
+  try {
+    const o = diasGuardados();
+    o[f] = j;
+    // Solo los mas recientes, para no llenar el almacenamiento del navegador.
+    const fechas = Object.keys(o).sort();
+    while (fechas.length > DIAS_MAX) delete o[fechas.shift()];
+    localStorage.setItem(DIAS_CLAVE, JSON.stringify(o));
+  } catch(e){ olvidarDias(); }                 // sin espacio: se vacia y se sigue igual
+}
+function olvidarDias(){ try { localStorage.removeItem(DIAS_CLAVE); } catch(e){} }
+
+// Lo guardado por versiones anteriores del panel ya no sirve: ocupa espacio y
+// podria pintarse incompleto.
+(function limpiarFormatosViejos(){
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('mon247_dias') === 0 && k !== DIAS_CLAVE) localStorage.removeItem(k);
+    }
+  } catch(e){}
+})();
+
+/* Al abrir el panel se traen por detras los ultimos dias habiles que aun no
+   estan guardados, de uno en uno y espaciados, para que al elegir una fecha ya
+   este lista. Corre una sola vez por carga de la pagina. */
+let yaPrecargo = false;
+async function precargarDias(){
+  if (yaPrecargo || S.demo) return;
+  yaPrecargo = true;
+  const url = apiUrl(), tok = store.get('token');
+  if (!url || !tok) return;
+  const guardados = diasGuardados();
+  const faltan = [];
+  const base = new Date(); base.setHours(12, 0, 0, 0);
+  for (let i = 1; faltan.length < 5 && i <= 14; i++) {
+    const f = new Date(base); f.setDate(base.getDate() - i);
+    if (f.getDay() === 0 || f.getDay() === 6) continue;   // fines de semana no
+    const iso = isoLocal(f);
+    if (!guardados[iso]) faltan.push(iso);
+  }
+  for (const f of faltan) {
+    if (document.hidden) break;
+    try {
+      const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&fecha=' + f;
+      const j = await (await fetch(q, { redirect: 'follow' })).json();
+      guardarDia(f, j);
+    } catch(e){ break; }                       // sin conexion: se deja para la proxima
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+
 async function cargar(){
   if (S.demo) { S.data = DEMO; pintar(); return; }
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) { mostrarSetup(); return; }
+  // Un dia pasado que ya se vio se pinta al instante, sin esperar al servidor.
+  const guardado = diaGuardado(S.fecha);
+  if (guardado) { S.data = guardado; $('banner').innerHTML = ''; pintar(); return; }
   $('upd').textContent = 'Actualizando…';
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + (S.fecha ? '&fecha=' + S.fecha : '');
@@ -584,8 +670,10 @@ async function cargar(){
     if (!j.ok) throw new Error(j.error || 'respuesta inválida');
     S.data = j;
     if (!S.fecha) $('fecha').value = j.fecha;
+    guardarDia(S.fecha || j.fecha, j);
     $('banner').innerHTML = '';
     pintar();
+    if (!S.fecha) precargarDias();
   } catch (e) {
     // Antes cualquier fallo mandaba a revisar la URL y el token, incluso cuando
     // el problema era la conexion y no habia nada que revisar. Ahora se separa
@@ -1152,6 +1240,7 @@ async function enviarBaja(ag, activo, fecha, motivo){
     if (j.ok && j.agente) {
       toast(activo === '1' ? j.agente + ' vuelve a la lista de agentes.' : j.agente + ' queda inactivo desde el ' + j.baja + '.', 'ok');
       $('modalBaja').classList.remove('show');
+      olvidarDias();
       cargar();
     } else if (j.agentes || j.ok) {
       toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
@@ -1202,7 +1291,7 @@ $('aGuardar').addEventListener('click', async () => {
       '&nuevo=' + encodeURIComponent(nombre) + '&cuenta=' + encodeURIComponent(cuenta);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); cargar(); }
+    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); olvidarDias(); cargar(); }
     else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
     else if (/ya hay un agente llamado/i.test(j.error || '')) await ofrecerUnir(nombre, url, tok);
     else toast(j.error || 'No se pudo guardar.', 'err');
@@ -1227,7 +1316,7 @@ async function ofrecerUnir(existente, url, tok) {
       '&accion=fusionar&agente=' + encodeURIComponent(edAgente) + '&nuevo=' + encodeURIComponent(existente);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); cargar(); }
+    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); olvidarDias(); cargar(); }
     else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
     else toast(j.error || 'No se pudieron unir.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
@@ -1339,7 +1428,7 @@ async function enviarHorario(params, msgOk) {
     if (j.ok) {
       if (params.semana && j.semana === undefined) {
         toast('El servidor todavía no tiene la versión con horario por día. Publica la nueva versión del Apps Script.', 'err');
-      } else { toast(msgOk, 'ok'); $('modalHorario').classList.remove('show'); cargar(); }
+      } else { toast(msgOk, 'ok'); $('modalHorario').classList.remove('show'); olvidarDias(); cargar(); }
     }
     else toast(j.error || 'No se pudo guardar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
@@ -1672,12 +1761,20 @@ $('csv').addEventListener('click', abrirReporte);
 // próxima semana no altera lo que ya pasó.
 let turAgente = '';
 
+// Acciones que cambian como se calcula un dia ya pasado. Las de solo lectura
+// ('turnos', 'autorizaciones') no tocan lo guardado.
+const ACCIONES_ESCRIBEN = ['autorizar', 'autorizar_borrar', 'descanso_marcar',
+                           'descanso_borrar', 'turno_guardar', 'turno_borrar'];
+
 function apiTurno(params){
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
   let q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok);
   Object.keys(params).forEach(k => { q += '&' + k + '=' + encodeURIComponent(params[k]); });
-  return fetch(q, { redirect: 'follow' }).then(r => r.json());
+  return fetch(q, { redirect: 'follow' }).then(r => r.json()).then(j => {
+    if (j && j.ok && ACCIONES_ESCRIBEN.indexOf(params.accion) >= 0) olvidarDias();
+    return j;
+  });
 }
 
 function fCortaISO(s){
