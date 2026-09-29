@@ -630,11 +630,25 @@ function olvidarDias(){ try { localStorage.removeItem(DIAS_CLAVE); } catch(e){} 
    estan guardados, de uno en uno y espaciados, para que al elegir una fecha ya
    este lista. Corre una sola vez por carga de la pagina. */
 let yaPrecargo = false;
-async function precargarDias(){
+function precargarDias(){
   if (yaPrecargo || S.demo) return;
   yaPrecargo = true;
+  seguirPrecarga();
+}
+
+// En segundo plano el navegador frena los temporizadores y las peticiones, asi
+// que la precarga no se abandona: se deja esperando a que la pestana vuelva al
+// frente y sigue por donde iba (recalcula que falta, asi que no repite nada).
+function alVolverAlFrente(fn){
+  document.addEventListener('visibilitychange', function una(){
+    if (!document.hidden) { document.removeEventListener('visibilitychange', una); fn(); }
+  });
+}
+
+async function seguirPrecarga(){
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) return;
+  if (document.hidden) { alVolverAlFrente(seguirPrecarga); return; }
   const guardados = diasGuardados();
   const faltan = [];
   const base = new Date(); base.setHours(12, 0, 0, 0);
@@ -645,12 +659,12 @@ async function precargarDias(){
     if (!guardados[iso]) faltan.push(iso);
   }
   for (const f of faltan) {
-    if (document.hidden) break;
+    if (document.hidden) { alVolverAlFrente(seguirPrecarga); return; }
     try {
       const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&fecha=' + f;
       const j = await (await fetch(q, { redirect: 'follow' })).json();
       guardarDia(f, j);
-    } catch(e){ break; }                       // sin conexion: se deja para la proxima
+    } catch(e){ return; }                      // sin conexion: se deja para la proxima vez
     await new Promise(r => setTimeout(r, 1500));
   }
 }
