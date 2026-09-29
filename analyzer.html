@@ -152,12 +152,34 @@ input[type=file]{display:none;}
 .gb-min{background:var(--yellow-bg);color:var(--yellow);}
 .gb-low{background:var(--red-bg);color:var(--red);}
 
-/* ─── PRACTICE SECTIONS ─── */
-.practice-section{margin-bottom:32px;}
+/* ─── PRACTICE SECTIONS ───────────────────────────────────────────────────
+   Cada cuenta se lee como una tarjeta suya: cabecera con su color de marca y
+   la tabla enmarcada del mismo color, apenas insinuado, para que se distingan
+   entre si sin gritar. Antes Alonso y Advantage salian sin fondo, en blanco,
+   mientras las demas si tenian color. */
+.practice-section{margin-bottom:32px;border-radius:6px;box-shadow:0 1px 3px rgba(11,34,51,.07);}
 .practice-header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:5px 5px 0 0;border:1px solid var(--border);}
 .practice-header.cardio{background:var(--cardio-bg);border-color:var(--cardio);}
 .practice-header.gastro{background:var(--gastro-bg);border-color:var(--gastro);}
 .practice-header.mab{background:var(--mab-bg);border-color:var(--mab);}
+.practice-header.advantage{background:var(--advantage-bg);border-color:var(--advantage);}
+.practice-header.alonso{background:var(--alonso-bg);border-color:var(--alonso);}
+/* color-mix aclara el color de la cuenta contra el borde gris; el navegador
+   que no lo entienda se queda con la linea gris de siempre. */
+.practice-section.cardio .table-wrap{border-color:color-mix(in srgb,var(--cardio) 30%,var(--border));}
+.practice-section.gastro .table-wrap{border-color:color-mix(in srgb,var(--gastro) 30%,var(--border));}
+.practice-section.mab .table-wrap{border-color:color-mix(in srgb,var(--mab) 30%,var(--border));}
+.practice-section.advantage .table-wrap{border-color:color-mix(in srgb,var(--advantage) 30%,var(--border));}
+.practice-section.alonso .table-wrap{border-color:color-mix(in srgb,var(--alonso) 30%,var(--border));}
+.practice-section.tsm .table-wrap{border-color:color-mix(in srgb,var(--tsm) 30%,var(--border));}
+/* La cabecera de columnas toma un tinte de la cuenta, para no perder de vista
+   de quien es la tabla cuando se baja la pagina. */
+.practice-section.cardio th{background:var(--cardio-bg);}
+.practice-section.gastro th{background:var(--gastro-bg);}
+.practice-section.mab th{background:var(--mab-bg);}
+.practice-section.advantage th{background:var(--advantage-bg);}
+.practice-section.alonso th{background:var(--alonso-bg);}
+.practice-section.tsm th{background:var(--tsm-bg);}
 .practice-dot{width:10px;height:10px;border-radius:50%;}
 .cardio .practice-dot{background:var(--cardio);}
 .gastro .practice-dot{background:var(--gastro);}
@@ -222,10 +244,18 @@ tr:hover td{background:var(--surface2);}
 .expand-icon{font-size:10px;color:var(--muted);margin-left:6px;transition:transform .2s;display:inline-block;}
 .agent-row.open .expand-icon{transform:rotate(180deg);}
 
-/* ─── DEAD TIME SECTION ─── */
-.dead-section{margin-bottom:32px;}
-.dead-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+/* ─── DEAD TIME SECTION ───────────────────────────────────────────────────
+   Enmarcada como las demas, con acento rojo: es la seccion que habla de tiempo
+   perdido y conviene que se distinga de las tablas de produccion. */
+.dead-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--red-light);
+  border-radius:6px;padding:16px 18px;box-shadow:0 1px 3px rgba(11,34,51,.07);}
+.dead-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
+  padding-bottom:10px;border-bottom:2px solid var(--red-light);}
+.dead-section-header .section-hdr{border-bottom:none;padding-bottom:0;color:var(--red);}
 .dead-section-title{font-size:10px;letter-spacing:2px;color:var(--muted);}
+.dead-section .dead-agent-block{background:var(--surface2);border-color:var(--border);}
+.dead-section .dead-agent-block:last-child{margin-bottom:0;}
+.dead-section .dead-agent-header:hover{background:#E3EAED;}
 .dead-toggle{font-size:11px;padding:4px 12px;border:1px solid var(--border);border-radius:3px;background:var(--surface);cursor:pointer;transition:all .15s;}
 .dead-toggle:hover{border-color:var(--ink);}
 
@@ -3251,7 +3281,24 @@ function renderAll(){
 
   renderDeadTime(main,agents);
 
+  try { ordenarSecciones(main); } catch(err){ console.error('ordenarSecciones:', err); }
   try { juntarGraficasFinales(main); } catch(err){ console.error('juntarGraficasFinales:', err); }
+}
+
+// Carlos quiere la tabla de agentes y la de tiempo muerto justo debajo del
+// detalle mensual. Se dibujan mas abajo porque entre medias van el reporte de
+// SMS y el panel de Ooma, asi que aqui se suben — mover el nodo ya armado es
+// mas seguro que reordenar las llamadas de renderAll, que dependen unas de
+// otras.
+function ordenarSecciones(main){
+  const hijos = [...main.children];
+  const detalle = hijos.filter(c => c.textContent.indexOf('DETALLE MENSUAL POR AGENTE') !== -1).pop();
+  if(!detalle) return;
+  const mover = hijos.filter(c =>
+    c.classList.contains('practice-section') || c.classList.contains('dead-section'));
+  if(!mover.length) return;
+  let ref = detalle;
+  mover.forEach(sec => { ref.after(sec); ref = sec; });
 }
 
 // Carlos quiere ver juntas, pequenas y al final de la pagina la grafica de
@@ -4042,7 +4089,9 @@ function renderCharts(container,agents){
 // ─── PRACTICE SECTION ──────────────────────────────────────────────────────
 function renderPracticeSection(container,prac,agents,cls){
   const sec=document.createElement('div');
-  sec.className='practice-section';
+  // La clase de la practica va tambien en la seccion, para que el marco de la
+  // tabla pueda llevar el color de la cuenta y no solo la cabecera.
+  sec.className='practice-section '+cls;
 
   const hdr=document.createElement('div');
   hdr.className=`practice-header ${cls}`;
@@ -5262,6 +5311,18 @@ function renderOomaOfficePanel(container){
 }
 
 // ─── DEAD TIME DETAIL ──────────────────────────────────────────────────────
+// El color de marca de cada cuenta. Antes esta etiqueta solo conocia a Cardio y
+// Gastro, y todo lo demas — Alonso incluido — salia con el rosa de MAB.
+function colorCuenta_(prac){
+  if(prac==='Cardiovascular') return 'cardio';
+  if(prac==='Gastroenterology') return 'gastro';
+  if(prac==='MAB Pulmonary') return 'mab';
+  if(prac==='Advantage Medical') return 'advantage';
+  if(prac==='Alonso Medical') return 'alonso';
+  if(prac && prac.indexOf('Total Sleep')===0) return 'tsm';
+  return 'blue';
+}
+
 function renderDeadTime(container,agents){
   const withDead=agents.filter(a=>a.dead_gaps.length>0 && !isNoAgent(a.name));
   if(!withDead.length) return;
@@ -5289,7 +5350,7 @@ function renderDeadTime(container,agents){
     blockHdr.className='dead-agent-header';
     blockHdr.innerHTML=`
       <div class="dah-name">${shortName}
-        <span style="font-size:10px;padding:2px 7px;border-radius:2px;margin-left:6px;background:${agent.practice==='Cardiovascular'?'var(--cardio-bg)':agent.practice==='Gastroenterology'?'var(--gastro-bg)':'var(--mab-bg)'};color:${agent.practice==='Cardiovascular'?'var(--cardio)':agent.practice==='Gastroenterology'?'var(--gastro)':'var(--mab)'}">
+        <span style="font-size:10px;padding:2px 7px;border-radius:2px;margin-left:6px;background:var(--${colorCuenta_(agent.practice)}-bg);color:var(--${colorCuenta_(agent.practice)})">
           ${agent.practice}
         </span>
       </div>
