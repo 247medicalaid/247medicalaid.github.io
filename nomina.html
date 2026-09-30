@@ -1019,6 +1019,7 @@
 #pg-volver:hover{opacity:1;background:#0D3247}
 #pg-volver b{font-weight:700}
 #pg-volver span{color:#9FBECB;font-weight:600}
+#pg-volver.pg-fuera{display:none}
 @media print{#pg-volver{display:none}}
 </style>
 
@@ -1111,6 +1112,45 @@
     a.innerHTML = '&larr; <b>Portal</b> <span>&middot; ' +
       String(window.PORTAL.user.nombre || '').split(' ')[0] + '</span>';
     document.body.appendChild(a);
+    vigilarVentanas(a);
+  }
+
+  // El boton flota sobre la esquina inferior derecha, que en el celular es
+  // justo donde las apps ponen sus propios botones cuando abren una ficha a
+  // pantalla completa. Mientras haya una ventana abierta el boton se aparta,
+  // y vuelve solo al cerrarla.
+  function vigilarVentanas(a) {
+    var SEL = '.overlay.open, .modal-overlay.show, .ag-panel.abierto, ' +
+              '.sidebar-ov.open, .sel-bar.abierta, dialog[open], ' +
+              '[role="dialog"][aria-modal="true"]';
+    var fuera = null;
+    function visible(el) {
+      if (!el.getClientRects().length) return false;
+      var cs = window.getComputedStyle(el);
+      return cs.visibility !== 'hidden' && cs.display !== 'none';
+    }
+    function revisar() {
+      var hay = false, n = document.querySelectorAll(SEL);
+      for (var i = 0; i < n.length; i++) { if (visible(n[i])) { hay = true; break; } }
+      if (hay === fuera) return;    // sin cambio no se toca el DOM: si no, el
+      fuera = hay;                  // observador se dispararia a si mismo sin fin
+      a.classList.toggle('pg-fuera', hay);
+    }
+    // Las mutaciones llegan a montones mientras la página se arma. Se junta
+    // todo en un solo repaso por cuadro para no mirar el DOM cien veces.
+    var pendiente = false;
+    function pedirRepaso() {
+      if (pendiente) return;
+      pendiente = true;
+      requestAnimationFrame(function () { pendiente = false; revisar(); });
+    }
+    try {
+      new MutationObserver(pedirRepaso).observe(document.body, {
+        subtree: true, childList: true,
+        attributes: true, attributeFilter: ['class', 'style', 'open', 'hidden']
+      });
+    } catch (e) {}
+    revisar();
   }
 
   // Confirmación contra el servidor: si el token caducó o el usuario fue
