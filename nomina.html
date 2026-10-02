@@ -579,6 +579,42 @@
   @keyframes ivFlash{ 0%,100%{background:#9CA3AF} 50%{background:#E5E7EB} }
   @media (prefers-reduced-motion:reduce){ .iv-f-sigma{ animation:none } }
 
+  /* Invoice cerrado: los campos se ven bloqueados de verdad, no apagados. Con
+     opacidad las cifras quedaban dificiles de leer justo cuando mas se
+     consultan — un invoice cerrado se mira mucho mas de lo que se edita.
+     Solo lo que de verdad esta bloqueado: los campos del pago del cliente
+     siguen funcionando con el invoice cerrado —ahi es justo cuando se registra
+     el cobro— asi que pintarlos de gris seria mentir. */
+  .iv-cerrada .iv-meta input,
+  .iv-cerrada .iv-dos input,
+  .iv-cerrada .iv-dos select,
+  .iv-cerrada .iv-dos textarea{
+    background:#E9EEF2 !important; border-color:#C2D0D9 !important;
+    color:#4A6478 !important; cursor:not-allowed;
+  }
+  .iv-cerrada .iv-dos .inv-stepper{ border-color:#C2D0D9 !important; background:#E9EEF2; }
+  /* El tema claro del panel fija el fondo del stepper en blanco con !important
+     (regla "Los steppers traen color blanco fijo..."), asi que aqui hace falta
+     un selector mas especifico para que gane el gris de bloqueado. */
+  .iv-cerrada .inv-theme-edit .iv-dos .inv-stepper input,
+  .iv-cerrada .inv-theme-edit .iv-dos .inv-stepper.sm input{
+    background:#E9EEF2 !important; color:#4A6478 !important;
+    border-color:#C2D0D9 !important; cursor:not-allowed;
+  }
+  .iv-cerrada .iv-dos .inv-stepper-btn{ color:#9FB2BD !important; background:#E9EEF2 !important; cursor:not-allowed; }
+  .iv-cerrada .iv-agente .quien b{ color:#33566B; }
+  /* El candado en el rotulo de los dias dice por que no se puede escribir ahi,
+     sin tener que subir a leer el aviso de la cabecera. */
+  .iv-cerrada .iv-izq > div > div:first-child::after{ content:' \1F512'; }
+
+  /* El indice de cuentas se cortaba con nueve cuentas y nombres largos. En
+     pantalla ancha se reparte en varias lineas; en el celular sigue
+     deslizandose, que alli apilar nueve fichas se comeria la pantalla. */
+  .iv-indice{ flex-wrap:wrap; overflow-x:visible; }
+  @media (max-width:760px){
+    .iv-indice{ flex-wrap:nowrap; overflow-x:auto; }
+  }
+
   /* Dos columnas en pantalla ancha: escribir a la izquierda, mirar a la derecha.
      Debajo de 1100 px vuelven a una sola, que es como se ve en el celular. */
   .iv-dos{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
@@ -7354,7 +7390,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <span style="font-size:12px;color:var(--accent3);font-weight:700">⏳ Invoice en proceso</span>
       <span style="font-size:11px;color:var(--text2)">Las quincenas del mes aún no están cerradas — cifras provisionales</span>
     </div>` : ''}
-    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;${locked?'opacity:.7;pointer-events:none':''}">
+    <div class="iv-meta" style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;${locked?'pointer-events:none':''}">
       <div style="flex:1;min-width:140px">
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Billed To</div>
         <input type="text" placeholder="Nombre contacto"
@@ -7395,7 +7431,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
     <div class="iv-dos">
       <div class="iv-izq">
     <!-- Agent days -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);${locked?'opacity:.5;pointer-events:none':''}">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);${locked?'pointer-events:none':''}">
       <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;font-weight:500">👤 Días trabajados por agente <span style="text-transform:none;letter-spacing:0;opacity:.75">· admite medios días (ej. 10.5)</span></div>
       ${data.descManual ? `<div style="margin-bottom:10px;padding:8px 11px;border-radius:8px;background:rgba(242,169,59,.10);border:1px solid rgba(242,169,59,.35);font-size:11.5px;color:var(--accent3);line-height:1.5">
         ✎ El descuento por días no trabajados está <b>ajustado a mano</b>, así que el total del invoice sale de ahí y no de estos días.
@@ -7453,7 +7489,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
     </div>
 
     <!-- Días hábiles del mes -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(76,194,236,.04);${locked?'opacity:.5;pointer-events:none':''}">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(76,194,236,.04);${locked?'pointer-events:none':''}">
       <div style="font-size:13px;color:var(--text)">📅 <b>Días hábiles del mes</b></div>
       <div class="inv-stepper">
         <button class="inv-stepper-btn" data-delta="-1" tabindex="-1" onpointerdown="event.preventDefault()">−</button>
@@ -8703,7 +8739,7 @@ function renderInvoicesMes(){
     }
 
     return `
-    <section class="iv-cuenta" id="${iid}" style="--c:${i.color};--tinta:${ivTintaTexto(i.color)}"
+    <section class="iv-cuenta${ov.cerrado ? ' iv-cerrada' : ''}" id="${iid}" style="--c:${i.color};--tinta:${ivTintaTexto(i.color)}"
       aria-labelledby="${iid}-nom">
       <div class="iv-pegado">
       <header class="iv-cab">
