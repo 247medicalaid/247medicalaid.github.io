@@ -640,8 +640,9 @@
   /* El invoice sin cobrar se ve de lejos: fondo rojo claro y una banda del
      mismo color a la izquierda, porque la banda no depende de distinguir el
      tono. El abonado a medias lleva la misma idea, mas tenue. */
-  .pg-mes.sincobrar{ background:rgba(190,18,60,.10); box-shadow:inset 4px 0 0 var(--danger); }
-  .pg-mes.parcial  { background:rgba(190,18,60,.045); box-shadow:inset 4px 0 0 var(--accent3); }
+  .pg-mes.sincobrar{ background:rgba(190,18,60,.16); box-shadow:inset 4px 0 0 var(--danger); }
+  .pg-mes.parcial,
+  .pg-mes.leve     { background:rgba(190,18,60,.075); box-shadow:inset 4px 0 0 var(--accent3); }
   .pg-mes.perdido  { opacity:.7; }
 
   /* La fila de cierre: el pago del cliente ocupa algo mas de la mitad porque
@@ -8542,8 +8543,16 @@ function renderSigma(){
                  : x.completo ? '<span class="sig-pill ok">✓ pagado</span>'
                  : x.parcial  ? '<span class="sig-pill parcial">◑ abonado en parte</span>'
                  : '<span class="sig-pill pend">● pendiente</span>';
+    // Mismo codigo de color que en los cobros: rojo lo que falta por girar.
+    // Lo que paga el cliente directo lleva el tono leve: hay que registrarlo,
+    // pero no es plata que salga de 24/7, asi que no es una alarma.
+    const tono = x.cancelado ? 'perdido'
+               : (x.cruzado || x.completo) ? 'ok'
+               : x.directo ? 'leve'
+               : x.parcial ? 'parcial'
+               : 'sincobrar';
     return `
-    <div style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap${x.cancelado?';opacity:.6':''}">
+    <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap${x.cancelado?';opacity:.6':''}">
       <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
       ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
       ${estado}
