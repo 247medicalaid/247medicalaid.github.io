@@ -686,6 +686,14 @@
   }
   .iv-cierre.sola .iv-cierre-der{ padding:14px 16px; margin-left:auto; min-width:290px; }
   .iv-cierre-izq .pay-box{ margin:14px 10px 14px 16px; }
+  .iv-notas{ padding:0 16px 14px; }
+  .iv-notas label{ display:block; font-size:11px; color:var(--text2); font-weight:700;
+    text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .iv-notas label span{ text-transform:none; letter-spacing:0; font-weight:500; opacity:.8; }
+  .iv-notas textarea{ width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:8px; padding:9px 11px; font-size:13px;
+    font-family:'Inter',sans-serif; line-height:1.5; resize:vertical; }
+  .iv-notas textarea:focus{ outline:none; border-color:var(--accent2); }
   @media (max-width:1100px){
     .iv-cierre{ grid-template-columns:minmax(0,1fr); }
     .iv-cierre-der{ order:-1; padding:14px 16px 0; }
@@ -7732,6 +7740,7 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     // Como se factura cada agente: 'mes', 'q1' o 'q2' puesto a mano; lo que no
     // este aqui lo decide la regla de calcInvCobro.
     agenteLinea: ov.agenteLinea || {},
+    notas:       ov.notas || '',
     descDias:    descManual ? ov.descDias : null,
     // Datos del cliente para el bloque "To:" del PDF. Viven en la ficha de la
     // cuenta porque son los mismos todos los meses; vacios no se imprimen.
@@ -7992,6 +8001,17 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <div class="iv-cierre-der" id="${iid}-totales">${buildInvTotalesHTML(data)}</div>
     </div>
 
+    <!-- Notas del invoice. No es una cifra, asi que sigue editable con el
+         invoice cerrado —igual que la caja de pagos en su dia—: el PDF solo se
+         descarga estando cerrado, y a veces la nota se le ocurre a uno justo
+         antes de mandarlo. -->
+    <div class="iv-notas">
+      <label for="${iid}-notas">📝 Notas para el cliente <span>· opcional, salen impresas en el invoice</span></label>
+      <textarea id="${iid}-notas" rows="2" placeholder="Ej: Incluye la cobertura del fin de semana del 4 de julio."
+        onchange="invUpdateNotas('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',this.value)"
+      >${esc(data.notas || '')}</textarea>
+    </div>
+
     <!-- El bloque de Sigma vivia aqui. Se quito: la cabecera ya dice si falta
          girarle a Sigma, cuanto se abono y cuanto queda, y el reparto por
          agente sigue estando en "Distribucion del invoice". El pago se
@@ -8221,6 +8241,12 @@ function invRefreshSummary(mk, nombre, tipo, iid){
   if(amtEl) amtEl.textContent = fmt(data.monto);
   // (función opcional — no siempre está definida; evita romper el handler)
   if(typeof refreshInvRowSummary === 'function') refreshInvRowSummary(mk, nombre, tipo, data);
+}
+
+// Guarda las notas del invoice. No tocan ninguna cifra, asi que no hace falta
+// repintar el desglose; solo se guardan.
+function invUpdateNotas(mk, nombre, tipo, iid, valor){
+  setOv(mk, nombre, { notas: String(valor || '') });
 }
 
 // Guarda como se factura un agente en ESTE invoice. Vacio = lo decide la regla.
@@ -9548,10 +9574,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
         cheques: '24/7 Medical Aid &mdash; Call Center',
         extra: '',
         marca: `<div class="lg-247">
-          <div class="brandmark">
-            <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical AID Call Center">
-            <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
-          </div>
+          <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
         </div>` };
 
   // ── Lineas del invoice ────────────────────────────────────────────────────
@@ -9643,6 +9666,15 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
       ).join('<br>')}</td></tr>`
     : '';
 
+  // ── Notas del invoice ─────────────────────────────────────────────────────
+  // Texto libre que Carlos escribe en la tarjeta. Si no hay nada escrito el
+  // bloque no sale, para no dejar un titulo vacio en la factura.
+  const bloqueNotas = (data.notas && String(data.notas).trim()) ? `
+    <div class="nota libres">
+      <h3>Notes</h3>
+      ${esc2(String(data.notas).trim()).replace(/\n/g, '<br>')}
+    </div>` : '';
+
   // ── Bloque "To:" ──────────────────────────────────────────────────────────
   // Los datos del cliente se escriben una vez en la ficha de la cuenta. Las
   // lineas vacias no se imprimen, asi que una cuenta sin datos sale igual que
@@ -9672,22 +9704,21 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   /* ── Cabecera ── */
   .top{display:flex;justify-content:space-between;align-items:flex-start;gap:30px}
   .lg-sigma{display:block;height:78px;width:auto}
-  .lg-247{display:inline-block;background:var(--marca-247);border-radius:10px;
-    padding:14px 20px}
-  .brandmark{display:flex;align-items:center;line-height:1}
-  .brandmark img{display:block;height:34px;width:auto}
-  .brandmark .bm-fb{display:none;align-items:baseline;gap:.3em;flex-wrap:wrap;
-    font-weight:800;letter-spacing:-.03em;font-size:23px;color:#fff}
-  .brandmark.sinlogo img{display:none}
-  .brandmark.sinlogo .bm-fb{display:inline-flex}
+  /* La marca sobre blanco, en tinta. El logotipo que sirve el sitio es la
+     version clara —letras blancas, pensada para fondos oscuros— y sobre blanco
+     desaparece, asi que aqui va el logotipo tipografico de la marca, que es el
+     mismo que usa la app y no depende de la red. */
+  .lg-247{display:inline-block;padding-top:2px}
+  .bm-fb{display:inline-flex;align-items:baseline;gap:.3em;flex-wrap:wrap;
+    font-weight:800;letter-spacing:-.03em;font-size:26px;color:var(--ink)}
   .bm-fb b{color:#ED3237;font-weight:800}
-  .bm-fb i{font-style:normal;width:1px;align-self:stretch;background:currentColor;opacity:.3;margin:0 .18em}
+  .bm-fb i{font-style:normal;width:1px;align-self:stretch;background:currentColor;opacity:.25;margin:0 .2em}
   .bm-fb u{text-decoration:none}
-  .bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.34em;opacity:.78;align-self:center;margin-left:-.1em}
+  .bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.33em;color:var(--ink-2);
+    align-self:center;margin-left:-.1em}
 
   .enc{text-align:right}
-  .enc .cli{font-size:12.3px;color:var(--ink-2)}
-  .enc h1{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:2px 0 5px}
+  .enc h1{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:0 0 5px}
   .enc .fe{font-size:11.8px;color:var(--ink-2)}
 
   /* ── Remitente y destinatario ── */
@@ -9717,18 +9748,26 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   .amt{text-align:right;font-size:12.8px;font-weight:600;font-variant-numeric:tabular-nums;
     white-space:nowrap}
 
-  /* ── Notas y totales ── */
-  .cierre{display:grid;grid-template-columns:1.3fr 1fr;gap:36px;margin-top:14px}
+  /* ── Totales y notas ── */
+  /* Los totales van solos, alineados a la derecha; el memo y los terminos bajan
+     debajo del Balance Due y ocupan el ancho de la hoja. A todo el ancho un
+     parrafo seria ilegible —unos 120 caracteres por renglon—, asi que el memo y
+     los terminos se reparten en dos columnas y lo del cheque cierra abajo. */
+  .cierre{display:flex;justify-content:flex-end;margin-top:10px}
+  .cierre table.tot{width:330px}
+  .pie-notas{margin-top:18px;padding-top:13px;border-top:1px solid var(--line)}
+  .notas{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .nota.libres{margin-bottom:13px}
   .nota{font-size:11.8px;color:var(--ink-2);line-height:1.58}
   .nota h3{font-size:11.8px;font-weight:500;color:var(--ink);margin:10px 0 4px}
   .nota h3:first-child{margin-top:0}
-  .nota .sep{margin-top:12px}
-  table.tot{width:100%;border-collapse:collapse;margin-top:12px}
-  table.tot td{padding:6px 0;font-size:12.3px;border-bottom:1px solid var(--line)}
+  .nota.pago{margin-top:10px}
+  table.tot{width:100%;border-collapse:collapse;margin-top:6px}
+  table.tot td{padding:5px 0;font-size:12.3px;border-bottom:1px solid var(--line)}
   table.tot td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   table.tot tr.pg td{border-bottom:1px solid var(--line);padding-top:0;
     font-size:11px;color:var(--ink-3);text-align:right;line-height:1.7}
-  table.tot tr.saldo td{border-bottom:none;padding-top:10px;font-size:12.8px}
+  table.tot tr.saldo td{border-bottom:none;padding-top:8px;font-size:12.8px}
   table.tot tr.saldo td:last-child{font-size:23px;font-weight:700;letter-spacing:-.02em}
 
   /* ── Pie ── */
@@ -9749,7 +9788,6 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   <div class="top">
     <div>${emisor.marca}</div>
     <div class="enc">
-      <div class="cli">${esc2(titulo(cuentaNombre))}</div>
       <h1>Invoice #${esc2(data.invnum||'')}</h1>
       <div class="fe">Issued On: ${fCorta(data.dateissue)}</div>
       <div class="fe">Due On: ${fCorta(data.duedate)}</div>
@@ -9781,26 +9819,37 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   </table>
 
   <div class="cierre">
+    <table class="tot">
+      <tr><td>Subtotal</td><td>$${fmtN(data.monto)}</td></tr>
+      <tr><td>Total</td><td>$${fmtN(data.monto)}</td></tr>
+      ${/* Al generar el invoice todavia no hay pagos: una linea en cero solo
+             repite el total tres veces. Aparece cuando hay algo abonado. */''}
+      ${estPago.abonado > 0.005
+        ? `<tr><td>Total Invoice Paid</td><td>$${fmtN(estPago.abonado)}</td></tr>${detallePagos}`
+        : ''}
+      <tr class="saldo"><td>Balance Due</td><td>$${fmtN(amtDue)}</td></tr>
+    </table>
+  </div>
+
+  <div class="pie-notas">
+  ${bloqueNotas}
+  <div class="notas">
     <div class="nota">
       <h3>Memo:</h3>
       If you have any questions or require further information, please do not
       hesitate to contact us at callcenter@247medical-aid.com. Look forward to
       continuing our successful partnership.
+    </div>
+    <div class="nota">
       <h3>Terms</h3>
       Please ensure payment is made by ${fLarga(data.duedate)}, in accordance with
       our agreed terms.${emisor.extra} Thank you for your prompt attention to this matter.
-      <div class="sep">Checks should be made payable to ${emisor.cheques} and mailed to:</div>
-      P.O. Box 780418<br>Orlando, FL 32878
     </div>
-    <div>
-      <table class="tot">
-        <tr><td>Subtotal</td><td>$${fmtN(data.monto)}</td></tr>
-        <tr><td>Total</td><td>$${fmtN(data.monto)}</td></tr>
-        <tr><td>Total Invoice Paid</td><td>$${fmtN(estPago.abonado)}</td></tr>
-        ${detallePagos}
-        <tr class="saldo"><td>Balance Due</td><td>$${fmtN(amtDue)}</td></tr>
-      </table>
-    </div>
+  </div>
+  <div class="nota pago">
+    Checks should be made payable to ${emisor.cheques} and mailed to:
+    P.O. Box 780418, Orlando, FL 32878
+  </div>
   </div>
 
   <div class="pie">
@@ -9810,27 +9859,19 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
 
 </div>
 <script>
-/* Si el logo del sitio no esta disponible (por ejemplo al imprimir sin conexion)
-   se muestra el respaldo tipografico, para que la factura nunca salga sin marca. */
 /* Cuantas hojas va a ocupar. La hoja tiene en pantalla la misma geometria que
-   impresa (Carta a 96dpi), asi que el alto del contenido lo dice. Se mide
-   contra 1010 y no contra 1056 para no prometer una sola pagina si el usuario
-   imprime con margenes. */
+   impresa (Carta a 96dpi), asi que el alto del contenido lo dice. El alto util
+   es la hoja entera —1056— porque la propia factura declara @page{margin:0} y
+   eso manda sobre el margen que elija el usuario en el dialogo de impresion;
+   se deja un pelo de holgura por el redondeo. */
 (function(){
   var pg = document.querySelector('.page'), et = document.getElementById('pg-cuenta');
   if(!pg || !et) return;
   var min = pg.style.minHeight;
   pg.style.minHeight = '0';
-  var n = Math.max(1, Math.ceil(pg.scrollHeight / 1010));
+  var n = Math.max(1, Math.ceil(pg.scrollHeight / 1050));
   pg.style.minHeight = min || '';
   et.textContent = 'Page ' + n + ' of ' + n;
-})();
-(function(){
-  var bm = document.querySelector('.brandmark'), img = bm && bm.querySelector('img');
-  if(!img) return;
-  var fallar = function(){ bm.classList.add('sinlogo'); };
-  img.addEventListener('error', fallar);
-  if(img.complete && img.naturalWidth === 0) fallar();
 })();
 <\/script>
 </body></html>`;
