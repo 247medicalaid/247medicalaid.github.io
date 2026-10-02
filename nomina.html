@@ -579,6 +579,25 @@
   @keyframes ivFlash{ 0%,100%{background:#9CA3AF} 50%{background:#E5E7EB} }
   @media (prefers-reduced-motion:reduce){ .iv-f-sigma{ animation:none } }
 
+  /* Sigma, en la cabecera. Sustituye al bloque que iba al pie del invoice:
+     importe, abonado y pendiente caben en una pastilla, y el reparto por
+     agente ya se ve en "Distribucion del invoice". Lleva a la seccion Sigma,
+     que es donde se registra el giro. */
+  .iv-sigma{
+    display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px;
+    border-radius:999px; background:#FFFFFF; border:1px solid #D9CCF7;
+    font-family:'Inter',sans-serif; font-size:11px; color:var(--text2);
+    font-weight:600; white-space:nowrap; cursor:pointer;
+  }
+  .iv-sigma:hover{ border-color:var(--inv-sigma,#6D28D9); }
+  .iv-sigma b{ font-family:'DM Mono',monospace; font-size:14px; font-weight:700;
+               color:var(--inv-sigma,#6D28D9); }
+  .iv-sigma .est{ font-size:10.5px; font-weight:700; }
+  .iv-sigma.pend .est{ color:#B45309; }
+  .iv-sigma.parc .est{ color:#B45309; }
+  .iv-sigma.ok   .est{ color:#047857; }
+  .iv-sigma.proy .est{ color:var(--text3); font-weight:600; }
+
   /* Invoice cerrado: los campos se ven bloqueados de verdad, no apagados. Con
      opacidad las cifras quedaban dificiles de leer justo cuando mas se
      consultan — un invoice cerrado se mira mucho mas de lo que se edita.
@@ -7658,108 +7677,10 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>`;
     })()}
 
-    <!-- Sigma Check block — cerrado: real · abierto: proyección informativa -->
-    ${(()=>{
-      if(cu.tipo === 'own') return ''; // OWN → no sigma block
-      const sigma = calcSigmaCheck(data, cu.tipo);
-      // Las cuentas que le pagan a Sigma directamente: se muestra el importe
-      // como informacion, sin contarlo como deuda de 24/7.
-      if(sigma.excluded){
-        const _sd = sigma.sigmaDirecto || 0;
-        if(!(_sd > 0.005)) return '';
-        const _ovD = getOv(mk, cuNombre);
-        const _estD = sigmaEstado(_ovD, _sd);
-        return `
-      <div class="sig-box" style="border-left-style:dashed">
-        <div class="sig-top">
-          <span class="sig-tit">🏦 Sigma · lo paga el cliente</span>
-          <span class="caja-sub">${cuNombre} le gira a Sigma directamente</span>
-          <span class="sig-pill caja-der" style="color:var(--text3)">${_estD.completo ? '✓ registrado' : '● sin registrar'}</span>
-        </div>
-        <div class="sig-nota" style="margin-top:8px">
-          Le corresponden <b>${fmt(_sd)}</b> de este invoice${_ovD.sigmaFecha ? `, pagados el <b>${_ovD.sigmaFecha}</b>` : ''}.
-          No sale de 24/7, así que no cuenta en lo que le debes a Sigma. El registro se lleva en la sección <b><a href="#" onclick="showPage('sigma');return false" style="color:var(--inv-sigma,#a78bfa)">🏦 Sigma</a></b> del menú.
-        </div>
-      </div>`;
-      }
-      const _sigDetalle = sigma.hasSplit
-        ? `<div style="font-size:11px;color:var(--text3)">${sigma.agsDr?.map(a=>a.nombre).join(', ')||''} · ${fmtDias(sigma.diasDr)} días (${data.totalDias > 0 ? (sigma.diasDr/data.totalDias*100).toFixed(1) : 0}% del invoice)</div>`
-        : sigma.sigmaAmt > 0
-          ? `<div style="font-size:11px;color:var(--text3)">100% del invoice → Sigma</div>`
-          : `<div style="font-size:11px;color:var(--text3)">Sin agentes Dr · $0 a Sigma</div>`;
-      if(!locked){
-        // Invoice abierto → proyección informativa. No se puede marcar como pagado
-        // hasta cerrar el invoice (y antes, las quincenas del mes).
-        return `
-      <div class="sig-box" style="border-left-style:dashed">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:0">
-            <div class="sig-tit" style="margin-bottom:5px;display:block">🏦 Pago proyectado a Sigma</div>
-            ${_sigDetalle}
-            <div style="font-size:11px;color:var(--accent3);margin-top:4px">
-              ⏳ Proyección informativa — se confirma al cerrar el invoice${enProceso ? ' (primero hay que aprobar las quincenas del mes)' : ''}
-            </div>
-          </div>
-          <div style="text-align:right;white-space:nowrap">
-            <div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--inv-sigma,#a78bfa);opacity:.9">${fmt(sigma.sigmaAmt)}</div>
-            <div style="font-size:9px;color:var(--text3);letter-spacing:.09em;font-weight:700">PROYECTADO</div>
-          </div>
-        </div>
-      </div>`;
-      }
-      const ovSigma = getOv(mk, cuNombre);
-      const est          = sigmaEstado(ovSigma, sigma.sigmaAmt);
-      const clientPagado = ovSigma.pagado === true;
-      const _flashThis   = clientPagado && !est.completo && sigma.sigmaAmt > 0;
-      const esCruzado    = ovSigma.cruzadoUtilidad === true;
-      const pct          = est.total > 0 ? Math.round(est.pagado / est.total * 100) : 0;
-      const claseEstado  = esCruzado ? 'cruce' : est.completo ? 'ok' : est.parcial ? 'parcial' : 'pend';
-      const textoEstado  = esCruzado    ? '⇄ Cruzado por Utilidad'
-                         : est.completo ? '✓ Pagado a Sigma'
-                         : est.parcial  ? '◑ Abonado parcialmente'
-                         : '● Falta pagarle a Sigma';
-      // En un cruce el dinero no salio: se compenso contra la utilidad. La
-      // etiqueta lo dice, para que la cifra no se lea como un pago.
-      const lbAbonado = esCruzado ? 'Compensado' : 'Abonado';
-      const lbPct     = esCruzado ? 'compensado' : 'abonado';
-      return `
-      <div class="sig-box${_flashThis ? ' inv-sigma-flash' : ''}">
-        <div class="sig-top">
-          <span class="sig-tit">🏦 Cheque a Sigma</span>
-          <span class="caja-sub">sale · lo que le giramos a Sigma</span>
-          <span class="sig-pill ${claseEstado} caja-der">${textoEstado}</span>
-        </div>
-        ${_sigDetalle}
-
-        <div class="sig-cifras">
-          <div class="sig-cifra total">
-            <div class="lb">Total a pagar</div>
-            <div class="vl">${fmt(est.total)}</div>
-          </div>
-          <div class="sig-cifra abonado${est.pagado > 0.005 ? '' : ' cero'}">
-            <div class="lb">${lbAbonado}</div>
-            <div class="vl">${fmt(est.pagado)}</div>
-          </div>
-          <div class="sig-cifra falta${est.saldo > 0.005 ? '' : ' cero'}">
-            <div class="lb">Pendiente</div>
-            <div class="vl">${fmt(est.saldo)}</div>
-          </div>
-        </div>
-
-        ${est.total > 0.005 ? `
-        <div class="sig-barra-fila">
-          <div class="sig-barra"><i style="width:${pct}%"></i></div>
-          <span class="sig-pct">${pct}% ${lbPct}</span>
-        </div>` : ''}
-
-        ${esCruzado
-          ? `<div class="sig-nota">${ovSigma.cruceFecha || ''} · compensado contra la utilidad, no pagado en dinero</div>`
-          : `<div class="sig-nota">
-               ${ovSigma.sigmaFecha ? 'Girado el ' + ovSigma.sigmaFecha + ' · ' : ''}El pago a Sigma se registra en la sección <b><a href="#" onclick="showPage('sigma');return false" style="color:var(--inv-sigma,#a78bfa)">🏦 Sigma</a></b>, en el menú de la izquierda.
-             </div>`}
-      </div>`;
-    })()}
-
+    <!-- El bloque de Sigma vivia aqui. Se quito: la cabecera ya dice si falta
+         girarle a Sigma, cuanto se abono y cuanto queda, y el reparto por
+         agente sigue estando en "Distribucion del invoice". El pago se
+         registra en la seccion Sigma del menu, no aqui. -->
     <!-- Actions: Save · Lock · Pago · PDF -->
     <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border);background:rgba(0,0,0,.08)">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -8758,6 +8679,49 @@ function renderInvoicesMes(){
             ${ov.cerrado ? '<span style="font-size:10px;color:var(--text3)">congelada</span>'
                          : `<a onclick="editInvoiceTarifa('${mk}','${k}')">cambiar</a>`}
           </span>`;
+        })()}
+        ${(()=>{
+          // Lo que antes ocupaba un bloque entero al pie del invoice cabe aqui:
+          // cuanto hay que girarle a Sigma, cuanto se abono y cuanto falta.
+          if(i.tipo === 'own' || !_invDataHdr) return '';
+          let sc; try{ sc = calcSigmaCheck(_invDataHdr, i.tipo); }catch(e){ return ''; }
+          const directo = !!sc.excluded;
+          const total   = directo ? (sc.sigmaDirecto || 0) : (sc.sigmaAmt || 0);
+          if(!(total > 0.005)) return '';
+          const es = sigmaEstado(ov, total);
+          // Un abono a medias es el caso que hay que poder ver sin abrir nada:
+          // se dicen las dos cifras, lo abonado y lo que falta.
+          const medias = 'abonado ' + fmt(es.pagado) + ' · falta ' + fmt(es.saldo);
+          let clase = 'pend', txt;
+          if(!ov.cerrado){ clase = 'proy'; txt = 'proyectado'; }
+          else if(ov.noPago){ clase = 'ok'; txt = 'cancelado con el invoice'; }
+          else if(directo){
+            clase = es.completo ? 'ok' : es.parcial ? 'parc' : 'pend';
+            txt = (es.completo ? '✓ registrado' : es.parcial ? medias : '● sin registrar')
+                + ' · lo paga el cliente';
+          }
+          else if(ov.cruzadoUtilidad){ clase = 'ok'; txt = '⇄ cruzado por utilidad'; }
+          else if(es.completo){ clase = 'ok'; txt = '✓ girado'; }
+          else if(es.parcial){ clase = 'parc'; txt = medias; }
+          else { clase = 'pend'; txt = '● pendiente por girar'; }
+          // El detalle que traia el bloque al pie queda en el tooltip: el
+          // reparto por dias y la fecha del giro, sin ocupar pantalla.
+          const reparto = sc.hasSplit
+            ? fmtDias(sc.diasDr) + ' días Dr de ' + fmtDias(_invDataHdr.totalDias || 0)
+            : '100% del invoice';
+          const ayuda = (!ov.cerrado
+            ? ['Proyección: ' + fmt(total) + ' · se confirma al cerrar el invoice', reparto]
+            : ['Total a Sigma ' + fmt(es.total),
+               'abonado ' + fmt(es.pagado),
+               'pendiente ' + fmt(es.saldo),
+               ov.sigmaFecha ? 'girado el ' + ov.sigmaFecha : '',
+               ov.cruceFecha ? 'cruzado el ' + ov.cruceFecha : '',
+               reparto]
+          ).filter(Boolean).join(' · ') + ' — clic para ir a la sección Sigma';
+          return `<button type="button" class="iv-sigma ${clase}" onclick="showPage('sigma')"
+            title="${String(ayuda).replace(/"/g,'')}">
+            <span>\u{1F3E6} Sigma</span><b>${fmt(total)}</b><span class="est">${txt}</span>
+          </button>`;
         })()}
         <span class="iv-esp"></span>
         <span class="iv-cifra">
