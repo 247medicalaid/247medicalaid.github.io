@@ -859,7 +859,7 @@
   /* Las filas de agentes: una por linea, el campo a la derecha, rayado suave
      para no saltarse una. */
   .iv-agente{
-    display:grid; grid-template-columns:1fr auto; align-items:center; gap:12px;
+    display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px;
     padding:7px 10px; border-radius:8px;
   }
   .iv-agente:nth-of-type(even){ background:rgba(11,34,51,.035); }
@@ -868,12 +868,22 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .iv-agente .quien span{ display:block; font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
   .iv-agente .inv-stepper{ width:132px; }
+  /* El selector es la tercera columna; en pantalla angosta baja a su propio
+     renglon para no estrujar el nombre ni el contador. */
+  .iv-agente select.iv-linea{
+    width:auto; max-width:152px; background:var(--surface); color:var(--text2);
+    border:1px solid var(--border); border-radius:7px; padding:5px 7px;
+    font-size:11px; font-family:'Inter',sans-serif; cursor:pointer;
+  }
+  .iv-cerrada .iv-agente select.iv-linea{ background:var(--surface2); color:var(--text3); }
 
   @media (max-width:620px){
     .iv-cab{ padding:10px 12px 10px 14px; gap:8px; }
     .iv-nom{ font-size:15.5px; }
     .iv-cifra{ width:100%; text-align:left; display:flex; align-items:baseline; gap:8px; }
     .iv-cifra .v{ font-size:17px; }
+    .iv-agente{ grid-template-columns:1fr auto; }
+    .iv-agente select.iv-linea{ grid-column:1 / -1; max-width:none; width:100%; }
     .iv-agente .inv-stepper{ width:118px; }
   }
 
@@ -7278,47 +7288,116 @@ function fmtDias(n){
 }
 
 // ── Como se cobra un invoice ─────────────────────────────────────────────────
-// Tal como lo factura Carlos y como sale impreso en el invoice del cliente:
+// La tarifa es mensual y por agente, y hay dos formas de estar en el mes:
 //
-//     bruto     = tarifa mensual x numero de agentes facturados
-//     valor dia = tarifa mensual / dias habiles del mes   (a centavos)
-//     descuento = valor dia x dias de ausencia de servicio
-//     total     = bruto - descuento
+//   * Agente de MES COMPLETO: cuesta una tarifa. Los dias que haya faltado se
+//     descuentan aparte, todos juntos, al valor del dia.
+//   * Agente de UNA QUINCENA: entro o salio a mitad de mes. Cuesta media
+//     tarifa, y si no cubrio la quincena entera se prorratea por los dias
+//     habiles de ESA quincena — no por los del mes.
 //
-// El valor del dia se redondea a centavos ANTES de multiplicar, no despues: es
-// la cifra que el cliente ve impresa y tiene que poder rehacer la cuenta con
-// ella. Si se prorratea primero y se redondea al final, el descuento impreso no
-// cuadra con el total por uno o dos centavos y el cliente llama a preguntar.
+//     valor dia = tarifa / dias habiles del mes          (a centavos)
+//     media q   = tarifa / 2                             (a centavos)
+//     bruto     = tarifa x agentes de mes completo
+//     ausencias = (dias habiles del mes - dias del agente), sumado en los completos
+//     descuento = valor dia x ausencias
+//     parcial   = media q x dias del agente / dias habiles de su quincena
+//     total     = bruto - descuento + parciales
+//
+// El valor del dia se redondea a centavos ANTES de multiplicar: es la cifra que
+// el cliente ve impresa y tiene que poder rehacer la cuenta con ella.
 //
 // Esta funcion es el unico sitio donde vive la formula: buildInvData la usa
-// para el total y calcInvDescuento para el desglose, asi que el desglose y el
-// total no pueden discrepar.
-function calcInvCobro(tarifa, diasMes, agentesFact, totalDias){
-  const valorDia   = invR2(diasMes > 0 ? tarifa / diasMes : 0);
-  const diasPlenos = invR2(agentesFact * diasMes);
-  const diasAus    = invR2(diasPlenos - totalDias);
-  const bruto      = invR2(agentesFact * tarifa);
-  const descuento  = invR2(diasAus * valorDia);
-  return { valorDia, diasPlenos, diasAus, bruto, descuento,
-           monto: invR2(bruto - descuento) };
+// para el total y calcInvDescuento para el desglose, asi que el papel y la
+// pantalla no pueden discrepar.
+
+// Un agente es de mes completo cuando la nomina le registra dias en las dos
+// quincenas. Si solo aparece en una, entro o salio a mitad de mes. La regla
+// acierta sola en el caso normal, pero se puede forzar por invoice y por
+// agente (ov.agenteLinea), porque una baja larga se parece en los datos a una
+// incorporacion y solo Carlos sabe cual de las dos fue.
+function clasificarAgenteInv(a, lineaOv){
+  const forzado = lineaOv && lineaOv[a.nombre];
+  if(forzado === 'mes') return { clase:'mes', forzado:true };
+  if(forzado === 'q1')  return { clase:'parcial', q:1, forzado:true };
+  if(forzado === 'q2')  return { clase:'parcial', q:2, forzado:true };
+  const enQ1 = (a.diasQ1 || 0) > 0, enQ2 = (a.diasQ2 || 0) > 0;
+  if(enQ1 && enQ2) return { clase:'mes' };
+  if(enQ1)         return { clase:'parcial', q:1 };
+  if(enQ2)         return { clase:'parcial', q:2 };
+  return { clase:'mes' };
 }
 
-// ── Descuento por dias no trabajados ─────────────────────────────────────────
-// bruto - descuento == data.monto, por construccion: las dos cifras salen de la
-// misma llamada a calcInvCobro.
+function calcInvCobro(data, lineaOv, descDias){
+  const tarifa   = Number(data.tarifa)  || 0;
+  const diasMes  = Number(data.diasMes) || 0;
+  const d1 = calcDiasHabilesUSA(data.anio, data.mes, 1);
+  const d2 = calcDiasHabilesUSA(data.anio, data.mes, 2);
+  const valorDia = invR2(diasMes > 0 ? tarifa / diasMes : 0);
+  const mediaQ   = invR2(tarifa / 2);
+
+  const completos = [], parciales = [];
+  (data.agentes || []).forEach(a => {
+    if(!(a.total > 0)) return;
+    const c = clasificarAgenteInv(a, lineaOv);
+    if(c.clase === 'mes') completos.push(a);
+    else parciales.push({ a, q: c.q, diasQ: c.q === 1 ? d1 : d2 });
+  });
+
+  const nCompletos = completos.length;
+  const bruto      = invR2(nCompletos * tarifa);
+  const ausCalc    = invR2(completos.reduce((s,a) => s + (diasMes - a.total), 0));
+  const ausencias  = (descDias !== undefined && descDias !== null)
+                     ? invR2(Number(descDias) || 0) : ausCalc;
+  const descuento  = invR2(valorDia * ausencias);
+
+  // Los parciales se agrupan por quincena y por dias, que es como salen
+  // impresos: dos agentes nuevos que entraron el mismo dia son una sola linea.
+  const mapa = {};
+  parciales.forEach(pz => {
+    const dias = invR2(pz.a.total);
+    const k = pz.q + '|' + dias;
+    if(!mapa[k]) mapa[k] = { q: pz.q, dias, diasQ: pz.diasQ, nombres: [],
+                             importe: invR2(pz.diasQ > 0 ? mediaQ * dias / pz.diasQ : 0) };
+    mapa[k].nombres.push(pz.a.nombre);
+  });
+  const grupos = Object.values(mapa).sort((x,y) => (x.q - y.q) || (y.dias - x.dias));
+  grupos.forEach(g => { g.total = invR2(g.importe * g.nombres.length); });
+  const totalParciales = invR2(grupos.reduce((s,g) => s + g.total, 0));
+
+  // Lo que cuesta cada agente por separado. Hace falta para repartir el invoice
+  // entre 24/7 y el doctor: ahora que cada agente puede costar algo distinto,
+  // repartir por dias daria un numero que no corresponde a nadie.
+  const porAgente = {};
+  completos.forEach(a => {
+    porAgente[a.nombre] = invR2(tarifa - invR2((diasMes - a.total) * valorDia));
+  });
+  grupos.forEach(g => g.nombres.forEach(n => { porAgente[n] = g.importe; }));
+
+  return { valorDia, mediaQ, d1, d2, nCompletos,
+           nombresCompletos: completos.map(a => a.nombre),
+           bruto, ausencias, descuento, grupos, totalParciales, porAgente,
+           monto: invR2(bruto - descuento + totalParciales) };
+}
+
+// ── Desglose del invoice ─────────────────────────────────────────────────────
+// bruto - descuento + parciales == data.monto, por construccion: las cifras
+// salen todas de la misma llamada a calcInvCobro.
 function calcInvDescuento(data){
   if(!data) return null;
-  const agentesFact = data.agentes.filter(a => a.total > 0).length;
-  const c = calcInvCobro(data.tarifa, data.diasMes, agentesFact, data.totalDias);
+  const c = calcInvCobro(data, data.agenteLinea, data.descDias);
   return {
-    agentesFact, valorDia: c.valorDia, diasPlenos: c.diasPlenos, diasAus: c.diasAus,
+    agentesFact: c.nCompletos, nombresCompletos: c.nombresCompletos, valorDia: c.valorDia,
+    diasPlenos: invR2(c.nCompletos * data.diasMes),
+    diasAus: c.ausencias, d1: c.d1, d2: c.d2, mediaQ: c.mediaQ,
     bruto: c.bruto, descuento: c.descuento, neto: c.monto,
+    grupos: c.grupos, totalParciales: c.totalParciales,
     manual: data.descManual === true,
-    aplica: agentesFact > 0 && c.diasAus > 0.005,
+    aplica: c.nCompletos > 0 && c.ausencias > 0.005,
     // Si alguien trabajo mas dias que los habiles del mes el "descuento" sale
     // negativo. Se marca aparte para que el invoice lo imprima como dias extra
     // y la suma del detalle siga cuadrando con el total.
-    aplicaExtra: agentesFact > 0 && c.diasAus < -0.005
+    aplicaExtra: c.nCompletos > 0 && c.ausencias < -0.005
   };
 }
 
@@ -7509,15 +7588,18 @@ function calcSigmaCheck(data, cuentaTipo){
                               excluded: true, sigmaDirecto: data.monto };
     return { sigmaAmt: data.monto, amt247: 0, hasSplit: false };
   }
-  // Mixed → split proportionally by days
+  // Mixed → se reparte por lo que cuesta cada agente
   const dias247 = ags247.reduce((s,a) => s+a.total, 0);
   const diasDr  = agsDr.reduce((s,a) => s+a.total, 0);
-  // Se reparte el monto del invoice segun los dias de cada lado. Equivale a
-  // tarifa x dias/diasMes mientras no haya descuento manual, y sigue cuadrando
-  // cuando lo hay: amt247 + sigmaAmt == data.monto siempre.
   const _baseDias = dias247 + diasDr;
-  const amt247  = _baseDias > 0 ? data.monto * dias247 / _baseDias : 0;
-  const sigmaAmt= _baseDias > 0 ? data.monto * diasDr  / _baseDias : 0;
+  // Cada agente tiene su propio importe —un mes completo, media quincena, o un
+  // mes con ausencias—, asi que el reparto suma los de cada lado en vez de
+  // partir el total por dias. El lado del doctor se saca por diferencia para
+  // que amt247 + sigmaAmt == data.monto siempre, aun con el descuento puesto a
+  // mano, que no es de ningun agente en particular.
+  const _porAg  = (calcInvCobro(data, data.agenteLinea, data.descDias) || {}).porAgente || {};
+  const amt247  = invR2(ags247.reduce((s,a) => s + (_porAg[a.nombre] || 0), 0));
+  const sigmaAmt= invR2(data.monto - amt247);
   if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: true,
                             excluded: true, sigmaDirecto: sigmaAmt,
                             ags247, agsDr, dias247, diasDr };
@@ -7613,10 +7695,13 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   const _agFact     = agentes.filter(a=>a.total>0).length;
   const _diasPlenos = invR2(_agFact * diasMes);
   const descManual  = ov.descDias !== undefined && ov.descDias !== null;
-  if(descManual) totalDias = invR2(Math.max(0, _diasPlenos - (Number(ov.descDias)||0)));
   const prorrateo = diasMes > 0 ? totalDias/diasMes : 0;
-  // El total sale de bruto menos descuento, no del prorrateo: ver calcInvCobro.
-  const monto = calcInvCobro(tarifa, diasMes, _agFact, totalDias).monto;
+  // El total sale de la tarifa por agente, no del prorrateo: ver calcInvCobro.
+  // Antes, con el descuento puesto a mano, aqui se reescribian los dias
+  // trabajados para que el prorrateo cuadrara. Ya no hace falta: el descuento
+  // manual entra como dias de ausencia y los dias siguen diciendo la verdad.
+  const monto = calcInvCobro({ tarifa, diasMes, anio, mes, agentes },
+                             ov.agenteLinea, ov.descDias).monto;
   const numAgentes = agentes.length;
 
   // Meta
@@ -7644,6 +7729,10 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     anio, mes, mk, cuentaNombre, cuentaTipo,
     diasMes, diasMesBase, tarifa, agentes, numAgentes, totalDias, prorrateo, monto,
     descManual,
+    // Como se factura cada agente: 'mes', 'q1' o 'q2' puesto a mano; lo que no
+    // este aqui lo decide la regla de calcInvCobro.
+    agenteLinea: ov.agenteLinea || {},
+    descDias:    descManual ? ov.descDias : null,
     // Datos del cliente para el bloque "To:" del PDF. Viven en la ficha de la
     // cuenta porque son los mismos todos los meses; vacios no se imprimen.
     cliDir:     (cuentaObj && cuentaObj.cliDir)  || '',
@@ -7765,6 +7854,23 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
             <b>${a.nombre}</b>
             <span>Q1:${fmtDias(a.diasQ1)} · Q2:${fmtDias(a.diasQ2)} · base:${fmtDias(a.totalBase)}</span>
           </div>
+          ${/* Como se le factura: la regla acierta sola en el caso normal, pero
+                una baja larga se parece en los datos a una incorporacion y solo
+                Carlos sabe cual de las dos fue. Se ve siempre, para que no haya
+                que adivinar que decidio la app. */''}
+          ${(()=>{
+            const auto = clasificarAgenteInv({ ...a, nombre:a.nombre }, null);
+            const autoTxt = auto.clase === 'mes' ? 'mes completo'
+                          : auto.q === 1 ? '1ª quincena' : '2ª quincena';
+            const puesto = (data.agenteLinea || {})[a.nombre] || '';
+            return `<select class="iv-linea" title="Cómo se le factura a esta cuenta"
+              onchange="invUpdateLineaAgente('${mk}','${esc(cuNombre)}','${cu.tipo}','${esc(a.nombre)}','${iid}',this.value)">
+              <option value=""${puesto===''   ? ' selected':''}>Auto · ${autoTxt}</option>
+              <option value="mes"${puesto==='mes'? ' selected':''}>Mes completo</option>
+              <option value="q1"${puesto==='q1' ? ' selected':''}>Solo 1ª quincena</option>
+              <option value="q2"${puesto==='q2' ? ' selected':''}>Solo 2ª quincena</option>
+            </select>`;
+          })()}
           <div class="inv-stepper sm" style="border-color:var(--border)">
             <button class="inv-stepper-btn" data-delta="-1" style="background:rgba(255,255,255,.05)" tabindex="-1" onpointerdown="event.preventDefault()">−</button>
             <input type="text" inputmode="decimal"
@@ -7935,24 +8041,38 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
 
 function buildInvSummaryHTML(data, locked, iid){
   if(!data) return '';
-  const groups = groupAgentsByDias(data.agentes, data.tarifa, data.diasMes);
-  const desc    = calcInvDescuento(data);
+  const desc = calcInvDescuento(data);
 
-  const rows = groups.map(g => `
+  // Las mismas lineas que salen impresas en el invoice del cliente: los agentes
+  // de mes completo juntos en una, y una por cada grupo que solo estuvo una
+  // quincena. Si la pantalla reparte de una forma y el papel de otra, una de
+  // las dos esta mintiendo.
+  const filaDet = (titulo, quienes, cuenta, importe) => `
     <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:200px;font-size:13px">
-        <b style="color:var(--text)">${g.nombres.length} agente${g.nombres.length!==1?'s':''}</b>
-        <span style="color:var(--text2)"> ${g.nombres.length!==1?'trabajaron':'trabajó'} </span>
-        <b style="color:var(--accent2)">${fmtDias(g.dias)} días</b>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${g.nombres.join(', ')}</div>
+        <b style="color:var(--text)">${titulo}</b>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${quienes}</div>
       </div>
-      <div style="font-size:11px;color:var(--text2);white-space:nowrap">
-        ${g.nombres.length}×${fmtDias(g.dias)}d / ${fmtDias(data.diasMes)}d = ${(g.pror*100).toFixed(1)}% × ${fmt(data.tarifa)}
-      </div>
+      <div style="font-size:11px;color:var(--text2);white-space:nowrap">${cuenta}</div>
       <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--accent2);min-width:90px;text-align:right">
-        ${fmt(g.subtotal)}
+        ${importe}
       </div>
-    </div>`).join('');
+    </div>`;
+
+  const rows =
+    ((desc && desc.agentesFact > 0)
+      ? filaDet(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo`,
+                desc.nombresCompletos.join(', '),
+                `${desc.agentesFact} × ${fmt(data.tarifa)}`,
+                fmt(desc.bruto))
+      : '')
+    + ((desc && desc.grupos) || []).map(g => filaDet(
+        `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`,
+        g.nombres.join(', '),
+        g.dias < g.diasQ - 0.005
+          ? `${fmtDias(g.dias)}d / ${fmtDias(g.diasQ)}d × ${fmt(desc.mediaQ)}`
+          : `media tarifa · ${fmt(desc.mediaQ)}`,
+        fmt(g.total))).join('');
 
   // ── Split 24/7 vs Doctor for merged accounts ──────────────────
   // Agents with "(24/7)" in their name belong to 24/7 Medical Aid
@@ -7966,10 +8086,13 @@ function buildInvSummaryHTML(data, locked, iid){
   if(hasSplit && locked){
     const dias247  = ags247.reduce((s,a) => s + a.total, 0);
     const diasDr   = agsDr.reduce((s,a) => s + a.total, 0);
-    const monto247 = data.diasMes > 0 ? data.tarifa * dias247 / data.diasMes : 0;
-    const montoDr  = data.diasMes > 0 ? data.tarifa * diasDr  / data.diasMes : 0;
-    const pct247   = data.totalDias > 0 ? (dias247 / data.totalDias * 100).toFixed(1) : 0;
-    const pctDr    = data.totalDias > 0 ? (diasDr  / data.totalDias * 100).toFixed(1) : 0;
+    // Las mismas cifras que usa el cheque a Sigma: sumar lo que cuesta cada
+    // agente, no repartir el total por dias.
+    const _sc      = calcSigmaCheck(data, data.cuentaTipo);
+    const monto247 = _sc.amt247 || 0;
+    const montoDr  = (_sc.excluded ? (_sc.sigmaDirecto || 0) : (_sc.sigmaAmt || 0));
+    const pct247   = data.monto > 0 ? (monto247 / data.monto * 100).toFixed(1) : 0;
+    const pctDr    = data.monto > 0 ? (montoDr  / data.monto * 100).toFixed(1) : 0;
 
     splitBlock = `
     <div style="margin-top:14px;padding:12px 14px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid var(--border)">
@@ -7998,14 +8121,13 @@ function buildInvSummaryHTML(data, locked, iid){
   }
 
   // ── Descuento por dias no trabajados ────────────────────────────────────
-  // Se factura el mes completo por agente y se descuenta la ausencia, igual que
-  // en los invoices que se le envian al cliente. El descuento sale de la resta
-  // exacta, asi que bruto - descuento siempre da el total del invoice.
+  // Solo cuenta las ausencias de los agentes de mes completo: los de media
+  // quincena ya se cobran por los dias que trabajaron, en su propia linea.
   const descBox = (desc && desc.agentesFact > 0) ? `
     <div class="desc-box">
       <div class="desc-tit">➖ Descuento por días no trabajados</div>
       <div style="font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.6">
-        ${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} × ${fmtDias(data.diasMes)} días hábiles =
+        ${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmtDias(data.diasMes)} días hábiles =
         <b style="color:var(--text)">${fmtDias(desc.diasPlenos)} días</b> facturables &nbsp;·&nbsp;
         valor del día = ${fmt(data.tarifa)} ÷ ${fmtDias(data.diasMes)} = <b style="color:var(--text)">${fmt(desc.valorDia)}</b>
       </div>
@@ -8047,9 +8169,23 @@ function buildInvTotalesHTML(data){
       <span style="font-family:'DM Mono',monospace;font-size:${fuerte?'18':'13.5'}px;font-weight:700;color:${clr};white-space:nowrap">${val}</span>
     </div>`;
   return `
-        ${desc && desc.aplica
-          ? filaTot(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} × ${fmt(data.tarifa)}`, fmt(desc.bruto), 'var(--text)')
-            + filaTot(`Descuento · ${fmtDias(desc.diasAus)} día${desc.diasAus!==1?'s':''} no trabajado${desc.diasAus!==1?'s':''}`, '−'+fmt(desc.descuento), 'var(--danger)')
+        ${/* el desglose dice exactamente lo mismo que el PDF: una linea con los
+              agentes de mes completo, una por cada grupo de media quincena y el
+              descuento por ausencias. Si no hay nada que explicar no sale. */''}
+        ${desc && (desc.aplica || desc.aplicaExtra || desc.grupos.length)
+          ? (desc.agentesFact > 0
+              ? filaTot(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmt(data.tarifa)}`, fmt(desc.bruto), 'var(--text)')
+              : '')
+            + desc.grupos.map(g => filaTot(
+                `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`
+                + (g.dias < g.diasQ - 0.005 ? ` (${fmtDias(g.dias)} de ${fmtDias(g.diasQ)} días)` : ''),
+                fmt(g.total), 'var(--text)')).join('')
+            + (desc.aplica
+                ? filaTot(`Descuento · ${fmtDias(desc.diasAus)} día${desc.diasAus!==1?'s':''} no trabajado${desc.diasAus!==1?'s':''}`, '−'+fmt(desc.descuento), 'var(--danger)')
+                : '')
+            + (desc.aplicaExtra
+                ? filaTot(`Días adicionales · ${fmtDias(-desc.diasAus)} día${desc.diasAus!==-1?'s':''}`, '+'+fmt(-desc.descuento), 'var(--accent3)')
+                : '')
           : ''}
         ${filaTot('Total del invoice', fmt(data.monto), 'var(--accent)', true)}
         ${/* el abonado se muestra siempre, aunque sea cero: es la cifra que
@@ -8059,9 +8195,12 @@ function buildInvTotalesHTML(data){
                   estPago.abonado > 0.005 ? 'var(--accent)' : 'var(--text3)')}
         ${filaTot('Saldo pendiente', fmt(amountDue), amountDue<=0.005?'var(--accent)':'var(--danger)', true)}
         <div style="text-align:right;font-size:10.5px;color:var(--text3);margin-top:6px">
-          ${(desc && desc.agentesFact > 0)
-            ? `${fmtDias(data.totalDias)} días trabajados de ${fmtDias(desc.diasPlenos)} facturables · ${(desc.diasPlenos > 0 ? data.totalDias/desc.diasPlenos*100 : 0).toFixed(1)}%`
-            : `${fmtDias(data.totalDias)} de ${fmtDias(data.diasMes)} días hábiles · ${(data.prorrateo*100).toFixed(1)}%`}
+          ${(desc && (desc.agentesFact > 0 || desc.grupos.length))
+            ? [ desc.agentesFact > 0 ? `${desc.agentesFact} de mes completo` : '',
+                desc.grupos.length ? `${desc.grupos.reduce((n,g)=>n+g.nombres.length,0)} de media quincena` : '',
+                `${fmtDias(data.totalDias)} días trabajados de ${fmtDias(data.diasMes)} hábiles`
+              ].filter(Boolean).join(' · ')
+            : `${fmtDias(data.totalDias)} de ${fmtDias(data.diasMes)} días hábiles`}
         </div>`;
 }
 
@@ -8082,6 +8221,15 @@ function invRefreshSummary(mk, nombre, tipo, iid){
   if(amtEl) amtEl.textContent = fmt(data.monto);
   // (función opcional — no siempre está definida; evita romper el handler)
   if(typeof refreshInvRowSummary === 'function') refreshInvRowSummary(mk, nombre, tipo, data);
+}
+
+// Guarda como se factura un agente en ESTE invoice. Vacio = lo decide la regla.
+function invUpdateLineaAgente(mk, nombre, tipo, agente, iid, valor){
+  const ov = getOv(mk, nombre);
+  const linea = Object.assign({}, ov.agenteLinea || {});
+  if(valor) linea[agente] = valor; else delete linea[agente];
+  setOv(mk, nombre, { agenteLinea: linea });
+  invRefreshSummary(mk, nombre, tipo, iid);
 }
 
 function invUpdateDiasMes(inp){
@@ -9384,7 +9532,6 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   const periodoDesc = `${fPeriodo(data.periodoStart)} to ${fPeriodo(data.periodoEnd)}`;
   const mesSolo     = MESES_EN[data.mes-1] || '';
 
-  const groups  = groupAgentsByDias(data.agentes, data.tarifa, data.diasMes);
   const desc    = calcInvDescuento(data);
   const estPago = estadoPagoCliente({ pagos: data.pagos, paid: data.paid, pagado: data.pagado }, data.monto);
   const amtDue  = estPago.saldo;
@@ -9408,29 +9555,48 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
         </div>` };
 
   // ── Lineas del invoice ────────────────────────────────────────────────────
-  // Se cobra el mes completo por agente y se descuentan los dias de ausencia al
-  // valor del dia impreso, igual que en los invoices que recibe el cliente. Las
-  // lineas suman exactamente el total: el cliente puede rehacer la cuenta con
-  // las cifras que ve.
-  const detalleDias = groups.length
-    ? groups.map(g => `${g.nombres.length} agent${g.nombres.length!==1?'s':''} - ${fmtDias(g.dias)} days worked`).join('<br>')
-    : '';
+  // Una linea con todos los agentes de mes completo, sin detalle de dias por
+  // agente: el detalle confundia al cliente y lo que falte ya sale abajo como
+  // dias de ausencia. Despues, una linea por cada grupo de agentes que solo
+  // estuvo una quincena, con el periodo que cubrio — ahi si se especifican los
+  // dias, porque explican por que se cobra menos de media tarifa.
+  const ultimoDia = new Date(data.anio, data.mes, 0).getDate();
+  const perQuincena = q => q === 1
+    ? `${MESES_EN[data.mes-1]} 01 to ${MESES_EN[data.mes-1]} 15`
+    : `${MESES_EN[data.mes-1]} 16 to ${MESES_EN[data.mes-1]} ${String(ultimoDia).padStart(2,'0')}`;
+  const nAg = n => `${n} agent${n !== 1 ? 's' : ''}`;
 
-  const filaServicio = `
+  const filaCompletos = (desc && desc.agentesFact > 0) ? `
     <tr>
       <td>
         <div class="it-desc">Callcenter Agents</div>
         <div class="it-sub">
           Services provided during the period of ${periodoDesc}<br>
-          ${detalleDias}
+          ${nAg(desc.agentesFact)}
         </div>
       </td>
       <td class="qty">
-        <div class="q-num">${desc ? desc.agentesFact : 0}</div>
+        <div class="q-num">${desc.agentesFact}</div>
         <div class="q-sub">$${fmtN(data.tarifa)}</div>
       </td>
-      <td class="amt">$${fmtN(desc ? desc.bruto : data.monto)}</td>
-    </tr>`;
+      <td class="amt">$${fmtN(desc.bruto)}</td>
+    </tr>` : '';
+
+  const filasParciales = ((desc && desc.grupos) || []).map(g => `
+    <tr>
+      <td>
+        <div class="it-desc">Callcenter Agents</div>
+        <div class="it-sub">
+          Services provided during the period of ${perQuincena(g.q)}<br>
+          ${nAg(g.nombres.length)}${g.dias < g.diasQ - 0.005 ? ' - ' + fmtDias(g.dias) + ' days worked' : ''}
+        </div>
+      </td>
+      <td class="qty">
+        <div class="q-num">${g.nombres.length}</div>
+        <div class="q-sub">$${fmtN(g.importe)}</div>
+      </td>
+      <td class="amt">$${fmtN(g.total)}</td>
+    </tr>`).join('');
 
   const filaDescuento = (desc && desc.aplica) ? `
     <tr>
@@ -9603,7 +9769,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   <table class="det">
     <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
     <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
-    <tbody>${filaServicio}${filaDescuento}${filaExtra}</tbody>
+    <tbody>${filaCompletos}${filasParciales}${filaDescuento}${filaExtra}</tbody>
   </table>
 
   <div class="cierre">
