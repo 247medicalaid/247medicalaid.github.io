@@ -8411,8 +8411,14 @@ function renderPagosClientes(){
         ${c.pendientes
           ? `<span class="sig-pill pend">● ${c.pendientes} por cobrar</span>`
           : `<span class="sig-pill ok">✓ al día</span>`}
-        ${c.perdido > 0.005 ? `<span class="sig-pill" style="color:var(--text3)"
-            title="Invoices dados por perdidos: no cuentan como pendientes.">✕ ${fmt(c.perdido)} perdido</span>` : ''}
+        ${(()=>{
+          // Cuantos, no solo cuanto: el numero es lo que se compara de un
+          // vistazo con los que quedan por cobrar.
+          const nPerd = c.meses.filter(x => x.noPago).length;
+          return nPerd ? `<span class="sig-pill" style="color:var(--text3)"
+            title="Invoices dados por perdidos: no cuentan como pendientes por cobrar."
+            >✕ ${nPerd} perdido${nPerd!==1?'s':''} · ${fmt(c.perdido)}</span>` : '';
+        })()}
         <span style="flex:1;min-width:6px"></span>
         <span style="text-align:right;min-width:104px">
           ${rot('Facturado')}
@@ -8612,6 +8618,13 @@ function renderSigma(){
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
         <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--inv-sigma,#a78bfa)':''}">${c.nombre}</span>
         <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
+        ${(()=>{
+          // El importe pendiente ya estaba a la derecha; lo que faltaba era
+          // saber en cuantos meses se reparte sin tener que abrir la cuenta.
+          const nPend = c.meses.filter(m => !m.cancelado && m.saldo > 0.005).length;
+          if(!nPend) return `<span class="sig-pill ok">✓ al día</span>`;
+          return `<span class="sig-pill pend">● ${nPend} ${c.directo ? 'sin registrar' : 'por girar'}</span>`;
+        })()}
         ${c.directo ? `<span class="sig-pill" style="color:var(--inv-sigma,#a78bfa)"
             title="Esta cuenta le paga a Sigma directamente. Aparece aquí para llevar el registro, pero no cuenta en lo que debes tú.">paga directo a Sigma</span>` : ''}
         <span style="flex:1;min-width:6px"></span>
