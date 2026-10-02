@@ -509,7 +509,6 @@
   #page-invoices #inv-mes-totals{
     display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
     width:100%; margin-left:0; gap:0; justify-content:stretch;
-    border-top:1px solid var(--border); padding-top:12px; margin-top:4px;
   }
   #page-invoices #inv-mes-totals > div{ padding:0 10px; }
 
@@ -522,24 +521,85 @@
   #page-invoices{
     background:#FFFFFF; color:var(--text);
     margin:-32px; padding:32px; min-height:calc(100vh - 0px);
+    --pad-x:32px; --pad-t:32px; --barraMes:0px;
     --text:#0B2233; --text2:#4A6478; --text3:#78919F;
     --surface:#FFFFFF; --surface2:#F3F7F9; --border:#DCE6EA; --bg:#FFFFFF;
     --accent:#047857; --accent2:#0E86B4; --accent3:#B45309; --danger:#BE123C;
     --inv-sigma:#6D28D9; --inv-247:#0F766E;
     --pay-tint:rgba(14,134,180,.06); --sig-tint:rgba(109,40,217,.07);
   }
-  @media (max-width:860px){ #page-invoices{ margin:-58px -14px -30px; padding:58px 14px 30px; } }
+  @media (max-width:860px){
+    #page-invoices{ margin:-58px -14px -30px; padding:58px 14px 30px;
+                    --pad-x:14px; --pad-t:58px; }
+  }
+
+  /* La barra del mes: un solo renglon, pegada arriba, de borde a borde. Los
+     margenes negativos deshacen el relleno de la pagina —por eso vive en
+     variables: en el celular ese relleno es otro—. El fondo es opaco porque
+     las tarjetas pasan por debajo. */
+  .inv-barra{
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    margin:calc(-1 * var(--pad-t)) calc(-1 * var(--pad-x)) 16px;
+    padding:9px var(--pad-x);
+    background:#FFFFFF; border-bottom:1px solid var(--border);
+    box-shadow:0 1px 6px rgba(11,34,51,.05);
+  }
+  .inv-barra-tit{
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:16px; font-weight:600;
+    color:var(--text2); letter-spacing:-.01em; margin-right:6px; white-space:nowrap;
+  }
+  .inv-barra-tit b{ font-weight:800; color:var(--text); }
+  .inv-barra .inv-nav{
+    background:var(--surface2); border:1px solid var(--border); color:var(--text2);
+    border-radius:8px; width:30px; height:30px; font-size:18px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .inv-barra .inv-nav:hover{ background:var(--border); color:var(--text); }
+  /* La hoja de estilos de la app pone todos los select al 100%: aqui estorba,
+     porque cada uno se comeria un renglon y la barra dejaria de ser una barra. */
+  .inv-barra .inv-sel{
+    width:auto; flex:none;
+    background:var(--surface2); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; padding:5px 10px; font-family:'DM Mono',monospace;
+    font-size:14px; font-weight:700;
+  }
+  .inv-barra .inv-sel.mes{ font-family:'Inter',sans-serif; font-weight:600; min-width:124px; }
+  /* Las flechas y los dos selectores son una sola cosa: no se separan de
+     renglon. Si no caben, encoge el nombre del mes antes que partirse. */
+  .inv-barra-mes{ display:flex; align-items:center; gap:9px; min-width:0; }
+  .inv-barra #inv-mes-status{ font-size:12px; color:var(--text3); margin-left:2px;
+                              flex:0 1 auto; min-width:0; }
+  /* En el celular el boton del menu vive fijo en la esquina superior izquierda.
+     Un hueco al principio de la barra le deja su sitio: con relleno a la
+     izquierda lo perderian tambien los renglones de abajo, que estan libres. El
+     titulo se va —el mes, que es lo que hay que ver, lo dice el selector—. */
+  @media (max-width:620px){
+    .inv-barra{ gap:7px; }
+    .inv-barra::before{ content:''; flex:none; width:84px; height:30px; }
+    .inv-barra-tit{ display:none; }
+    .inv-barra-mes{ gap:6px; flex:1 1 auto; }
+    .inv-barra .inv-sel{ font-size:13px; padding:5px 8px; }
+    .inv-barra .inv-sel.mes{ min-width:0; flex:1 1 auto; }
+    .inv-barra .inv-nav{ width:28px; height:28px; }
+  }
+
+  /* Las cifras del mes, en su propia caja debajo de la barra. */
+  .inv-cifras-caja{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:14px 20px; margin-bottom:20px;
+  }
 
   /* Una losa por cuenta, siempre abierta. */
   .iv-cuenta{
     border:1px solid var(--border); border-left:6px solid var(--c,#888);
     border-radius:var(--radius); background:#FFFFFF; margin-bottom:22px;
     box-shadow:0 1px 2px rgba(11,34,51,.05), 0 6px 18px rgba(11,34,51,.04);
-    scroll-margin-top:96px;
+    scroll-margin-top:calc(var(--barraMes,0px) + 18px);
   }
   /* La cabecera se queda pegada mientras se escriben los dias: con cinco
      cuentas abiertas a la vez, saber en cual estas es lo primero. */
-  .iv-pegado{ position:sticky; top:0; z-index:12; }
+  .iv-pegado{ position:sticky; top:var(--barraMes,0px); z-index:12; }
   .iv-cab{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     padding:11px 14px; background:color-mix(in srgb, var(--c,#888) 13%, #FFFFFF);
@@ -689,9 +749,6 @@
   .iv-agente .inv-stepper{ width:132px; }
 
   @media (max-width:620px){
-    /* El boton del menu vive fijo en la esquina superior izquierda: la cabecera
-       pegada se estaciona debajo para no quedar tapada por el. */
-    .iv-pegado{ top:52px; }
     .iv-cab{ padding:10px 12px 10px 14px; gap:8px; }
     .iv-nom{ font-size:15.5px; }
     .iv-cifra{ width:100%; text-align:left; display:flex; align-items:baseline; gap:8px; }
@@ -1698,36 +1755,23 @@
 
   <!-- ══════════ PAGE: INVOICES ══════════ -->
   <div id="page-invoices" class="hidden">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Invoices Mensuales</div>
-        <div class="page-sub">Selecciona el mes para ver y ajustar los invoices de cada cuenta</div>
-      </div>
+    <!-- La barra del mes se queda arriba. Con todas las cuentas abiertas a la
+         vez hay mucho que bajar, y saber en que mes se esta trabajando no puede
+         depender de volver al principio. El titulo se achica y el selector va a
+         su lado, para que la barra ocupe un solo renglon. -->
+    <div class="inv-barra" id="inv-barra">
+      <span class="inv-barra-tit">Invoices <b>Mensuales</b></span>
+      <span class="inv-barra-mes">
+        <button class="inv-nav" onclick="invNavMes(-1)" aria-label="Mes anterior" title="Mes anterior">‹</button>
+        <select id="inv-sel-anio" class="inv-sel" onchange="renderInvoicesMes()" aria-label="Año"></select>
+        <select id="inv-sel-mes" class="inv-sel mes" onchange="renderInvoicesMes()" aria-label="Mes"></select>
+        <button class="inv-nav" onclick="invNavMes(1)" aria-label="Mes siguiente" title="Mes siguiente">›</button>
+      </span>
+      <div id="inv-mes-status"></div>
     </div>
 
-    <!-- Month selector -->
-    <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;flex-wrap:wrap;gap:16px">
-      <button onclick="invNavMes(-1)"
-        style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"
-        onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--surface2)'">‹</button>
-
-      <div style="display:flex;align-items:center;gap:10px">
-        <select id="inv-sel-anio" onchange="renderInvoicesMes()"
-          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 12px;font-family:'DM Mono',monospace;font-size:15px;font-weight:700">
-        </select>
-        <select id="inv-sel-mes" onchange="renderInvoicesMes()"
-          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;min-width:130px">
-        </select>
-      </div>
-
-      <button onclick="invNavMes(1)"
-        style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"
-        onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--surface2)'">›</button>
-
-      <div id="inv-mes-status" style="margin-left:4px;font-size:12px;color:var(--text3)"></div>
-
-      <div id="inv-mes-totals"></div>
-    </div>
+    <!-- Las cifras del mes, fuera de la barra: se consultan, no se navegan. -->
+    <div class="inv-cifras-caja"><div id="inv-mes-totals"></div></div>
 
     <!-- Month invoice cards -->
     <div id="invoices-list"></div>
@@ -8054,6 +8098,37 @@ function renderInvoices(){
 
   // Render the selected month
   renderInvoicesMes();
+  invMedirBarra();
+}
+
+// La altura de la barra del mes no es fija: en el celular se parte en dos
+// renglones. Se mide y se publica, para que las cabeceras de cuenta se peguen
+// justo debajo en vez de esconderse detras.
+let _invObsBarra = null;
+function invMedirBarra(){
+  const barra = document.getElementById('inv-barra');
+  const pag   = document.getElementById('page-invoices');
+  if(!barra || !pag) return;
+  const alto = Math.round(barra.getBoundingClientRect().height);
+  if(alto > 0) pag.style.setProperty('--barraMes', alto + 'px');
+  if(!_invObsBarra && window.ResizeObserver){
+    _invObsBarra = new ResizeObserver(() => invMedirBarra());
+    _invObsBarra.observe(barra);
+  }
+}
+
+// Al entrar, el mes que interesa es el que se esta trabajando: el de hoy. Si
+// ese mes todavia no tiene quincenas, el mas reciente que ya paso; y si todas
+// las que hay son de meses por venir, la mas cercana. Antes se tomaba sin mas
+// el mayor del ano, y con quincenas adelantadas la pagina abria en diciembre.
+function _invMesPorDefecto(anio, disponibles){
+  if(!disponibles.length) return null;
+  const hoy = new Date();
+  if(String(hoy.getFullYear()) !== String(anio)) return disponibles[0];
+  const mesHoy = hoy.getMonth() + 1;
+  if(disponibles.indexOf(mesHoy) >= 0) return mesHoy;      // el mes en curso
+  const pasado = disponibles.find(m => m < mesHoy);        // vienen de mayor a menor
+  return pasado !== undefined ? pasado : disponibles[disponibles.length - 1];
 }
 
 function _invPopulateMeses(monthsMap){
@@ -8073,6 +8148,12 @@ function _invPopulateMeses(monthsMap){
     return;
   }
 
+  // Un <select> con opciones nunca devuelve cadena vacia: siempre vale la
+  // primera. Por eso el mes a marcar se decide aqui y no despues de pintarlo.
+  const elegido = available.indexOf(parseInt(curMes)) >= 0
+                ? parseInt(curMes)
+                : _invMesPorDefecto(anio, available);
+
   selMes.innerHTML = available.map(m => {
     const mk  = anio + '-' + String(m).padStart(2,'0');
     const mo  = monthsMap2[mk];
@@ -8081,11 +8162,10 @@ function _invPopulateMeses(monthsMap){
     const lbl = !ok ? MESES[m-1] + ' (incompleto)'
               : enProc ? MESES[m-1] + ' (en proceso)'
               : MESES[m-1];
-    return `<option value="${m}" ${String(m)===curMes?'selected':''}>${lbl}</option>`;
+    return `<option value="${m}" ${m===elegido?'selected':''}>${lbl}</option>`;
   }).join('');
 
-  // If nothing selected, select first
-  if(!selMes.value && available.length) selMes.value = available[0];
+  if(elegido !== null) selMes.value = String(elegido);
 }
 
 // ── Invoices no pagados ─────────────────────────────────────────────────────
