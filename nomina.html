@@ -584,6 +584,21 @@
     .inv-barra .inv-nav{ width:28px; height:28px; }
   }
 
+  /* Registrar el pago es de las pocas cosas que se escriben en esta caja, y
+     se quedo sola en ella al quitarle el resumen repetido. Los campos crecen
+     para que se lea lo que se escribe: la fecha, el importe y el numero del
+     cheque son datos que luego hay que poder revisar sin forzar la vista. */
+  #page-invoices .pay-form{ gap:12px; padding:2px 0; margin-top:13px; }
+  #page-invoices .pay-campo{ gap:5px; }
+  #page-invoices .pay-campo > span{ font-size:10.5px; letter-spacing:.08em; }
+  #page-invoices .pay-campo input,
+  #page-invoices .pay-campo select{
+    padding:9px 12px; border-radius:8px; font-size:14px;
+  }
+  #page-invoices .pay-campo input.mny{ font-size:15px; width:128px; }
+  #page-invoices .pay-campo.nota{ min-width:220px; }
+  #page-invoices .pay-form .sig-btn{ padding:10px 20px; font-size:13.5px; }
+
   /* Las cifras del mes, en su propia caja debajo de la barra. */
   .inv-cifras-caja{
     background:var(--surface); border:1px solid var(--border);
@@ -7652,7 +7667,6 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         </div>
       </div>`;
       }
-      const pct    = est.total > 0 ? Math.round(est.abonado / est.total * 100) : 0;
       const clase  = est.completo ? 'ok' : est.parcial ? 'parcial' : 'pend';
       // Las dos cajas decian "Pendiente de pago", asi que no se distinguia
       // el dinero que entra del que sale. Ahora cada una dice de quien habla.
@@ -7678,18 +7692,9 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
           <span class="sig-pill ${clase} caja-der">${texto}</span>
         </div>
 
-        <div class="sig-cifras">
-          <div class="sig-cifra total"><div class="lb">Total del invoice</div><div class="vl">${fmt(est.total)}</div></div>
-          <div class="sig-cifra abonado${est.abonado > 0.005 ? '' : ' cero'}"><div class="lb">Abonado</div><div class="vl">${fmt(est.abonado)}</div></div>
-          <div class="sig-cifra falta${est.saldo > 0.005 ? '' : ' cero'}"><div class="lb">Saldo</div><div class="vl">${fmt(est.saldo)}</div></div>
-        </div>
-
-        ${est.total > 0.005 ? `
-        <div class="sig-barra-fila">
-          <div class="sig-barra"><i style="width:${pct}%"></i></div>
-          <span class="sig-pct">${pct}% cobrado</span>
-        </div>` : ''}
-
+        ${/* El total, el abonado y el saldo ya estan en el desglose de la
+              columna derecha y en la franja de la cabecera. Aqui sobraban: lo
+              que hace falta en esta caja es sitio para registrar el pago. */''}
         ${est.sinDetalle ? `<div class="sig-nota" style="margin-bottom:10px">
           Marcado como pagado antes de llevar el detalle — sin fecha ni forma de pago registradas.
           Registra el pago abajo y ese importe se conserva como un primer abono.
@@ -7709,7 +7714,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
               onkeydown="if(event.key==='Enter'){event.preventDefault();agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}');}"></label>
           <label class="pay-campo nota"><span>Nota · # de cheque</span>
             <input type="text" id="${iid}-pagonota" placeholder="opcional"></label>
-          <button class="sig-btn abonar" style="padding:7px 14px"
+          <button class="sig-btn abonar"
             onclick="agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}')">Registrar pago</button>
         </div>` : ''}
 
@@ -7873,7 +7878,11 @@ function buildInvSummaryHTML(data, locked, iid){
             + filaTot(`Descuento · ${fmtDias(desc.diasAus)} día${desc.diasAus!==1?'s':''} no trabajado${desc.diasAus!==1?'s':''}`, '−'+fmt(desc.descuento), 'var(--danger)')
           : ''}
         ${filaTot('Total del invoice', fmt(data.monto), 'var(--accent)', true)}
-        ${estPago.abonado > 0.005 ? filaTot('Abonado por el cliente', '−'+fmt(estPago.abonado), 'var(--accent)') : ''}
+        ${/* el abonado se muestra siempre, aunque sea cero: es la cifra que
+              explica el saldo, y si solo aparece a veces hay que buscarla */''}
+        ${filaTot('Abonado por el cliente',
+                  (estPago.abonado > 0.005 ? '−' : '') + fmt(estPago.abonado),
+                  estPago.abonado > 0.005 ? 'var(--accent)' : 'var(--text3)')}
         ${filaTot('Saldo pendiente', fmt(amountDue), amountDue<=0.005?'var(--accent)':'var(--danger)', true)}
         <div style="text-align:right;font-size:10.5px;color:var(--text3);margin-top:6px">
           ${(desc && desc.agentesFact > 0)
