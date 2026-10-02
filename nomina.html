@@ -616,6 +616,34 @@
   #page-invoices .pay-acciones .sig-btn.abonar,
   #page-pagos .pay-acciones .sig-btn.abonar{ padding:10px 20px; font-size:13.5px; }
 
+  /* ═══ PAGOS ═════════════════════════════════════════════════════
+     La caja no puede llevar overflow:hidden: el navegador lo convierte en un
+     recorte y position:sticky deja de funcionar dentro. Las esquinas se
+     redondean en el primer y el ultimo hijo, que es lo que hacia el recorte. */
+  .pg-caja{ border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+  .pg-caja > :first-child{ border-radius:var(--radius) var(--radius) 0 0; }
+  .pg-caja > :last-child{ border-radius:0 0 var(--radius) var(--radius); overflow:hidden; }
+
+  /* El encabezado de la cuenta se queda pegado mientras se recorren sus meses:
+     con muchos meses abiertos, saber en cual cuenta estas es lo primero. Cada
+     uno se pega dentro de su propia cuenta, asi que al pasar a la siguiente lo
+     releva el suyo. El fondo tiene que ser opaco: las filas pasan por debajo. */
+  .pg-cab{ position:sticky; top:0; z-index:9; background:var(--surface); }
+  .pg-cab.cobros.abierta{ background:color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+  .pg-cab.sigma.abierta { background:color-mix(in srgb, var(--inv-sigma,#a78bfa) 16%, var(--surface)); }
+  @media (max-width:620px){
+    /* El boton del menu vive fijo en la esquina: la cabecera se estaciona
+       debajo para no quedar tapada por el. */
+    .pg-cab{ top:52px; }
+  }
+
+  /* El invoice sin cobrar se ve de lejos: fondo rojo claro y una banda del
+     mismo color a la izquierda, porque la banda no depende de distinguir el
+     tono. El abonado a medias lleva la misma idea, mas tenue. */
+  .pg-mes.sincobrar{ background:rgba(190,18,60,.10); box-shadow:inset 4px 0 0 var(--danger); }
+  .pg-mes.parcial  { background:rgba(190,18,60,.045); box-shadow:inset 4px 0 0 var(--accent3); }
+  .pg-mes.perdido  { opacity:.7; }
+
   /* La fila de cierre: el pago del cliente ocupa algo mas de la mitad porque
      tiene un formulario dentro; los totales piden poco ancho y mucho orden.
      En pantalla estrecha se apilan, con los totales primero: son el resumen. */
@@ -8305,8 +8333,9 @@ function renderPagosClientes(){
           <button class="x" title="Eliminar este pago"
             onclick="eliminarPagoCliente('${x.mk}','${esc2}','${pg.id}',${x.total})">✕</button>
         </div>`).join('');
+    const tono = x.noPago ? 'perdido' : x.completo ? 'ok' : x.parcial ? 'parcial' : 'sincobrar';
     return `
-    <div style="padding:11px 14px;border-top:1px solid var(--border)${x.noPago?';opacity:.7':''}">
+    <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
         ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
@@ -8371,9 +8400,10 @@ function renderPagosClientes(){
     const pend = c.saldo > 0.005;
     return `
     <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--accent)':''}">
-      <div onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
+      <div class="pg-cab cobros${abierta?' abierta':''}"
+        onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
-        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap${abierta?';background:var(--pay-tint,rgba(63,207,160,.12))':''}">
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
         <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--accent)':''}">${c.nombre}</span>
         <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
@@ -8411,7 +8441,7 @@ function renderPagosClientes(){
   }).join('');
 
   el.innerHTML = `
-    <div style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
+    <div class="pg-caja">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--pay-tint,rgba(63,207,160,.10));border-left:5px solid var(--accent)">
         <span style="font-size:15px;font-weight:800;color:var(--accent)">💵 Cobros de clientes</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
@@ -8566,9 +8596,10 @@ function renderSigma(){
     const pend = c.saldo > 0.005;
     return `
     <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--inv-sigma,#a78bfa)':''}">
-      <div onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
+      <div class="pg-cab sigma${abierta?' abierta':''}"
+        onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
-        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap${abierta?';background:var(--sig-tint,rgba(167,139,250,.14))':''}">
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
         <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--inv-sigma,#a78bfa)':''}">${c.nombre}</span>
         <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
@@ -8601,7 +8632,7 @@ function renderSigma(){
   }).join('');
 
   el.innerHTML = `
-    <div style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
+    <div class="pg-caja">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--sig-tint,rgba(167,139,250,.10));border-left:5px solid var(--inv-sigma,#a78bfa)">
         <span style="font-size:15px;font-weight:800;color:var(--inv-sigma,#a78bfa)">🏦 Sigma</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
