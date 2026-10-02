@@ -597,7 +597,14 @@
   }
   #page-invoices .pay-campo input.mny{ font-size:15px; width:128px; }
   #page-invoices .pay-campo.nota{ min-width:220px; }
-  #page-invoices .pay-form .sig-btn{ padding:10px 20px; font-size:13.5px; }
+  /* Registrar el pago y dar por perdido comparten renglon: el primero a la
+     izquierda, el segundo al otro extremo. Son acciones de peso muy distinto y
+     el hueco entre ellas es la distancia que las separa. */
+  #page-invoices .pay-acciones{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;
+  }
+  #page-invoices .pay-acciones .pay-esp{ flex:1 1 0; min-width:12px; }
+  #page-invoices .pay-acciones .sig-btn.abonar{ padding:10px 20px; font-size:13.5px; }
 
   /* La fila de cierre: el pago del cliente ocupa algo mas de la mitad porque
      tiene un formulario dentro; los totales piden poco ancho y mucho orden.
@@ -7738,11 +7745,15 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
               onkeydown="if(event.key==='Enter'){event.preventDefault();agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}');}"></label>
           <label class="pay-campo nota"><span>Nota · # de cheque</span>
             <input type="text" id="${iid}-pagonota" placeholder="opcional"></label>
-          <button class="sig-btn abonar"
-            onclick="agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}')">Registrar pago</button>
         </div>` : ''}
 
-        <div class="sig-acc" style="margin-top:10px">
+        ${/* Una sola fila de botones: a la izquierda lo que se hace a diario
+              —registrar el pago— y a la derecha lo excepcional, separado por el
+              hueco para que no se pulse por inercia. */''}
+        <div class="pay-acciones">
+          ${!est.completo ? `<button class="sig-btn abonar"
+            onclick="agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}')">Registrar pago</button>` : ''}
+          <span class="pay-esp"></span>
           ${!est.completo ? `<button class="sig-btn" style="color:var(--danger);border-color:var(--danger)"
             title="El cliente nunca pagó: sale de lo pendiente por cobrar y pasa a la cuenta de perdidas"
             onclick="marcarInvoiceNoPago('${mk}','${esc(cuNombre)}',${data.monto})">✕ Dar por perdido</button>` : ''}
