@@ -579,6 +579,31 @@
   @keyframes ivFlash{ 0%,100%{background:#9CA3AF} 50%{background:#E5E7EB} }
   @media (prefers-reduced-motion:reduce){ .iv-f-sigma{ animation:none } }
 
+  /* Dos columnas en pantalla ancha: escribir a la izquierda, mirar a la derecha.
+     Debajo de 1100 px vuelven a una sola, que es como se ve en el celular. */
+  .iv-dos{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .iv-dos > .iv-der{ border-left:1px solid var(--border); }
+  .iv-dos > div > div{ border-bottom:1px solid var(--border); }
+  .iv-dos > div > div:last-child{ border-bottom:0; }
+  /* Las cajas de dentro se estrechan a la mitad: lo que venia en fila se apila. */
+  .iv-der .inv-stepper{ flex:none; }
+  @media (max-width:1100px){
+    .iv-dos{ grid-template-columns:minmax(0,1fr); }
+    .iv-dos > .iv-der{ border-left:0; border-top:1px solid var(--border); }
+  }
+
+  /* La tarifa, al lado del nombre: es el numero que multiplica todo lo demas. */
+  .iv-tarifa{
+    display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px;
+    border-radius:999px; background:#FFFFFF; border:1px solid var(--border);
+    font-size:11px; color:var(--text2); font-weight:600; white-space:nowrap;
+  }
+  .iv-tarifa b{ font-family:'DM Mono',monospace; font-size:14px; color:var(--accent2); font-weight:700; }
+  .iv-tarifa.sin{ border-color:var(--danger); }
+  .iv-tarifa.sin b{ color:var(--danger); }
+  .iv-tarifa a{ color:var(--text3); text-decoration:underline; cursor:pointer; font-size:10.5px; }
+  .iv-tarifa a:hover{ color:var(--accent2); }
+
   /* Indice de cuentas del mes: saltar sin buscar. */
   .iv-indice{ display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; scrollbar-width:none; }
   .iv-indice::-webkit-scrollbar{ display:none; }
@@ -7364,6 +7389,11 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
     </div>
 
+    <!-- Dos columnas: a la izquierda lo que se escribe (los dias), a la derecha
+         lo que se mira (periodo, dias habiles, descuento y totales). Antes todo
+         iba en una sola columna y cada invoice medía casi mil pixeles de alto. -->
+    <div class="iv-dos">
+      <div class="iv-izq">
     <!-- Agent days -->
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);${locked?'opacity:.5;pointer-events:none':''}">
       <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;font-weight:500">👤 Días trabajados por agente <span style="text-transform:none;letter-spacing:0;opacity:.75">· admite medios días (ej. 10.5)</span></div>
@@ -7396,23 +7426,8 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
     </div>
 
-    <!-- Días hábiles del mes -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(76,194,236,.04);${locked?'opacity:.5;pointer-events:none':''}">
-      <div style="font-size:13px;color:var(--text)">📅 <b>Días hábiles del mes</b></div>
-      <div class="inv-stepper">
-        <button class="inv-stepper-btn" data-delta="-1" tabindex="-1" onpointerdown="event.preventDefault()">−</button>
-        <input type="text" inputmode="decimal"
-          value="${fmtDias(data.diasMes)}"
-          data-inv-mk="${mk}" data-inv-nombre="${esc(cuNombre)}" data-inv-tipo="${cu.tipo}" data-inv-iid="${iid}"
-          onblur="invUpdateDiasMes(this)"
-          onfocus="this.select()">
-        <button class="inv-stepper-btn" data-delta="1" tabindex="-1" onpointerdown="event.preventDefault()">+</button>
       </div>
-      <div style="font-size:11px;color:var(--text2)">
-        calculado: <b style="color:var(--text)">${fmtDias(data.diasMesBase)}</b> días &nbsp;·&nbsp; modifica para ajustar prorrateo
-      </div>
-    </div>
-
+      <div class="iv-der">
     <!-- Period dates -->
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,.01)">
       <div style="font-size:13px;color:var(--text);margin-right:4px;align-self:center">📆 <b>Período del Invoice</b></div>
@@ -7437,6 +7452,30 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
     </div>
 
+    <!-- Días hábiles del mes -->
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(76,194,236,.04);${locked?'opacity:.5;pointer-events:none':''}">
+      <div style="font-size:13px;color:var(--text)">📅 <b>Días hábiles del mes</b></div>
+      <div class="inv-stepper">
+        <button class="inv-stepper-btn" data-delta="-1" tabindex="-1" onpointerdown="event.preventDefault()">−</button>
+        <input type="text" inputmode="decimal"
+          value="${fmtDias(data.diasMes)}"
+          data-inv-mk="${mk}" data-inv-nombre="${esc(cuNombre)}" data-inv-tipo="${cu.tipo}" data-inv-iid="${iid}"
+          onblur="invUpdateDiasMes(this)"
+          onfocus="this.select()">
+        <button class="inv-stepper-btn" data-delta="1" tabindex="-1" onpointerdown="event.preventDefault()">+</button>
+      </div>
+      <div style="font-size:11px;color:var(--text2)">
+        calculado: <b style="color:var(--text)">${fmtDias(data.diasMesBase)}</b> días &nbsp;·&nbsp; modifica para ajustar prorrateo
+      </div>
+    </div>
+
+    <!-- Live summary -->
+    <div id="${iid}-summary" style="padding:14px 16px;border-bottom:1px solid var(--border)">
+      ${buildInvSummaryHTML(data, locked, iid)}
+    </div>
+
+      </div>
+    </div>
     <!-- Tarifa mensual de la cuenta -->
     ${(()=>{
       const hayOverride = !locked && getOv(mk, cuNombre).tarifa !== undefined
@@ -7449,6 +7488,10 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       const deLaCuenta = !hayOverride && !(master > 0) && data.tarifa > 0;
       const mesCuenta  = tarifaDesdeCuenta(_invK);
       const difiere    = !deLaCuenta && mesCuenta > 0 && Math.abs(mesCuenta - data.tarifa) > 0.005;
+      // El importe ya se ve arriba, junto al nombre. Aqui solo se baja cuando
+      // hay algo que explicar: sin tarifa, tarifa solo para este invoice, o
+      // una diferencia con lo que cobra la cuenta.
+      if(!sinTarifa && !hayOverride && !difiere) return '';
       return `
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(76,194,236,.04)">
       <div style="font-size:13px;color:var(--text)">💲 <b>Tarifa mensual por agente</b></div>
@@ -7477,11 +7520,6 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
     <!-- Overlap warning -->
     <div id="${iid}-overlap-warn"
       style="display:none;margin:0 16px 0;padding:10px 14px;background:rgba(244,103,107,.08);border:1px solid rgba(244,103,107,.3);border-radius:8px;font-size:12px;color:var(--danger);line-height:1.6">
-    </div>
-
-    <!-- Live summary -->
-    <div id="${iid}-summary" style="padding:14px 16px;border-bottom:1px solid var(--border)">
-      ${buildInvSummaryHTML(data, locked, iid)}
     </div>
 
     <!-- Pago del cliente — solo con el invoice cerrado, igual que antes -->
@@ -8664,10 +8702,6 @@ function renderInvoicesMes(){
       fCifra = 'saldo ' + fmt(est.saldo);
     }
 
-    const pillTarifa = (_invDataHdr && !(_invDataHdr.tarifa > 0))
-      ? '<span class="pill" style="color:var(--accent3);background:rgba(180,83,9,.12);border-color:rgba(180,83,9,.4)">⚠ SIN TARIFA</span>'
-      : '';
-
     return `
     <section class="iv-cuenta" id="${iid}" style="--c:${i.color};--tinta:${ivTintaTexto(i.color)}"
       aria-labelledby="${iid}-nom">
@@ -8679,7 +8713,16 @@ function renderInvoicesMes(){
           ? '<span class="tag joint" style="font-size:10px">Callcenter</span><span class="tag own" style="font-size:10px">24/7</span>'
           : `<span class="tag ${i.tipo==='dr'?'joint':'own'}" style="font-size:10px">${i.tipo==='dr'?'Callcenter':'24/7'}</span>`}
         ${ov.invnum ? `<span class="inv-fila-num">${ov.invnum}</span>` : ''}
-        ${pillTarifa}
+        ${(()=>{
+          const tf = _invDataHdr ? _invDataHdr.tarifa : 0;
+          const sin = !(tf > 0);
+          const k  = String(i.invKey || i.norKey).replace(/'/g,'&#39;');
+          return `<span class="iv-tarifa${sin?' sin':''}" title="Tarifa mensual por agente">
+            <span>\u{1F4B2} tarifa</span><b>${sin ? 'sin tarifa' : fmt(tf)}</b>
+            ${ov.cerrado ? '<span style="font-size:10px;color:var(--text3)">congelada</span>'
+                         : `<a onclick="editInvoiceTarifa('${mk}','${k}')">cambiar</a>`}
+          </span>`;
+        })()}
         <span class="iv-esp"></span>
         <span class="iv-cifra">
           <span class="et">Total del invoice</span>
