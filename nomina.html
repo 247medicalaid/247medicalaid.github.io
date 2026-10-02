@@ -526,10 +526,14 @@
     background:#082436; color:var(--text);
     margin:-32px; padding:32px; min-height:calc(100vh - 0px);
     --pad-x:32px; --pad-t:32px; --barraMes:0px;
-    --text:#0B2233; --text2:#4A6478; --text3:#78919F;
+    /* Sobre blanco los grises claros se diluyen: el rotulo de una cifra no se
+       puede leer peor que la cifra. Toda la paleta se oscurece hasta que lo
+       mas flojo pasa de 4.5:1 de contraste; antes --text3 (3.3) y --accent2
+       (4.1) no llegaban. */
+    --text:#06192A; --text2:#35536B; --text3:#56788B;
     --surface:#FFFFFF; --surface2:#F3F7F9; --border:#DCE6EA; --bg:#FFFFFF;
-    --accent:#047857; --accent2:#0E86B4; --accent3:#B45309; --danger:#BE123C;
-    --inv-sigma:#6D28D9; --inv-247:#0F766E;
+    --accent:#036B4E; --accent2:#0B6B92; --accent3:#9C4707; --danger:#AE0F37;
+    --inv-sigma:#5B21B6; --inv-247:#0D6A63; --inv-cobrar:#BE185D;
     --pay-tint:rgba(14,134,180,.06); --sig-tint:rgba(109,40,217,.07);
   }
   @media (max-width:860px){
@@ -714,7 +718,10 @@
   .iv-pegado{ position:sticky; top:var(--barraMes,0px); z-index:12; }
   .iv-cab{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    padding:11px 14px; background:color-mix(in srgb, var(--c,#888) 13%, #FFFFFF);
+    /* El color de la cuenta se nota: sube del 13% al 24%. Medido con los
+       colores reales —y con negro, el peor caso— el texto nunca baja de 9:1,
+       asi que el tono se puede subir sin perder legibilidad. */
+    padding:11px 14px; background:color-mix(in srgb, var(--c,#888) 24%, #FFFFFF);
     border-bottom:1px solid color-mix(in srgb, var(--c,#888) 30%, #FFFFFF);
     border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   }
@@ -727,7 +734,9 @@
            letter-spacing:-.02em; color:var(--text); }
   .iv-esp{ flex:1; min-width:4px; }
   .iv-cifra{ text-align:right; }
-  .iv-cifra .et{ font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--text3); font-weight:700; }
+  /* Sobre el tinte de la cuenta, --text3 se quedaba en 3.5:1: el rotulo de la
+     cifra no puede leerse peor que la cifra. */
+  .iv-cifra .et{ font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--text2); font-weight:700; }
   .iv-cifra .v{ font-family:'DM Mono',monospace; font-size:19px; font-weight:700; }
 
   /* La franja del estado, a todo el ancho y debajo del nombre. Los colores son
@@ -923,7 +932,7 @@
     color: var(--text);
     --text:  #0F172A;
     --text2: #334155;
-    --text3: #64748B;
+    --text3: #4F6276;   /* antes #64748B: 4.4:1 sobre el gris del panel */
     --surface:  #FFFFFF;
     --surface2: #F4F6FA;
     --border:   #CBD5E1;
@@ -6581,7 +6590,9 @@ function ivTintaTexto(hex){
   const v = [0,2,4].map(i => parseInt(c.slice(i,i+2),16)/255)
                    .map(x => x <= 0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4));
   const L = 0.2126*v[0] + 0.7152*v[1] + 0.0722*v[2];
-  return L > 0.45 ? '#0B2233' : '#FFFFFF';
+  // Se elige la tinta que mas contraste da, no la que cae de un umbral fijo:
+  // con el umbral, un naranja fuerte se quedaba con letra blanca a 3.6:1.
+  return ((L + 0.05) / 0.06454) > (1.05 / (L + 0.05)) ? '#0B2233' : '#FFFFFF';
 }
 // Saltar a una cuenta desde el indice, y marcar la que se esta mirando.
 document.addEventListener('click', function(e){
@@ -9001,13 +9012,13 @@ function renderInvoicesMes(){
         <div style="font-size:10px;color:var(--text3);margin-top:1px">todos los meses · invoices cerrados</div>
       </div>
       <div style="text-align:center;padding:0 12px;border-right:1px solid var(--border)">
-        <div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">🏦 Sigma · Inv Cobrados</div>
-        <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${sigmaGrandPagadosPend>0?'#a78bfa':'var(--accent)'}">${fmt(sigmaGrandPagadosPend)}</div>
+        <div style="font-size:10px;color:var(--inv-sigma,#a78bfa);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">🏦 Sigma · Inv Cobrados</div>
+        <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${sigmaGrandPagadosPend>0?'var(--inv-sigma,#a78bfa)':'var(--accent)'}">${fmt(sigmaGrandPagadosPend)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px">cheque pendiente a Sigma</div>
       </div>
       <div style="text-align:center;padding:0 12px${sigmaProyectado>0?';border-right:1px solid var(--border)':''}">
-        <div style="font-size:10px;color:#f472b6;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">🏦 Sigma · Por Cobrar</div>
-        <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${sigmaGrandPorCobrarPend>0?'#f472b6':'var(--accent)'}">${fmt(sigmaGrandPorCobrarPend)}</div>
+        <div style="font-size:10px;color:var(--inv-cobrar,#f472b6);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">🏦 Sigma · Por Cobrar</div>
+        <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${sigmaGrandPorCobrarPend>0?'var(--inv-cobrar,#f472b6)':'var(--accent)'}">${fmt(sigmaGrandPorCobrarPend)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:1px">inv aún no cobrado</div>
       </div>
       ${sigmaProyectado>0 ? `
