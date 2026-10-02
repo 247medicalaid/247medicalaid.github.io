@@ -588,23 +588,33 @@
      se quedo sola en ella al quitarle el resumen repetido. Los campos crecen
      para que se lea lo que se escribe: la fecha, el importe y el numero del
      cheque son datos que luego hay que poder revisar sin forzar la vista. */
-  #page-invoices .pay-form{ gap:12px; padding:2px 0; margin-top:13px; }
-  #page-invoices .pay-campo{ gap:5px; }
-  #page-invoices .pay-campo > span{ font-size:10.5px; letter-spacing:.08em; }
+  #page-invoices .pay-form,
+  #page-pagos .pay-form{ gap:12px; padding:2px 0; margin-top:13px; }
+  #page-invoices .pay-campo,
+  #page-pagos .pay-campo{ gap:5px; }
+  #page-invoices .pay-campo > span,
+  #page-pagos .pay-campo > span{ font-size:10.5px; letter-spacing:.08em; }
   #page-invoices .pay-campo input,
-  #page-invoices .pay-campo select{
+  #page-invoices .pay-campo select,
+  #page-pagos .pay-campo input,
+  #page-pagos .pay-campo select{
     padding:9px 12px; border-radius:8px; font-size:14px;
   }
-  #page-invoices .pay-campo input.mny{ font-size:15px; width:128px; }
-  #page-invoices .pay-campo.nota{ min-width:220px; }
+  #page-invoices .pay-campo input.mny,
+  #page-pagos .pay-campo input.mny{ font-size:15px; width:128px; }
+  #page-invoices .pay-campo.nota,
+  #page-pagos .pay-campo.nota{ min-width:220px; }
   /* Registrar el pago y dar por perdido comparten renglon: el primero a la
      izquierda, el segundo al otro extremo. Son acciones de peso muy distinto y
      el hueco entre ellas es la distancia que las separa. */
-  #page-invoices .pay-acciones{
+  #page-invoices .pay-acciones,
+  #page-pagos .pay-acciones{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;
   }
-  #page-invoices .pay-acciones .pay-esp{ flex:1 1 0; min-width:12px; }
-  #page-invoices .pay-acciones .sig-btn.abonar{ padding:10px 20px; font-size:13.5px; }
+  #page-invoices .pay-acciones .pay-esp,
+  #page-pagos .pay-acciones .pay-esp{ flex:1 1 0; min-width:12px; }
+  #page-invoices .pay-acciones .sig-btn.abonar,
+  #page-pagos .pay-acciones .sig-btn.abonar{ padding:10px 20px; font-size:13.5px; }
 
   /* La fila de cierre: el pago del cliente ocupa algo mas de la mitad porque
      tiene un formulario dentro; los totales piden poco ancho y mucho orden.
@@ -1544,9 +1554,9 @@
       <span class="dot" style="background:#f472b6"></span> Invoices
       <span class="badge" id="badge-invoices">0</span>
     </button>
-    <button class="nav-btn" onclick="showPage('sigma')">
-      <span class="dot" style="background:#a78bfa"></span> Sigma
-      <span class="badge" id="badge-sigma">0</span>
+    <button class="nav-btn" onclick="showPage('pagos')">
+      <span class="dot" style="background:#a78bfa"></span> Pagos
+      <span class="badge" id="badge-pagos">0</span>
     </button>
     <button class="nav-btn" onclick="showPage('utilidad')">
       <span class="dot" style="background:#34d399"></span> Utilidad Dr.
@@ -1822,22 +1832,27 @@
          para que lo primero que se vea al entrar sea lo que hay que hacer. -->
     <div id="inv-resumen-cuentas" style="margin-top:28px"></div>
 
-    <!-- Invoices dados por perdidos — registro aparte, no cuentan como pendientes -->
-    <div id="inv-perdidas" style="margin-top:26px"></div>
+    <!-- Los invoices dados por perdidos se fueron a la seccion Pagos: alli se
+         devuelven a pendientes, que es una accion de cobro, no de facturacion. -->
   </div>
 
 
-  <!-- ══════════ PAGE: SIGMA ══════════ -->
-  <!-- Seccion propia, no depende del mes seleccionado en Invoices: recorre
-       todos los invoices cerrados y los agrupa por cuenta. -->
-  <div id="page-sigma" class="hidden">
+  <!-- ══════════ PAGE: PAGOS ══════════ -->
+  <!-- Aqui se registra el dinero; en Invoices se generan. Dos bloques con la
+       misma mecanica: el nombre de la cuenta con su resumen, y al desplegarlo
+       los meses, uno por uno. No depende del mes elegido en Invoices: recorre
+       todos los invoices cerrados. -->
+  <div id="page-pagos" class="hidden">
     <div class="page-header">
       <div>
-        <div class="page-title">Sigma</div>
-        <div class="page-sub">Lo que se le gira por cada cuenta y mes, si ya se pagó y en qué fecha</div>
+        <div class="page-title">Pagos</div>
+        <div class="page-sub">Lo que cobras a cada cuenta y lo que le giras a Sigma · despliega una cuenta para registrar</div>
       </div>
     </div>
-    <div id="sigma-lista"></div>
+    <div id="pagos-clientes"></div>
+    <div id="sigma-lista" style="margin-top:22px"></div>
+    <!-- Los invoices dados por perdidos: registro aparte, con su reverso. -->
+    <div id="inv-perdidas" style="margin-top:22px"></div>
   </div>
 
 
@@ -3337,12 +3352,12 @@ function recalcAll(){
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
 function showPage(id){
-  ['resumen','cuentas-dr','cuentas-own','agentes','historial','invoices','sigma','utilidad'].forEach(p=>{
+  ['resumen','cuentas-dr','cuentas-own','agentes','historial','invoices','pagos','utilidad'].forEach(p=>{
     $('page-'+p).classList.toggle('hidden', p!==id);
   });
   // When opening invoices, always re-render with latest data
   if(id === 'invoices') renderInvoices();
-  if(id === 'sigma')    renderSigma();
+  if(id === 'pagos')    renderPagos();
   if(id === 'utilidad') renderUtilidad();
   document.querySelectorAll('.nav-btn').forEach(b=>{
     b.classList.toggle('active', b.getAttribute('onclick')?.includes("'"+id+"'"));
@@ -3352,7 +3367,7 @@ function showPage(id){
   document.body.classList.toggle('page-utilidad', id === 'utilidad');
   // Hide quincena-bar on pages that don't need it
   const _qbar = document.getElementById('quincena-bar');
-  if(_qbar) _qbar.style.display = (id === 'invoices' || id === 'utilidad' || id === 'sigma') ? 'none' : '';
+  if(_qbar) _qbar.style.display = (id === 'invoices' || id === 'utilidad' || id === 'pagos') ? 'none' : '';
 
   if(id==='historial') renderHistorial();
   if(id==='invoices') renderInvoices();
@@ -6087,12 +6102,12 @@ function updateBadges(){
     const invCount = countInvoicesAvailable(historialParaInvoices());
     $('badge-invoices').textContent = invCount;
   } catch { $('badge-historial').textContent = '0'; $('badge-invoices').textContent = '0'; }
-  // Badge de Sigma: meses pendientes por girar. Los de pago directo no cuentan,
-  // porque esa plata no sale de 24/7.
+  // Badge de Pagos: lo que falta por registrar de las dos caras — invoices
+  // cerrados que el cliente aun no paga y meses pendientes por girarle a Sigma.
   try {
-    const bs = $('badge-sigma');
-    if(bs) bs.textContent = contarSigmaPendiente();
-  } catch { const bs = $('badge-sigma'); if(bs) bs.textContent = '0'; }
+    const bs = $('badge-pagos');
+    if(bs) bs.textContent = contarPagosPendientes();
+  } catch { const bs = $('badge-pagos'); if(bs) bs.textContent = '0'; }
 }
 
 // ── Stepper helper — increment/decrement without re-rendering ──
@@ -6947,6 +6962,62 @@ function contarSigmaPendiente(){
   return n;
 }
 
+// ── Lo que cada cuenta nos debe por sus invoices cerrados ───────────────
+// Mismo recorrido que Sigma mirando la otra cara. Solo invoices cerrados:
+// mientras el mes esta en proceso las cifras todavia cambian.
+function listarCobrosPorCuenta(){
+  const historial = cargarHistorial();
+  const meses = groupHistorialByMonth(historial);
+  const porCuenta = {};
+  Object.entries(meses).forEach(([mk, m]) => {
+    if(!m.q1 || !m.q2) return;
+    const [anio, mes] = mk.split('-').map(Number);
+    let items = [];
+    try { items = buildInvLineItems(mk, m, calcDiasHabilesUSA(anio,mes,1)+calcDiasHabilesUSA(anio,mes,2), mes); }
+    catch(e){ return; }
+    items.forEach(item => {
+      const nombre = item.invKey || item.nombre;
+      const ov = getOv(mk, nombre);
+      if(ov.cerrado !== true) return;
+      let d;
+      try { d = buildInvData(mk, nombre, item.tipo, item.subCuentas || null); } catch(e){ return; }
+      if(!d || !(d.monto > 0.005)) return;
+      const est = estadoPagoCliente(ov, d.monto);
+      (porCuenta[nombre] = porCuenta[nombre] || []).push({
+        mk, anio, mes, nombre, tipo: item.tipo, subCuentas: item.subCuentas || null,
+        invnum: ov.invnum || '', duedate: ov.duedate || '',
+        total: est.total, abonado: est.abonado, saldo: est.saldo,
+        completo: est.completo, parcial: est.parcial, sinDetalle: est.sinDetalle,
+        pagos: est.lista || [],
+        noPago: ov.noPago === true, noPagoFecha: ov.noPagoFecha || '',
+        noPagoMonto: Number(ov.noPagoMonto) || 0, noPagoNota: ov.noPagoNota || ''
+      });
+    });
+  });
+  return Object.keys(porCuenta).sort().map(nombre => {
+    const lista = porCuenta[nombre].sort((a,b) => b.mk.localeCompare(a.mk));
+    // Lo dado por perdido no suma ni en lo facturado ni en lo pendiente: por
+    // eso sale de los totales de la cuenta y viaja en su propia cifra.
+    const vivos = lista.filter(x => !x.noPago);
+    return {
+      nombre, meses: lista,
+      total:   invR2(vivos.reduce((t,x)=>t+x.total,0)),
+      abonado: invR2(vivos.reduce((t,x)=>t+x.abonado,0)),
+      saldo:   invR2(vivos.reduce((t,x)=>t+x.saldo,0)),
+      perdido: invR2(lista.filter(x=>x.noPago).reduce((t,x)=>t+x.noPagoMonto,0)),
+      pendientes: vivos.filter(x => x.saldo > 0.005).length
+    };
+  });
+}
+
+// El badge del menu: lo que falta por registrar de las dos caras.
+function contarPagosPendientes(){
+  let n = 0;
+  try { n += contarSigmaPendiente(); } catch(e){}
+  try { n += listarCobrosPorCuenta().reduce((t,c) => t + c.pendientes, 0); } catch(e){}
+  return n;
+}
+
 // ── Todo lo que se le debe o se le ha pagado a Sigma, agrupado por cuenta ────
 // Solo invoices cerrados: mientras el mes esta en proceso las cifras aun cambian.
 function listarSigmaPorCuenta(){
@@ -7215,7 +7286,7 @@ function agregarPagoCliente(mkid, nombre, total, iid){
   }
   lista.push({ id:'p'+Date.now(), fecha, metodo: gv('-pagometodo') || 'Otro', monto, nota: (gv('-pagonota')||'').trim() });
   _sincronizarPagoCliente(mk, nombre, lista, total);
-  renderInvoices();
+  _repintarTrasCobro();
 }
 
 function eliminarPagoCliente(mkid, nombre, pagoId, total){
@@ -7225,7 +7296,7 @@ function eliminarPagoCliente(mkid, nombre, pagoId, total){
   if(!p) return;
   if(!confirm('¿Eliminar el pago de ' + fmt(p.monto) + (p.fecha ? ' del ' + p.fecha : '') + '?')) return;
   _sincronizarPagoCliente(mk, nombre, (est.lista||[]).filter(x => x && x.id !== pagoId), total);
-  renderInvoices();
+  _repintarTrasCobro();
 }
 
 // ── Invoices dados por perdidos ─────────────────────────────────────────────
@@ -7259,7 +7330,7 @@ function marcarInvoiceNoPago(mkid, nombre, total){
   const ovs = loadInvOv();
   const key = invOvKey(mk, nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
-  renderInvoices();
+  _repintarTrasCobro();
 }
 
 function deshacerInvoiceNoPago(mkid, nombre){
@@ -7269,7 +7340,7 @@ function deshacerInvoiceNoPago(mkid, nombre){
   const ovs = loadInvOv();
   const key = invOvKey(mk, nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
-  renderInvoices();
+  _repintarTrasCobro();
 }
 
 // Todos los invoices dados por perdidos, para el recuadro y la sección aparte.
@@ -7294,7 +7365,7 @@ function totalInvoicesNoPagados(){
 function limpiarPagosCliente(mkid, nombre, total){
   if(!confirm('¿Borrar todos los pagos registrados de este invoice y dejarlo como PENDIENTE?')) return;
   _sincronizarPagoCliente(normMkid(mkid), nombre, [], total);
-  renderInvoices();
+  _repintarTrasCobro();
 }
 
 function calcSigmaCheck(data, cuentaTipo){
@@ -7665,109 +7736,12 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       style="display:none;margin:0 16px 0;padding:10px 14px;background:rgba(244,103,107,.08);border:1px solid rgba(244,103,107,.3);border-radius:8px;font-size:12px;color:var(--danger);line-height:1.6">
     </div>
 
-    <!-- El cierre del invoice, en dos columnas: a la izquierda lo que se hace
-         —registrar el pago del cliente— y a la derecha lo que resulta —el
-         total, el abonado y el saldo—. Antes iban uno debajo del otro y la
-         tarjeta crecia de balde. Con el invoice abierto no hay caja de pago,
-         asi que los totales ocupan la fila entera. -->
-    ${(()=>{
-      const cajaPago = !locked ? '' : (()=>{
-      const ovPago = getOv(mk, cuNombre);
-      const est    = estadoPagoCliente(ovPago, data.monto);
-      // Invoice dado por perdido: ya no se cobra, asi que no hay formulario.
-      if(ovPago.noPago === true){
-        return `
-      <div class="pay-box" style="border-left-color:var(--text3);background:rgba(107,114,128,.10)">
-        <div class="sig-top">
-          <span class="pay-tit" style="color:var(--text2)">✕ Invoice no pagado</span>
-          <span class="caja-sub">dado por perdido${ovPago.noPagoFecha ? ' el ' + ovPago.noPagoFecha : ''}</span>
-          <span class="sig-pill caja-der" style="color:var(--text2)">● No se cobró</span>
-        </div>
-        <div class="sig-cifras">
-          <div class="sig-cifra total"><div class="lb">Total del invoice</div><div class="vl">${fmt(est.total)}</div></div>
-          <div class="sig-cifra abonado${est.abonado > 0.005 ? '' : ' cero'}"><div class="lb">Alcanzó a cobrarse</div><div class="vl">${fmt(est.abonado)}</div></div>
-          <div class="sig-cifra falta"><div class="lb">Pérdida</div><div class="vl">${fmt(Number(ovPago.noPagoMonto)||est.saldo)}</div></div>
-        </div>
-        ${ovPago.noPagoNota ? `<div class="sig-nota" style="margin-bottom:10px">${ovPago.noPagoNota}</div>` : ''}
-        <div class="sig-nota" style="margin-bottom:10px">
-          No cuenta en lo pendiente por cobrar${(cu.tipo !== 'own') ? ', y el cheque a Sigma de este invoice queda cancelado' : ''}.
-        </div>
-        <div class="sig-acc">
-          <button class="sig-btn deshacer" style="margin-left:0"
-            onclick="deshacerInvoiceNoPago('${mk}','${esc(cuNombre)}')">↩ Devolver a pendientes por cobrar</button>
-        </div>
-      </div>`;
-      }
-      const clase  = est.completo ? 'ok' : est.parcial ? 'parcial' : 'pend';
-      // Las dos cajas decian "Pendiente de pago", asi que no se distinguia
-      // el dinero que entra del que sale. Ahora cada una dice de quien habla.
-      const texto  = est.completo ? '✓ El cliente pagó'
-                   : est.parcial  ? '◑ El cliente pagó en parte'
-                   : '● El cliente no ha pagado';
-      const hoy    = new Date().toISOString().slice(0,10);
-      const opciones = METODOS_PAGO.map(mth => `<option value="${mth}">${mth}</option>`).join('');
-      const filasPagos = (est.lista||[]).map(pg => `
-        <div class="pay-item">
-          <span class="f">${pg.fecha || '—'}</span>
-          <span class="m">${(pg.metodo||'—')}</span>
-          <span class="n">${(pg.nota||'')}</span>
-          <span class="v">${fmt(pg.monto)}</span>
-          <button class="x" title="Eliminar este pago"
-            onclick="eliminarPagoCliente('${mk}','${esc(cuNombre)}','${pg.id}',${data.monto})">✕</button>
-        </div>`).join('');
-      return `
-      <div class="pay-box">
-        <div class="sig-top">
-          <span class="pay-tit">💵 Pago del cliente</span>
-          <span class="caja-sub">entra · lo que nos paga ${cuNombre}</span>
-          <span class="sig-pill ${clase} caja-der">${texto}</span>
-        </div>
-
-        ${/* El total, el abonado y el saldo ya estan en el desglose de la
-              columna derecha y en la franja de la cabecera. Aqui sobraban: lo
-              que hace falta en esta caja es sitio para registrar el pago. */''}
-        ${est.sinDetalle ? `<div class="sig-nota" style="margin-bottom:10px">
-          Marcado como pagado antes de llevar el detalle — sin fecha ni forma de pago registradas.
-          Registra el pago abajo y ese importe se conserva como un primer abono.
-        </div>` : ''}
-
-        ${filasPagos ? `<div class="pay-lista">${filasPagos}</div>` : ''}
-
-        ${!est.completo ? `
-        <div class="pay-form">
-          <label class="pay-campo"><span>Fecha</span>
-            <input type="date" id="${iid}-pagofecha" value="${hoy}"></label>
-          <label class="pay-campo"><span>Forma de pago</span>
-            <select id="${iid}-pagometodo">${opciones}</select></label>
-          <label class="pay-campo"><span>Importe</span>
-            <input class="mny" type="number" step="0.01" min="0" id="${iid}-pagomonto"
-              value="${est.saldo.toFixed(2)}" onfocus="this.select()"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}');}"></label>
-          <label class="pay-campo nota"><span>Nota · # de cheque</span>
-            <input type="text" id="${iid}-pagonota" placeholder="opcional"></label>
-        </div>` : ''}
-
-        ${/* Una sola fila de botones: a la izquierda lo que se hace a diario
-              —registrar el pago— y a la derecha lo excepcional, separado por el
-              hueco para que no se pulse por inercia. */''}
-        <div class="pay-acciones">
-          ${!est.completo ? `<button class="sig-btn abonar"
-            onclick="agregarPagoCliente('${mk}','${esc(cuNombre)}',${data.monto},'${iid}')">Registrar pago</button>` : ''}
-          <span class="pay-esp"></span>
-          ${!est.completo ? `<button class="sig-btn" style="color:var(--danger);border-color:var(--danger)"
-            title="El cliente nunca pagó: sale de lo pendiente por cobrar y pasa a la cuenta de perdidas"
-            onclick="marcarInvoiceNoPago('${mk}','${esc(cuNombre)}',${data.monto})">✕ Dar por perdido</button>` : ''}
-          ${est.abonado > 0.005 ? `<button class="sig-btn deshacer" title="Borra los pagos registrados y deja el invoice pendiente"
-            onclick="limpiarPagosCliente('${mk}','${esc(cuNombre)}',${data.monto})">✕ Marcar pendiente</button>` : ''}
-        </div>
-      </div>`;
-      })();
-      return `
-      <div class="iv-cierre${cajaPago ? '' : ' sola'}">
-        ${cajaPago ? `<div class="iv-cierre-izq">${cajaPago}</div>` : ''}
-        <div class="iv-cierre-der" id="${iid}-totales">${buildInvTotalesHTML(data)}</div>
-      </div>`;
-    })()}
+    <!-- El cierre del invoice: solo las cifras. Registrar el cobro se hace en
+         la seccion Pagos. Aqui el invoice se genera y se consulta, que es lo
+         que antes venia mezclado. -->
+    <div class="iv-cierre sola">
+      <div class="iv-cierre-der" id="${iid}-totales">${buildInvTotalesHTML(data)}</div>
+    </div>
 
     <!-- El bloque de Sigma vivia aqui. Se quito: la cabecera ya dice si falta
          girarle a Sigma, cuanto se abono y cuanto queda, y el reparto por
@@ -8269,6 +8243,202 @@ function renderInvPerdidas(){
     </div>`;
 }
 
+// ── Cobros de clientes: el bloque de arriba de la seccion Pagos ─────────────
+// Misma mecanica que Sigma —una cuenta abierta a la vez, con su resumen a la
+// vista— para que las dos mitades de la pagina se usen igual.
+const _pagosAbiertas = new Set();
+function togglePagoCuenta(nombre){
+  const abrir = !_pagosAbiertas.has(nombre);
+  _pagosAbiertas.clear();
+  if(abrir) _pagosAbiertas.add(nombre);
+  renderPagosClientes();
+}
+
+// El prefijo con el que agregarPagoCliente() encuentra los campos de la fila.
+function pagoIid(mk, nombre){
+  return 'pgc' + String(mk).replace(/[^0-9]/g,'') + '-' + String(nombre).replace(/[^A-Za-z0-9]/g,'');
+}
+
+function renderPagosClientes(){
+  const el = $('pagos-clientes');
+  if(!el) return;
+  let cuentas = [];
+  try { cuentas = listarCobrosPorCuenta(); } catch(e){ cuentas = []; }
+  if(!cuentas.length){
+    el.innerHTML = `<div class="empty" style="padding:40px;text-align:center;color:var(--text3)">
+      Todavía no hay invoices cerrados.<br>
+      <span style="font-size:12px">Aparecen aquí en cuanto cierres un invoice en la sección Invoices.</span>
+    </div>`;
+    return;
+  }
+  // El mismo apunte que deja la tarjeta del invoice al pintarse: el tipo de la
+  // cuenta y sus subcuentas. Sin el, dar por perdido desde aqui calcularia mal
+  // el aviso del cheque a Sigma. Se escribe una sola vez por invoice.
+  cuentas.forEach(c => c.meses.forEach(x => {
+    try{
+      _invSubCuentasCache[invOvKey(x.mk, x.nombre)] = x.subCuentas || null;
+      if(getOv(x.mk, x.nombre)._tipo !== x.tipo) setOv(x.mk, x.nombre, { _tipo: x.tipo });
+    }catch(e){}
+  }));
+
+  const gTotal = invR2(cuentas.reduce((t,c)=>t+c.total,0));
+  const gCobr  = invR2(cuentas.reduce((t,c)=>t+c.abonado,0));
+  const gSaldo = invR2(cuentas.reduce((t,c)=>t+c.saldo,0));
+  const gPerd  = invR2(cuentas.reduce((t,c)=>t+c.perdido,0));
+  const hoy      = new Date().toISOString().slice(0,10);
+  const opciones = METODOS_PAGO.map(mth => `<option value="${mth}">${mth}</option>`).join('');
+  const rot = (t) => `<span style="font-size:9.5px;color:var(--text3);display:block;text-transform:uppercase;letter-spacing:.08em">${t}</span>`;
+
+  const filaMes = (x) => {
+    const esc2 = String(x.nombre).replace(/'/g,'&#39;');
+    const iid  = pagoIid(x.mk, x.nombre);
+    const estado = x.noPago   ? '<span class="sig-pill" style="color:var(--text3)">✕ dado por perdido</span>'
+                 : x.completo ? '<span class="sig-pill ok">✓ cobrado</span>'
+                 : x.parcial  ? '<span class="sig-pill parcial">◑ abonado en parte</span>'
+                 : '<span class="sig-pill pend">● sin cobrar</span>';
+    const pagos = (x.pagos||[]).map(pg => `
+        <div class="pay-item">
+          <span class="f">${pg.fecha || '—'}</span>
+          <span class="m">${pg.metodo || '—'}</span>
+          <span class="n">${pg.nota || ''}</span>
+          <span class="v">${fmt(pg.monto)}</span>
+          <button class="x" title="Eliminar este pago"
+            onclick="eliminarPagoCliente('${x.mk}','${esc2}','${pg.id}',${x.total})">✕</button>
+        </div>`).join('');
+    return `
+    <div style="padding:11px 14px;border-top:1px solid var(--border)${x.noPago?';opacity:.7':''}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
+        ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
+        ${estado}
+        ${(x.duedate && !x.completo && !x.noPago) ? `<span style="font-size:11px;color:var(--text3)">vence ${x.duedate}</span>` : ''}
+        <span style="flex:1;min-width:6px"></span>
+        <span style="text-align:right;min-width:96px">
+          ${rot('Total')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700">${fmt(x.total)}</span>
+        </span>
+        <span style="text-align:right;min-width:96px">
+          ${rot('Abonado')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${x.abonado>0.005?'var(--accent)':'var(--text3)'}">${fmt(x.abonado)}</span>
+        </span>
+        <span style="text-align:right;min-width:96px">
+          ${rot(x.noPago ? 'Perdido' : 'Saldo')}
+          <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${
+            x.noPago ? 'var(--text2)' : (x.saldo>0.005 ? 'var(--accent3)' : 'var(--accent)')}">${fmt(x.noPago ? x.noPagoMonto : x.saldo)}</span>
+        </span>
+      </div>
+      ${x.noPago ? `
+      <div class="pay-acciones">
+        <span style="font-size:11.5px;color:var(--text3)">Dado por perdido${x.noPagoFecha ? ' el ' + x.noPagoFecha : ''}${x.noPagoNota ? ' · ' + x.noPagoNota : ''}</span>
+        <span class="pay-esp"></span>
+        <button class="sig-btn deshacer" title="Vuelve a figurar como pendiente por cobrar"
+          onclick="deshacerInvoiceNoPago('${x.mk}','${esc2}')">↩ Devolver a pendientes</button>
+      </div>` : `
+      ${pagos ? `<div class="pay-lista">${pagos}</div>` : ''}
+      ${x.sinDetalle ? `<div class="sig-nota" style="margin:9px 0 0">
+        Marcado como pagado antes de llevar el detalle — sin fecha ni forma de pago registradas.
+        Registra el pago abajo y ese importe se conserva como un primer abono.
+      </div>` : ''}
+      ${!x.completo ? `
+      <div class="pay-form">
+        <label class="pay-campo"><span>Fecha</span>
+          <input type="date" id="${iid}-pagofecha" value="${hoy}"></label>
+        <label class="pay-campo"><span>Forma de pago</span>
+          <select id="${iid}-pagometodo">${opciones}</select></label>
+        <label class="pay-campo"><span>Importe</span>
+          <input class="mny" type="number" step="0.01" min="0" id="${iid}-pagomonto"
+            value="${x.saldo.toFixed(2)}" onfocus="this.select()"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();agregarPagoCliente('${x.mk}','${esc2}',${x.total},'${iid}');}"></label>
+        <label class="pay-campo nota"><span>Nota · # de cheque</span>
+          <input type="text" id="${iid}-pagonota" placeholder="opcional"></label>
+      </div>` : ''}
+      <div class="pay-acciones">
+        ${!x.completo ? `<button class="sig-btn abonar"
+          onclick="agregarPagoCliente('${x.mk}','${esc2}',${x.total},'${iid}')">Registrar pago</button>` : ''}
+        <span class="pay-esp"></span>
+        ${!x.completo ? `<button class="sig-btn" style="color:var(--danger);border-color:var(--danger)"
+          title="El cliente nunca pagó: sale de lo pendiente por cobrar y pasa a la cuenta de perdidas"
+          onclick="marcarInvoiceNoPago('${x.mk}','${esc2}',${x.total})">✕ Dar por perdido</button>` : ''}
+        ${x.abonado > 0.005 ? `<button class="sig-btn deshacer" title="Borra los pagos registrados y deja el invoice pendiente"
+          onclick="limpiarPagosCliente('${x.mk}','${esc2}',${x.total})">✕ Marcar pendiente</button>` : ''}
+      </div>`}
+    </div>`;
+  };
+
+  const bloques = cuentas.map(c => {
+    const abierta = _pagosAbiertas.has(c.nombre);
+    const esc2 = String(c.nombre).replace(/'/g,'&#39;');
+    const pend = c.saldo > 0.005;
+    return `
+    <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--accent)':''}">
+      <div onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap${abierta?';background:var(--pay-tint,rgba(63,207,160,.12))':''}">
+        <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
+        <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--accent)':''}">${c.nombre}</span>
+        <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
+        ${c.pendientes
+          ? `<span class="sig-pill pend">● ${c.pendientes} por cobrar</span>`
+          : `<span class="sig-pill ok">✓ al día</span>`}
+        ${c.perdido > 0.005 ? `<span class="sig-pill" style="color:var(--text3)"
+            title="Invoices dados por perdidos: no cuentan como pendientes.">✕ ${fmt(c.perdido)} perdido</span>` : ''}
+        <span style="flex:1;min-width:6px"></span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Facturado')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700">${fmt(c.total)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Cobrado')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(c.abonado)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Pendiente')}
+          <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${pend?'var(--accent3)':'var(--accent)'}">${fmt(c.saldo)}</span>
+        </span>
+      </div>
+      <div class="inv-theme-edit" style="display:${abierta?'block':'none'}">
+        <!-- El nombre repetido dentro del panel: con la lista larga el
+             encabezado se va de la pantalla, y es ahi donde se registra un
+             pago en la cuenta equivocada. -->
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
+                    color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
+          Registrando cobros de
+          <b style="color:var(--accent);font-size:12.5px;letter-spacing:.02em">${c.nombre}</b>
+        </div>
+        ${c.meses.map(filaMes).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--pay-tint,rgba(63,207,160,.10));border-left:5px solid var(--accent)">
+        <span style="font-size:15px;font-weight:800;color:var(--accent)">💵 Cobros de clientes</span>
+        <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
+        <span style="flex:1;min-width:6px"></span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Facturado')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700">${fmt(gTotal)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Cobrado')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent)">${fmt(gCobr)}</span>
+        </span>
+        <span style="text-align:right;min-width:104px">
+          ${rot('Pendiente')}
+          <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${gSaldo>0.005?'var(--accent3)':'var(--accent)'}">${fmt(gSaldo)}</span>
+        </span>
+        ${gPerd > 0.005 ? `
+        <span style="text-align:right;min-width:104px;border-left:1px solid var(--border);padding-left:12px"
+          title="Invoices dados por perdidos. No cuentan como pendientes por cobrar.">
+          ${rot('Perdido')}
+          <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--text2)">${fmt(gPerd)}</span>
+        </span>` : ''}
+      </div>
+      ${bloques}
+    </div>`;
+}
+
 // ── Sección Sigma ───────────────────────────────────────────────────────────
 // El cheque a Sigma se manejaba dentro de cada invoice, mezclado con el cobro al
 // cliente. Aqui vive aparte, agrupado por cuenta, que es como se revisa: cuanto
@@ -8279,9 +8449,25 @@ const _sigmaAbiertas = new Set();
 // Invoices solo se repinta si Sigma esta a la vista. Al entrar a Sigma,
 // showPage() la pinta de cero, asi que nunca se ve informacion vieja.
 function refrescarSigma(){
-  const pg = document.getElementById('page-sigma');
+  const pg = document.getElementById('page-pagos');
   if(!pg || pg.classList.contains('hidden')) return;
+  try { renderPagos(); } catch(e){}
+}
+
+// La pagina de Pagos entera: los cobros arriba, los giros a Sigma debajo y el
+// registro de lo dado por perdido al pie.
+function renderPagos(){
+  try { renderPagosClientes(); } catch(e){}
   try { renderSigma(); } catch(e){}
+  try { renderInvPerdidas(); } catch(e){}
+}
+
+// Un cobro cambia el invoice y la seccion de Pagos a la vez. Se repintan las
+// dos: la que no esta a la vista cuesta poco y evita volver a ella con una
+// cifra vieja.
+function _repintarTrasCobro(){
+  try { renderInvoices(); } catch(e){}
+  try { refrescarSigma(); } catch(e){}
 }
 
 // Solo una cuenta abierta a la vez — mismo patron que en Invoices. Con varias
@@ -8811,7 +8997,7 @@ function renderInvoicesMes(){
            ov.cruceFecha ? 'cruzado el ' + ov.cruceFecha : '',
            reparto]
       ).filter(Boolean).join(' \u00b7 ') + ' \u2014 clic para ir a la secci\u00f3n Sigma';
-      return `<button type="button" class="iv-sig ${clase}" onclick="showPage('sigma')"
+      return `<button type="button" class="iv-sig ${clase}" onclick="showPage('pagos')"
         title="${String(ayuda).replace(/"/g,'')}">
         <span>\u{1F3E6} Sigma</span><b>${fmt(total)}</b><span class="est">${txt}</span>
       </button>`;
