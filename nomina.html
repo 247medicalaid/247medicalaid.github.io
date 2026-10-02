@@ -519,7 +519,11 @@
      las variables, igual que ya hacia .inv-theme-edit con el panel abierto,
      asi que todo lo que ya usaba var(--text) o var(--surface) se adapta solo. */
   #page-invoices{
-    background:#FFFFFF; color:var(--text);
+    /* El fondo general toma el color del menu lateral (#082436, el --surface
+       del tema oscuro). Las tarjetas de cuenta siguen blancas: el contraste
+       entre las dos cosas es lo que marca donde acaba una cuenta y empieza
+       la siguiente. */
+    background:#082436; color:var(--text);
     margin:-32px; padding:32px; min-height:calc(100vh - 0px);
     --pad-x:32px; --pad-t:32px; --barraMes:0px;
     --text:#0B2233; --text2:#4A6478; --text3:#78919F;
@@ -674,6 +678,14 @@
     .iv-cierre{ grid-template-columns:minmax(0,1fr); }
     .iv-cierre-der{ order:-1; padding:14px 16px 0; }
     .iv-cierre-izq .pay-box{ margin:12px 16px; }
+  }
+
+  /* Lo unico que caia suelto sobre el fondo era el aviso de "sin invoices".
+     Sobre oscuro no se leeria, asi que se mete en una tarjeta como el resto. */
+  #page-invoices #invoices-list > .empty,
+  #page-invoices #inv-resumen-cuentas > .empty{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius);
   }
 
   /* Las cifras del mes, en su propia caja debajo de la barra. */
