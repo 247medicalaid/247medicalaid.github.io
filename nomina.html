@@ -643,7 +643,18 @@
   .pg-mes.sincobrar{ background:rgba(190,18,60,.16); box-shadow:inset 4px 0 0 var(--danger); }
   .pg-mes.parcial,
   .pg-mes.leve     { background:rgba(190,18,60,.075); box-shadow:inset 4px 0 0 var(--accent3); }
-  .pg-mes.perdido  { opacity:.7; }
+  /* Dado por perdido: no se atenua, se marca. Es el mismo gris oscuro con
+     texto blanco de la franja del invoice no pagado, para que el estado se
+     lea igual en las dos pantallas. Dentro de la fila conviven textos del
+     tema claro que ahi no se verian, asi que el texto se aclara en bloque. */
+  .pg-mes.perdido{
+    background:#374151; color:#FFFFFF; opacity:1;
+    box-shadow:inset 4px 0 0 #111827;
+  }
+  .pg-mes.perdido *{ color:#FFFFFF !important; }
+  .pg-mes.perdido .sig-pill{ border-color:rgba(255,255,255,.45); }
+  .pg-mes.perdido .sig-btn{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.45); }
+  .pg-mes.perdido .sig-btn:hover{ background:rgba(255,255,255,.20); }
 
   /* La fila de cierre: el pago del cliente ocupa algo mas de la mitad porque
      tiene un formulario dentro; los totales piden poco ancho y mucho orden.
@@ -8558,7 +8569,7 @@ function renderSigma(){
                : x.parcial ? 'parcial'
                : 'sincobrar';
     return `
-    <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap${x.cancelado?';opacity:.6':''}">
+    <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
       ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
       ${estado}
