@@ -2290,6 +2290,23 @@
         <input type="text" id="cu-billed-to" placeholder="Ej: Mandy Railing">
         <div class="form-hint">Aparecerá pre-llenado al generar el invoice de esta cuenta</div>
       </div>
+      <!-- Datos que salen impresos en el bloque "To:" del invoice. Se escriben
+           una vez por cuenta; si se dejan vacíos simplemente no se imprimen,
+           que es como se veían los invoices antes de tenerlos. -->
+      <div class="form-group">
+        <label>Dirección del Cliente (sale en el PDF)</label>
+        <input type="text" id="cu-dir" placeholder="Ej: 1005 Marwalt Dr, Fort Walton Beach, FL, 32547, United States">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Teléfono del Cliente</label>
+          <input type="text" id="cu-tel" placeholder="Ej: 4073745194">
+        </div>
+        <div class="form-group">
+          <label>Correo del Cliente</label>
+          <input type="text" id="cu-mail" placeholder="Ej: contacto@cliente.com">
+        </div>
+      </div>
 
       <!-- Campos tipo DR -->
       <div id="cu-dr-fields">
@@ -3496,6 +3513,9 @@ function openModal(id, tipo){
     $('modal-cuenta-title').textContent = 'Nueva Cuenta';
     $('cu-nombre').value = '';
     $('cu-billed-to').value = '';
+    $('cu-dir').value  = '';
+    $('cu-tel').value  = '';
+    $('cu-mail').value = '';
     // Hide deactivate/delete buttons for new cuenta
     const btnDesac = $('btn-desactivar-cuenta');
     const btnElim  = $('btn-eliminar-cuenta');
@@ -4213,6 +4233,9 @@ function saveCuenta(){
     tipo,
     color: $('cu-color').value,
     billedTo: $('cu-billed-to').value.trim(),
+    cliDir:   $('cu-dir').value.trim(),
+    cliTel:   $('cu-tel').value.trim(),
+    cliMail:  $('cu-mail').value.trim(),
     ...(tipo==='dr' ? {
       colombian:       parseFloat($('cu-colombian').value)||0,
       accountant:      parseFloat($('cu-accountant').value)||0,
@@ -4245,6 +4268,9 @@ function editCuenta(id){
   $('cu-tipo').value = c.tipo;
   $('cu-color').value = c.color;
   $('cu-billed-to').value = c.billedTo || '';
+  $('cu-dir').value  = c.cliDir  || '';
+  $('cu-tel').value  = c.cliTel  || '';
+  $('cu-mail').value = c.cliMail || '';
   toggleCuentaFields();
   if(c.tipo==='dr'){
     $('cu-colombian').value       = c.colombian;
@@ -7453,7 +7479,7 @@ function calcSigmaCheck(data, cuentaTipo){
   // en las demas cuentas, pero NO es una obligacion de 24/7. sigmaAmt se queda
   // en 0 y excluded en true — igual que antes, para que ningun total cambie —
   // y la cifra viaja en sigmaDirecto, solo para poder verla y registrarla.
-  const _pagaDirecto = (data.cuentaNombre||'').toUpperCase().includes('WHITE WILSON');
+  const _pagaDirecto = cuentaPagaDirectoASigma(data.cuentaNombre);
 
   if(ags247.length === 0){
     // No (24/7) agents → all to Sigma
@@ -7474,6 +7500,23 @@ function calcSigmaCheck(data, cuentaTipo){
                             excluded: true, sigmaDirecto: sigmaAmt,
                             ags247, agsDr, dias247, diasDr };
   return { sigmaAmt, amt247, hasSplit: true, ags247, agsDr, dias247, diasDr };
+}
+
+// ── Plantilla del PDF ──────────────────────────────────────────────────────
+// Los invoices de White Wilson los emite Sigma Staffing Solutions, porque esa
+// cuenta le paga a Sigma directamente; las demas las factura 24/7. Es la misma
+// condicion que ya usa calcSigmaCheck, escrita en un solo sitio para que las
+// dos no se puedan separar. Es solo el valor inicial: el selector del invoice
+// manda sobre esto y lo que se elija queda guardado.
+const INV_PLANTILLAS = {
+  'sigma': 'Sigma Staffing Solutions',
+  '247':   '24/7 Medical Aid',
+};
+function cuentaPagaDirectoASigma(nombre){
+  return (nombre || '').toUpperCase().includes('WHITE WILSON');
+}
+function plantillaPorDefecto(cuentaNombre){
+  return cuentaPagaDirectoASigma(cuentaNombre) ? 'sigma' : '247';
 }
 
 // ── Build full data for one account ──
@@ -7578,6 +7621,12 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     anio, mes, mk, cuentaNombre, cuentaTipo,
     diasMes, diasMesBase, tarifa, agentes, numAgentes, totalDias, prorrateo, monto,
     descManual,
+    // Datos del cliente para el bloque "To:" del PDF. Viven en la ficha de la
+    // cuenta porque son los mismos todos los meses; vacios no se imprimen.
+    cliDir:     (cuentaObj && cuentaObj.cliDir)  || '',
+    cliTel:     (cuentaObj && cuentaObj.cliTel)  || '',
+    cliMail:    (cuentaObj && cuentaObj.cliMail) || '',
+    plantilla:  ov.plantilla || plantillaPorDefecto(cuentaNombre),
     contact:    ov.contact   !== undefined ? ov.contact : defaultBilledTo,
     invnum:     ov.invnum    || '',
     dateissue:  ov.dateissue || todayStr,
@@ -7843,7 +7892,18 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
 
       ${locked
-        ? `<button class="inv-pdf-btn" onclick="generarPDFCuenta('${mk}','${esc(cuNombre)}','${cu.tipo}')">📄 Descargar PDF</button>`
+        ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <!-- La plantilla se elige aqui y no en la fila de datos porque esa
+                 fila se bloquea al cerrar el invoice, y el PDF solo se descarga
+                 estando cerrado. Lo elegido queda guardado en el invoice. -->
+            <select id="${iid}-tpl" title="Formato del PDF"
+              onchange="setOv('${mk}','${esc(cuNombre)}',{plantilla:this.value})"
+              style="width:auto;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:6px 9px;font-size:11.5px;font-family:'Inter',sans-serif;cursor:pointer">
+              <option value="247"${data.plantilla==='247' ? ' selected' : ''}>Factura 24/7 Medical Aid</option>
+              <option value="sigma"${data.plantilla==='sigma' ? ' selected' : ''}>Factura Sigma Staffing</option>
+            </select>
+            <button class="inv-pdf-btn" onclick="generarPDFCuenta('${mk}','${esc(cuNombre)}','${cu.tipo}',(document.getElementById('${iid}-tpl')||{}).value)">📄 Descargar PDF</button>
+          </div>`
         : `<span style="font-size:11px;color:var(--text3);padding:8px 4px">${enProceso ? 'Aprueba las quincenas y cierra el invoice para descargar el PDF' : 'Cierra el invoice para descargar el PDF'}</span>`}
     </div>
   </div>`;
@@ -9242,8 +9302,15 @@ function toggleInvCard(id){
   if(el) el.classList.toggle('open');
 }
 
-// ── PDF (matches real invoice format) ──
-function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
+// ── PDF del invoice ────────────────────────────────────────────────────────
+// Dos plantillas con el mismo cuerpo y distinto emisor:
+//   'sigma' → la emite Sigma Staffing Solutions (White Wilson)
+//   '247'   → la emite 24/7 Medical Aid (todas las demas)
+// El formato sigue el de los invoices que el cliente ya recibe, para que no
+// tenga que aprender a leer uno nuevo.
+const INV_SIGMA_LOGO = 'data:image/png;base64,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';
+
+function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   // Try cache first, then rebuild from historial (handles page reload case)
   let subCuentas = _invSubCuentasCache[invOvKey(normMkid(mkid), cuentaNombre)] || null;
   if(!subCuentas){
@@ -9264,25 +9331,58 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
   const data = buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas);
   if(!data){ alert('No hay datos suficientes para generar el PDF.'); return; }
 
-  const mesLabel = MESES[data.mes-1] + ' ' + data.anio;
-  const lastDay  = new Date(data.anio, data.mes, 0).getDate();
-  const fmtDateLong = d => {
-    if(!d) return '';
-    const [y,mo,dy] = d.split('-');
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    return months[parseInt(mo)-1] + ' ' + parseInt(dy) + ', ' + y;
-  };
-  const periodoDesc = `${fmtDateLong(data.periodoStart)} to ${fmtDateLong(data.periodoEnd)}`;
-  const fmtDate = d => { if(!d) return ''; const [y,m2,day]=d.split('-'); return `${m2}/${day}/${y}`; };
-  const fmtN    = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const tpl = (plantilla === 'sigma' || plantilla === '247') ? plantilla : data.plantilla;
+
+  // ── Fechas ────────────────────────────────────────────────────────────────
+  const MESES_EN = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+  const MESES_AB = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const partes = d => { if(!d) return null; const p = String(d).split('-');
+                        return { y:+p[0], m:+p[1], d:+p[2] }; };
+  // "Oct 01, 2026" — cabecera y pie
+  const fCorta = d => { const p = partes(d); return p ? `${MESES_AB[p.m-1]} ${String(p.d).padStart(2,'0')}, ${p.y}` : ''; };
+  // "October 10, 2026" — dentro del texto de los terminos
+  const fLarga = d => { const p = partes(d); return p ? `${MESES_EN[p.m-1]} ${p.d}, ${p.y}` : ''; };
+  // "Oct 10th, 2026" — el titular del importe
+  const ordinal = n => { const r = n % 100;
+    if(r >= 11 && r <= 13) return n + 'th';
+    return n + (['th','st','nd','rd'][n % 10] || 'th'); };
+  const fOrd = d => { const p = partes(d); return p ? `${MESES_AB[p.m-1]} ${ordinal(p.d)}, ${p.y}` : ''; };
+  // "September 01 to September 30" — el periodo facturado
+  const fPeriodo = d => { const p = partes(d); return p ? `${MESES_EN[p.m-1]} ${String(p.d).padStart(2,'0')}` : ''; };
+  const fmtN = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const esc2 = t => String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // El nombre de la cuenta se guarda en mayusculas; en la cabecera se lee mejor
+  // con la inicial de cada palabra, que es como sale en los invoices actuales.
+  const titulo = t => String(t||'').toLowerCase()
+    .replace(/\b[a-zà-ÿ]/g, c => c.toUpperCase());
+
+  const periodoDesc = `${fPeriodo(data.periodoStart)} to ${fPeriodo(data.periodoEnd)}`;
+  const mesSolo     = MESES_EN[data.mes-1] || '';
 
   const groups  = groupAgentsByDias(data.agentes, data.tarifa, data.diasMes);
   const desc    = calcInvDescuento(data);
   const estPago = estadoPagoCliente({ pagos: data.pagos, paid: data.paid, pagado: data.pagado }, data.monto);
   const amtDue  = estPago.saldo;
-  const MESES_EN = ['January','February','March','April','May','June',
-                    'July','August','September','October','November','December'];
-  const mesSolo  = MESES_EN[data.mes-1] || '';
+
+  // ── Emisor segun la plantilla ─────────────────────────────────────────────
+  // La direccion, el telefono y el correo son los mismos en las dos: lo que
+  // cambia es quien factura y a nombre de quien se giran los cheques.
+  const emisor = tpl === 'sigma'
+    ? { nombre: 'SIGMA STAFFING SOLUTIONS',
+        cheques: 'Sigma Staffing Solutions',
+        extra: ' Payment may be sent by wire transfer to Sigma Staffing Solutions.',
+        marca: `<img class="lg-sigma" src="${INV_SIGMA_LOGO}" alt="Sigma Staffing Solutions">` }
+    : { nombre: '24/7 MEDICAL AID - CALLCENTER',
+        cheques: '24/7 Medical Aid &mdash; Call Center',
+        extra: '',
+        marca: `<div class="lg-247">
+          <div class="brandmark">
+            <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical AID Call Center">
+            <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
+          </div>
+        </div>` };
 
   // ── Lineas del invoice ────────────────────────────────────────────────────
   // Se cobra el mes completo por agente y se descuentan los dias no trabajados,
@@ -9290,7 +9390,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
   // exactamente data.monto: el descuento sale de la resta, no de multiplicar
   // los dias por un valor de dia redondeado.
   const detalleDias = groups.length
-    ? groups.map(g => `${g.nombres.length} agent${g.nombres.length!==1?'s':''} · ${fmtDias(g.dias)} days worked`).join('<br>')
+    ? groups.map(g => `${g.nombres.length} agent${g.nombres.length!==1?'s':''} - ${fmtDias(g.dias)} days worked`).join('<br>')
     : '';
 
   const filaServicio = `
@@ -9302,201 +9402,197 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
           ${detalleDias}
         </div>
       </td>
-      <td class="num">$${fmtN(data.tarifa)}</td>
-      <td class="num">${desc ? desc.agentesFact : 0}</td>
-      <td class="num num-strong">$${fmtN(desc ? desc.bruto : data.monto)}</td>
+      <td class="qty">
+        <div class="q-num">${desc ? desc.agentesFact : 0}</div>
+        <div class="q-sub">$${fmtN(data.tarifa)}</div>
+      </td>
+      <td class="amt">$${fmtN(desc ? desc.bruto : data.monto)}</td>
     </tr>`;
 
   const filaDescuento = (desc && desc.aplica) ? `
     <tr>
       <td>
-        <div class="it-desc">Discount &mdash; Days of Absence</div>
+        <div class="it-desc">Discount - Days of Absence</div>
         <div class="it-sub">
-          Discount for days not worked<br>
-          (Daily rate for ${mesSolo} ${data.anio}: $${fmtN(desc.valorDia)})
+          Discount for Days of Absence<br>
+          (Daily rate for ${mesSolo}: $${fmtN(desc.valorDia)})
         </div>
       </td>
-      <td class="num">$${fmtN(desc.valorDia)}/day</td>
-      <td class="num">${fmtDias(desc.diasAus)}</td>
-      <td class="num num-strong">-$${fmtN(desc.descuento)}</td>
+      <td class="qty">
+        <div class="q-num">${fmtDias(desc.diasAus)}</div>
+        <div class="q-sub">-$${fmtN(desc.valorDia)}</div>
+      </td>
+      <td class="amt">-$${fmtN(desc.descuento)}</td>
     </tr>` : '';
 
-  const lineRows = filaServicio + filaDescuento;
+  // ── Pagos recibidos ───────────────────────────────────────────────────────
+  // El formato del cliente solo trae la suma. Debajo se detalla cada pago con
+  // su fecha y forma, en letra pequena, para que el invoice sirva tambien de
+  // constancia de lo cobrado sin alterar la forma del bloque.
+  const detallePagos = (estPago.lista && estPago.lista.length)
+    ? `<tr class="pg"><td colspan="2">${estPago.lista.map(pg =>
+        `${fmtN(pg.monto)}${pg.fecha ? ' &middot; ' + fCorta(pg.fecha) : ''}${pg.metodo ? ' &middot; ' + esc2(pg.metodo) : ''}`
+      ).join('<br>')}</td></tr>`
+    : '';
 
-  // ── Totales ────────────────────────────────────────────────────────────────
-  // Cada pago del cliente aparece con su fecha y forma de pago, para que el
-  // invoice sirva tambien de constancia de lo cobrado.
-  const filaPagado = estPago.abonado > 0.005
-    ? ((estPago.lista && estPago.lista.length)
-        ? estPago.lista.map(pg => `<tr><td>Payment received${pg.fecha ? ' · ' + fmtDate(pg.fecha) : ''}${pg.metodo ? ' · ' + pg.metodo : ''}</td><td class="neg">-${fmtN(pg.monto)}</td></tr>`).join('')
-        : `<tr><td>Payments received</td><td class="neg">-${fmtN(estPago.abonado)}</td></tr>`)
-      + `<tr><td>Total Invoice Paid</td><td class="neg">-${fmtN(estPago.abonado)}</td></tr>`
-    : `<tr><td>Total Invoice Paid</td><td class="neg">${fmtN(0)}</td></tr>`;
+  // ── Bloque "To:" ──────────────────────────────────────────────────────────
+  // Los datos del cliente se escriben una vez en la ficha de la cuenta. Las
+  // lineas vacias no se imprimen, asi que una cuenta sin datos sale igual que
+  // antes: solo el nombre.
+  const lineasTo = [data.contact, data.cliDir, data.cliTel, data.cliMail]
+    .filter(x => x && String(x).trim())
+    .map(x => esc2(x)).join('<br>');
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<title>Invoice ${data.invnum||''} — ${cuentaNombre}</title>
+<title>Invoice ${esc2(data.invnum||'')} — ${esc2(cuentaNombre)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0B2233; --ink-800:#082436;
-    --brand:#0E86B4; --brand-700:#0A6A90; --brand-50:#EFF8FD;
-    --accent:#ED3237;
-    --muted:#4A6478; --line:#DCE6EA; --sand:#F5F8F9;
-    --font-display:'Plus Jakarta Sans',ui-sans-serif,system-ui,'Segoe UI',Arial,sans-serif;
-    --font-body:'Inter',ui-sans-serif,system-ui,'Segoe UI',Arial,sans-serif;
+    --ink:#1A1A1A; --ink-2:#444; --ink-3:#6B6B6B;
+    --line:#D9D9D9; --line-fuerte:#1A1A1A;
+    --marca-247:#082436;
+    --font:'Plus Jakarta Sans',ui-sans-serif,system-ui,'Segoe UI',Arial,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--sand);
-    -webkit-font-smoothing:antialiased}
-  .page{max-width:820px;margin:0 auto;background:#fff}
-  .inner{padding:40px 46px 46px}
+  body{font-family:var(--font);font-size:13px;color:var(--ink);background:#EDEFF1;
+    -webkit-font-smoothing:antialiased;line-height:1.55}
+  .page{max-width:850px;min-height:1100px;margin:0 auto;background:#fff;
+    padding:52px 56px 36px;display:flex;flex-direction:column}
 
   /* ── Cabecera ── */
-  .band{background:var(--ink-800);color:#fff;padding:26px 46px;
-    display:flex;justify-content:space-between;align-items:center;gap:24px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:30px}
+  .lg-sigma{display:block;height:92px;width:auto}
+  .lg-247{display:inline-block;background:var(--marca-247);border-radius:10px;
+    padding:14px 20px}
   .brandmark{display:flex;align-items:center;line-height:1}
-  .brandmark img{display:block;height:42px;width:auto}
+  .brandmark img{display:block;height:34px;width:auto}
   .brandmark .bm-fb{display:none;align-items:baseline;gap:.3em;flex-wrap:wrap;
-    font-family:var(--font-display);font-weight:800;letter-spacing:-.03em;font-size:24px;color:#fff}
+    font-weight:800;letter-spacing:-.03em;font-size:23px;color:#fff}
   .brandmark.sinlogo img{display:none}
   .brandmark.sinlogo .bm-fb{display:inline-flex}
-  .bm-fb b{color:#F4676B;font-weight:800}
+  .bm-fb b{color:#ED3237;font-weight:800}
   .bm-fb i{font-style:normal;width:1px;align-self:stretch;background:currentColor;opacity:.3;margin:0 .18em}
   .bm-fb u{text-decoration:none}
-  .bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.34em;opacity:.75;align-self:center;margin-left:-.1em}
-  .band-sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
-    color:rgba(255,255,255,.62);margin-top:8px}
-  .co-info{text-align:right;font-size:12px;line-height:1.75;color:rgba(255,255,255,.82)}
-  .co-info b{display:block;font-family:var(--font-display);font-weight:700;font-size:12.5px;
-    letter-spacing:.04em;color:#fff;margin-bottom:3px}
+  .bm-fb small{font-weight:700;letter-spacing:.22em;font-size:.34em;opacity:.78;align-self:center;margin-left:-.1em}
 
-  /* ── Titulo y resumen ── */
-  .title-row{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
-    padding-bottom:20px;border-bottom:2px solid var(--brand)}
-  h1{font-family:var(--font-display);font-weight:800;font-size:30px;letter-spacing:-.03em;
-    color:var(--ink)}
-  .h1-sub{font-size:12.5px;color:var(--muted);margin-top:5px}
-  .due-card{background:var(--brand-50);border:1px solid #C9E5F3;border-radius:12px;
-    padding:14px 20px;text-align:right;min-width:200px}
-  .due-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--brand-700)}
-  .due-big{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.03em;
-    color:var(--ink);margin-top:3px;white-space:nowrap}
+  .enc{text-align:right}
+  .enc .cli{font-size:13px;color:var(--ink-2)}
+  .enc h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:2px 0 6px}
+  .enc .fe{font-size:12.5px;color:var(--ink-2)}
 
-  .meta{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:26px;padding:22px 0 26px}
-  .ml{font-size:10px;font-weight:700;color:var(--brand-700);text-transform:uppercase;
-    letter-spacing:.1em;margin-bottom:5px}
-  .mv{font-size:13px;color:var(--ink);line-height:1.6}
-  .mv b{font-family:var(--font-display);font-weight:700}
-  .mv + .ml{margin-top:14px}
+  /* ── Remitente y destinatario ── */
+  .partes{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:46px}
+  .pl{font-size:12.5px;color:var(--ink-2);margin-bottom:12px}
+  .pn{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
+  .pd{font-size:12.5px;color:var(--ink-2);line-height:1.75}
+
+  /* ── Titular del importe ── */
+  .due{font-size:25px;font-weight:600;letter-spacing:-.02em;margin:44px 0 36px}
 
   /* ── Detalle ── */
-  table{width:100%;border-collapse:collapse}
-  thead tr{background:var(--sand)}
-  th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--brand-700);
-    text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--line)}
-  th:nth-child(n+2){text-align:right}
-  td{padding:14px;border-bottom:1px solid var(--line);vertical-align:top}
-  .it-desc{font-family:var(--font-display);font-weight:700;font-size:13px}
-  .it-sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6}
-  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .num-strong{font-weight:700;color:var(--brand-700)}
+  table.det{width:100%;border-collapse:collapse;table-layout:fixed}
+  table.det col.c1{width:56%} table.det col.c2{width:20%} table.det col.c3{width:24%}
+  table.det th{font-size:12.5px;font-weight:500;color:var(--ink-2);text-align:left;
+    padding:0 0 9px;border-bottom:1px solid var(--line)}
+  table.det th.amt{text-align:right}
+  table.det td{padding:14px 0;border-bottom:1px solid var(--line-fuerte);vertical-align:top}
+  .it-desc{font-weight:700;font-size:13.5px}
+  .it-sub{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.65}
+  .qty{font-size:13px}
+  .q-sub{font-size:11px;color:var(--ink-3);margin-top:5px}
+  .amt{text-align:right;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;
+    white-space:nowrap}
 
-  /* ── Totales ── */
-  .tot-wrap{display:flex;justify-content:flex-end;margin-top:18px}
-  .tot{width:300px;border-collapse:collapse}
-  .tot td{padding:7px 14px;font-size:13px;border:none}
-  .tot td:first-child{color:var(--muted)}
-  .tot td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
-  .tot .neg{color:var(--muted)}
-  .tot .tr td{border-top:1px solid var(--line);font-weight:700;color:var(--ink);padding-top:10px}
-  .tot .dr td{background:var(--brand-50);font-family:var(--font-display);font-size:15px;
-    font-weight:800;color:var(--brand-700);padding-top:11px;padding-bottom:11px}
-  .tot .dr td:first-child{border-radius:8px 0 0 8px;color:var(--brand-700)}
-  .tot .dr td:last-child{border-radius:0 8px 8px 0}
+  /* ── Notas y totales ── */
+  .cierre{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:18px}
+  .nota{font-size:12.5px;color:var(--ink-2);line-height:1.7}
+  .nota h3{font-size:12.5px;font-weight:500;color:var(--ink);margin:18px 0 6px}
+  .nota h3:first-child{margin-top:0}
+  table.tot{width:100%;border-collapse:collapse;margin-top:12px}
+  table.tot td{padding:9px 0;font-size:13px;border-bottom:1px solid var(--line)}
+  table.tot td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.tot tr.pg td{border-bottom:1px solid var(--line);padding-top:0;
+    font-size:11px;color:var(--ink-3);text-align:right;line-height:1.7}
+  table.tot tr.saldo td{border-bottom:none;padding-top:14px;font-size:13.5px}
+  table.tot tr.saldo td:last-child{font-size:26px;font-weight:700;letter-spacing:-.02em}
 
-  /* ── Notas ── */
-  .notes{margin-top:34px;border-top:1px solid var(--line);padding-top:22px;
-    display:grid;grid-template-columns:1fr 1fr;gap:28px}
-  .nl{font-size:10px;font-weight:700;color:var(--brand-700);text-transform:uppercase;
-    letter-spacing:.1em;margin-bottom:6px}
-  .nt{font-size:12px;color:var(--muted);line-height:1.65}
-  .foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);
-    font-size:11px;color:var(--muted);text-align:center}
+  /* ── Pie ── */
+  .pie{margin-top:auto;padding-top:48px;display:flex;justify-content:space-between;
+    gap:20px;font-size:11.5px;color:var(--ink-2)}
 
-  @page{margin:12mm}
+  @page{margin:0}
   @media print{
-    body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .page{max-width:none}
-    .band{padding:20px 30px}
-    .inner{padding:26px 30px 30px}
-    .notes,.title-row,tr{break-inside:avoid}
+    body{background:#fff}
+    .page{max-width:none;min-height:auto;box-shadow:none;padding:46px 46px 30px}
+    tr,.cierre,.partes{break-inside:avoid}
   }
 </style></head><body><div class="page">
-  <div class="band">
+
+  <div class="top">
+    <div>${emisor.marca}</div>
+    <div class="enc">
+      <div class="cli">${esc2(titulo(cuentaNombre))}</div>
+      <h1>Invoice #${esc2(data.invnum||'')}</h1>
+      <div class="fe">Issued On: ${fCorta(data.dateissue)}</div>
+      <div class="fe">Due On: ${fCorta(data.duedate)}</div>
+    </div>
+  </div>
+
+  <div class="partes">
     <div>
-      <div class="brandmark">
-        <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical AID Call Center">
-        <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
-      </div>
-      <div class="band-sub">Professional Medical Call Center Services</div>
+      <div class="pl">From:</div>
+      <div class="pn">${emisor.nombre}</div>
+      <div class="pd">P.O. Box 780418, Orlando, FL, 32878, United States<br>
+        6893394029<br>callcenter@247medical-aid.com</div>
     </div>
-    <div class="co-info"><b>24/7 MEDICAL AID · CALL CENTER</b>689-339-4029<br>callcenter@247medical-aid.com</div>
+    <div>
+      <div class="pl">To:</div>
+      <div class="pn">${esc2(cuentaNombre)}</div>
+      <div class="pd">${lineasTo}</div>
+    </div>
   </div>
 
-  <div class="inner">
-    <div class="title-row">
-      <div>
-        <h1>Invoice</h1>
-        <div class="h1-sub">${periodoDesc}</div>
-      </div>
-      <div class="due-card">
-        <div class="due-lbl">Amount Due (USD)</div>
-        <div class="due-big">$${fmtN(amtDue)}</div>
-      </div>
+  <div class="due">${amtDue > 0.005
+    ? `$${fmtN(amtDue)} due ${fOrd(data.duedate)}`
+    : `$${fmtN(0)}`}</div>
+
+  <table class="det">
+    <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
+    <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
+    <tbody>${filaServicio}${filaDescuento}</tbody>
+  </table>
+
+  <div class="cierre">
+    <div class="nota">
+      <h3>Memo:</h3>
+      If you have any questions or require further information, please do not
+      hesitate to contact us at callcenter@247medical-aid.com. Look forward to
+      continuing our successful partnership.
+      <h3>Terms</h3>
+      Please ensure payment is made by ${fLarga(data.duedate)}, in accordance with
+      our agreed terms.${emisor.extra} Thank you for your prompt attention to this matter.
+      <h3>&nbsp;</h3>
+      Checks should be made payable to ${emisor.cheques} and mailed to:<br>
+      P.O. Box 780418<br>Orlando, FL 32878
     </div>
-
-    <div class="meta">
-      <div>
-        <div class="ml">Billed To</div>
-        <div class="mv">${data.contact||'—'}<br><b>${cuentaNombre}</b></div>
-      </div>
-      <div>
-        <div class="ml">Invoice Number</div>
-        <div class="mv">${data.invnum||'—'}</div>
-        <div class="ml">Date of Issue</div>
-        <div class="mv">${fmtDate(data.dateissue)}</div>
-      </div>
-      <div>
-        <div class="ml">Due Date</div>
-        <div class="mv"><b>${fmtDate(data.duedate)}</b></div>
-        <div class="ml">Billing Period</div>
-        <div class="mv">${mesLabel}</div>
-      </div>
+    <div>
+      <table class="tot">
+        <tr><td>Subtotal</td><td>$${fmtN(data.monto)}</td></tr>
+        <tr><td>Total</td><td>$${fmtN(data.monto)}</td></tr>
+        <tr><td>Total Invoice Paid</td><td>$${fmtN(estPago.abonado)}</td></tr>
+        ${detallePagos}
+        <tr class="saldo"><td>Balance Due</td><td>$${fmtN(amtDue)}</td></tr>
+      </table>
     </div>
-
-    <table>
-      <thead><tr><th>Description</th><th>Rate</th><th>Qty</th><th>Line Total</th></tr></thead>
-      <tbody>${lineRows}</tbody>
-    </table>
-
-    <div class="tot-wrap"><table class="tot">
-      <tr><td>Subtotal</td><td>${fmtN(data.monto)}</td></tr>
-      <tr><td>Tax</td><td>0.00</td></tr>
-      <tr class="tr"><td>Total</td><td>${fmtN(data.monto)}</td></tr>
-      ${filaPagado}
-      <tr class="dr"><td>Balance Due (USD)</td><td>$${fmtN(amtDue)}</td></tr>
-    </table></div>
-
-    <div class="notes">
-      <div><div class="nl">Notes</div><div class="nt">If you have any questions or require further information, please do not hesitate to contact us at callcenter@247medical-aid.com. We look forward to continuing our successful partnership.</div></div>
-      <div><div class="nl">Terms</div><div class="nt">Please ensure the payment is made by ${fmtDate(data.duedate)}, in accordance with our agreed terms. Thank you for your prompt attention to this matter.</div></div>
-    </div>
-
-    <div class="foot">24/7 Medical Aid · Call Center — Thank you for your business.</div>
   </div>
+
+  <div class="pie">
+    <div>Invoice #${esc2(data.invnum||'')} &bull; $${fmtN(data.monto)} ${fCorta(data.duedate)}</div>
+    <div>Pages 1 of 1</div>
+  </div>
+
 </div>
 <script>
 /* Si el logo del sitio no esta disponible (por ejemplo al imprimir sin conexion)
@@ -9516,7 +9612,6 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo){
   const win  = window.open(url, '_blank');
   if(win){ win.addEventListener('load', () => win.print()); }
 }
-
 
 
 
