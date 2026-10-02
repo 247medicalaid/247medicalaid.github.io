@@ -7277,26 +7277,48 @@ function fmtDias(n){
   return Number.isInteger(x) ? String(x) : String(x);
 }
 
+// ── Como se cobra un invoice ─────────────────────────────────────────────────
+// Tal como lo factura Carlos y como sale impreso en el invoice del cliente:
+//
+//     bruto     = tarifa mensual x numero de agentes facturados
+//     valor dia = tarifa mensual / dias habiles del mes   (a centavos)
+//     descuento = valor dia x dias de ausencia de servicio
+//     total     = bruto - descuento
+//
+// El valor del dia se redondea a centavos ANTES de multiplicar, no despues: es
+// la cifra que el cliente ve impresa y tiene que poder rehacer la cuenta con
+// ella. Si se prorratea primero y se redondea al final, el descuento impreso no
+// cuadra con el total por uno o dos centavos y el cliente llama a preguntar.
+//
+// Esta funcion es el unico sitio donde vive la formula: buildInvData la usa
+// para el total y calcInvDescuento para el desglose, asi que el desglose y el
+// total no pueden discrepar.
+function calcInvCobro(tarifa, diasMes, agentesFact, totalDias){
+  const valorDia   = invR2(diasMes > 0 ? tarifa / diasMes : 0);
+  const diasPlenos = invR2(agentesFact * diasMes);
+  const diasAus    = invR2(diasPlenos - totalDias);
+  const bruto      = invR2(agentesFact * tarifa);
+  const descuento  = invR2(diasAus * valorDia);
+  return { valorDia, diasPlenos, diasAus, bruto, descuento,
+           monto: invR2(bruto - descuento) };
+}
+
 // ── Descuento por dias no trabajados ─────────────────────────────────────────
-// Se factura un mes completo por agente y se descuentan los dias de ausencia,
-// tal como salen los invoices que enviamos al cliente. El total no cambia
-// respecto al prorrateo: bruto - descuento == data.monto, por construccion.
+// bruto - descuento == data.monto, por construccion: las dos cifras salen de la
+// misma llamada a calcInvCobro.
 function calcInvDescuento(data){
   if(!data) return null;
   const agentesFact = data.agentes.filter(a => a.total > 0).length;
-  const valorDia    = data.diasMes > 0 ? data.tarifa / data.diasMes : 0;
-  const diasPlenos  = invR2(agentesFact * data.diasMes);
-  const bruto       = invR2(agentesFact * data.tarifa);
-  // Los dias de ausencia salen de la diferencia real, para que cuadre siempre.
-  const diasAus     = invR2(diasPlenos - data.totalDias);
-  // El descuento se toma de la resta exacta, no de dias x valorDia: asi el
-  // redondeo del valor del dia nunca desvia el total del invoice.
-  const descuento   = invR2(bruto - data.monto);
+  const c = calcInvCobro(data.tarifa, data.diasMes, agentesFact, data.totalDias);
   return {
-    agentesFact, valorDia: invR2(valorDia), diasPlenos, diasAus,
-    bruto, descuento, neto: invR2(data.monto),
+    agentesFact, valorDia: c.valorDia, diasPlenos: c.diasPlenos, diasAus: c.diasAus,
+    bruto: c.bruto, descuento: c.descuento, neto: c.monto,
     manual: data.descManual === true,
-    aplica: agentesFact > 0 && diasAus > 0.005
+    aplica: agentesFact > 0 && c.diasAus > 0.005,
+    // Si alguien trabajo mas dias que los habiles del mes el "descuento" sale
+    // negativo. Se marca aparte para que el invoice lo imprima como dias extra
+    // y la suma del detalle siga cuadrando con el total.
+    aplicaExtra: agentesFact > 0 && c.diasAus < -0.005
   };
 }
 
@@ -7593,7 +7615,8 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   const descManual  = ov.descDias !== undefined && ov.descDias !== null;
   if(descManual) totalDias = invR2(Math.max(0, _diasPlenos - (Number(ov.descDias)||0)));
   const prorrateo = diasMes > 0 ? totalDias/diasMes : 0;
-  const monto = tarifa * prorrateo;
+  // El total sale de bruto menos descuento, no del prorrateo: ver calcInvCobro.
+  const monto = calcInvCobro(tarifa, diasMes, _agFact, totalDias).monto;
   const numAgentes = agentes.length;
 
   // Meta
@@ -9385,10 +9408,10 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
         </div>` };
 
   // ── Lineas del invoice ────────────────────────────────────────────────────
-  // Se cobra el mes completo por agente y se descuentan los dias no trabajados,
-  // igual que en los invoices que recibe el cliente. Las dos lineas suman
-  // exactamente data.monto: el descuento sale de la resta, no de multiplicar
-  // los dias por un valor de dia redondeado.
+  // Se cobra el mes completo por agente y se descuentan los dias de ausencia al
+  // valor del dia impreso, igual que en los invoices que recibe el cliente. Las
+  // lineas suman exactamente el total: el cliente puede rehacer la cuenta con
+  // las cifras que ve.
   const detalleDias = groups.length
     ? groups.map(g => `${g.nombres.length} agent${g.nombres.length!==1?'s':''} - ${fmtDias(g.dias)} days worked`).join('<br>')
     : '';
@@ -9423,6 +9446,25 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
         <div class="q-sub">-$${fmtN(desc.valorDia)}</div>
       </td>
       <td class="amt">-$${fmtN(desc.descuento)}</td>
+    </tr>` : '';
+
+  // Si se trabajaron mas dias que los habiles del mes el descuento sale
+  // negativo. Se imprime como dias adicionales, con el mismo valor del dia,
+  // para que el detalle siga sumando el total y no quede una cifra sin explicar.
+  const filaExtra = (desc && desc.aplicaExtra) ? `
+    <tr>
+      <td>
+        <div class="it-desc">Additional Days of Service</div>
+        <div class="it-sub">
+          Days worked beyond the standard month<br>
+          (Daily rate for ${mesSolo}: $${fmtN(desc.valorDia)})
+        </div>
+      </td>
+      <td class="qty">
+        <div class="q-num">${fmtDias(-desc.diasAus)}</div>
+        <div class="q-sub">$${fmtN(desc.valorDia)}</div>
+      </td>
+      <td class="amt">$${fmtN(-desc.descuento)}</td>
     </tr>` : '';
 
   // ── Pagos recibidos ───────────────────────────────────────────────────────
@@ -9561,7 +9603,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   <table class="det">
     <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
     <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
-    <tbody>${filaServicio}${filaDescuento}</tbody>
+    <tbody>${filaServicio}${filaDescuento}${filaExtra}</tbody>
   </table>
 
   <div class="cierre">
