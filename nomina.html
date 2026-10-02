@@ -567,7 +567,8 @@
     border-bottom:1px solid var(--border);
   }
   .iv-franja .sub{ font-weight:500; opacity:.85; }
-  .iv-franja .der{ margin-left:auto; font-family:'DM Mono',monospace; font-weight:700; }
+  .iv-franja .der{ font-family:'DM Mono',monospace; font-weight:700; }
+  .iv-franja-der{ margin-left:auto; display:flex; align-items:center; gap:10px; }
   .iv-f-abierta{ background:#EEF4F7; color:#33566B; }
   .iv-f-proceso{ background:#FDF0DC; color:#7A4A0B; }
   .iv-f-pend   { background:#B91C1C; color:#FFFFFF; }
@@ -579,24 +580,25 @@
   @keyframes ivFlash{ 0%,100%{background:#9CA3AF} 50%{background:#E5E7EB} }
   @media (prefers-reduced-motion:reduce){ .iv-f-sigma{ animation:none } }
 
-  /* Sigma, en la cabecera. Sustituye al bloque que iba al pie del invoice:
-     importe, abonado y pendiente caben en una pastilla, y el reparto por
-     agente ya se ve en "Distribucion del invoice". Lleva a la seccion Sigma,
-     que es donde se registra el giro. */
-  .iv-sigma{
-    display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px;
+  /* Sigma, dentro de la franja del estado. Sustituye al bloque que iba al pie
+     del invoice: importe, abonado y pendiente caben en una pastilla, y el
+     reparto por agente ya se ve en "Distribucion del invoice". El fondo es
+     blanco para que se lea sobre cualquier color de franja, incluida la que
+     parpadea. Lleva a la seccion Sigma, que es donde se registra el giro. */
+  .iv-sig{
+    display:inline-flex; align-items:baseline; gap:6px; padding:2px 9px;
     border-radius:999px; background:#FFFFFF; border:1px solid #D9CCF7;
-    font-family:'Inter',sans-serif; font-size:11px; color:var(--text2);
-    font-weight:600; white-space:nowrap; cursor:pointer;
+    font-family:'Inter',sans-serif; font-size:10.5px; color:#44566B;
+    font-weight:600; white-space:nowrap; cursor:pointer; line-height:1.5;
   }
-  .iv-sigma:hover{ border-color:var(--inv-sigma,#6D28D9); }
-  .iv-sigma b{ font-family:'DM Mono',monospace; font-size:14px; font-weight:700;
-               color:var(--inv-sigma,#6D28D9); }
-  .iv-sigma .est{ font-size:10.5px; font-weight:700; }
-  .iv-sigma.pend .est{ color:#B45309; }
-  .iv-sigma.parc .est{ color:#B45309; }
-  .iv-sigma.ok   .est{ color:#047857; }
-  .iv-sigma.proy .est{ color:var(--text3); font-weight:600; }
+  .iv-sig:hover{ border-color:#6D28D9; }
+  .iv-sig b{ font-family:'DM Mono',monospace; font-size:13px; font-weight:700;
+             color:#6D28D9; }
+  .iv-sig .est{ font-size:10.5px; font-weight:700; }
+  .iv-sig.pend .est{ color:#B45309; }
+  .iv-sig.parc .est{ color:#B45309; }
+  .iv-sig.ok   .est{ color:#047857; }
+  .iv-sig.proy .est{ color:#6B7A8C; font-weight:600; }
 
   /* Invoice cerrado: los campos se ven bloqueados de verdad, no apagados. Con
      opacidad las cifras quedaban dificiles de leer justo cuando mas se
@@ -8634,20 +8636,65 @@ function renderInvoicesMes(){
     }
     const _faltaSigma = _sigAmtHdr > 0.005 && !sigmaSaldado(ov, _sigAmtHdr);
 
+    // Sigma vive en la franja, debajo del nombre, junto al estado del invoice:
+    // es la misma idea —en que va esta cuenta— y conviene leerla de un tiron.
+    const _sigPast = (()=>{
+      if(i.tipo === 'own' || !_invDataHdr) return '';
+      let sc; try{ sc = calcSigmaCheck(_invDataHdr, i.tipo); }catch(e){ return ''; }
+      const directo = !!sc.excluded;
+      const total   = directo ? (sc.sigmaDirecto || 0) : (sc.sigmaAmt || 0);
+      if(!(total > 0.005)) return '';
+      const es = sigmaEstado(ov, total);
+      // Un abono a medias es el caso que hay que poder ver sin abrir nada:
+      // se dicen las dos cifras, lo abonado y lo que falta.
+      const medias = 'abonado ' + fmt(es.pagado) + ' \u00b7 falta ' + fmt(es.saldo);
+      let clase = 'pend', txt;
+      if(!ov.cerrado){ clase = 'proy'; txt = 'proyectado'; }
+      else if(ov.noPago){ clase = 'ok'; txt = 'cancelado con el invoice'; }
+      else if(directo){
+        clase = es.completo ? 'ok' : es.parcial ? 'parc' : 'pend';
+        txt = (es.completo ? '\u2713 registrado' : es.parcial ? medias : '\u25cf sin registrar')
+            + ' \u00b7 lo paga el cliente';
+      }
+      else if(ov.cruzadoUtilidad){ clase = 'ok'; txt = '\u21c4 cruzado por utilidad'; }
+      else if(es.completo){ clase = 'ok'; txt = '\u2713 girado'; }
+      else if(es.parcial){ clase = 'parc'; txt = medias; }
+      else { clase = 'pend'; txt = '\u25cf pendiente por girar'; }
+      // El detalle que traia el bloque al pie queda en el tooltip: el reparto
+      // por dias y la fecha del giro, sin ocupar pantalla.
+      const reparto = sc.hasSplit
+        ? fmtDias(sc.diasDr) + ' d\u00edas Dr de ' + fmtDias(_invDataHdr.totalDias || 0)
+        : '100% del invoice';
+      const ayuda = (!ov.cerrado
+        ? ['Proyecci\u00f3n: ' + fmt(total) + ' \u00b7 se confirma al cerrar el invoice', reparto]
+        : ['Total a Sigma ' + fmt(es.total),
+           'abonado ' + fmt(es.pagado),
+           'pendiente ' + fmt(es.saldo),
+           ov.sigmaFecha ? 'girado el ' + ov.sigmaFecha : '',
+           ov.cruceFecha ? 'cruzado el ' + ov.cruceFecha : '',
+           reparto]
+      ).filter(Boolean).join(' \u00b7 ') + ' \u2014 clic para ir a la secci\u00f3n Sigma';
+      return `<button type="button" class="iv-sig ${clase}" onclick="showPage('sigma')"
+        title="${String(ayuda).replace(/"/g,'')}">
+        <span>\u{1F3E6} Sigma</span><b>${fmt(total)}</b><span class="est">${txt}</span>
+      </button>`;
+    })();
+
     // La franja: una clase, un texto y una cifra a la derecha.
     let fClase, fTexto, fSub = '', fCifra = '';
     if(!ov.cerrado){
       fClase = _mesEnProceso ? 'iv-f-proceso' : 'iv-f-abierta';
       fTexto = _mesEnProceso ? '⏳ En proceso' : '● Sin cerrar';
       fSub   = _mesEnProceso ? 'las quincenas del mes aún no están cerradas' : 'todavía se puede editar';
-      if(_sigAmtHdr > 0.005){ fCifra = 'Sigma ' + fmt(_sigAmtHdr); }
     } else if(ov.noPago){
       fClase = 'iv-f-nopago'; fTexto = '✕ No pagado';
       fSub   = ov.noPagoFecha ? 'dado por perdido el ' + ov.noPagoFecha : 'dado por perdido';
       fCifra = fmt(Number(ov.noPagoMonto) || est.saldo);
     } else if(est.completo && _faltaSigma){
+      // La cifra no se repite: la pastilla de Sigma, a la derecha, la trae con
+      // el abonado y lo que falta.
       fClase = 'iv-f-sigma'; fTexto = '🏦 Cobrado · falta el cheque a Sigma';
-      fSub   = 'el cliente ya pagó'; fCifra = 'Sigma ' + fmt(_sigAmtHdr);
+      fSub   = 'el cliente ya pagó';
     } else if(est.completo){
       fClase = 'iv-f-pagado'; fTexto = '✓ Cobrado'; fSub = 'nada pendiente';
     } else if(est.parcial){
@@ -8680,49 +8727,6 @@ function renderInvoicesMes(){
                          : `<a onclick="editInvoiceTarifa('${mk}','${k}')">cambiar</a>`}
           </span>`;
         })()}
-        ${(()=>{
-          // Lo que antes ocupaba un bloque entero al pie del invoice cabe aqui:
-          // cuanto hay que girarle a Sigma, cuanto se abono y cuanto falta.
-          if(i.tipo === 'own' || !_invDataHdr) return '';
-          let sc; try{ sc = calcSigmaCheck(_invDataHdr, i.tipo); }catch(e){ return ''; }
-          const directo = !!sc.excluded;
-          const total   = directo ? (sc.sigmaDirecto || 0) : (sc.sigmaAmt || 0);
-          if(!(total > 0.005)) return '';
-          const es = sigmaEstado(ov, total);
-          // Un abono a medias es el caso que hay que poder ver sin abrir nada:
-          // se dicen las dos cifras, lo abonado y lo que falta.
-          const medias = 'abonado ' + fmt(es.pagado) + ' · falta ' + fmt(es.saldo);
-          let clase = 'pend', txt;
-          if(!ov.cerrado){ clase = 'proy'; txt = 'proyectado'; }
-          else if(ov.noPago){ clase = 'ok'; txt = 'cancelado con el invoice'; }
-          else if(directo){
-            clase = es.completo ? 'ok' : es.parcial ? 'parc' : 'pend';
-            txt = (es.completo ? '✓ registrado' : es.parcial ? medias : '● sin registrar')
-                + ' · lo paga el cliente';
-          }
-          else if(ov.cruzadoUtilidad){ clase = 'ok'; txt = '⇄ cruzado por utilidad'; }
-          else if(es.completo){ clase = 'ok'; txt = '✓ girado'; }
-          else if(es.parcial){ clase = 'parc'; txt = medias; }
-          else { clase = 'pend'; txt = '● pendiente por girar'; }
-          // El detalle que traia el bloque al pie queda en el tooltip: el
-          // reparto por dias y la fecha del giro, sin ocupar pantalla.
-          const reparto = sc.hasSplit
-            ? fmtDias(sc.diasDr) + ' días Dr de ' + fmtDias(_invDataHdr.totalDias || 0)
-            : '100% del invoice';
-          const ayuda = (!ov.cerrado
-            ? ['Proyección: ' + fmt(total) + ' · se confirma al cerrar el invoice', reparto]
-            : ['Total a Sigma ' + fmt(es.total),
-               'abonado ' + fmt(es.pagado),
-               'pendiente ' + fmt(es.saldo),
-               ov.sigmaFecha ? 'girado el ' + ov.sigmaFecha : '',
-               ov.cruceFecha ? 'cruzado el ' + ov.cruceFecha : '',
-               reparto]
-          ).filter(Boolean).join(' · ') + ' — clic para ir a la sección Sigma';
-          return `<button type="button" class="iv-sigma ${clase}" onclick="showPage('sigma')"
-            title="${String(ayuda).replace(/"/g,'')}">
-            <span>\u{1F3E6} Sigma</span><b>${fmt(total)}</b><span class="est">${txt}</span>
-          </button>`;
-        })()}
         <span class="iv-esp"></span>
         <span class="iv-cifra">
           <span class="et">Total del invoice</span>
@@ -8732,7 +8736,9 @@ function renderInvoicesMes(){
       <div class="iv-franja ${fClase}">
         <span>${fTexto}</span>
         ${fSub ? `<span class="sub">· ${fSub}</span>` : ''}
-        ${fCifra ? `<span class="der">${fCifra}</span>` : ''}
+        ${(fCifra || _sigPast) ? `<span class="iv-franja-der">
+          ${fCifra ? `<span class="der">${fCifra}</span>` : ''}${_sigPast}
+        </span>` : ''}
       </div>
       </div>
       <div class="inv-fila-body inv-theme-edit" id="${iid}-body" style="display:block">
