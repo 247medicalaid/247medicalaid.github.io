@@ -238,61 +238,94 @@
 
 
   /* ─── FICHAS DE CUENTA ─── */
-  /* La pagina de Cuentas: una ficha por cuenta con lo que se escribe una vez
-     —a quien se le factura, cuanto se le cobra— y lo demas plegado, para que
-     entren varias en pantalla sin desplazarse. */
+  /* La pagina de Cuentas. La ficha imita el formulario completo —etiqueta
+     arriba, campo ancho, pista debajo— porque esa ventana ya se entendia bien,
+     y van de dos en dos para ver dos cuentas a la vez sin desplazarse. */
+  #cuentas-fichas{
+    display:grid; grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:16px; align-items:start;
+  }
+  @media (max-width:1180px){ #cuentas-fichas{ grid-template-columns:1fr; } }
+
   .cu-ficha{
-    background:var(--surface); border:1px solid var(--border);
-    border-left:5px solid var(--c,#888); border-radius:var(--radius);
-    margin-bottom:16px; overflow:hidden;
+    border:1px solid #CBD5E1; border-radius:var(--radius);
+    overflow:hidden; background:#FFFFFF;
+    box-shadow:0 1px 2px rgba(11,34,51,.06), 0 8px 22px rgba(11,34,51,.06);
+    /* Sobre papel blanco la paleta oscura de la app no se lee. Dentro de la
+       ficha manda la misma paleta clara del panel de invoices, ya medida: lo
+       mas flojo pasa de 4,5:1. 'color' se hereda ya calculado del contenedor
+       oscuro, asi que hay que volver a pedirlo aqui. */
+    color:var(--text);
+    --text:#0F172A; --text2:#334155; --text3:#4F6276;
+    --surface:#FFFFFF; --surface2:#F4F6FA; --border:#CBD5E1; --bg:#FFFFFF;
+    --accent:#15803D; --accent2:#1D4ED8; --accent3:#B45309; --danger:#B91C1C;
   }
   .cu-ficha.apagada{ opacity:.62; }
+
+  /* La cabecera se queda con el color de siempre: es lo que separa una ficha de
+     la siguiente de un vistazo, y lleva la franja del color de la cuenta. */
   .cu-cab{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    padding:13px 16px; border-bottom:1px solid var(--border); background:var(--surface2);
+    padding:12px 16px; background:#0D3247;
+    border-bottom:4px solid var(--c,#888);
+    --text:#EAF4F6; --text2:#9FBECB; --text3:#7A9EB0;
+    --surface:#082436; --surface2:#0D3247; --border:#17415A;
+    --accent:#3FCFA0; --accent2:#4CC2EC; --accent3:#F2A93B; --danger:#F4676B;
+    color:var(--text);
   }
   .cu-cab input.nom{
-    width:auto; min-width:190px; flex:1 1 190px; background:transparent; border:1px solid transparent;
+    width:auto; min-width:150px; flex:1 1 150px; background:transparent;
+    border:1px solid transparent; color:var(--text);
     font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; font-weight:600;
-    color:var(--text); padding:5px 8px; border-radius:7px;
+    padding:5px 8px; border-radius:7px;
   }
   .cu-cab input.nom:hover{ border-color:var(--border); }
-  .cu-cab input.nom:focus{ background:var(--surface); border-color:var(--accent); }
+  .cu-cab input.nom:focus{ background:var(--surface); border-color:var(--accent2); }
   /* El cuadro nativo del selector de color no se deja redondear por dentro, asi
      que se queda cuadrado con las esquinas suaves en vez de un circulo a medias. */
   .cu-cab input[type=color]{
-    width:26px; height:26px; padding:2px; border-radius:7px; border:1px solid var(--border);
-    cursor:pointer; flex:0 0 auto; background:var(--surface);
+    width:24px; height:24px; padding:2px; border-radius:6px;
+    border:1px solid var(--border); cursor:pointer; flex:0 0 auto; background:var(--surface);
   }
   .cu-cab input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
-  .cu-cab input[type=color]::-webkit-color-swatch{ border:none; border-radius:5px; }
+  .cu-cab input[type=color]::-webkit-color-swatch{ border:none; border-radius:4px; }
   .cu-cobro{
-    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
-    margin-left:auto; font-size:11.5px; color:var(--text2); white-space:nowrap;
+    display:flex; gap:9px; align-items:center; flex-wrap:wrap;
+    width:100%; font-size:11.5px; color:var(--text2);
   }
-  .cu-cobro b{ font-family:'DM Mono',monospace; font-size:13px; }
+  .cu-cobro b{ font-family:'DM Mono',monospace; font-size:12.5px; }
   .cu-cobro .sep{ color:var(--text3); }
 
-  .cu-cuerpo{ display:grid; grid-template-columns:1.15fr 1fr; gap:0; }
+  /* El cuerpo, como el formulario completo: una columna, etiqueta arriba. */
   .cu-bloque{ padding:14px 16px; }
-  .cu-bloque + .cu-bloque{ border-left:1px solid var(--border); }
+  .cu-bloque + .cu-bloque{ border-top:1px solid var(--border); }
   .cu-bloque .tit{
     font-size:10px; color:var(--text3); text-transform:uppercase;
-    letter-spacing:.08em; font-weight:500; margin-bottom:10px;
+    letter-spacing:.08em; font-weight:600; margin-bottom:11px;
   }
-  .cu-campo{ margin-bottom:9px; }
+  .cu-campo{ margin-bottom:12px; }
   .cu-campo:last-child{ margin-bottom:0; }
-  .cu-campo label{ font-size:11px; color:var(--text2); margin-bottom:3px; }
-  .cu-campo input{ padding:7px 10px; font-size:13px; }
-  .cu-campo .pista{ font-size:10.5px; color:var(--text3); margin-top:3px; line-height:1.45; }
-  .cu-par{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .cu-campo label{ font-size:12px; color:var(--text2); margin-bottom:5px; }
+  .cu-campo input{
+    width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:7px; padding:8px 11px; font-size:13.5px;
+    font-family:'Inter',sans-serif;
+  }
+  .cu-campo input:focus{ outline:none; border-color:var(--accent2); }
+  /* El marcador tiene que leerse —dice que va en el campo— pero sin confundirse
+     con un valor escrito: #8FA3B5 daba 2,6:1, este da 4,8:1 y sigue muy por
+     debajo del casi negro de un dato de verdad. */
+  .cu-campo input::placeholder{ color:#64748B; }
   .cu-campo input.cifra{ font-family:'DM Mono',monospace; text-align:right; }
+  .cu-ficha .pista{ font-size:11px; color:var(--text3); margin-top:4px; line-height:1.5; }
+  .cu-par{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  @media (max-width:560px){ .cu-par{ grid-template-columns:1fr; } }
 
   /* Lo que no se mira todos los dias: agentes y ajustes de la cuenta. */
   .cu-mas{ border-top:1px solid var(--border); }
   .cu-mas > summary{
     list-style:none; cursor:pointer; padding:10px 16px;
-    font-size:12px; color:var(--text2); display:flex; align-items:center; gap:9px;
+    font-size:12.5px; color:var(--text2); display:flex; align-items:center; gap:9px;
   }
   .cu-mas > summary::-webkit-details-marker{ display:none; }
   .cu-mas > summary:hover{ background:var(--surface2); color:var(--text); }
@@ -306,15 +339,12 @@
     background:var(--surface2); border:1px solid var(--border);
     border-radius:20px; padding:4px 11px; font-size:12px; color:var(--text2);
   }
-  .cu-ag.off{ opacity:.55; }
+  .cu-ag.off{ opacity:.6; }
   .cu-ag .hr{ font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
   .cu-acciones{ display:flex; gap:8px; flex-wrap:wrap; }
-
-  @media (max-width:860px){
-    .cu-cuerpo{ grid-template-columns:1fr; }
-    .cu-bloque + .cu-bloque{ border-left:none; border-top:1px solid var(--border); }
-    .cu-cobro{ margin-left:0; width:100%; }
-  }
+  /* Los botones de la ficha son de papel blanco, no de la pagina oscura. */
+  .cu-ficha .btn-ghost{ border-color:var(--border); color:var(--text2); background:#FFFFFF; }
+  .cu-ficha .btn-ghost:hover{ background:var(--surface2); color:var(--text); }
 
   /* ─── BUTTONS ─── */
   .btn {
@@ -2549,6 +2579,16 @@
         </div>
       </div>
 
+      <!-- La tarifa del invoice no vive en la cuenta sino en una tabla aparte,
+           por nombre de cuenta normalizado, y la comparten las que facturan en
+           un mismo invoice. Se escribe aqui porque es donde uno la busca: hasta
+           ahora solo se podia cambiar desde dentro de un invoice abierto. -->
+      <div class="form-group">
+        <label>Tarifa que se Factura — USD/mes por Agente</label>
+        <input type="number" id="cu-tarifa-inv" min="0" step="50" placeholder="0">
+        <div class="form-hint" id="cu-tarifa-hint">La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.</div>
+      </div>
+
       <div class="form-group">
         <label>Color Identificador</label>
         <input type="color" id="cu-color" value="#3FCFA0" style="width:60px;height:36px;padding:2px;border-radius:6px;cursor:pointer">
@@ -3344,8 +3384,7 @@ function renderCuentasFichas(){
         ${tiraCobro}
       </div>
 
-      <div class="cu-cuerpo">
-        <div class="cu-bloque">
+      <div class="cu-bloque">
           <div class="tit">Datos de facturación · salen impresos en el invoice</div>
           ${campo(c,'Billed To — contacto','billedTo','Ej: Mandy Railing','txt')}
           ${campo(c,'Dirección','cliDir','Ej: 1005 Marwalt Dr, Fort Walton Beach, FL 32547','txt')}
@@ -3353,11 +3392,10 @@ function renderCuentasFichas(){
             ${campo(c,'Teléfono','cliTel','Ej: 4073745194','txt')}
             ${campo(c,'Correo','cliMail','Ej: contacto@cliente.com','txt')}
           </div>
-        </div>
-        <div class="cu-bloque">
+      </div>
+      <div class="cu-bloque">
           <div class="tit">Valores y tarifas</div>
           ${valores}
-        </div>
       </div>
 
       <details class="cu-mas">
@@ -3974,6 +4012,8 @@ function openModal(id, tipo){
   if(id==='modal-cuenta'){
     $('cuenta-edit-id').value = '';
     $('modal-cuenta-title').textContent = 'Nueva Cuenta';
+    $('cu-tarifa-inv').value = '';
+    $('cu-tarifa-hint').textContent = 'La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.';
     $('cu-nombre').value = '';
     $('cu-billed-to').value = '';
     $('cu-dir').value  = '';
@@ -4688,6 +4728,50 @@ function onVistaChange(){
 // ═══════════════════════════════════════════════════════════════
 // CRUD CUENTAS
 // ═══════════════════════════════════════════════════════════════
+// Deja el campo de tarifa del formulario con la cifra que de verdad se factura
+// y explica de donde sale, que no siempre es obvio: puede venir de la tabla de
+// tarifas, del cobro mensual de la propia cuenta, o estar compartida con otra
+// cuenta que factura en el mismo invoice.
+function pintarTarifaEnFormulario(c){
+  const campo = $('cu-tarifa-inv'), pista = $('cu-tarifa-hint');
+  if(!campo || !pista) return;
+  const base = 'La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.';
+  if(!c){ campo.value = ''; pista.textContent = base; return; }
+  const k       = normalizeAccountName(c.nombre);
+  const master  = INVOICE_RATES[k] || 0;
+  const efectiva= master > 0 ? master : tarifaDesdeCuenta(k);
+  campo.value = efectiva > 0 ? efectiva : '';
+  const comp = cuentas.filter(x => x.id !== c.id && x.activo !== false
+                 && normalizeAccountName(x.nombre) === k).map(x => x.nombre);
+  let txt;
+  if(isExcluded(c.nombre)){
+    txt = 'Esta cuenta no se factura: solo entra en la nómina.';
+  } else if(master <= 0 && efectiva > 0){
+    txt = 'Sale del cobro mensual de esta cuenta. Si escribes aquí otra cifra, el invoice pasa a usarla.';
+  } else if(c.tipo !== 'dr' && efectiva > 0 && Number(c.cobroAgente) > 0
+            && Math.abs(efectiva - Number(c.cobroAgente)) > 0.005){
+    txt = 'Distinta del cobro mensual (' + fmt(c.cobroAgente) + '): el invoice usa esta. ' + base;
+  } else {
+    txt = base;
+  }
+  if(comp.length) txt += ' Compartida con ' + comp.join(', ') + ' — facturan en un mismo invoice.';
+  pista.textContent = txt;
+}
+
+// Guarda la tarifa del formulario en la tabla de tarifas. Solo escribe si hay
+// una cifra positiva y distinta de la que ya habia: dejar el campo vacio no
+// borra la tarifa que la cuenta ya tuviera.
+function guardarTarifaDelFormulario(nombre){
+  const campo = $('cu-tarifa-inv');
+  if(!campo) return;
+  const n = parseFloat(String(campo.value).replace(',', '.'));
+  if(!isFinite(n) || n <= 0) return;
+  const k = normalizeAccountName(nombre);
+  if(!k || INVOICE_RATES[k] === n) return;
+  INVOICE_RATES[k] = n;
+  guardarInvoiceRates();
+}
+
 function saveCuenta(){
   const editId = $('cuenta-edit-id').value;
   const tipo = $('cu-tipo').value;
@@ -4718,9 +4802,10 @@ function saveCuenta(){
   } else {
     cuentas.push({ id:'cu'+(++idCounter)+'_'+Date.now(), ...data });
   }
+  guardarTarifaDelFormulario(data.nombre);
   closeModal('modal-cuenta');
   recalcAll();
-  guardarConfig();
+  guardarCuentasSiempre();
 }
 
 function editCuenta(id){
@@ -4734,6 +4819,7 @@ function editCuenta(id){
   $('cu-dir').value  = c.cliDir  || '';
   $('cu-tel').value  = c.cliTel  || '';
   $('cu-mail').value = c.cliMail || '';
+  pintarTarifaEnFormulario(c);
   toggleCuentaFields();
   if(c.tipo==='dr'){
     $('cu-colombian').value       = c.colombian;
