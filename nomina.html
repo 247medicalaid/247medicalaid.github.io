@@ -4575,9 +4575,15 @@ function showPage(id){
   // Toggle body class for page-specific CSS
   document.body.classList.toggle('page-invoices', id === 'invoices');
   document.body.classList.toggle('page-utilidad', id === 'utilidad');
-  // Hide quincena-bar on pages that don't need it
+  // La barra de arriba elige UNA quincena, y solo manda en las paginas que
+  // trabajan sobre una quincena: el resumen, las dos de nomina, los agentes y
+  // el historial. Invoices, Pagos y Utilidad tienen su propio selector de mes.
+  // Cuentas no depende de ninguna fecha —los datos de una cuenta son los
+  // mismos en enero que en diciembre—, asi que la barra ahi solo invita a
+  // cambiar un periodo que no cambia nada de lo que se esta viendo.
+  const SIN_QUINCENA = ['invoices', 'utilidad', 'pagos', 'cuentas'];
   const _qbar = document.getElementById('quincena-bar');
-  if(_qbar) _qbar.style.display = (id === 'invoices' || id === 'utilidad' || id === 'pagos') ? 'none' : '';
+  if(_qbar) _qbar.style.display = SIN_QUINCENA.indexOf(id) >= 0 ? 'none' : '';
 
   if(id==='historial') renderHistorial();
   if(id==='invoices') renderInvoices();
