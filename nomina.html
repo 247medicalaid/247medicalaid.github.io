@@ -236,6 +236,86 @@
   .status-dot.active { background: var(--accent); }
   .status-dot.inactive { background: var(--danger); }
 
+
+  /* ─── FICHAS DE CUENTA ─── */
+  /* La pagina de Cuentas: una ficha por cuenta con lo que se escribe una vez
+     —a quien se le factura, cuanto se le cobra— y lo demas plegado, para que
+     entren varias en pantalla sin desplazarse. */
+  .cu-ficha{
+    background:var(--surface); border:1px solid var(--border);
+    border-left:5px solid var(--c,#888); border-radius:var(--radius);
+    margin-bottom:16px; overflow:hidden;
+  }
+  .cu-ficha.apagada{ opacity:.62; }
+  .cu-cab{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:13px 16px; border-bottom:1px solid var(--border); background:var(--surface2);
+  }
+  .cu-cab input.nom{
+    width:auto; min-width:190px; flex:1 1 190px; background:transparent; border:1px solid transparent;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; font-weight:600;
+    color:var(--text); padding:5px 8px; border-radius:7px;
+  }
+  .cu-cab input.nom:hover{ border-color:var(--border); }
+  .cu-cab input.nom:focus{ background:var(--surface); border-color:var(--accent); }
+  /* El cuadro nativo del selector de color no se deja redondear por dentro, asi
+     que se queda cuadrado con las esquinas suaves en vez de un circulo a medias. */
+  .cu-cab input[type=color]{
+    width:26px; height:26px; padding:2px; border-radius:7px; border:1px solid var(--border);
+    cursor:pointer; flex:0 0 auto; background:var(--surface);
+  }
+  .cu-cab input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  .cu-cab input[type=color]::-webkit-color-swatch{ border:none; border-radius:5px; }
+  .cu-cobro{
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+    margin-left:auto; font-size:11.5px; color:var(--text2); white-space:nowrap;
+  }
+  .cu-cobro b{ font-family:'DM Mono',monospace; font-size:13px; }
+  .cu-cobro .sep{ color:var(--text3); }
+
+  .cu-cuerpo{ display:grid; grid-template-columns:1.15fr 1fr; gap:0; }
+  .cu-bloque{ padding:14px 16px; }
+  .cu-bloque + .cu-bloque{ border-left:1px solid var(--border); }
+  .cu-bloque .tit{
+    font-size:10px; color:var(--text3); text-transform:uppercase;
+    letter-spacing:.08em; font-weight:500; margin-bottom:10px;
+  }
+  .cu-campo{ margin-bottom:9px; }
+  .cu-campo:last-child{ margin-bottom:0; }
+  .cu-campo label{ font-size:11px; color:var(--text2); margin-bottom:3px; }
+  .cu-campo input{ padding:7px 10px; font-size:13px; }
+  .cu-campo .pista{ font-size:10.5px; color:var(--text3); margin-top:3px; line-height:1.45; }
+  .cu-par{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .cu-campo input.cifra{ font-family:'DM Mono',monospace; text-align:right; }
+
+  /* Lo que no se mira todos los dias: agentes y ajustes de la cuenta. */
+  .cu-mas{ border-top:1px solid var(--border); }
+  .cu-mas > summary{
+    list-style:none; cursor:pointer; padding:10px 16px;
+    font-size:12px; color:var(--text2); display:flex; align-items:center; gap:9px;
+  }
+  .cu-mas > summary::-webkit-details-marker{ display:none; }
+  .cu-mas > summary:hover{ background:var(--surface2); color:var(--text); }
+  .cu-mas > summary .fl{ font-size:10px; color:var(--text3); transition:transform .18s; }
+  .cu-mas[open] > summary .fl{ transform:rotate(90deg); }
+  .cu-mas > summary .n{ color:var(--text3); }
+  .cu-panel{ padding:4px 16px 14px; }
+  .cu-ags{ display:flex; flex-wrap:wrap; gap:7px; }
+  .cu-ag{
+    display:inline-flex; align-items:center; gap:7px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:20px; padding:4px 11px; font-size:12px; color:var(--text2);
+  }
+  .cu-ag.off{ opacity:.55; }
+  .cu-ag .hr{ font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
+  .cu-acciones{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  @media (max-width:860px){
+    .cu-cuerpo{ grid-template-columns:1fr; }
+    .cu-bloque + .cu-bloque{ border-left:none; border-top:1px solid var(--border); }
+    .cu-cobro{ margin-left:0; width:100%; }
+  }
+
   /* ─── BUTTONS ─── */
   .btn {
     display: inline-flex; align-items: center; gap: 7px;
@@ -1675,6 +1755,10 @@
     <button class="nav-btn active" onclick="showPage('resumen')">
       <span class="dot" style="background:#3FCFA0"></span> Resumen General
     </button>
+    <button class="nav-btn" onclick="showPage('cuentas')">
+      <span class="dot" style="background:#e879f9"></span> Cuentas
+      <span class="badge" id="badge-cuentas">0</span>
+    </button>
     <button class="nav-btn" onclick="showPage('cuentas-dr')">
       <span class="dot" style="background:#F2A93B"></span> Callcenter Accounts
       <span class="badge" id="badge-dr">0</span>
@@ -1854,6 +1938,28 @@
       <p class="section-title" style="margin-bottom:12px">💳 Transferencias — Pago desde:</p>
       <div id="cuadro-transferencias"></div>
     </div>
+  </div>
+
+  <!-- ══════════ PAGE: CUENTAS DR ══════════ -->
+  <!-- ══════════ PAGE: CUENTAS (informacion general) ══════════ -->
+  <div id="page-cuentas" class="hidden">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Cuentas</div>
+        <div class="page-sub">
+          La información general de cada cuenta: a quién se le factura y cuánto se le cobra.
+          Se escribe directamente encima y se guarda al salir del campo.
+        </div>
+      </div>
+      <div class="header-meta" style="display:flex;align-items:center;gap:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin:0">
+          <input type="checkbox" id="cu-ver-inactivas" onchange="renderCuentasFichas()"
+            style="width:auto"> Mostrar inactivas
+        </label>
+        <button class="btn btn-primary" onclick="openModal('modal-cuenta','dr')">＋ Cuenta</button>
+      </div>
+    </div>
+    <div id="cuentas-fichas"></div>
   </div>
 
   <!-- ══════════ PAGE: CUENTAS DR ══════════ -->
@@ -3006,6 +3112,289 @@ function renderResumenOwn(){
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PAGINA CUENTAS — la informacion general de cada cuenta
+// ═══════════════════════════════════════════════════════════════
+// Hasta ahora lo que define una cuenta —a quien se le factura, a donde, cuanto
+// se le cobra— solo se veia abriendo el modal de editar, una por una, y las
+// cuentas vivian repartidas en dos paginas que en realidad muestran la nomina
+// de la quincena. Esta pagina las junta y deja escribir encima.
+
+// Guardar datos de cuenta SIEMPRE, incluso con la quincena aprobada.
+//
+// guardarConfig() no guarda nada si el periodo esta aprobado, y tiene razon de
+// ser: el cache local lleva los dias de cada agente, y escribirlos con un
+// periodo historico abierto contamina la configuracion. Pero el nombre, la
+// direccion o la tarifa de una cuenta no son datos de quincena — no cambian
+// porque el mes este cerrado, y bloquearlos era un efecto colateral. Con la
+// quincena aprobada esto guarda SOLO la lista de cuentas: en el cache local
+// deja los agentes exactamente como estaban, y al servidor le manda
+// agentesParaConfig(), que ya viene sin dias ni diasStd.
+function guardarCuentasSiempre(){
+  if(!isPeriodoAprobado()){ guardarConfig(); return; }
+  if(!configEsConfiable()) return;
+  try {
+    const prev = JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) || 'null');
+    if(prev && typeof prev === 'object'){
+      prev.cuentas = cuentas;
+      localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(prev));
+    }
+  } catch(e){}
+  try {
+    fetch(GS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action:'saveConfig', agentes: agentesParaConfig(), cuentas })
+    })
+    .then(()=>{ setConexion('ok','Google Sheets · cuenta guardada ✓'); })
+    .catch(()=>{ setConexion('error','Cuenta guardada solo en cache local'); });
+  } catch(e){}
+}
+
+// Escribe un campo de la cuenta y lo guarda. Los campos de texto se guardan
+// tal cual; los numericos pasan por Number y un valor sin sentido se queda en
+// lo que habia, para que un dedazo no ponga la tarifa en cero.
+function cuCampo(id, campo, valor, tipo){
+  const c = cuentas.find(x => x.id === id);
+  if(!c) return;
+  if(tipo === 'num'){
+    const n = parseFloat(String(valor).replace(',', '.'));
+    if(!isFinite(n) || n < 0){ renderCuentasFichas(); return; }
+    c[campo] = n;
+  } else if(tipo === 'pct'){
+    const n = parseFloat(String(valor).replace(',', '.'));
+    if(!isFinite(n) || n < 0){ renderCuentasFichas(); return; }
+    c[campo] = n / 100;
+  } else if(tipo === 'qdays'){
+    const s = String(valor).trim();
+    c[campo] = s === '' ? null : Math.max(1, Math.min(15, parseInt(s) || 1));
+  } else if(campo === 'nombre'){
+    const s = String(valor).trim().toUpperCase();
+    if(!s){ renderCuentasFichas(); return; }
+    c.nombre = s;
+  } else {
+    c[campo] = String(valor).trim();
+  }
+  guardarCuentasSiempre();
+  recalcAll();
+}
+
+// La tarifa que se factura no vive en la cuenta sino en la tabla de tarifas por
+// invoice, y la comparten las cuentas que se facturan juntas —ACCESS con doctor
+// y ACCESS (OWN) salen en un solo invoice, con una sola tarifa—. Por eso se
+// avisa en la ficha cuando una tarifa esta compartida.
+function cuTarifaFactura(id, valor){
+  const c = cuentas.find(x => x.id === id);
+  if(!c) return;
+  const n = parseFloat(String(valor).replace(',', '.'));
+  if(!isFinite(n) || n <= 0){ renderCuentasFichas(); return; }
+  const k = normalizeAccountName(c.nombre);
+  if(INVOICE_RATES[k] === n){ return; }
+  INVOICE_RATES[k] = n;
+  guardarInvoiceRates();
+  renderCuentasFichas();
+}
+
+// Con quien comparte invoice esta cuenta, si lo comparte con alguien.
+function cuCompaneras(c){
+  const k = normalizeAccountName(c.nombre);
+  return cuentas.filter(x => x.id !== c.id && x.activo !== false
+                          && normalizeAccountName(x.nombre) === k);
+}
+
+// El estado de cobro de una cuenta, en una linea. Sale de la misma funcion que
+// alimenta la seccion de Pagos, asi que las dos dicen lo mismo.
+let _cuCobrosCache = null;
+function cuCobroDe(c){
+  if(isExcluded(c.nombre)) return null;
+  if(_cuCobrosCache === null){
+    try { _cuCobrosCache = listarCobrosPorCuenta(); } catch(e){ _cuCobrosCache = []; }
+  }
+  const k = normalizeAccountName(c.nombre);
+  return _cuCobrosCache.find(x => normalizeAccountName(x.nombre) === k) || null;
+}
+
+function renderCuentasFichas(){
+  const el = $('cuentas-fichas');
+  if(!el) return;
+  _cuCobrosCache = null;   // se recalcula una vez por pintada, no una por cuenta
+  const verApagadas = !!($('cu-ver-inactivas') || {}).checked;
+  const lista = cuentas
+    .filter(c => verApagadas || c.activo !== false)
+    .slice()
+    .sort((a,b) => (a.tipo === b.tipo ? String(a.nombre).localeCompare(String(b.nombre))
+                                      : (a.tipo === 'dr' ? -1 : 1)));
+  if(!lista.length){
+    el.innerHTML = '<p class="empty" style="padding:30px;text-align:center;color:var(--text3)">Sin cuentas. Crea la primera con ＋ Cuenta.</p>';
+    return;
+  }
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const campo = (c, etiqueta, clave, marcador, tipo, pista, clase) => `
+    <div class="cu-campo">
+      <label>${etiqueta}</label>
+      <input type="text" class="${clase||''}" value="${esc(c[clave] != null ? c[clave] : '')}"
+        placeholder="${esc(marcador || '')}"
+        onchange="cuCampo('${c.id}','${clave}',this.value,'${tipo||'txt'}')">
+      ${pista ? `<div class="pista">${pista}</div>` : ''}
+    </div>`;
+
+  el.innerHTML = lista.map(c => {
+    const apagada = c.activo === false;
+    const esDr    = c.tipo === 'dr';
+    const k       = normalizeAccountName(c.nombre);
+    const facturable = !isExcluded(c.nombre);
+    // Lo que de verdad se factura. La tabla de tarifas manda; si una cuenta 24/7
+    // no tiene entrada ahi, el invoice cae en su cobro mensual. Pintar solo la
+    // tabla dejaba la ficha diciendo $0 en cuentas que si estaban facturando.
+    const tarifaMaster = INVOICE_RATES[k] || 0;
+    const tarifaInv    = tarifaMaster > 0 ? tarifaMaster : tarifaDesdeCuenta(k);
+    const vieneDelCobro = tarifaMaster <= 0 && tarifaInv > 0;
+    const comp    = cuCompaneras(c);
+    const ags     = agentes.filter(a => a.cuenta === c.id);
+    const agsOn   = ags.filter(a => a.estado === 'active');
+    const cob     = cuCobroDe(c);
+
+    // La tira de cobro: corta, y solo con lo que hace falta mirar de reojo.
+    let tiraCobro = '';
+    if(!facturable){
+      tiraCobro = `<span class="cu-cobro"><span class="sep">no se factura — solo nómina</span></span>`;
+    } else if(cob){
+      const ult = cob.meses[0];
+      tiraCobro = `<span class="cu-cobro">
+        <span>Facturado <b>${fmt(cob.total)}</b></span>
+        <span class="sep">·</span>
+        <span>Pendiente <b style="color:${cob.saldo > 0.005 ? 'var(--accent3)' : 'var(--accent)'}">${fmt(cob.saldo)}</b></span>
+        <span class="sep">·</span>
+        <span>${cob.pendientes ? cob.pendientes + ' sin cobrar' : 'todo cobrado'}</span>
+        ${ult ? `<span class="sep">·</span> <span style="color:var(--text3)">último ${MESES[ult.mes-1]} ${ult.anio}</span>` : ''}
+      </span>`;
+    } else if(tarifaInv <= 0){
+      // Una cuenta facturable sin tarifa no saca invoice: sale en $0 y no llega
+      // ni a la seccion de Pagos. Decirlo aqui, al lado del campo vacio que lo
+      // explica, ahorra buscar por que no aparece.
+      tiraCobro = `<span class="cu-cobro"><span style="color:var(--accent3)">sin tarifa — todavía no factura</span></span>`;
+    } else {
+      tiraCobro = `<span class="cu-cobro"><span class="sep">sin invoices cerrados todavía</span></span>`;
+    }
+
+    // La pista de la tarifa dice de donde sale la cifra, que no siempre es obvio:
+    // puede venir de la tabla de tarifas, del cobro mensual de la propia cuenta,
+    // o estar compartida con otra cuenta que factura en el mismo invoice.
+    const pistaTarifa = (
+      vieneDelCobro
+        ? 'Sale del <b>cobro mensual</b> de arriba, porque esta cuenta no tiene tarifa propia. Si escribes aquí otra cifra, el invoice pasa a usarla.'
+        : (!esDr && tarifaInv > 0 && Number(c.cobroAgente) > 0
+             && Math.abs(tarifaInv - Number(c.cobroAgente)) > 0.005)
+          ? `Distinta del cobro mensual de arriba (${fmt(c.cobroAgente)}): el invoice usa <b>esta</b>.`
+          : 'Se aplica a los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.'
+    ) + (comp.length
+        ? ` <b>Compartida con ${comp.map(x=>esc(x.nombre)).join(', ')}</b> — facturan en un mismo invoice.`
+        : '');
+
+    const valores = esDr ? `
+      <div class="cu-par">
+        ${campo(c,'Colombian IT — Check','colombian','0','num','','cifra')}
+        ${campo(c,'Accountant — Check','accountant','0','num','','cifra')}
+      </div>
+      <div class="cu-par">
+        ${campo(c,'Accountant — Payroll','accountantReal','0','num','','cifra')}
+        ${campo(c,'Transfer Fee — Payroll','transferFeeReal','0','num','','cifra')}
+      </div>
+      <div class="cu-campo">
+        <label>Dollar Comp % — Payroll</label>
+        <input type="text" class="cifra" value="${((c.dollarPctReal || 0) * 100).toFixed(1)}"
+          onchange="cuCampo('${c.id}','dollarPctReal',this.value,'pct')">
+      </div>
+      ${facturable ? `
+      <div class="cu-campo">
+        <label>Tarifa que se factura (USD/mes por agente)</label>
+        <input type="text" class="cifra" value="${tarifaInv || ''}" placeholder="0"
+          onchange="cuTarifaFactura('${c.id}',this.value)">
+        <div class="pista">${pistaTarifa}</div>
+      </div>` : ''}
+    ` : `
+      <div class="cu-par">
+        ${campo(c,'Cobro mensual por agente','cobroAgente','0','num','','cifra')}
+        ${campo(c,'Accountant','accountant','0','num','','cifra')}
+      </div>
+      <div class="cu-campo">
+        <label>Tarifa que se factura (USD/mes por agente)</label>
+        <input type="text" class="cifra" value="${tarifaInv || ''}" placeholder="0"
+          onchange="cuTarifaFactura('${c.id}',this.value)">
+        <div class="pista">${pistaTarifa}</div>
+      </div>
+      <div class="cu-campo">
+        <label>Días laborables por quincena</label>
+        <input type="text" class="cifra" value="${c.qdaysOwn != null ? c.qdaysOwn : ''}"
+          placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays')">
+        <div class="pista">Vacío = usa el calendario laboral global.</div>
+      </div>
+    `;
+
+    return `
+    <div class="cu-ficha${apagada ? ' apagada' : ''}" style="--c:${esc(c.color || '#888')}">
+      <div class="cu-cab">
+        <input type="color" value="${esc(c.color || '#888888')}" title="Color de la cuenta"
+          onchange="cuCampo('${c.id}','color',this.value,'txt')">
+        <input class="nom" type="text" value="${esc(c.nombre)}" aria-label="Nombre de la cuenta"
+          onchange="cuCampo('${c.id}','nombre',this.value,'nombre')">
+        <span class="tag ${esDr ? 'joint' : 'own'}">${esDr ? 'Callcenter' : '24/7'}</span>
+        ${apagada ? '<span class="tag inactive">inactiva</span>' : ''}
+        ${tiraCobro}
+      </div>
+
+      <div class="cu-cuerpo">
+        <div class="cu-bloque">
+          <div class="tit">Datos de facturación · salen impresos en el invoice</div>
+          ${campo(c,'Billed To — contacto','billedTo','Ej: Mandy Railing','txt')}
+          ${campo(c,'Dirección','cliDir','Ej: 1005 Marwalt Dr, Fort Walton Beach, FL 32547','txt')}
+          <div class="cu-par">
+            ${campo(c,'Teléfono','cliTel','Ej: 4073745194','txt')}
+            ${campo(c,'Correo','cliMail','Ej: contacto@cliente.com','txt')}
+          </div>
+        </div>
+        <div class="cu-bloque">
+          <div class="tit">Valores y tarifas</div>
+          ${valores}
+        </div>
+      </div>
+
+      <details class="cu-mas">
+        <summary><span class="fl">▶</span> Agentes <span class="n">· ${agsOn.length} activo${agsOn.length!==1?'s':''}${
+          ags.length !== agsOn.length ? ` de ${ags.length}` : ''}</span></summary>
+        <div class="cu-panel">
+          ${ags.length ? `<div class="cu-ags">${ags
+            .slice().sort((a,b) => String(a.nombre).localeCompare(String(b.nombre)))
+            .map(a => `<span class="cu-ag${a.estado==='active'?'':' off'}">
+              <span class="status-dot ${a.estado==='active'?'active':'inactive'}"></span>
+              ${esc(a.nombre)}
+              <span class="hr">${a.horas||8}h · ${fmt(a.valor||0)}/h</span>
+            </span>`).join('')}</div>`
+            : '<div style="font-size:12px;color:var(--text3)">Esta cuenta no tiene agentes asignados.</div>'}
+          <div style="margin-top:10px">
+            <button class="btn btn-ghost btn-sm" onclick="showPage('agentes')">Ir a Agentes</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="cu-mas">
+        <summary><span class="fl">▶</span> Ajustes de la cuenta</summary>
+        <div class="cu-panel">
+          <div class="cu-acciones">
+            <button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️ Abrir el formulario completo</button>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('${esDr ? 'cuentas-dr' : 'cuentas-own'}')">Ver la nómina de la quincena</button>
+            ${facturable ? `<button class="btn btn-ghost btn-sm" onclick="showPage('invoices')">Ver sus invoices</button>` : ''}
+          </div>
+          <div class="pista" style="margin-top:9px">
+            Para desactivar o eliminar la cuenta, usa el formulario completo.
+          </div>
+        </div>
+      </details>
+    </div>`;
+  }).join('');
+}
+
 function renderCuentasDr(){
   const el = $('cuentas-dr-list');
   const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
@@ -3498,6 +3887,7 @@ function recalcAll(){
   renderCuadroPendiente();
   renderResumenDr();
   renderResumenOwn();
+  try{ renderCuentasFichas(); } catch(e){ console.error('[renderCuentasFichas]',e); }
   try{ renderCuentasDr(); } catch(e){ console.error('[renderCuentasDr]',e); }
   try{ renderCuentasOwn(); } catch(e){ console.error('[renderCuentasOwn]',e); }
   renderAgentes();
@@ -3510,11 +3900,12 @@ function recalcAll(){
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
 function showPage(id){
-  ['resumen','cuentas-dr','cuentas-own','agentes','historial','invoices','pagos','utilidad'].forEach(p=>{
+  ['resumen','cuentas','cuentas-dr','cuentas-own','agentes','historial','invoices','pagos','utilidad'].forEach(p=>{
     $('page-'+p).classList.toggle('hidden', p!==id);
   });
   // When opening invoices, always re-render with latest data
   if(id === 'invoices') renderInvoices();
+  if(id === 'cuentas')  renderCuentasFichas();
   if(id === 'pagos')    renderPagos();
   if(id === 'utilidad') renderUtilidad();
   document.querySelectorAll('.nav-btn').forEach(b=>{
@@ -6252,6 +6643,7 @@ function pintarOrigenDatos(){
 
 function updateBadges(){
   pintarOrigenDatos();
+  $('badge-cuentas').textContent = cuentas.filter(c=>c.activo!==false).length;
   $('badge-dr').textContent      = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).length;
   $('badge-own').textContent     = cuentas.filter(c=>c.tipo==='own' && c.activo!==false).length;
   $('badge-agentes').textContent = agentes.filter(a=>a.estado==='active').length;
