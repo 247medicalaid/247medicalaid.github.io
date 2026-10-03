@@ -3390,6 +3390,49 @@ const _cuPend = {};
 const _cuPendAg = {};
 const CU_TARIFA = '__tarifa';
 
+// ── Las cifras de dinero, en formato de moneda ──────────────────────────────
+// Un campo que dice 1250 al lado de otro que dice 0.15 obliga a mirar dos veces
+// para saber cual es plata. Asi que el dinero se LEE vestido —$1,250.00— y se
+// ESCRIBE en crudo: al entrar en el campo aparece el numero pelado, y al salir
+// se vuelve a vestir. El valor que se guarda es siempre el numero, nunca el
+// texto con el signo.
+function cuMon(v){
+  if(v === '' || v === null || v === undefined) return '';
+  const n = Number(v);
+  if(!isFinite(n)) return '';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function cuCrudo(v){
+  if(v === '' || v === null || v === undefined) return '';
+  const n = Number(v);
+  return isFinite(n) ? String(invR2(n)) : '';
+}
+// Lo que se teclea puede venir con signo de peso y con separadores: hay que
+// aceptarlo, porque lo que el campo muestra es justo eso. La coma es separador
+// de miles cuando le siguen tres cifras o cuando ya hay un punto decimal; en
+// cualquier otro caso es la coma decimal, que es como escribe Carlos.
+function cuNum(txt){
+  let t = String(txt).replace(/[$\s\u00A0]/g, '');
+  if(/,\d{3}(\D|$)/.test(t) || (t.indexOf('.') >= 0 && t.indexOf(',') >= 0)) t = t.replace(/,/g, '');
+  else t = t.replace(',', '.');
+  return parseFloat(t);
+}
+// El numero crudo viaja en el propio campo (data-crudo) para no tener que
+// desvestir el texto al entrar: lo que se parsea es lo que el usuario escribio,
+// y lo que se muestra al salir es lo ultimo que quedo aceptado.
+function cuMonFoco(el){
+  el.value = el.dataset.crudo || '';
+  try { el.select(); } catch(e){}
+}
+function cuMonSalida(el){
+  el.value = cuMon(el.dataset.crudo);
+}
+function cuMonPinta(el, v){
+  if(!el) return;
+  el.dataset.crudo = cuCrudo(v);
+  el.value = cuMon(v);
+}
+
 function cuPendDe(id){ return _cuPend[id] || null; }
 function cuValorAg(a, campo){
   const p = _cuPendAg[a.id];
@@ -3464,10 +3507,14 @@ function cuCampo(ids, campo, valor, tipo, el){
   if(!lista.length) return;
   // Un valor sin sentido no entra en el borrador: el campo vuelve a lo que
   // tenia y no se marca nada como cambiado.
-  const deshacer = () => { if(el) el.value = cuMostrar(lista[0], campo, tipo); };
+  const deshacer = () => {
+    if(!el) return;
+    if(tipo === 'mon') cuMonPinta(el, cuValor(lista[0], campo));
+    else el.value = cuMostrar(lista[0], campo, tipo);
+  };
   let v;
-  if(tipo === 'num' || tipo === 'pct'){
-    const n = parseFloat(String(valor).replace(',', '.'));
+  if(tipo === 'num' || tipo === 'pct' || tipo === 'mon'){
+    const n = cuNum(valor);
     if(!isFinite(n) || n < 0){ deshacer(); return; }
     v = tipo === 'pct' ? n / 100 : n;
   } else if(tipo === 'qdays'){
@@ -3485,6 +3532,7 @@ function cuCampo(ids, campo, valor, tipo, el){
     // marcada como cambiada sin que nada haya cambiado de verdad.
     if(_cuIguales(c[campo], v)) delete p[campo]; else p[campo] = v;
   });
+  if(tipo === 'mon') cuMonPinta(el, v);
   cuPintarEstado();
 }
 function _cuIguales(a, b){
@@ -3498,6 +3546,7 @@ function cuMostrar(c, campo, tipo){
   const v = cuValor(c, campo);
   if(tipo === 'pct') return ((v || 0) * 100).toFixed(1);
   if(tipo === 'qdays') return v != null ? v : '';
+  if(tipo === 'mon') return cuMon(v);
   return v != null ? v : '';
 }
 
@@ -3511,27 +3560,31 @@ function cuCampoAg(idAg, campo, valor, el){
   if(campo === 'tarifaCobro' && t === ''){
     v = undefined;                 // vacio = hereda la de la cuenta
   } else {
-    const n = parseFloat(t.replace(',', '.'));
+    const n = cuNum(t);
     if(!isFinite(n) || n < 0){
-      if(el) el.value = (cuValorAg(a, campo) != null ? cuValorAg(a, campo) : '');
+      cuMonPinta(el, cuValorAg(a, campo));
       return;
     }
     v = n;
   }
   const p = _cuPendAg[a.id] = _cuPendAg[a.id] || {};
   if(_cuIguales(a[campo], v)) delete p[campo]; else p[campo] = v;
+  // Vacio en "se le cobra" es un valor valido —hereda la de la cuenta—, asi que
+  // el campo se queda vacio y no se viste de $0.00.
+  cuMonPinta(el, v === undefined ? '' : v);
   cuPintarEstado();
 }
 
 function cuTarifaCampo(idJefe, valor, el){
   const c = cuentas.find(x => x.id === idJefe);
   if(!c) return;
-  const n = parseFloat(String(valor).replace(',', '.'));
+  const n = cuNum(valor);
   const k = normalizeAccountName(c.nombre);
   const guardada = (INVOICE_RATES[k] || 0) || tarifaDesdeCuenta(k);
-  if(!isFinite(n) || n <= 0){ if(el) el.value = guardada || ''; return; }
+  if(!isFinite(n) || n <= 0){ cuMonPinta(el, guardada || ''); return; }
   const p = _cuPend[c.id] = _cuPend[c.id] || {};
   if(Math.abs(n - guardada) < 1e-9) delete p[CU_TARIFA]; else p[CU_TARIFA] = n;
+  cuMonPinta(el, n);
   cuPintarEstado();
 }
 
@@ -3684,13 +3737,19 @@ function renderCuentasFichas(){
   // facturacion de un grupo se escriben en todas sus cuentas a la vez, porque
   // el invoice lee la primera que encuentra y si solo una los tuviera, el PDF
   // saldria con o sin direccion segun cual quedara primero en la lista.
-  const campo = (ids, c, etiqueta, clave, marcador, tipo, clase) => `
+  const campo = (ids, c, etiqueta, clave, marcador, tipo, clase) => {
+    const v   = cuValor(c, clave);
+    const mon = tipo === 'mon';
+    return `
     <div class="cu-campo">
       <label>${etiqueta}</label>
-      <input type="text" class="${clase||''}" value="${esc(cuValor(c, clave) != null ? cuValor(c, clave) : '')}"
-        placeholder="${esc(marcador || '')}"
+      <input type="text" class="${clase||''}" value="${esc(mon ? cuMon(v) : (v != null ? v : ''))}"
+        ${mon ? `inputmode="decimal" data-crudo="${esc(cuCrudo(v))}"
+                 onfocus="cuMonFoco(this)" onblur="cuMonSalida(this)"` : ''}
+        placeholder="${esc(mon ? '$0.00' : (marcador || ''))}"
         onchange="cuCampo('${ids.join('|')}','${clave}',this.value,'${tipo||'txt'}',this)">
     </div>`;
+  };
 
   let yaSepare = false;
   const fichas = orden.map(({ k, alFinal }) => {
@@ -3781,7 +3840,9 @@ function renderCuentasFichas(){
     const campoTarifa = `
       <div class="cu-campo">
         <label>Tarifa por agente — por defecto, USD/mes</label>
-        <input type="text" class="cifra" value="${tarifaInv || ''}" placeholder="0"
+        <input type="text" class="cifra" value="${cuMon(tarifaInv || '')}" placeholder="$0.00"
+          inputmode="decimal" data-crudo="${esc(cuCrudo(tarifaInv || ''))}"
+          onfocus="cuMonFoco(this)" onblur="cuMonSalida(this)"
           ${facturable ? '' : 'disabled'}
           onchange="cuTarifaCampo('${jefe.id}',this.value,this)">
       </div>`;
@@ -3800,12 +3861,12 @@ function renderCuentasFichas(){
 
     const parteDr = c => `
       <div class="cu-par">
-        ${campo([c.id], c,'Colombian IT — Check','colombian','0','num','cifra')}
-        ${campo([c.id], c,'Accountant — Check','accountant','0','num','cifra')}
+        ${campo([c.id], c,'Colombian IT — Check','colombian','0','mon','cifra')}
+        ${campo([c.id], c,'Accountant — Check','accountant','0','mon','cifra')}
       </div>
       <div class="cu-par">
-        ${campo([c.id], c,'Accountant — Payroll','accountantReal','0','num','cifra')}
-        ${campo([c.id], c,'Transfer Fee — Payroll','transferFeeReal','0','num','cifra')}
+        ${campo([c.id], c,'Accountant — Payroll','accountantReal','0','mon','cifra')}
+        ${campo([c.id], c,'Transfer Fee — Payroll','transferFeeReal','0','mon','cifra')}
       </div>
       ${c.id !== drs[0].id ? `
       <div class="cu-campo">
@@ -3816,7 +3877,7 @@ function renderCuentasFichas(){
 
     const parteOwn = c => `
       <div class="cu-par">
-        ${campo([c.id], c,'Accountant','accountant','0','num','cifra')}
+        ${campo([c.id], c,'Accountant','accountant','0','mon','cifra')}
         <div class="cu-campo">
           <label>Días laborables por quincena</label>
           <input type="text" class="cifra" value="${cuValor(c,'qdaysOwn') != null ? cuValor(c,'qdaysOwn') : ''}"
@@ -3895,10 +3956,14 @@ function renderCuentasFichas(){
               <div class="fila${activo?'':' off'}">
                 <span class="n"><span class="status-dot ${activo?'active':'inactive'}"></span>${esc(a.nombre)}</span>
                 ${activo ? `
-                <input class="c cifra" type="text" value="${esc(cuValorAg(a,'valor') != null ? cuValorAg(a,'valor') : '')}"
+                <input class="c cifra" type="text" inputmode="decimal"
+                  value="${esc(cuMon(cuValorAg(a,'valor')))}" data-crudo="${esc(cuCrudo(cuValorAg(a,'valor')))}"
+                  onfocus="cuMonFoco(this)" onblur="cuMonSalida(this)"
                   onchange="cuCampoAg('${a.id}','valor',this.value,this)">
-                <input class="c cifra" type="text" value="${propia != null ? esc(propia) : ''}"
-                  placeholder="${tarifaInv || 0}" title="Vacío = usa la tarifa por defecto de la cuenta"
+                <input class="c cifra" type="text" inputmode="decimal"
+                  value="${esc(cuMon(propia))}" data-crudo="${esc(cuCrudo(propia))}"
+                  placeholder="${esc(cuMon(tarifaInv || 0))}" title="Vacío = usa la tarifa por defecto de la cuenta"
+                  onfocus="cuMonFoco(this)" onblur="cuMonSalida(this)"
                   onchange="cuCampoAg('${a.id}','tarifaCobro',this.value,this)">`
                 : `<span class="c quieto">${fmt(a.valor||0)}</span>
                    <span class="c quieto">${propia != null ? fmt(propia) : '—'}</span>`}
@@ -3929,7 +3994,7 @@ function renderCuentasFichas(){
           ${owns.length ? `<div style="margin-top:12px">
             ${owns.map(c => campo([c.id], c,
               'Cobro mensual por agente' + (varias ? ' · ' + esc(c.nombre) : '') + ' — respaldo en la nómina',
-              'cobroAgente','0','num','cifra')).join('')}
+              'cobroAgente','0','mon','cifra')).join('')}
             <div class="pista">La página de nómina cobra cada agente por su tarifa; esta solo se usa
               para los que no tengan la suya.</div>
           </div>` : ''}
@@ -8512,11 +8577,63 @@ function calcInvCobro(data, lineaOv, descDias){
                      ? invR2(Number(descDias) || 0) : ausCalc;
   const descuento  = invR2(valorDia * ausencias);
 
+  // ── Quien falto va en su propia linea ───────────────────────────────────
+  // Carlos prefiere leer "3 agentes trabajando 22 dias" y debajo "1 agente
+  // trabajando 7 dias" antes que "4 agentes" y un descuento de 15 dias: asi el
+  // papel dice quien trabajo cuanto, en vez de dejar una resta sin dueno.
+  //
+  // Es SOLO presentacion. El descuento se sigue calculando igual —valor del
+  // dia x ausencias— y se reparte a centavos exactos entre los que faltaron,
+  // de modo que las lineas suman el mismo total de siempre, al centavo. Eso es
+  // obligatorio: un invoice ya cerrado no puede cambiar de importe.
+  //
+  // No se reparte en dos casos, y en los dos el invoice sigue llevando su
+  // linea de descuento o de dias adicionales, como hasta ahora:
+  //   * el descuento lo puso Carlos a mano — no es de ningun agente;
+  //   * alguien trabajo dias de mas — eso se suma, no se reparte.
+  const ausDe    = a => invR2(diasMes - a.total);
+  const porFalta = (descDias === undefined || descDias === null)
+                   && diasMes > 0
+                   && completos.every(a => ausDe(a) >= -0.005)
+                   && completos.some(a => ausDe(a) > 0.005);
+
+  const impFalta  = {};
+  let gruposFalta = [], totalFalta = 0;
+  if(porFalta){
+    // A cada ausente su parte del descuento truncada a centavos, y los centavos
+    // que sobran a las fracciones mas grandes. La suma de las partes es
+    // exactamente el descuento, nunca un centavo mas ni uno menos.
+    const reparto = completos.filter(a => ausDe(a) > 0.005).map(a => {
+      const ex   = ausDe(a) * valorDia;
+      const cent = Math.floor(ex * 100 + 1e-6);
+      return { a, piso: cent / 100, frac: ex * 100 - cent };
+    });
+    let sobran = Math.round((descuento - reparto.reduce((s2,r) => s2 + r.piso, 0)) * 100);
+    reparto.slice().sort((x,y) => y.frac - x.frac)
+      .forEach(r => { r.desc = invR2(r.piso + (sobran-- > 0 ? 0.01 : 0)); });
+    // El importe impreso entra en la clave del grupo: dos agentes de la misma
+    // linea tienen que costar lo mismo, o "n agentes x importe" no daria el
+    // total de la linea.
+    const mapaF = {};
+    reparto.forEach(r => {
+      const dias = invR2(r.a.total), t = tarAg(r.a.nombre);
+      const imp  = invR2(t - r.desc);
+      impFalta[r.a.nombre] = imp;
+      const k = dias + '|' + t.toFixed(2) + '|' + imp.toFixed(2);
+      if(!mapaF[k]) mapaF[k] = { dias, tarifa: t, importe: imp, descuento: r.desc, nombres: [] };
+      mapaF[k].nombres.push(r.a.nombre);
+    });
+    gruposFalta = Object.values(mapaF).sort((x,y) => (y.dias - x.dias) || (y.tarifa - x.tarifa));
+    gruposFalta.forEach(g => { g.total = invR2(g.importe * g.nombres.length); });
+    totalFalta = invR2(gruposFalta.reduce((s2,g) => s2 + g.total, 0));
+  }
+
   // Los de mes completo se agrupan por tarifa, que es como salen impresos:
   // "3 agentes x $1.350" y debajo "1 agente x $1.400". Con una sola tarifa es
-  // una sola linea, igual que antes.
+  // una sola linea, igual que antes. Los que faltaron ya tienen la suya.
   const mapaC = {};
   completos.forEach(a => {
+    if(impFalta[a.nombre] !== undefined) return;
     const t = tarAg(a.nombre);
     const k = t.toFixed(2);
     if(!mapaC[k]) mapaC[k] = { tarifa: t, nombres: [] };
@@ -8547,7 +8664,9 @@ function calcInvCobro(data, lineaOv, descDias){
   // repartir por dias daria un numero que no corresponde a nadie.
   const porAgente = {};
   completos.forEach(a => {
-    porAgente[a.nombre] = invR2(tarAg(a.nombre) - invR2((diasMes - a.total) * valorDia));
+    porAgente[a.nombre] = impFalta[a.nombre] !== undefined
+      ? impFalta[a.nombre]
+      : invR2(tarAg(a.nombre) - invR2((diasMes - a.total) * valorDia));
   });
   grupos.forEach(g => g.nombres.forEach(n => { porAgente[n] = g.importe; }));
 
@@ -8558,7 +8677,7 @@ function calcInvCobro(data, lineaOv, descDias){
 
   return { valorDia, mediaQ, tarifaProm, d1, d2, nCompletos,
            nombresCompletos: completos.map(a => a.nombre),
-           gruposCompletos,
+           gruposCompletos, porFalta, gruposFalta, totalFalta,
            bruto, ausencias, descuento, grupos, totalParciales, porAgente,
            cargos, totalCargos,
            monto: invR2(bruto - descuento + totalParciales + totalCargos) };
@@ -8576,10 +8695,14 @@ function calcInvDescuento(data){
     diasAus: c.ausencias, d1: c.d1, d2: c.d2, mediaQ: c.mediaQ, tarifaProm: c.tarifaProm,
     bruto: c.bruto, descuento: c.descuento, neto: c.monto,
     gruposCompletos: c.gruposCompletos,
+    porFalta: c.porFalta, gruposFalta: c.gruposFalta, totalFalta: c.totalFalta,
     grupos: c.grupos, totalParciales: c.totalParciales,
     cargos: c.cargos, totalCargos: c.totalCargos,
     manual: data.descManual === true,
-    aplica: c.nCompletos > 0 && c.ausencias > 0.005,
+    // Con el descuento repartido en la linea de cada ausente ya no hay nada
+    // que descontar aparte: la linea de descuento sobraria y haria sumar dos
+    // veces lo mismo.
+    aplica: !c.porFalta && c.nCompletos > 0 && c.ausencias > 0.005,
     // Si alguien trabajo mas dias que los habiles del mes el "descuento" sale
     // negativo. Se marca aparte para que el invoice lo imprima como dias extra
     // y la suma del detalle siga cuadrando con el total.
@@ -9307,6 +9430,11 @@ function buildInvSummaryHTML(data, locked, iid){
         g.nombres.join(', '),
         `${g.nombres.length} × ${fmt(g.tarifa)}`,
         fmt(g.total))).join('')
+    + ((desc && desc.gruposFalta) || []).map(g => filaDet(
+        `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${fmtDias(g.dias)} de ${fmtDias(data.diasMes)} días`,
+        g.nombres.join(', '),
+        `${fmtDias(g.dias)}d / ${fmtDias(data.diasMes)}d × ${fmt(g.tarifa)}`,
+        fmt(g.total))).join('')
     + ((desc && desc.grupos) || []).map(g => filaDet(
         `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`,
         g.nombres.join(', '),
@@ -9373,7 +9501,9 @@ function buildInvSummaryHTML(data, locked, iid){
     <div class="desc-box">
       ${/* Con dias de mas el "descuento" es negativo: decir "descuento −$-476"
              es ilegible. La caja cambia de nombre y de signo segun el caso. */''}
-      <div class="desc-tit">${desc.aplicaExtra ? '➕ Días adicionales trabajados' : '➖ Descuento por días no trabajados'}</div>
+      <div class="desc-tit">${desc.aplicaExtra ? '➕ Días adicionales trabajados'
+        : desc.porFalta ? '🗓️ Días no trabajados · en la línea de cada agente'
+        : '➖ Descuento por días no trabajados'}</div>
       <div style="font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.6">
         ${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmtDias(data.diasMes)} días hábiles =
         <b style="color:var(--text)">${fmtDias(desc.diasPlenos)} días</b> facturables &nbsp;·&nbsp;
@@ -9391,12 +9521,27 @@ function buildInvSummaryHTML(data, locked, iid){
           onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         <span style="font-size:12px;color:var(--text3)"
           title="Los agentes de mes completo cuestan ${fmt(desc.bruto)}; ${desc.aplicaExtra ? 'los días trabajados de más se suman' : 'los días de ausencia se descuentan'} al valor del día, que se redondea a centavos para que el cliente pueda rehacer la cuenta con las cifras impresas.">
-          a ${fmt(desc.valorDia)} por día →</span>
-        <span class="desc-monto"${desc.aplicaExtra ? ' style="color:var(--accent3)"' : ''}>${desc.aplicaExtra ? '+' : '−'}${fmt(Math.abs(desc.descuento))}</span>
+          a ${fmt(desc.valorDia)} por día ${desc.porFalta ? '·' : '→'}</span>
+        ${/* En rojo y con un menos delante, una cifra que YA esta restada en las
+              lineas de arriba parece que se fuera a restar otra vez. Cuando
+              esta repartida se muestra en gris y sin signo: es un dato, no un
+              movimiento. */''}
+        <span class="desc-monto"${desc.aplicaExtra ? ' style="color:var(--accent3)"'
+          : desc.porFalta ? ' style="color:var(--text2)"' : ''}>${
+          desc.aplicaExtra ? '+' : desc.porFalta ? '' : '−'}${fmt(Math.abs(desc.descuento))}</span>
         ${desc.manual
           ? `<span style="font-size:10.5px;font-weight:700;color:var(--accent3);border:1px solid currentColor;border-radius:20px;padding:2px 9px">✎ ajustado a mano</span>
              ${locked ? '' : `<button class="desc-link" onclick="limpiarDescuentoDias('${data.mk}','${(data.cuentaNombre||'').replace(/'/g,"&#39;")}')">volver al cálculo</button>`}`
           : `<span style="font-size:10.5px;color:var(--text3)">calculado desde la nómina</span>`}
+        ${/* Repartido no quiere decir invisible: el importe de arriba es el
+              mismo, solo que ya va restado en la linea de quien falto. Si
+              Carlos escribe un numero aqui el descuento deja de ser de nadie
+              en particular y vuelve a salir como una linea aparte. */''}
+        ${desc.porFalta
+          ? `<span style="flex-basis:100%;font-size:10.5px;color:var(--text3);line-height:1.5">
+               Ya va restado en la línea de ${desc.gruposFalta.map(g => g.nombres.join(', ')).join(' · ')}.
+               Si escribes un número aquí, el descuento pasa a ser una línea aparte.</span>`
+          : ''}
       </div>
     </div>` : '';
 
@@ -9423,9 +9568,12 @@ function buildInvTotalesHTML(data){
         ${/* el desglose dice exactamente lo mismo que el PDF: una linea con los
               agentes de mes completo, una por cada grupo de media quincena y el
               descuento por ausencias. Si no hay nada que explicar no sale. */''}
-        ${desc && (desc.aplica || desc.aplicaExtra || desc.grupos.length || desc.cargos.length)
+        ${desc && (desc.aplica || desc.aplicaExtra || desc.gruposFalta.length || desc.grupos.length || desc.cargos.length)
           ? (desc.gruposCompletos || []).map(g => filaTot(
                 `${g.nombres.length} agente${g.nombres.length!==1?'s':''} de mes completo × ${fmt(g.tarifa)}`,
+                fmt(g.total), 'var(--text)')).join('')
+            + (desc.gruposFalta || []).map(g => filaTot(
+                `${g.nombres.length} agente${g.nombres.length!==1?'s':''} × ${fmtDias(g.dias)} de ${fmtDias(data.diasMes)} días`,
                 fmt(g.total), 'var(--text)')).join('')
             + desc.grupos.map(g => filaTot(
                 `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`
@@ -10871,18 +11019,42 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   // Una linea por tarifa: con todos los agentes a la misma sale una sola, como
   // siempre; con dos tarifas distintas salen dos —"3 agents x $1,350" y
   // "1 agent x $1,400"— sin nombres, que es lo que Carlos no quiere en el papel.
+  //
+  // Cuando alguien falto, los dias se dicen en las dos lineas: "3 agents - 22
+  // days worked" arriba y "1 agent - 7 days worked" abajo. Asi el cliente ve
+  // de donde sale cada cifra sin tener que seguir una resta al final.
+  const diasFila = (desc && desc.porFalta) ? ' - ' + fmtDias(data.diasMes) + ' days worked' : '';
   const filaCompletos = ((desc && desc.gruposCompletos) || []).map(g => `
     <tr>
       <td>
         <div class="it-desc">Callcenter Agents</div>
         <div class="it-sub">
           Services provided during the period of ${periodoDesc}<br>
-          ${nAg(g.nombres.length)}
+          ${nAg(g.nombres.length)}${diasFila}
         </div>
       </td>
       <td class="qty">
         <div class="q-num">${g.nombres.length}</div>
         <div class="q-sub">$${fmtN(g.tarifa)}</div>
+      </td>
+      <td class="amt">$${fmtN(g.total)}</td>
+    </tr>`).join('');
+
+  // La linea de quien no completo el mes. Mismo periodo que los demas —estuvo
+  // el mes entero en la cuenta—, pero con los dias que trabajo y la tarifa ya
+  // prorrateada. Reemplaza a la linea de descuento: el importe es el mismo.
+  const filasFalta = ((desc && desc.gruposFalta) || []).map(g => `
+    <tr>
+      <td>
+        <div class="it-desc">Callcenter Agents</div>
+        <div class="it-sub">
+          Services provided during the period of ${periodoDesc}<br>
+          ${nAg(g.nombres.length)} - ${fmtDias(g.dias)} days worked
+        </div>
+      </td>
+      <td class="qty">
+        <div class="q-num">${g.nombres.length}</div>
+        <div class="q-sub">$${fmtN(g.importe)}</div>
       </td>
       <td class="amt">$${fmtN(g.total)}</td>
     </tr>`).join('');
@@ -11112,7 +11284,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   <table class="det">
     <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
     <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
-    <tbody>${filaCompletos}${filasParciales}${filaDescuento}${filaExtra}${filasCargos}</tbody>
+    <tbody>${filaCompletos}${filasFalta}${filasParciales}${filaDescuento}${filaExtra}${filasCargos}</tbody>
   </table>
 
   <div class="cierre">
