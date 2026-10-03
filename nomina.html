@@ -7417,11 +7417,15 @@ function fijarDescuentoDias(mkid, nombre, tipo, iid){
   const data = buildInvData(mkid, nombre, tipo, _invSubCuentasCache[invOvKey(normMkid(mkid), nombre)] || null);
   if(!data || !inp) return;
   const d = calcInvDescuento(data);
-  const val = numDias(inp.value);
+  // La caja muestra los dias de mas en positivo —"−$-476" no se puede leer—,
+  // asi que al guardarlos se les devuelve el signo: por dentro el campo sigue
+  // siendo "dias no trabajados", y uno de mas es una ausencia negativa.
+  const extra = inp.dataset.invExtra === '1';
+  const val = extra ? -numDias(inp.value) : numDias(inp.value);
   if(val > d.diasPlenos + 0.005){
     alert('Los dias no trabajados (' + fmtDias(val) + ') no pueden superar los '
       + fmtDias(d.diasPlenos) + ' dias facturables del mes.');
-    inp.value = fmtDias(d.diasAus);
+    inp.value = fmtDias(extra ? -d.diasAus : d.diasAus);
     return;
   }
   setOv(normMkid(mkid), nombre, { descDias: val });
@@ -8145,23 +8149,26 @@ function buildInvSummaryHTML(data, locked, iid){
   // quincena ya se cobran por los dias que trabajaron, en su propia linea.
   const descBox = (desc && desc.agentesFact > 0) ? `
     <div class="desc-box">
-      <div class="desc-tit">➖ Descuento por días no trabajados</div>
+      ${/* Con dias de mas el "descuento" es negativo: decir "descuento −$-476"
+             es ilegible. La caja cambia de nombre y de signo segun el caso. */''}
+      <div class="desc-tit">${desc.aplicaExtra ? '➕ Días adicionales trabajados' : '➖ Descuento por días no trabajados'}</div>
       <div style="font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.6">
         ${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmtDias(data.diasMes)} días hábiles =
         <b style="color:var(--text)">${fmtDias(desc.diasPlenos)} días</b> facturables &nbsp;·&nbsp;
         valor del día = ${fmt(data.tarifa)} ÷ ${fmtDias(data.diasMes)} = <b style="color:var(--text)">${fmt(desc.valorDia)}</b>
       </div>
       <div class="desc-fila">
-        <span style="font-size:12px;color:var(--text2)">Días no trabajados</span>
+        <span style="font-size:12px;color:var(--text2)">${desc.aplicaExtra ? 'Días adicionales' : 'Días no trabajados'}</span>
         <input class="desc-inp" type="text" inputmode="decimal" id="${iid}-descdias"
-          value="${fmtDias(desc.diasAus)}" ${locked ? 'readonly' : ''}
+          value="${fmtDias(desc.aplicaExtra ? -desc.diasAus : desc.diasAus)}"
+          ${desc.aplicaExtra ? 'data-inv-extra="1"' : ''} ${locked ? 'readonly' : ''}
           onfocus="this.select()"
           onblur="${locked ? '' : `fijarDescuentoDias('${data.mk}','${(data.cuentaNombre||'').replace(/'/g,"&#39;")}','${data.cuentaTipo}','${iid}')`}"
           onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         <span style="font-size:12px;color:var(--text3)"
-          title="El valor del día se muestra redondeado a centavos. El descuento sale de la resta exacta (${fmt(desc.bruto)} − ${fmt(desc.neto)}), así que el total del invoice nunca se desvía por el redondeo.">
+          title="Los agentes de mes completo cuestan ${fmt(desc.bruto)}; ${desc.aplicaExtra ? 'los días trabajados de más se suman' : 'los días de ausencia se descuentan'} al valor del día, que se redondea a centavos para que el cliente pueda rehacer la cuenta con las cifras impresas.">
           a ${fmt(desc.valorDia)} por día →</span>
-        <span class="desc-monto">−${fmt(desc.descuento)}</span>
+        <span class="desc-monto"${desc.aplicaExtra ? ' style="color:var(--accent3)"' : ''}>${desc.aplicaExtra ? '+' : '−'}${fmt(Math.abs(desc.descuento))}</span>
         ${desc.manual
           ? `<span style="font-size:10.5px;font-weight:700;color:var(--accent3);border:1px solid currentColor;border-radius:20px;padding:2px 9px">✎ ajustado a mano</span>
              ${locked ? '' : `<button class="desc-link" onclick="limpiarDescuentoDias('${data.mk}','${(data.cuentaNombre||'').replace(/'/g,"&#39;")}')">volver al cálculo</button>`}`
