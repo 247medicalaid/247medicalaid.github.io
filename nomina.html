@@ -252,20 +252,54 @@
   }
   @media (max-width:1180px){ #cuentas-fichas{ grid-template-columns:1fr; } }
 
-  .cu-ficha{
-    border:1px solid #CBD5E1; border-radius:var(--radius);
-    overflow:hidden; background:#FFFFFF;
-    box-shadow:0 1px 2px rgba(11,34,51,.06), 0 8px 22px rgba(11,34,51,.06);
-    /* Sobre papel blanco la paleta oscura de la app no se lee. Dentro de la
-       ficha manda una paleta clara propia, y la letra es negra de verdad:
-       Carlos la prefiere asi y sobre blanco da 21:1. Los rotulos y las pistas
-       quedan en gris muy oscuro —11:1 y 10:1— solo para marcar jerarquia, no
-       para atenuar. 'color' se hereda ya calculado del contenedor oscuro, asi
-       que hay que volver a pedirlo aqui. */
+  /* ── PAPEL BLANCO ───────────────────────────────────────────────────────
+     El modulo es oscuro, pero donde se leen y se escriben las cifras de una
+     cuenta el fondo es blanco. Asi estaban ya la ficha de Cuentas y el panel
+     de Invoices; Carlos pidio lo mismo para el resto del modulo, asi que esta
+     definicion dejo de ser de la ficha y pasa a ser de todas: las dos tablas
+     de nomina, las tarjetas del Resumen General y la caja de Pagos.
+
+     Sobre papel blanco la paleta oscura de la app no se lee, asi que cada
+     bloque de papel la vuelve a declarar entera. La letra es negra de verdad
+     —Carlos la prefiere asi, y sobre blanco da 21:1—; los rotulos y las
+     pistas quedan en gris muy oscuro, 11:1 y 10:1, solo para marcar
+     jerarquia, no para atenuar.
+
+     Los cuatro tonos con significado —verde utilidad, azul cobro, ambar
+     costo, rojo perdida— se conservan, en versiones oscuras que si pasan
+     sobre blanco. El significado del color importa mas que el tono exacto:
+     lo que no puede pasar es que una cifra en verde claro quede en 1,5:1.
+
+     Una sola definicion para las seis secciones, por la misma razon que
+     cabEstilo: para que no puedan discrepar. 'color' se hereda ya calculado
+     del contenedor oscuro, asi que hay que volver a pedirlo aqui. */
+  .papel{
     color:var(--text);
     --text:#000000; --text2:#1A1A1A; --text3:#333333;
     --surface:#FFFFFF; --surface2:#F4F6FA; --border:#CBD5E1; --bg:#FFFFFF;
     --accent:#15803D; --accent2:#1D4ED8; --accent3:#B45309; --danger:#B91C1C;
+    --inv-sigma:#5B21B6;
+  }
+  /* El realce de fila era un velo blanco sobre fondo oscuro: sobre papel
+     blanco no existe. Aqui tiene que ser un velo de tinta. */
+  .papel tr:hover td{ background:rgba(6,25,42,.045); }
+  /* El desplegable nativo abre su lista con el fondo del sistema; en papel hay
+     que pedirle el claro o sale lista oscura con letra negra. */
+  .papel select option{ background:#FFFFFF; color:#000000; }
+  /* En Pagos, el invoice sin cobrar lleva un velo carmin encima del papel, y
+     ese velo le come contraste a las dos cifras de color que viven ahi: medido,
+     el ambar del cheque a Sigma baja a 3,80:1 y el verde del abono a 4,41:1.
+     El velo NO se toca —es lo que hace que un invoice sin cobrar se vea de
+     lejos, que es su razon de existir—: lo que baja es la tinta, solo dentro
+     de esas filas. */
+  .papel .pg-mes.sincobrar, .papel .pg-mes.parcial, .papel .pg-mes.leve{
+    --accent:#116635; --accent3:#9A4404;
+  }
+
+  .cu-ficha{
+    border:1px solid #CBD5E1; border-radius:var(--radius);
+    overflow:hidden; background:#FFFFFF;
+    box-shadow:0 1px 2px rgba(11,34,51,.06), 0 8px 22px rgba(11,34,51,.06);
   }
   .cu-ficha.apagada{ opacity:.62; }
 
@@ -638,6 +672,10 @@
   .summary-row.total .lbl { color: var(--text); font-weight: 600; }
   .summary-row.total .val { color: var(--accent); font-size: 15px; }
   .summary-row.profit .val { color: var(--accent); }
+  /* El marcado ya decia 'red' cuando la utilidad es negativa, pero la regla
+     no existia y la de arriba la pintaba verde igual. Una perdida en verde
+     se lee como ganancia. */
+  .summary-row.profit .val.red { color: var(--danger); }
 
   /* ─── TABS ─── */
   .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
@@ -3401,7 +3439,7 @@ function renderResumenDr(){
   el.innerHTML = drs.map(c=>{
     const r = getResultadoDr(c);
     return `
-    <div class="account-summary">
+    <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
         <strong class="nomcuenta">${c.nombre}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
@@ -3423,7 +3461,7 @@ function renderResumenOwn(){
   el.innerHTML = owns.map(c=>{
     const r = getResultadoOwn(c);
     return `
-    <div class="account-summary">
+    <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
         <strong class="nomcuenta">${c.nombre}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
@@ -4026,7 +4064,7 @@ function renderCuentasFichas(){
       + owns.map(c => subtitulo(c,'Parte 24/7') + parteOwn(c)).join('');
 
     return separador + `
-    <div class="cu-ficha${cuSucia(ids.join('|')) ? ' sucia' : ''}" data-ids="${ids.join('|')}"
+    <div class="cu-ficha papel${cuSucia(ids.join('|')) ? ' sucia' : ''}" data-ids="${ids.join('|')}"
       style="${cabEstilo(esc(cuValor(jefe,'color') || '#888'))}">
       <div class="cu-cab cab-color">
         ${/* La placa de tinta por debajo del selector no es adorno: sin ella el
@@ -4169,7 +4207,7 @@ function renderCuentasDr(){
   el.innerHTML = drs.map(c=>{
     const r = getResultadoDr(c);
     return `
-    <div class="table-wrap" style="margin-bottom:24px">
+    <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="nomcuenta">${c.nombre}</span>
@@ -4381,7 +4419,7 @@ function renderCuentasDr(){
             <td colspan="5" style="color:var(--text2);font-size:12px">Utilidad / Margen</td>
             <td></td>
             <td></td>
-            <td class="mono" style="color:var(--accent);font-weight:700" data-calc="utilidad-dr-${c.id}">
+            <td class="mono" style="color:var(--${r.utilidad>=0?'accent':'danger'});font-weight:700" data-calc="utilidad-dr-${c.id}">
               ${fmt(r.utilidad)}&nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalDrCheck,1))})</span>
             </td>
             <td></td>
@@ -4483,7 +4521,7 @@ function renderCuentasOwn(){
       });
     })();
     return `
-    <div class="table-wrap" style="margin-bottom:24px">
+    <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="flex-wrap:wrap;gap:10px;${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
           <span class="nomcuenta">${c.nombre}</span>
@@ -4602,7 +4640,7 @@ function renderCuentasOwn(){
           </tr>
           <tr style="background:rgba(63,207,160,.04)">
             <td colspan="6" style="color:var(--text2)">Utilidad / Margen</td>
-            <td class="mono" style="color:var(--accent);font-weight:700" data-calc="utilidad-own-${c.id}">${fmt(r.utilidad)} &nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalCobro,1))})</span></td>
+            <td class="mono" style="color:var(--${r.utilidad>=0?'accent':'danger'});font-weight:700" data-calc="utilidad-own-${c.id}">${fmt(r.utilidad)} &nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalCobro,1))})</span></td>
             <td></td>
           </tr>
         </tbody>
@@ -4663,7 +4701,7 @@ function renderAgentes(){
       <td class="mono">${fmt(nom)}</td>
       <td>
         <select onchange="updateTipoPago('${a.id}',this.value)"
-          style="background:var(--surface2);border:1px solid var(--border);color:${(a.tipoPago||'empresa')==='personal'?'#FCD34D':'var(--accent2)'};border-radius:6px;padding:3px 6px;font-size:11px;font-weight:600;cursor:pointer">
+          style="background:var(--surface2);border:1px solid var(--border);color:${(a.tipoPago||'empresa')==='personal'?'var(--accent3)':'var(--accent2)'};border-radius:6px;padding:3px 6px;font-size:11px;font-weight:600;cursor:pointer">
           <option value="empresa"  ${(a.tipoPago||'empresa')==='empresa' ?'selected':''}>🏢 Empresa</option>
           <option value="personal" ${(a.tipoPago||'empresa')==='personal'?'selected':''}>👤 Personal</option>
         </select>
@@ -5364,6 +5402,7 @@ function patchCalcValues(){
     patch(`costohr-${c.id}`, (hrs > 0 ? fmt(r.totalDrCheck/hrs) : '—') + '/hr');
     patch(`costohr-sub-${c.id}`, `\u00a0(${fmt(r.totalDrCheck)} ÷ ${hrs} hrs)`);
     const elU = document.querySelector(`[data-calc="utilidad-dr-${c.id}"]`);
+    if(elU) elU.style.color = r.utilidad >= 0 ? 'var(--accent)' : 'var(--danger)';
     if(elU) elU.innerHTML = `${fmt(r.utilidad)}&nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalDrCheck,1))})</span>`;
   });
   // Y las cuentas 24/7, que no se parcheaban en absoluto.
@@ -5374,6 +5413,7 @@ function patchCalcValues(){
     patch(`total-costo-own-${c.id}`, fmt(r.totalCosto));
     patch(`total-cobro-own-${c.id}`, fmt(r.totalCobro));
     const elU = document.querySelector(`[data-calc="utilidad-own-${c.id}"]`);
+    if(elU) elU.style.color = r.utilidad >= 0 ? 'var(--accent)' : 'var(--danger)';
     if(elU) elU.innerHTML = `${fmt(r.utilidad)} &nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalCobro,1))})</span>`;
     // Las dos columnas calculadas de cada fila, con la misma formula del render.
     const F = _filasOwn[c.id];
@@ -5477,7 +5517,7 @@ function updateTipoPago(id, val){
   ag.tipoPago = val;
   // Update the selector color inline
   const sel = document.querySelector(`select[onchange*="updateTipoPago('${id}'"]`);
-  if(sel) sel.style.color = val === 'personal' ? '#FCD34D' : 'var(--accent2)';
+  if(sel) sel.style.color = val === 'personal' ? 'var(--accent3)' : 'var(--accent2)';
   // Save as borrador (per-quincena), not permanent config
   recalcDebounced();
   try { renderResumenTransferencias(); } catch(e) {}
@@ -10481,7 +10521,7 @@ function renderPagosClientes(){
   }).join('');
 
   el.innerHTML = `
-    <div class="pg-caja">
+    <div class="pg-caja papel">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--pay-tint,rgba(63,207,160,.10));border-left:5px solid var(--accent)">
         <span style="font-size:15px;font-weight:800;color:var(--accent)">💵 Cobros de clientes</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
@@ -10687,7 +10727,7 @@ function renderSigma(){
   }).join('');
 
   el.innerHTML = `
-    <div class="pg-caja">
+    <div class="pg-caja papel">
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--sig-tint,rgba(167,139,250,.10));border-left:5px solid var(--inv-sigma,#a78bfa)">
         <span style="font-size:15px;font-weight:800;color:var(--inv-sigma,#a78bfa)">🏦 Sigma</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
