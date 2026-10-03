@@ -686,13 +686,41 @@
   }
   .iv-cierre.sola .iv-cierre-der{ padding:14px 16px; margin-left:auto; min-width:290px; }
   .iv-cierre-izq .pay-box{ margin:14px 10px 14px 16px; }
-  .iv-notas{ padding:0 16px 14px; }
+  .iv-cierre-izq .iv-notas{ margin:14px 10px 14px 16px; }
+  /* Cargos adicionales */
+  .iv-cargos{ padding:12px 16px; }
+  .iv-cargos .tit{ font-size:11px; color:var(--text2); text-transform:uppercase;
+    letter-spacing:.06em; margin-bottom:10px; font-weight:500; }
+  .iv-cargos .tit span{ text-transform:none; letter-spacing:0; opacity:.75; }
+  .iv-cargos .fila{ display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) 62px 86px 30px;
+    gap:6px; align-items:center; margin-bottom:6px; }
+  .iv-cargos input{ width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:7px; padding:7px 9px; font-size:12.5px;
+    font-family:'Inter',sans-serif; }
+  .iv-cargos input.cant, .iv-cargos input.precio{ font-family:'DM Mono',monospace; text-align:right; }
+  .iv-cargos input:focus{ outline:none; border-color:var(--accent2); }
+  .iv-cargos .quitar{ background:transparent; border:1px solid var(--border); color:var(--text3);
+    border-radius:7px; padding:6px 0; cursor:pointer; font-size:12px; }
+  .iv-cargos .quitar:hover{ color:var(--danger); border-color:var(--danger); }
+  .iv-cargos .acciones{ display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+  .iv-cargos .acciones button{ background:rgba(76,194,236,.12); color:var(--accent2);
+    border:1px solid rgba(76,194,236,.25); border-radius:7px; padding:6px 12px;
+    cursor:pointer; font-size:11.5px; font-weight:600; font-family:'Inter',sans-serif; }
+  .iv-cargos .acciones button.copiar{ background:transparent; color:var(--text2);
+    border-color:var(--border); font-weight:500; }
+  .iv-cargos .acciones button:hover{ filter:brightness(1.1); }
+  @media (max-width:620px){
+    .iv-cargos .fila{ grid-template-columns:minmax(0,1fr) 62px 86px 30px; }
+    .iv-cargos .fila input:nth-child(2){ grid-column:1 / -1; }
+  }
+
+  .iv-notas{ padding:0; }
   .iv-notas label{ display:block; font-size:11px; color:var(--text2); font-weight:700;
     text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
   .iv-notas label span{ text-transform:none; letter-spacing:0; font-weight:500; opacity:.8; }
   .iv-notas textarea{ width:100%; background:var(--surface); border:1px solid var(--border);
     color:var(--text); border-radius:8px; padding:9px 11px; font-size:13px;
-    font-family:'Inter',sans-serif; line-height:1.5; resize:vertical; }
+    font-family:'Inter',sans-serif; line-height:1.5; resize:vertical; min-height:88px; }
   .iv-notas textarea:focus{ outline:none; border-color:var(--accent2); }
   @media (max-width:1100px){
     .iv-cierre{ grid-template-columns:minmax(0,1fr); }
@@ -7336,6 +7364,21 @@ function clasificarAgenteInv(a, lineaOv){
   return { clase:'mes' };
 }
 
+// Normaliza la lista de cargos adicionales de un invoice: suscripciones,
+// equipos, cualquier cosa que se le cobre al cliente aparte de los agentes.
+// Una linea sin descripcion y sin importe no cuenta, para que una fila a medio
+// escribir no mueva el total.
+function invCargos(lista){
+  return (Array.isArray(lista) ? lista : []).map(c => {
+    const cant   = Number(c && c.c);
+    const precio = Number(c && c.p);
+    const n = isFinite(cant) ? cant : 1;
+    const v = isFinite(precio) ? precio : 0;
+    return { t: String((c && c.t) || ''), d: String((c && c.d) || ''),
+             c: n, p: invR2(v), total: invR2(n * v) };
+  }).filter(c => c.t.trim() || Math.abs(c.total) > 0.005);
+}
+
 function calcInvCobro(data, lineaOv, descDias){
   const tarifa   = Number(data.tarifa)  || 0;
   const diasMes  = Number(data.diasMes) || 0;
@@ -7382,10 +7425,16 @@ function calcInvCobro(data, lineaOv, descDias){
   });
   grupos.forEach(g => g.nombres.forEach(n => { porAgente[n] = g.importe; }));
 
+  // Cargos adicionales: no son trabajo de agentes, asi que no entran en el
+  // reparto por dias ni en el descuento. Se suman al final, tal cual.
+  const cargos = invCargos(data.cargos);
+  const totalCargos = invR2(cargos.reduce((s2, c) => s2 + c.total, 0));
+
   return { valorDia, mediaQ, d1, d2, nCompletos,
            nombresCompletos: completos.map(a => a.nombre),
            bruto, ausencias, descuento, grupos, totalParciales, porAgente,
-           monto: invR2(bruto - descuento + totalParciales) };
+           cargos, totalCargos,
+           monto: invR2(bruto - descuento + totalParciales + totalCargos) };
 }
 
 // ── Desglose del invoice ─────────────────────────────────────────────────────
@@ -7400,6 +7449,7 @@ function calcInvDescuento(data){
     diasAus: c.ausencias, d1: c.d1, d2: c.d2, mediaQ: c.mediaQ,
     bruto: c.bruto, descuento: c.descuento, neto: c.monto,
     grupos: c.grupos, totalParciales: c.totalParciales,
+    cargos: c.cargos, totalCargos: c.totalCargos,
     manual: data.descManual === true,
     aplica: c.nCompletos > 0 && c.ausencias > 0.005,
     // Si alguien trabajo mas dias que los habiles del mes el "descuento" sale
@@ -7594,11 +7644,17 @@ function calcSigmaCheck(data, cuentaTipo){
   // y la cifra viaja en sigmaDirecto, solo para poder verla y registrarla.
   const _pagaDirecto = cuentaPagaDirectoASigma(data.cuentaNombre);
 
+  // Los cargos adicionales —una suscripcion, un equipo— no son trabajo de
+  // agentes: se quedan enteros del lado de 24/7 y nunca entran en el cheque a
+  // Sigma, que sale solo de lo que cuestan los agentes del doctor.
+  const _cob    = calcInvCobro(data, data.agenteLinea, data.descDias) || {};
+  const _cargos = invR2(_cob.totalCargos || 0);
+
   if(ags247.length === 0){
-    // No (24/7) agents → all to Sigma
+    // Sin agentes (24/7): lo de los agentes va a Sigma, los cargos no
     if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: false,
-                              excluded: true, sigmaDirecto: data.monto };
-    return { sigmaAmt: data.monto, amt247: 0, hasSplit: false };
+                              excluded: true, sigmaDirecto: invR2(data.monto - _cargos) };
+    return { sigmaAmt: invR2(data.monto - _cargos), amt247: _cargos, hasSplit: false };
   }
   // Mixed → se reparte por lo que cuesta cada agente
   const dias247 = ags247.reduce((s,a) => s+a.total, 0);
@@ -7609,8 +7665,8 @@ function calcSigmaCheck(data, cuentaTipo){
   // partir el total por dias. El lado del doctor se saca por diferencia para
   // que amt247 + sigmaAmt == data.monto siempre, aun con el descuento puesto a
   // mano, que no es de ningun agente en particular.
-  const _porAg  = (calcInvCobro(data, data.agenteLinea, data.descDias) || {}).porAgente || {};
-  const amt247  = invR2(ags247.reduce((s,a) => s + (_porAg[a.nombre] || 0), 0));
+  const _porAg  = _cob.porAgente || {};
+  const amt247  = invR2(ags247.reduce((s,a) => s + (_porAg[a.nombre] || 0), 0) + _cargos);
   const sigmaAmt= invR2(data.monto - amt247);
   if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: true,
                             excluded: true, sigmaDirecto: sigmaAmt,
@@ -7712,7 +7768,7 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   // Antes, con el descuento puesto a mano, aqui se reescribian los dias
   // trabajados para que el prorrateo cuadrara. Ya no hace falta: el descuento
   // manual entra como dias de ausencia y los dias siguen diciendo la verdad.
-  const monto = calcInvCobro({ tarifa, diasMes, anio, mes, agentes },
+  const monto = calcInvCobro({ tarifa, diasMes, anio, mes, agentes, cargos: ov.cargos },
                              ov.agenteLinea, ov.descDias).monto;
   const numAgentes = agentes.length;
 
@@ -7745,6 +7801,7 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     // este aqui lo decide la regla de calcInvCobro.
     agenteLinea: ov.agenteLinea || {},
     notas:       ov.notas || '',
+    cargos:      Array.isArray(ov.cargos) ? ov.cargos : [],
     descDias:    descManual ? ov.descDias : null,
     // Datos del cliente para el bloque "To:" del PDF. Viven en la ficha de la
     // cuenta porque son los mismos todos los meses; vacios no se imprimen.
@@ -7902,6 +7959,33 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
     </div>
 
+    <!-- Cargos adicionales: suscripciones, equipos, lo que se le cobre al
+         cliente aparte de los agentes. Mueven el total, asi que se bloquean al
+         cerrar el invoice, igual que los dias. -->
+    <div class="iv-cargos${locked?' bloq':''}" style="${locked?'pointer-events:none':''}">
+      <div class="tit">➕ Cargos adicionales <span>· suscripciones, equipos, servicios aparte</span></div>
+      ${(data.cargos || []).map((c, i) => `
+        <div class="fila">
+          <input type="text" placeholder="Concepto (ej. Doxy.me Subscription)" value="${esc(c.t||'')}"
+            onchange="invCargoCampo('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',${i},'t',this.value)">
+          <input type="text" placeholder="Detalle (opcional)" value="${esc(c.d||'')}"
+            onchange="invCargoCampo('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',${i},'d',this.value)">
+          <input type="text" inputmode="decimal" class="cant" placeholder="1" value="${c.c!==undefined?esc(String(c.c)):''}"
+            onfocus="this.select()"
+            onchange="invCargoCampo('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',${i},'c',this.value)">
+          <input type="text" inputmode="decimal" class="precio" placeholder="0.00" value="${c.p!==undefined?esc(String(c.p)):''}"
+            onfocus="this.select()"
+            onchange="invCargoCampo('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',${i},'p',this.value)">
+          <button class="quitar" title="Quitar este cargo"
+            onclick="invCargoQuitar('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',${i})">✕</button>
+        </div>`).join('')}
+      <div class="acciones">
+        <button onclick="invCargoAnadir('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}')">+ Añadir cargo</button>
+        <button class="copiar" title="Trae los cargos del invoice del mes anterior de esta misma cuenta"
+          onclick="invCargosDelMesAnterior('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}')">⟲ Traer los del mes pasado</button>
+      </div>
+    </div>
+
       </div>
       <div class="iv-der">
     <!-- Period dates -->
@@ -8001,19 +8085,21 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
     <!-- El cierre del invoice: solo las cifras. Registrar el cobro se hace en
          la seccion Pagos. Aqui el invoice se genera y se consulta, que es lo
          que antes venia mezclado. -->
-    <div class="iv-cierre sola">
+    <!-- La fila de cierre: las notas a la izquierda, los totales a la derecha.
+         Las notas no son una cifra, asi que siguen editables con el invoice
+         cerrado —igual que la caja de pagos en su dia—: el PDF solo se descarga
+         estando cerrado, y a veces la nota se le ocurre a uno justo antes de
+         mandarlo. -->
+    <div class="iv-cierre">
+      <div class="iv-cierre-izq">
+        <div class="iv-notas">
+          <label for="${iid}-notas">📝 Notas para el cliente <span>· opcional, salen impresas en el invoice</span></label>
+          <textarea id="${iid}-notas" rows="4" placeholder="Ej: Incluye la cobertura del fin de semana del 4 de julio."
+            onchange="invUpdateNotas('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',this.value)"
+          >${esc(data.notas || '')}</textarea>
+        </div>
+      </div>
       <div class="iv-cierre-der" id="${iid}-totales">${buildInvTotalesHTML(data)}</div>
-    </div>
-
-    <!-- Notas del invoice. No es una cifra, asi que sigue editable con el
-         invoice cerrado —igual que la caja de pagos en su dia—: el PDF solo se
-         descarga estando cerrado, y a veces la nota se le ocurre a uno justo
-         antes de mandarlo. -->
-    <div class="iv-notas">
-      <label for="${iid}-notas">📝 Notas para el cliente <span>· opcional, salen impresas en el invoice</span></label>
-      <textarea id="${iid}-notas" rows="2" placeholder="Ej: Incluye la cobertura del fin de semana del 4 de julio."
-        onchange="invUpdateNotas('${mk}','${esc(cuNombre)}','${cu.tipo}','${iid}',this.value)"
-      >${esc(data.notas || '')}</textarea>
     </div>
 
     <!-- El bloque de Sigma vivia aqui. Se quito: la cabecera ya dice si falta
@@ -8096,7 +8182,12 @@ function buildInvSummaryHTML(data, locked, iid){
         g.dias < g.diasQ - 0.005
           ? `${fmtDias(g.dias)}d / ${fmtDias(g.diasQ)}d × ${fmt(desc.mediaQ)}`
           : `media tarifa · ${fmt(desc.mediaQ)}`,
-        fmt(g.total))).join('');
+        fmt(g.total))).join('')
+    + ((desc && desc.cargos) || []).map(c => filaDet(
+        c.t || 'Cargo adicional',
+        c.d || '',
+        c.c !== 1 ? `${fmtDias(c.c)} × ${fmt(c.p)}` : fmt(c.p),
+        fmt(c.total))).join('');
 
   // ── Split 24/7 vs Doctor for merged accounts ──────────────────
   // Agents with "(24/7)" in their name belong to 24/7 Medical Aid
@@ -8199,7 +8290,7 @@ function buildInvTotalesHTML(data){
         ${/* el desglose dice exactamente lo mismo que el PDF: una linea con los
               agentes de mes completo, una por cada grupo de media quincena y el
               descuento por ausencias. Si no hay nada que explicar no sale. */''}
-        ${desc && (desc.aplica || desc.aplicaExtra || desc.grupos.length)
+        ${desc && (desc.aplica || desc.aplicaExtra || desc.grupos.length || desc.cargos.length)
           ? (desc.agentesFact > 0
               ? filaTot(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmt(data.tarifa)}`, fmt(desc.bruto), 'var(--text)')
               : '')
@@ -8213,6 +8304,9 @@ function buildInvTotalesHTML(data){
             + (desc.aplicaExtra
                 ? filaTot(`Días adicionales · ${fmtDias(-desc.diasAus)} día${desc.diasAus!==-1?'s':''}`, '+'+fmt(-desc.descuento), 'var(--accent3)')
                 : '')
+            + desc.cargos.map(c => filaTot(
+                (c.t || 'Cargo adicional') + (c.c !== 1 ? ` · ${fmtDias(c.c)} × ${fmt(c.p)}` : ''),
+                fmt(c.total), 'var(--text)')).join('')
           : ''}
         ${filaTot('Total del invoice', fmt(data.monto), 'var(--accent)', true)}
         ${/* el abonado se muestra siempre, aunque sea cero: es la cifra que
@@ -8248,6 +8342,53 @@ function invRefreshSummary(mk, nombre, tipo, iid){
   if(amtEl) amtEl.textContent = fmt(data.monto);
   // (función opcional — no siempre está definida; evita romper el handler)
   if(typeof refreshInvRowSummary === 'function') refreshInvRowSummary(mk, nombre, tipo, data);
+}
+
+// ── Cargos adicionales del invoice ──────────────────────────────────────────
+// Se guardan crudos, tal como se escriben; invCargos los normaliza al calcular,
+// asi que una fila a medio escribir no rompe nada ni mueve el total.
+function _invCargosDe(mk, nombre){
+  const ov = getOv(mk, nombre);
+  return Array.isArray(ov.cargos) ? ov.cargos.map(c => Object.assign({}, c)) : [];
+}
+function _invGuardarCargos(mk, nombre, tipo, iid, lista){
+  setOv(mk, nombre, { cargos: lista });
+  renderInvoices();
+}
+function invCargoCampo(mk, nombre, tipo, iid, i, campo, valor){
+  const lista = _invCargosDe(mk, nombre);
+  if(!lista[i]) return;
+  if(campo === 'c' || campo === 'p'){
+    const n = parseFloat(String(valor).replace(',', '.'));
+    lista[i][campo] = isFinite(n) ? n : (campo === 'c' ? 1 : 0);
+  } else {
+    lista[i][campo] = String(valor || '');
+  }
+  _invGuardarCargos(mk, nombre, tipo, iid, lista);
+}
+function invCargoAnadir(mk, nombre, tipo, iid){
+  const lista = _invCargosDe(mk, nombre);
+  lista.push({ t:'', d:'', c:1, p:0 });
+  _invGuardarCargos(mk, nombre, tipo, iid, lista);
+}
+function invCargoQuitar(mk, nombre, tipo, iid, i){
+  const lista = _invCargosDe(mk, nombre);
+  lista.splice(i, 1);
+  _invGuardarCargos(mk, nombre, tipo, iid, lista);
+}
+// Un cargo como la suscripcion de Doxy.me se repite todos los meses. En vez de
+// meterlo solo en cada invoice nuevo —que seria cobrarle al cliente sin que
+// nadie lo mire— se trae a mano del mes anterior, y ahi se ajusta si cambio.
+function invCargosDelMesAnterior(mk, nombre, tipo, iid){
+  const [a, m] = normMkid(mk).split('-').map(Number);
+  const prev = m === 1 ? `${a-1}-12` : `${a}-${String(m-1).padStart(2,'0')}`;
+  const antes = _invCargosDe(prev, nombre);
+  if(!antes.length){
+    alert('El invoice de ' + prev + ' de esta cuenta no tiene cargos adicionales.');
+    return;
+  }
+  const lista = _invCargosDe(mk, nombre).concat(antes);
+  _invGuardarCargos(mk, nombre, tipo, iid, lista);
 }
 
 // Guarda las notas del invoice. No tocan ninguna cifra, asi que no hace falta
@@ -9647,6 +9788,21 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   // Si se trabajaron mas dias que los habiles del mes el descuento sale
   // negativo. Se imprime como dias adicionales, con el mismo valor del dia,
   // para que el detalle siga sumando el total y no quede una cifra sin explicar.
+  // Los cargos adicionales van al final del detalle, con la misma forma que las
+  // demas filas: lo que es, cuantos, a cuanto, y el total de la linea.
+  const filasCargos = ((desc && desc.cargos) || []).map(c => `
+    <tr>
+      <td>
+        <div class="it-desc">${esc2(c.t) || 'Additional charge'}</div>
+        ${c.d ? `<div class="it-sub">${esc2(c.d)}</div>` : ''}
+      </td>
+      <td class="qty">
+        <div class="q-num">${fmtDias(c.c)}</div>
+        <div class="q-sub">$${fmtN(c.p)}</div>
+      </td>
+      <td class="amt">$${fmtN(c.total)}</td>
+    </tr>`).join('');
+
   const filaExtra = (desc && desc.aplicaExtra) ? `
     <tr>
       <td>
@@ -9743,7 +9899,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   table.det th{font-size:11.8px;font-weight:500;color:var(--ink-2);text-align:left;
     padding:0 0 8px;border-bottom:1px solid var(--line)}
   table.det th.amt{text-align:right}
-  table.det td{padding:9px 0;border-bottom:1px solid var(--line-fuerte);vertical-align:top}
+  table.det td{padding:8px 0;border-bottom:1px solid var(--line-fuerte);vertical-align:top}
   /* El hueco entre la descripcion y la cantidad no se puede dejar al azar del
      largo del texto: una linea larga llegaba a tocar la columna Qty. El relleno
      lo garantiza aunque el texto crezca. */
@@ -9764,7 +9920,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   .cierre table.tot{width:330px}
   .pie-notas{margin-top:18px;padding-top:13px;border-top:1px solid var(--line)}
   .notas{display:grid;grid-template-columns:1fr 1fr;gap:40px}
-  .nota.libres{margin-bottom:13px}
+  .nota.libres{margin-bottom:10px}
   .nota{font-size:11.8px;color:var(--ink-2);line-height:1.58}
   .nota h3{font-size:11.8px;font-weight:500;color:var(--ink);margin:10px 0 4px}
   .nota h3:first-child{margin-top:0}
@@ -9778,7 +9934,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   table.tot tr.saldo td:last-child{font-size:23px;font-weight:700;letter-spacing:-.02em}
 
   /* ── Pie ── */
-  .pie{margin-top:auto;padding-top:22px;display:flex;justify-content:space-between;
+  .pie{margin-top:auto;padding-top:18px;display:flex;justify-content:space-between;
     gap:20px;font-size:11px;color:var(--ink-2)}
 
   @page{margin:0}
@@ -9822,7 +9978,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
   <table class="det">
     <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
     <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
-    <tbody>${filaCompletos}${filasParciales}${filaDescuento}${filaExtra}</tbody>
+    <tbody>${filaCompletos}${filasParciales}${filaDescuento}${filaExtra}${filasCargos}</tbody>
   </table>
 
   <div class="cierre">
