@@ -561,6 +561,32 @@
     --surface:#082436; --surface2:#0D3247; --border:#17415A;
     --accent:#3FCFA0; --accent2:#4CC2EC; --accent3:#F2A93B; --danger:#F4676B;
   }
+  /* Lo que va directamente sobre el fondo oscuro de la pagina —el aviso del
+     mes en proceso, el mensaje de "no hay cuentas"— no es una tarjeta. La
+     paleta clara de #page-invoices esta hecha para el papel blanco de las
+     tarjetas; sobre este azul no se lee: el texto del aviso quedaba en 1,7:1 y
+     el de "sin cuentas" en 3,4:1. Dentro de estos bloques vuelve a mandar la
+     paleta oscura, la misma de la barra del mes, y todo lo que ya usaba las
+     variables se adapta solo. */
+  #page-invoices .inv-sobre-fondo{
+    --text:#EAF4F6; --text2:#9FBECB; --text3:#7A9EB0;
+    --surface:#082436; --surface2:#0D3247; --border:#17415A;
+    --accent:#3FCFA0; --accent2:#4CC2EC; --accent3:#F2A93B; --danger:#F4676B;
+    /* 'color' se hereda ya calculado del contenedor: redefinir --text no lo
+       cambia por si solo, hay que volver a pedirlo aqui. */
+    color:var(--text);
+  }
+  /* El aviso del mes en proceso. El cuerpo va en la tinta principal —es lo que
+     hay que leer— y solo el titulo lleva el ambar del aviso. */
+  #page-invoices .inv-aviso{
+    display:flex; gap:12px; align-items:flex-start;
+    margin-bottom:14px; padding:12px 16px; border-radius:10px;
+    background:rgba(242,169,59,.12); border:1px solid rgba(242,169,59,.45);
+  }
+  #page-invoices .inv-aviso .ico{ font-size:20px; line-height:1; }
+  #page-invoices .inv-aviso .cuerpo{ font-size:13px; line-height:1.6; color:var(--text); }
+  #page-invoices .inv-aviso .cuerpo .tit{ color:var(--accent3); font-weight:700; }
+
   .inv-barra-tit{
     font-family:'Plus Jakarta Sans',sans-serif; font-size:16px; font-weight:600;
     color:var(--text2); letter-spacing:-.01em; margin-right:26px; white-space:nowrap;
@@ -9571,16 +9597,14 @@ function renderInvoicesMes(){
   }).join('');
 
   const bannerProceso = _mesEnProceso ? `
-    <div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;
-      background:rgba(242,169,59,.10);border:1px solid rgba(242,169,59,.40);
-      display:flex;gap:12px;align-items:flex-start">
-      <div style="font-size:20px;line-height:1">⏳</div>
-      <div style="font-size:13px;color:var(--accent3);line-height:1.6">
-        <b>Invoices en proceso — ${mesLabel}</b><br>
-        <span style="color:var(--text2)">Las quincenas de este mes todavía no están cerradas
+    <div class="inv-aviso inv-sobre-fondo">
+      <div class="ico">⏳</div>
+      <div class="cuerpo">
+        <b class="tit">Invoices en proceso — ${mesLabel}</b><br>
+        Las quincenas de este mes todavía no están cerradas
         (${_q1Draft?'Q1 en borrador':'Q1 cerrada'} · ${_q2Draft?'Q2 en borrador':'Q2 cerrada'}).
         Las cifras son <b>provisionales</b> y cambiarán con cada ajuste que guardes en la nómina.
-        No podrás cerrar estos invoices hasta aprobar ambas quincenas.</span>
+        No podrás cerrar estos invoices hasta aprobar ambas quincenas.
       </div>
     </div>` : '';
 
