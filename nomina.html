@@ -333,6 +333,9 @@
   /* Las dos cifras que mandan van arriba y en la misma linea, con la tarifa a
      la izquierda. Su pista va debajo, a lo ancho de las dos. */
   .cu-par-tarifa + .pista{ margin-bottom:12px; }
+  /* Sin parte con doctor no hay porcentaje que poner al lado: la tarifa se
+     queda sola y ocupa el ancho entero en vez de dejar medio renglon vacio. */
+  .cu-par-tarifa.sola{ grid-template-columns:1fr; }
   .cu-campo input:disabled{ background:#F0F0F0; color:#333333; cursor:not-allowed; }
 
   /* El nombre de un grupo no se edita entero: cada parte tiene el suyo, en su
@@ -3410,10 +3413,10 @@ function renderCuentasFichas(){
     if(!facturable){
       pistaTarifa = 'Esta cuenta no se factura: solo entra en la nómina.';
     } else if(vieneDelCobro){
-      pistaTarifa = 'Sale del <b>cobro mensual</b> de al lado, porque este grupo no tiene tarifa propia. Si escribes aquí otra cifra, el invoice pasa a usarla.';
+      pistaTarifa = 'Sale del <b>cobro mensual</b> de abajo, porque este grupo no tiene tarifa propia. Si escribes aquí otra cifra, el invoice pasa a usarla.';
     } else if(ownConCobro && tarifaInv > 0
               && Math.abs(tarifaInv - Number(ownConCobro.cobroAgente)) > 0.005){
-      pistaTarifa = `Distinta del cobro mensual de al lado (${fmt(ownConCobro.cobroAgente)}): el invoice usa <b>esta</b>.`;
+      pistaTarifa = `Distinta del cobro mensual de abajo (${fmt(ownConCobro.cobroAgente)}): el invoice usa <b>esta</b>.`;
     } else {
       pistaTarifa = 'Se aplica a los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.';
     }
@@ -3429,14 +3432,18 @@ function renderCuentasFichas(){
           ${facturable ? '' : 'disabled'}
           onchange="cuTarifaFactura('${jefe.id}',this.value)">
       </div>`;
-    const acompanante = ownConCobro
-      ? campo([ownConCobro.id], ownConCobro, 'Cobro mensual por agente', 'cobroAgente', '0', 'num', 'cifra')
-      : (drs.length ? `
+    // Al lado de la tarifa va el Dollar Comp %, no el cobro mensual: son dos
+    // cifras distintas pero casi siempre valen lo mismo, y verlas iguales una al
+    // lado de la otra parece el mismo campo repetido. El cobro mensual baja con
+    // los demas valores de la parte 24/7, que es donde se usa —la nomina y la
+    // utilidad—; la tarifa es la que factura, y se queda arriba sola o con el
+    // porcentaje al lado.
+    const acompanante = drs.length ? `
       <div class="cu-campo">
         <label>Dollar Comp % — Payroll</label>
         <input type="text" class="cifra" value="${((drs[0].dollarPctReal || 0) * 100).toFixed(1)}"
           onchange="cuCampo('${drs[0].id}','dollarPctReal',this.value,'pct')">
-      </div>` : '<div></div>');
+      </div>` : '';
 
     const parteDr = c => `
       <div class="cu-par">
@@ -3447,7 +3454,7 @@ function renderCuentasFichas(){
         ${campo([c.id], c,'Accountant — Payroll','accountantReal','0','num','cifra')}
         ${campo([c.id], c,'Transfer Fee — Payroll','transferFeeReal','0','num','cifra')}
       </div>
-      ${ownConCobro ? `
+      ${c.id !== drs[0].id ? `
       <div class="cu-campo">
         <label>Dollar Comp % — Payroll</label>
         <input type="text" class="cifra" value="${((c.dollarPctReal || 0) * 100).toFixed(1)}"
@@ -3456,12 +3463,13 @@ function renderCuentasFichas(){
 
     const parteOwn = c => `
       <div class="cu-par">
+        ${campo([c.id], c,'Cobro mensual por agente','cobroAgente','0','num','cifra')}
         ${campo([c.id], c,'Accountant','accountant','0','num','cifra')}
-        <div class="cu-campo">
-          <label>Días laborables por quincena</label>
-          <input type="text" class="cifra" value="${c.qdaysOwn != null ? c.qdaysOwn : ''}"
-            placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays')">
-        </div>
+      </div>
+      <div class="cu-campo">
+        <label>Días laborables por quincena</label>
+        <input type="text" class="cifra" value="${c.qdaysOwn != null ? c.qdaysOwn : ''}"
+          placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays')">
       </div>`;
 
     const subtitulo = (c, etiqueta) => varias
@@ -3471,7 +3479,7 @@ function renderCuentasFichas(){
       : '';
 
     const valores =
-      `<div class="cu-par cu-par-tarifa">${campoTarifa}${acompanante}</div>
+      `<div class="cu-par cu-par-tarifa${acompanante ? '' : ' sola'}">${campoTarifa}${acompanante}</div>
        <div class="pista">${pistaTarifa}</div>`
       + drs.map(c => subtitulo(c,'Parte Callcenter') + parteDr(c)).join('')
       + owns.map(c => subtitulo(c,'Parte 24/7') + parteOwn(c)).join('');
