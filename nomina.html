@@ -360,6 +360,17 @@
   .cu-sub input.nomsub:hover{ border-color:var(--border); }
   .cu-sub input.nomsub:focus{ outline:none; background:#FFFFFF; border-color:var(--accent2); }
 
+  /* La raya que parte la lista: arriba las cuentas que se facturan, debajo las
+     que no. Va a lo ancho de las dos columnas con el rotulo en medio. */
+  .cu-sep{
+    grid-column:1 / -1; display:flex; align-items:center; gap:12px;
+    margin:14px 2px 2px; font-size:11px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:.09em; font-weight:600;
+  }
+  .cu-sep::before, .cu-sep::after{
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+
   /* Las desactivadas: una linea cada una, plegadas y a lo ancho de la rejilla. */
   .cu-apagadas{
     grid-column:1 / -1; background:var(--surface); border:1px solid var(--border);
@@ -3355,11 +3366,23 @@ function renderCuentasFichas(){
     const k = normalizeAccountName(c.nombre);
     (grupos[k] = grupos[k] || []).push(c);
   });
-  const orden = Object.keys(grupos).sort((a,b) => {
-    const ta = grupos[a].some(c => c.tipo === 'dr') ? 0 : 1;
-    const tb = grupos[b].some(c => c.tipo === 'dr') ? 0 : 1;
-    return ta !== tb ? ta - tb : a.localeCompare(b);
-  });
+  // El orden es alfabetico por el nombre que se ve en la ficha, no por el tipo
+  // de cuenta: lo que uno busca en esta pagina es un cliente por su nombre.
+  // Al final van las que no llevan invoice —las dos que la app ya excluye y la
+  // propia cuenta de 24/7—, separadas del resto: estan aqui para consultarlas y
+  // editarlas, no para facturarlas, y en medio de las demas solo estorban.
+  const SIN_INVOICE = INVOICE_EXCLUDE.concat(['24/7 MEDICAL AID']);
+  const sinInvoice  = nombre => {
+    const u = String(nombre || '').toUpperCase();
+    return SIN_INVOICE.some(x => u.indexOf(x) >= 0);
+  };
+  const orden = Object.keys(grupos).map(k => {
+    const gr   = grupos[k];
+    const jefe = gr.find(c => c.tipo === 'dr') || gr[0];
+    return { k, titulo: gr.length > 1 ? k : jefe.nombre, alFinal: sinInvoice(jefe.nombre) };
+  }).sort((a,b) => (a.alFinal !== b.alFinal)
+      ? (a.alFinal ? 1 : -1)
+      : a.titulo.localeCompare(b.titulo, 'es', { sensitivity:'base' }));
 
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -3381,7 +3404,13 @@ function renderCuentasFichas(){
         onchange="cuCampo('${ids.join('|')}','${clave}',this.value,'${tipo||'txt'}')">
     </div>`;
 
-  const fichas = orden.map(k => {
+  let yaSepare = false;
+  const fichas = orden.map(({ k, alFinal }) => {
+    let separador = '';
+    if(alFinal && !yaSepare){
+      yaSepare = true;
+      separador = `<div class="cu-sep"><span>No se les genera invoice</span></div>`;
+    }
     const gr    = grupos[k];
     const ids   = gr.map(c => c.id);
     const jefe  = gr.find(c => c.tipo === 'dr') || gr[0];   // de quien sale el color
@@ -3497,7 +3526,7 @@ function renderCuentasFichas(){
       + drs.map(c => subtitulo(c,'Parte Callcenter') + parteDr(c)).join('')
       + owns.map(c => subtitulo(c,'Parte 24/7') + parteOwn(c)).join('');
 
-    return `
+    return separador + `
     <div class="cu-ficha" style="--c:${esc(jefe.color || '#888')}">
       <div class="cu-cab">
         <input type="color" value="${esc(jefe.color || '#888888')}" title="Color de la cuenta"
