@@ -3041,6 +3041,14 @@ function getQdaysForCuenta(cuenta){
   return (cuenta.qdaysOwn != null && cuenta.qdaysOwn > 0) ? cuenta.qdaysOwn : qdays();
 }
 
+// Lo que se le cobra al cliente por un agente en la pagina de nomina. Manda la
+// del propio agente; si no tiene, la de la cuenta —que es como estaba todo
+// hasta ahora, asi que mientras nadie tenga la suya no se mueve nada—.
+function cobroDeAgenteOwn(a, cobroCuenta){
+  const v = a ? Number(a.tarifaCobro) : NaN;
+  return (isFinite(v) && v > 0) ? v : cobroCuenta;
+}
+
 function calcOwn(cuenta){
   const ags = getAgentes(cuenta.id);
   const qd  = getQdaysForCuenta(cuenta);
@@ -3050,7 +3058,7 @@ function calcOwn(cuenta){
       ? a.diasCobrar
       : (a.dias === 0 ? 0 : qd);
     const proporcion = qd > 0 ? dc / qd : 0;
-    return s + (cobro / 2) * proporcion;
+    return s + (cobroDeAgenteOwn(a, cobro) / 2) * proporcion;
   }, 0);
   const subNomina  = ags.reduce((s,a) => s + nominaAgente(a), 0) + (cuenta.accountant || 0);
   const dollarComp = subNomina * (cuenta.dollarPctOwn !== undefined ? cuenta.dollarPctOwn : 0.15);
@@ -3106,9 +3114,13 @@ function getResultadoOwn(c){
               .map(a => a.diasCobrar);
             return vals.length ? Math.max(...vals) : getQdaysForCuenta(c);
           })();
+      // Los agentes del snapshot vienen por nombre: la tarifa propia se busca en
+      // el agente vivo, y si no tiene, se usa la de la cuenta, como siempre.
       const totalCobro = (snap.agentes || []).reduce((s, a) => {
         const dc = a.diasCobrar !== undefined ? a.diasCobrar : (a.dias === 0 ? 0 : snapQd);
-        return s + (c.cobroAgente / 2) * (snapQd > 0 ? dc / snapQd : 0);
+        const viva = agentes.find(x => x.id === a.id)
+                  || agentes.find(x => x.nombre === a.nombre);
+        return s + (cobroDeAgenteOwn(viva, c.cobroAgente) / 2) * (snapQd > 0 ? dc / snapQd : 0);
       }, 0);
       return { ...snap, totalCobro, utilidad: totalCobro - (snap.totalCosto || 0) };
     }
@@ -3910,15 +3922,16 @@ function renderCuentasFichas(){
               varias ? esc(c.nombre) : 'Abrir el formulario completo'}</button>`).join('')}
             ${facturable ? `<button class="btn btn-ghost btn-sm" onclick="showPage('invoices')">Ver sus invoices</button>` : ''}
           </div>
-          <!-- El cobro mensual de la cuenta no es lo que se factura —eso sale de
-               los agentes— sino la cifra con la que la pagina de nomina calcula
-               la utilidad. Se parecian tanto que puestas una al lado de la otra
-               se leian como el mismo campo repetido, asi que esta vive aqui. -->
+          <!-- El cobro mensual de la cuenta es el respaldo de la pagina de nomina:
+               lo que se usa ahi para un agente que no tenga tarifa propia. Puesto
+               al lado de la tarifa de facturar se leia como el mismo campo
+               repetido —casi siempre valen igual—, asi que vive aqui. -->
           ${owns.length ? `<div style="margin-top:12px">
             ${owns.map(c => campo([c.id], c,
-              'Cobro mensual por agente' + (varias ? ' · ' + esc(c.nombre) : '') + ' — solo para la utilidad',
+              'Cobro mensual por agente' + (varias ? ' · ' + esc(c.nombre) : '') + ' — respaldo en la nómina',
               'cobroAgente','0','num','cifra')).join('')}
-            <div class="pista">No es lo que se factura: el invoice usa las tarifas de los agentes.</div>
+            <div class="pista">La página de nómina cobra cada agente por su tarifa; esta solo se usa
+              para los que no tengan la suya.</div>
           </div>` : ''}
           <div class="pista" style="margin-top:9px">
             Para desactivar o eliminar, usa el formulario completo.
@@ -4303,7 +4316,10 @@ function renderCuentasOwn(){
                 ? a.diasCobrar
                 : (a.dias === 0 ? 0 : snapQdays);
               const cobroEfectivo = c._cobroAgenteOverride !== undefined ? c._cobroAgenteOverride : c.cobroAgente;
-              const cobroVal = (cobroEfectivo / 2) * (snapQdays > 0 ? diasCobrarVal / snapQdays : 0);
+              // La columna "Cobro Quincenal" tiene que decir lo mismo que el
+              // total de la cuenta: con la tarifa del agente cuando la tenga.
+              const _vivaAg = agentes.find(x => x.id === a.id) || agentes.find(x => x.nombre === a.nombre);
+              const cobroVal = (cobroDeAgenteOwn(_vivaAg, cobroEfectivo) / 2) * (snapQdays > 0 ? diasCobrarVal / snapQdays : 0);
               rows += `
           <tr>
             <td>${a.nombre}</td>
@@ -7009,7 +7025,8 @@ function construirRegistroActual(anio, mes, qNum, notas){
         id: c.id, nombre: c.nombre, tipo: 'own',
         agentes: todosAgentes.map(a=>({
           id: a.id, nombre: a.nombre, horas: a.horas, valor: a.valor,
-          dias: a.dias, diasCobrar: a.diasCobrar, nomina: nominaAgente(a), cobro: c.cobroAgente/2,
+          dias: a.dias, diasCobrar: a.diasCobrar, nomina: nominaAgente(a),
+          cobro: cobroDeAgenteOwn(a, c.cobroAgente)/2,
           estadoQuincena: a.estado === 'inactive' ? 'inactive_perm'
             : (a.dias === 0 && (a.diasCobrar === 0 || (a.diasCobrar === undefined && (a.diasStd === 0 || a.diasStd === undefined)))) ? 'inactive_temp'
             : 'active'
