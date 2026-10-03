@@ -4290,7 +4290,7 @@ function renderCuentasDr(){
             <td>
               <input type="number" value="${c.colombian}" min="0" step="10"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
-                tabindex="-1" data-vivo="1"
+                data-vivo="1"
                 oninput="updateCuenta('${c.id}','colombian',this.value)" onchange="updateCuenta('${c.id}','colombian',this.value)">
             </td>
             <td class="col-real"></td>
@@ -4302,14 +4302,14 @@ function renderCuentasDr(){
             <td>
               <input type="number" value="${c.accountant}" min="0" step="10"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
-                tabindex="-1" data-vivo="1"
+                data-vivo="1"
                 oninput="updateCuenta('${c.id}','accountant',this.value)" onchange="updateCuenta('${c.id}','accountant',this.value)">
             </td>
             <td class="col-real"></td>
             <td class="col-real">
               <input type="number" value="${c.accountantReal||0}" min="0" step="10"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
-                tabindex="-1" data-vivo="1"
+                data-vivo="1"
                 oninput="updateCuenta('${c.id}','accountantReal',this.value)" onchange="updateCuenta('${c.id}','accountantReal',this.value)">
             </td>
             <td></td>
@@ -4317,7 +4317,7 @@ function renderCuentasDr(){
           <tr>
             <td colspan="5" style="color:var(--text2)">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</td>
             <td>
-              <input type="number" value="${((r.subDrCheck||0) * (c.transferPctDr !== undefined ? c.transferPctDr : qtransf())).toFixed(2)}" min="0" step="1" tabindex="-1"
+              <input type="number" value="${((r.subDrCheck||0) * (c.transferPctDr !== undefined ? c.transferPctDr : qtransf())).toFixed(2)}" min="0" step="1"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateTransferDrValor('${c.id}',this.value,${r.subDrCheck||0})"
@@ -4331,7 +4331,12 @@ function renderCuentasDr(){
           <tr>
             <td colspan="5" style="color:var(--text2)">Dollar Compensation</td>
             <td style="white-space:nowrap">
-              <input type="number" value="${((c.dollarPctDr !== undefined ? c.dollarPctDr : qdollar())*100).toFixed(1)}" min="0" max="50" step="0.1" tabindex="-1"
+              ${/* Los campos del pie estaban en tabindex="-1": el Tab recorria
+                    los agentes y se iba al menu sin pasar por aqui, asi que a
+                    estos solo se llegaba con el raton. Ahora cierran el
+                    recorrido de la cuenta —agentes primero, pie despues— y de
+                    ahi se sigue a la cuenta siguiente. */''}
+              <input type="number" value="${((c.dollarPctDr !== undefined ? c.dollarPctDr : qdollar())*100).toFixed(1)}" min="0" max="50" step="0.1"
                 style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctDr',this.value)"
@@ -4339,7 +4344,7 @@ function renderCuentasDr(){
             </td>
             <td class="mono" style="color:var(--accent3)" data-calc="dollar-dr-${c.id}">${fmt(r.dollarDr)}</td>
             <td class="col-real" style="white-space:nowrap">
-              <input type="number" value="${((c.dollarPctReal||0.15)*100).toFixed(1)}" min="0" max="50" step="0.1" tabindex="-1"
+              <input type="number" value="${((c.dollarPctReal||0.15)*100).toFixed(1)}" min="0" max="50" step="0.1"
                 style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctReal',this.value)"
@@ -4557,7 +4562,12 @@ function renderCuentasOwn(){
             <td></td><td class="mono">${fmt(c.accountant||0)}</td><td></td><td></td><td></td></tr>
           <tr><td colspan="3" style="color:var(--text2)">Dollar Compensation</td>
             <td style="white-space:nowrap">
-              <input type="number" value="${((c.dollarPctOwn !== undefined ? c.dollarPctOwn : 0.15)*100).toFixed(1)}" min="0" max="50" step="0.1" tabindex="-1"
+              ${/* Los campos del pie estaban en tabindex="-1": el Tab recorria
+                    los agentes y se iba al menu sin pasar por aqui, asi que a
+                    estos solo se llegaba con el raton. Ahora cierran el
+                    recorrido de la cuenta —agentes primero, pie despues— y de
+                    ahi se sigue a la cuenta siguiente. */''}
+              <input type="number" value="${((c.dollarPctOwn !== undefined ? c.dollarPctOwn : 0.15)*100).toFixed(1)}" min="0" max="50" step="0.1"
                 style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctOwn',this.value)"
