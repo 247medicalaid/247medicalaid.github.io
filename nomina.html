@@ -266,14 +266,13 @@
 
   /* La cabecera se queda con el color de siempre: es lo que separa una ficha de
      la siguiente de un vistazo, y lleva la franja del color de la cuenta. */
+  /* La cabecera de la ficha ES la banda: el color que Carlos elige abajo, con
+     la tinta que se lea encima. Antes era azul marino fijo con una raya del
+     color; ahora el color es el fondo y los tonos de dentro se derivan de la
+     tinta, no de una paleta escrita a mano. */
   .cu-cab{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    padding:12px 16px; background:#0D3247;
-    border-bottom:4px solid var(--c,#888);
-    --text:#EAF4F6; --text2:#9FBECB; --text3:#7A9EB0;
-    --surface:#082436; --surface2:#0D3247; --border:#17415A;
-    --accent:#3FCFA0; --accent2:#4CC2EC; --accent3:#F2A93B; --danger:#F4676B;
-    color:var(--text);
+    padding:12px 16px; color:var(--text);
   }
   .cu-cab input.nom{
     width:auto; min-width:150px; flex:1 1 150px; background:transparent;
@@ -285,22 +284,84 @@
   .cu-cab input.nom:focus{ background:var(--surface); border-color:var(--accent2); }
   /* El cuadro nativo del selector de color no se deja redondear por dentro, asi
      que se queda cuadrado con las esquinas suaves en vez de un circulo a medias. */
-  .cu-cab input[type=color]{
-    width:24px; height:24px; padding:2px; border-radius:6px;
-    border:1px solid var(--border); cursor:pointer; flex:0 0 auto; background:var(--surface);
+  /* ── La banda de color de una cuenta ─────────────────────────────────────
+     El color lo elige Carlos en la ficha de la cuenta; la tinta la elige
+     ivTintaTexto, que compara blanco contra casi-negro y se queda con la que
+     mas contraste da. Una sola funcion decide, asi que las seis secciones no
+     pueden discrepar sobre que tinta le toca a un color.
+
+     Dentro de una banda de color pleno NO cabe una escala de grises. Medido
+     contra los doce colores reales: para que un tono secundario pase de 4,5:1
+     hay que subirlo al 90% de la tinta, y al 90% ya no se distingue de la
+     tinta. Y los tonos semanticos del modulo —verde, ambar, azul, rojo— caen
+     entre 1,0:1 y 2,0:1 sobre un color claro: no es que se lean mal, es que no
+     se leen. Por eso aqui dentro la jerarquia es de FORMA, no de color: una
+     pastilla solida reclama atencion, una de contorno dice que todo va bien. */
+  .cab-color{
+    background:var(--c,#888); color:var(--tinta,#fff);
+    /* Un color muy palido —el blanco de Lake Nona, sin ir mas lejos— se funde
+       con la tarjeta. Esta linea existe para que la banda siempre sea banda. */
+    border-bottom:1px solid color-mix(in srgb, var(--tinta,#fff) 26%, var(--c,#888));
+    /* Dentro de la banda TODA la paleta colapsa en la tinta. No es pereza: es
+       la unica forma de que un color escrito a mano en un style= de hace tres
+       pasadas no se vuelva invisible encima de un color saturado. Aqui lo que
+       distingue es la forma —solida o de contorno—, no el tono.
+       Los tonos al 90% son el limite medido: por debajo de ahi no llegan a
+       4,5:1 contra el peor de los doce colores. */
+    --text:    var(--tinta,#fff);
+    --text2:   color-mix(in srgb, var(--tinta,#fff) 90%, var(--c,#888));
+    --text3:   color-mix(in srgb, var(--tinta,#fff) 90%, var(--c,#888));
+    --surface: color-mix(in srgb, var(--tinta,#fff) 14%, var(--c,#888));
+    --surface2:color-mix(in srgb, var(--tinta,#fff) 14%, var(--c,#888));
+    --border:  color-mix(in srgb, var(--tinta,#fff) 34%, var(--c,#888));
+    --accent:  var(--tinta,#fff);
+    --accent2: var(--tinta,#fff);
+    --accent3: var(--tinta,#fff);
+    --danger:  var(--tinta,#fff);
   }
-  .cu-cab input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
-  .cu-cab input[type=color]::-webkit-color-swatch{ border:none; border-radius:4px; }
+  .cab-color .nomcuenta{
+    font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:15px;
+    letter-spacing:-.01em; color:var(--tinta,#fff);
+  }
+  /* El boton dentro de una banda: contorno de tinta, como las pastillas. */
+  .cab-color .btn-ghost{
+    background:transparent; border:1.5px solid var(--tinta,#fff); color:var(--tinta,#fff);
+  }
+  .cab-color .btn-ghost:hover{ background:var(--tinta,#fff); color:var(--c,#888); }
+  /* Los campos que viven dentro de una banda —los dias y el cobro por agente
+     de la tabla 24/7— se despegan con una placa de tinta translucida. */
+  .cab-color input[type=number]{
+    background:color-mix(in srgb, var(--tinta,#fff) 16%, var(--c,#888)) !important;
+    border-color:var(--tinta,#fff) !important; color:var(--tinta,#fff) !important;
+  }
+  /* Lo que acompana al nombre y no es un dato: el numero de invoices, el ultimo
+     mes. Al 90% de la tinta, que es lo maximo que se puede bajar sin perder los
+     4,5:1 contra el peor de los colores. */
+  .cab-color .leve{ color:color-mix(in srgb, var(--tinta,#fff) 90%, var(--c,#888)); }
+  .cab-pill{
+    display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+    font-size:11px; font-weight:700; line-height:1; padding:4px 9px;
+    border-radius:20px; border:1.5px solid var(--tinta,#fff); color:var(--tinta,#fff);
+  }
+  .cab-pill.solida{ background:var(--tinta,#fff); color:var(--c,#888); }
+  .cab-pill b{ font-family:'DM Mono',monospace; font-size:11.5px; font-weight:700; }
+  /* El selector de color se quedaria invisible: es un cuadrito del color de la
+     cuenta sobre una banda del color de la cuenta. La placa de tinta por debajo
+     lo despega del fondo con el mismo contraste que el texto, sea cual sea el
+     color elegido. */
+  .cab-color input[type=color]{
+    width:28px; height:28px; padding:3px; border-radius:8px; border:none;
+    cursor:pointer; flex:0 0 auto; background:var(--tinta,#fff);
+  }
+  .cab-color input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  .cab-color input[type=color]::-webkit-color-swatch{ border:none; border-radius:5px; }
+
   .cu-cobro{
     display:flex; gap:9px; align-items:center; flex-wrap:wrap;
     width:100%; font-size:11.5px; color:var(--text2);
   }
   .cu-cobro b{ font-family:'DM Mono',monospace; font-size:12.5px; }
   .cu-cobro .sep{ color:var(--text3); }
-  /* Lo dado por perdido no es un pendiente —ya se decidio no cobrarlo— pero
-     tampoco es un dato de relleno: es plata que esta cuenta se llevo. Se marca
-     con el mismo ambar que usa la ficha para lo que hay que mirar. */
-  .cu-cobro .perdido{ color:var(--accent3); }
 
   /* El cuerpo, como el formulario completo: una columna, etiqueta arriba. */
   .cu-bloque{ padding:14px 16px; }
@@ -928,6 +989,10 @@
   .pg-cab{ position:sticky; top:0; z-index:9; background:var(--surface); }
   .pg-cab.cobros.abierta{ background:color-mix(in srgb, var(--accent) 14%, var(--surface)); }
   .pg-cab.sigma.abierta { background:color-mix(in srgb, var(--inv-sigma,#a78bfa) 16%, var(--surface)); }
+  /* La cuenta abierta se marca con un filo de tinta, no cambiando el fondo: el
+     fondo ya lo ocupa el color de la cuenta. */
+  .pg-cab.cab-color, .pg-cab.cab-color.abierta{ background:var(--c,#888); }
+  .pg-cab.cab-color.abierta{ box-shadow:inset 0 -3px 0 var(--tinta,#fff); }
   @media (max-width:620px){
     /* El boton del menu vive fijo en la esquina: la cabecera se estaciona
        debajo para no quedar tapada por el. */
@@ -1046,19 +1111,22 @@
   /* La cabecera se queda pegada mientras se escriben los dias: con cinco
      cuentas abiertas a la vez, saber en cual estas es lo primero. */
   .iv-pegado{ position:sticky; top:var(--barraMes,0px); z-index:12; }
+  /* La cabecera ya no es un tinte del color de la cuenta sino EL color de la
+     cuenta, con la tinta que se lea encima. Los tonos de dentro se derivan de
+     la tinta, porque los de la paleta clara —pensados para papel blanco— sobre
+     un color saturado caen a 1:1. */
   .iv-cab{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    /* El color de la cuenta se nota: sube del 13% al 24%. Medido con los
-       colores reales —y con negro, el peor caso— el texto nunca baja de 9:1,
-       asi que el tono se puede subir sin perder legibilidad. */
-    padding:11px 14px; background:color-mix(in srgb, var(--c,#888) 24%, #FFFFFF);
-    border-bottom:1px solid color-mix(in srgb, var(--c,#888) 30%, #FFFFFF);
+    padding:11px 14px;
     border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   }
+  /* El cuadrito de las iniciales se invierte: antes era el color sobre la
+     cabecera palida; ahora la cabecera ES el color, asi que el cuadrito pasa a
+     ser la tinta con las iniciales en el color. Mismo contraste, al reves. */
   .iv-mono{
     width:30px; height:30px; border-radius:9px; display:grid; place-items:center;
     font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:12.5px;
-    background:var(--c,#888); color:var(--tinta,#fff); flex:none;
+    background:var(--tinta,#fff); color:var(--c,#888); flex:none;
   }
   .iv-nom{ font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:17px;
            letter-spacing:-.02em; color:var(--text); }
@@ -1163,14 +1231,22 @@
   /* La tarifa, al lado del nombre: es el numero que multiplica todo lo demas. */
   .iv-tarifa{
     display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px;
-    border-radius:999px; background:#FFFFFF; border:1px solid var(--border);
-    font-size:11px; color:var(--text2); font-weight:600; white-space:nowrap;
+    border-radius:999px; background:transparent;
+    border:1.5px solid var(--tinta,#fff);
+    font-size:11px; color:var(--tinta,#fff); font-weight:600; white-space:nowrap;
   }
-  .iv-tarifa b{ font-family:'DM Mono',monospace; font-size:14px; color:var(--accent2); font-weight:700; }
-  .iv-tarifa.sin{ border-color:var(--danger); }
-  .iv-tarifa.sin b{ color:var(--danger); }
-  .iv-tarifa a{ color:var(--text3); text-decoration:underline; cursor:pointer; font-size:10.5px; }
-  .iv-tarifa a:hover{ color:var(--accent2); }
+  /* Dentro de la banda no hay azul ni rojo que se lea: la cifra va en la tinta,
+     y "sin tarifa" se distingue invirtiendo la pastilla, no cambiandole el
+     color. Es la misma regla de solida/contorno que usa el resto del modulo. */
+  .iv-tarifa b{ font-family:'DM Mono',monospace; font-size:14px; color:var(--tinta,#fff); font-weight:700; }
+  /* La pastilla invertida es tinta solida: todo lo que va dentro —incluido lo
+     que pide --text2 o --text3— tiene que volverse del color de la cuenta, o
+     se queda tinta sobre tinta. Es el caso de "congelada", que media 1,29:1. */
+  .iv-tarifa.sin{ background:var(--tinta,#fff); color:var(--c,#888);
+    --text:var(--c,#888); --text2:var(--c,#888); --text3:var(--c,#888); }
+  .iv-tarifa.sin b{ color:var(--c,#888); }
+  .iv-tarifa a{ color:var(--tinta,#fff); text-decoration:underline; cursor:pointer; font-size:10.5px; }
+  .iv-tarifa.sin a{ color:var(--c,#888); }
 
   /* Indice de cuentas del mes: saltar sin buscar. */
   .iv-indice{ display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; scrollbar-width:none; }
@@ -1184,7 +1260,11 @@
   .iv-ficha:hover{ border-color:var(--text3); color:var(--text); }
   .iv-ficha[aria-current="true"]{ background:color-mix(in srgb, var(--c,#888) 12%, #FFFFFF);
     border-color:var(--c,#888); color:var(--text); }
-  .iv-ficha .iv-mono{ width:21px; height:21px; border-radius:6px; font-size:10px; }
+  /* En el indice la pastilla NO es del color de la cuenta —es una ficha gris—,
+     asi que el cuadrito vuelve a llevar el color dentro: aqui es lo unico que
+     identifica a la cuenta de un vistazo. */
+  .iv-ficha .iv-mono{ width:21px; height:21px; border-radius:6px; font-size:10px;
+    background:var(--c,#888); color:var(--tinta,#fff); }
 
   /* Las filas de agentes: una por linea, el campo a la derecha, rayado suave
      para no saltarse una. */
@@ -1389,6 +1469,12 @@
     font-size: 11px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
     border: 1px solid currentColor; white-space: nowrap;
   }
+  /* Dentro de una banda de color no hay ambar ni verde que se lea, asi que las
+     pastillas de estado de Pagos pasan a distinguirse por la forma, igual que
+     las de la ficha: solida lo que falta, contorno lo que ya esta. */
+  .cab-color .sig-pill{ border-color:var(--tinta,#fff); color:var(--tinta,#fff); background:transparent; }
+  .cab-color .sig-pill.pend,
+  .cab-color .sig-pill.parcial{ background:var(--tinta,#fff); color:var(--c,#888); }
   .sig-pill.pend    { color: var(--accent3); }
   .sig-pill.parcial { color: var(--accent2); }
   .sig-pill.ok      { color: var(--accent); }
@@ -3075,6 +3161,27 @@ function calcOwn(cuenta){
 // ═══════════════════════════════════════════════════════════════
 // RENDER HELPERS
 // ═══════════════════════════════════════════════════════════════
+// El estilo de una banda de color: el color de la cuenta y la tinta que se lee
+// encima. Va en un solo sitio para que las seis secciones del modulo no puedan
+// decidir cosas distintas sobre el mismo color.
+function cabEstilo(color){
+  const c = color || '#888888';
+  return `--c:${c};--tinta:${ivTintaTexto(c)}`;
+}
+
+// El color de una cuenta a partir de su nombre. Las listas de Pagos y de Sigma
+// solo llevan el nombre —se arman agrupando por el nombre normalizado—, asi que
+// el color hay que ir a buscarlo. Se busca con la MISMA normalizacion con la que
+// se agrupan, o ACCESS y ACCESS (OWN) saldrian de colores distintos.
+function colorDeCuenta(nombre){
+  try {
+    const k = normalizeAccountName(nombre);
+    const c = (cuentas || []).find(x => normalizeAccountName(x.nombre) === k);
+    if(c && c.color) return c.color;
+  } catch(e){}
+  return '#888888';
+}
+
 function colorDot(color, size=10){
   return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${color};flex-shrink:0"></span>`;
 }
@@ -3290,10 +3397,9 @@ function renderResumenDr(){
     const r = getResultadoDr(c);
     return `
     <div class="account-summary">
-      <div class="account-summary-header">
-        ${colorDot(c.color,10)}
-        <strong>${c.nombre}</strong>
-        <span class="chip amber" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
+      <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
+        <strong class="nomcuenta">${c.nombre}</strong>
+        <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
         <div class="summary-row"><span class="lbl">Callcenter Check (a cobrar)</span><span class="val amber">${fmt(r.totalDrCheck)}</span></div>
@@ -3313,10 +3419,9 @@ function renderResumenOwn(){
     const r = getResultadoOwn(c);
     return `
     <div class="account-summary">
-      <div class="account-summary-header">
-        ${colorDot(c.color,10)}
-        <strong>${c.nombre}</strong>
-        <span class="chip blue" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
+      <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
+        <strong class="nomcuenta">${c.nombre}</strong>
+        <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
         <div class="summary-row"><span class="lbl">Total a Cobrar</span><span class="val blue">${fmt(r.totalCobro)}</span></div>
@@ -3782,7 +3887,7 @@ function renderCuentasFichas(){
     // La tira de cobro: corta, y solo con lo que hace falta mirar de reojo.
     let tiraCobro;
     if(!facturable){
-      tiraCobro = `<span class="cu-cobro"><span class="sep">no se factura — solo nómina</span></span>`;
+      tiraCobro = `<span class="cu-cobro"><span class="leve">no se factura — solo nómina</span></span>`;
     } else if(cob){
       const ult = cob.meses[0];
       // Un invoice dado por perdido sale de las dos cifras de arriba: ni suma
@@ -3791,26 +3896,28 @@ function renderCuentasFichas(){
       // ficha la perdida desaparezca: la cuenta se lee como si nunca hubiera
       // pasado. Por eso se nombra aparte, con su numero y su importe.
       const nPerd = cob.meses.filter(x => x.noPago).length;
+      // Sobre la banda de color no hay verde ni ambar que se lea, asi que el
+      // estado se dice con la FORMA de la pastilla: solida lo que reclama
+      // atencion, de contorno lo que esta en orden. La palabra sigue ahi, que
+      // es lo que de verdad lo dice.
+      const pendiente = cob.saldo > 0.005;
       tiraCobro = `<span class="cu-cobro">
-        <span>Facturado <b>${fmt(cob.total)}</b></span>
-        <span class="sep">·</span>
-        <span>Pendiente <b style="color:${cob.saldo > 0.005 ? 'var(--accent3)' : 'var(--accent)'}">${fmt(cob.saldo)}</b></span>
-        <span class="sep">·</span>
+        <span class="leve">Facturado</span> <b>${fmt(cob.total)}</b>
+        ${pendiente
+          ? `<span class="cab-pill solida">● ${cob.pendientes} sin cobrar · <b>${fmt(cob.saldo)}</b></span>`
+          : `<span class="cab-pill">✓ ${nPerd ? 'lo demás cobrado' : 'todo cobrado'}</span>`}
         ${/* "todo cobrado" con un invoice perdido detras seria mentira: se
               cobro todo lo que se seguia cobrando, no todo lo que se facturo. */''}
-        <span>${cob.pendientes ? cob.pendientes + ' sin cobrar'
-                : nPerd ? 'lo demás cobrado' : 'todo cobrado'}</span>
-        ${nPerd ? `<span class="sep">·</span>
-        <span class="perdido" title="Invoices dados por perdidos: no cuentan como pendientes por cobrar ni dentro de lo facturado.">✕ ${nPerd} perdido${nPerd!==1?'s':''} <b>${fmt(cob.perdido)}</b></span>` : ''}
-        ${ult ? `<span class="sep">·</span> <span style="color:var(--text3)">último ${MESES[ult.mes-1]} ${ult.anio}</span>` : ''}
+        ${nPerd ? `<span class="cab-pill solida" title="Invoices dados por perdidos: no cuentan como pendientes por cobrar ni dentro de lo facturado.">✕ ${nPerd} perdido${nPerd!==1?'s':''} · <b>${fmt(cob.perdido)}</b></span>` : ''}
+        ${ult ? `<span class="leve">último ${MESES[ult.mes-1]} ${ult.anio}</span>` : ''}
       </span>`;
     } else if(tarifaInv <= 0){
       // Una cuenta facturable sin tarifa no saca invoice: sale en $0 y no llega
       // ni a la seccion de Pagos. Decirlo aqui, al lado del campo vacio que lo
       // explica, ahorra buscar por que no aparece.
-      tiraCobro = `<span class="cu-cobro"><span style="color:var(--accent3)">sin tarifa — todavía no factura</span></span>`;
+      tiraCobro = `<span class="cu-cobro"><span class="cab-pill solida">sin tarifa — todavía no factura</span></span>`;
     } else {
-      tiraCobro = `<span class="cu-cobro"><span class="sep">sin invoices cerrados todavía</span></span>`;
+      tiraCobro = `<span class="cu-cobro"><span class="leve">sin invoices cerrados todavía</span></span>`;
     }
 
     // De donde sale la tarifa, que no siempre es obvio.
@@ -3915,16 +4022,19 @@ function renderCuentasFichas(){
 
     return separador + `
     <div class="cu-ficha${cuSucia(ids.join('|')) ? ' sucia' : ''}" data-ids="${ids.join('|')}"
-      style="--c:${esc(cuValor(jefe,'color') || '#888')}">
-      <div class="cu-cab">
-        <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" title="Color de la cuenta"
+      style="${cabEstilo(esc(cuValor(jefe,'color') || '#888'))}">
+      <div class="cu-cab cab-color">
+        ${/* La placa de tinta por debajo del selector no es adorno: sin ella el
+              cuadrito del color queda del mismo color que la banda y se pierde
+              justo en la pantalla donde se cambia. */''}
+        <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" title="Color de la cuenta — cambia el encabezado en todo el módulo"
           onchange="cuCampo('${ids.join('|')}','color',this.value,'txt',this)">
         ${varias
           ? `<span class="nomgrupo">${esc(titulo)}</span>`
           : `<input class="nom" type="text" value="${esc(cuValor(jefe,'nombre'))}" aria-label="Nombre de la cuenta"
                onchange="cuCampo('${jefe.id}','nombre',this.value,'nombre',this)">`}
-        ${drs.length ? '<span class="tag joint">Callcenter</span>' : ''}
-        ${owns.length ? '<span class="tag own">24/7</span>' : ''}
+        ${drs.length ? '<span class="cab-pill">Callcenter</span>' : ''}
+        ${owns.length ? '<span class="cab-pill">24/7</span>' : ''}
         ${tiraCobro}
       </div>
 
@@ -4056,16 +4166,15 @@ function renderCuentasDr(){
     const r = getResultadoDr(c);
     return `
     <div class="table-wrap" style="margin-bottom:24px">
-      <div class="table-header">
+      <div class="table-header cab-color" style="${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px">
-          ${colorDot(c.color,12)}
-          <span class="table-title">${c.nombre}</span>
-          <span class="tag joint">Callcenter</span>
+          <span class="nomcuenta">${c.nombre}</span>
+          <span class="cab-pill">Callcenter</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:12px;color:var(--text2)">Callcenter Check: <b style="color:var(--accent3)">${fmt(r.totalDrCheck)}</b></span>
-          <span style="font-size:12px;color:var(--text2)">Callcenter Payroll: <b style="color:var(--text)">${fmt(r.totalReal)}</b></span>
-          <span style="font-size:12px;color:var(--text2)">Utilidad: <b style="color:var(--accent)">${fmt(r.utilidad)}</b></span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px"><span class="leve">Callcenter Check</span> <b>${fmt(r.totalDrCheck)}</b></span>
+          <span style="font-size:12px"><span class="leve">Payroll</span> <b>${fmt(r.totalReal)}</b></span>
+          <span class="cab-pill solida">Utilidad <b>${fmt(r.utilidad)}</b></span>
           <button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️ Editar</button>
         </div>
       </div>
@@ -4351,11 +4460,10 @@ function renderCuentasOwn(){
     })();
     return `
     <div class="table-wrap" style="margin-bottom:24px">
-      <div class="table-header" style="flex-wrap:wrap;gap:10px">
+      <div class="table-header cab-color" style="flex-wrap:wrap;gap:10px;${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-          ${colorDot(c.color,12)}
-          <span class="table-title">${c.nombre}</span>
-          <span class="tag own">24/7</span>
+          <span class="nomcuenta">${c.nombre}</span>
+          <span class="cab-pill">24/7</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <!-- Días Hábiles por cuenta -->
@@ -4374,8 +4482,8 @@ function renderCuentasOwn(){
               title="Cobro mensual por agente"
               onchange="updateCobroAgente('${c.id}', this.value)">
           </div>
-          <span style="font-size:12px;color:var(--text2)">Cobro: <b style="color:var(--accent2)">${fmt(r.totalCobro)}</b></span>
-          <span style="font-size:12px;color:var(--text2)">Utilidad: <b style="color:var(--accent)">${fmt(r.utilidad)}</b></span>
+          <span style="font-size:12px"><span class="leve">Cobro</span> <b>${fmt(r.totalCobro)}</b></span>
+          <span class="cab-pill solida">Utilidad <b>${fmt(r.utilidad)}</b></span>
           <button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️</button>
         </div>
       </div>
@@ -10223,13 +10331,13 @@ function renderPagosClientes(){
     const pend = c.saldo > 0.005;
     return `
     <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--accent)':''}">
-      <div class="pg-cab cobros${abierta?' abierta':''}"
+      <div class="pg-cab cobros cab-color${abierta?' abierta':''}"
         onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
-        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--accent)':''}">${c.nombre}</span>
-        <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${c.nombre}</span>
+        <span class="leve" style="font-size:11.5px">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
         ${c.pendientes
           ? `<span class="sig-pill pend">● ${c.pendientes} por cobrar</span>`
           : `<span class="sig-pill ok">✓ al día</span>`}
@@ -10237,7 +10345,7 @@ function renderPagosClientes(){
           // Cuantos, no solo cuanto: el numero es lo que se compara de un
           // vistazo con los que quedan por cobrar.
           const nPerd = c.meses.filter(x => x.noPago).length;
-          return nPerd ? `<span class="sig-pill" style="color:var(--text3)"
+          return nPerd ? `<span class="sig-pill pend"
             title="Invoices dados por perdidos: no cuentan como pendientes por cobrar."
             >✕ ${nPerd} perdido${nPerd!==1?'s':''} · ${fmt(c.perdido)}</span>` : '';
         })()}
@@ -10433,13 +10541,13 @@ function renderSigma(){
     const pend = c.saldo > 0.005;
     return `
     <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--inv-sigma,#a78bfa)':''}">
-      <div class="pg-cab sigma${abierta?' abierta':''}"
+      <div class="pg-cab sigma cab-color${abierta?' abierta':''}"
         onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
-        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
+        style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span style="font-weight:${abierta?800:700};font-size:14px${abierta?';color:var(--inv-sigma,#a78bfa)':''}">${c.nombre}</span>
-        <span style="font-size:11.5px;color:var(--text3)">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${c.nombre}</span>
+        <span class="leve" style="font-size:11.5px">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
         ${(()=>{
           // El importe pendiente ya estaba a la derecha; lo que faltaba era
           // saber en cuantos meses se reparte sin tener que abrir la cuenta.
@@ -10447,7 +10555,7 @@ function renderSigma(){
           if(!nPend) return `<span class="sig-pill ok">✓ al día</span>`;
           return `<span class="sig-pill pend">● ${nPend} ${c.directo ? 'sin registrar' : 'por girar'}</span>`;
         })()}
-        ${c.directo ? `<span class="sig-pill" style="color:var(--inv-sigma,#a78bfa)"
+        ${c.directo ? `<span class="sig-pill"
             title="Esta cuenta le paga a Sigma directamente. Aparece aquí para llevar el registro, pero no cuenta en lo que debes tú.">paga directo a Sigma</span>` : ''}
         <span style="flex:1;min-width:6px"></span>
         <span style="text-align:right;min-width:104px">
@@ -10913,22 +11021,22 @@ function renderInvoicesMes(){
     }
 
     return `
-    <section class="iv-cuenta${ov.cerrado ? ' iv-cerrada' : ''}" id="${iid}" style="--c:${i.color};--tinta:${ivTintaTexto(i.color)}"
+    <section class="iv-cuenta${ov.cerrado ? ' iv-cerrada' : ''}" id="${iid}" style="${cabEstilo(i.color)}"
       aria-labelledby="${iid}-nom">
       <div class="iv-pegado">
-      <header class="iv-cab">
+      <header class="iv-cab cab-color">
         <span class="iv-mono">${ivMonograma(i.nombre)}</span>
         <span class="iv-nom" id="${iid}-nom">${i.nombre}</span>
         ${i.tipo==='merged'
-          ? '<span class="tag joint" style="font-size:10px">Callcenter</span><span class="tag own" style="font-size:10px">24/7</span>'
-          : `<span class="tag ${i.tipo==='dr'?'joint':'own'}" style="font-size:10px">${i.tipo==='dr'?'Callcenter':'24/7'}</span>`}
-        ${ov.invnum ? `<span class="inv-fila-num">${ov.invnum}</span>` : ''}
+          ? '<span class="cab-pill">Callcenter</span><span class="cab-pill">24/7</span>'
+          : `<span class="cab-pill">${i.tipo==='dr'?'Callcenter':'24/7'}</span>`}
+        ${ov.invnum ? `<span class="inv-fila-num leve">${ov.invnum}</span>` : ''}
         ${(()=>{
           const tf = _invDataHdr ? _invDataHdr.tarifa : 0;
           const sin = !(tf > 0);
           const k  = String(i.invKey || i.norKey).replace(/'/g,'&#39;');
           return `<span class="iv-tarifa${sin?' sin':''}" title="Tarifa mensual por agente">
-            <span>\u{1F4B2} tarifa</span><b>${sin ? 'sin tarifa' : fmt(tf)}</b>
+            <span>tarifa</span><b>${sin ? 'sin tarifa' : fmt(tf)}</b>
             ${ov.cerrado ? '<span style="font-size:10px;color:var(--text3)">congelada</span>'
                          : `<a onclick="editInvoiceTarifa('${mk}','${k}')">cambiar</a>`}
           </span>`;
@@ -10971,7 +11079,7 @@ function renderInvoicesMes(){
       ${lineItems.map(i => {
         const iid = makeIid(mk, i.norKey, i.tipo);
         return `<button class="iv-ficha" type="button" role="tab" data-iv-ir="${iid}"
-          style="--c:${i.color};--tinta:${ivTintaTexto(i.color)}">
+          style="${cabEstilo(i.color)}">
           <span class="iv-mono">${ivMonograma(i.nombre)}</span>${i.nombre}</button>`;
       }).join('')}
     </div>` : '';
@@ -12728,7 +12836,12 @@ function generarUtilidadPDF(){
         </tr></thead>
         <tbody>
           ${md.cuentasData.map((c,i) => `<tr style="${i%2?'background:#f9fafb':''}">
-            <td style="${tdStyle('left','font-weight:600')}">${c.nombre}</td>
+            ${/* Utilidad Dr. no tiene cabecera por cuenta: es una tabla de
+                  informe, pensada para imprimirse, donde las cuentas son filas.
+                  Pintar una fila entera del color de la cuenta romperia el
+                  informe, asi que el color va donde si cabe — un filo a la
+                  izquierda del nombre, que es lo que identifica la fila. */''}
+            <td style="${tdStyle('left','font-weight:600')};border-left:5px solid ${colorDeCuenta(c.nombre)}">${c.nombre}</td>
             <td style="${tdStyle()}">${fmtN(c.ingresoSigma)}</td>
             <td style="${tdStyle()}">${fmtN(c.ccCheck)}</td>
             <td style="${tdStyle()}">${c.numAgsDr}</td>
