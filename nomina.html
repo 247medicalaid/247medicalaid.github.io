@@ -360,6 +360,37 @@
   .cu-sub input.nomsub:hover{ border-color:var(--border); }
   .cu-sub input.nomsub:focus{ outline:none; background:#FFFFFF; border-color:var(--accent2); }
 
+  /* El pie de la ficha: el boton de guardar. Esta siempre, apagado, para que se
+     sepa donde esta antes de hacer falta; cuando hay algo escrito se enciende y
+     la ficha entera se marca con un borde ambar. */
+  .cu-pie{
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding:10px 16px; border-top:1px solid var(--border); background:var(--surface2);
+  }
+  .cu-pie .sp{ flex:1; min-width:4px; }
+  .cu-pie .aviso{ font-size:11.5px; font-weight:700; color:#B45309; visibility:hidden; }
+  .cu-pie.activo .aviso{ visibility:visible; }
+  .cu-pie .btn-primary{ background:#D1D5DB; color:#4B5563; cursor:default; }
+  .cu-pie.activo .btn-primary{ background:#15803D; color:#FFFFFF; cursor:pointer; }
+  .cu-pie.activo .btn-primary:hover{ filter:brightness(1.08); }
+  .cu-pie .btn-ghost{ visibility:hidden; }
+  .cu-pie.activo .btn-ghost{ visibility:visible; }
+  .cu-ficha.sucia{ border-color:#B45309; box-shadow:0 0 0 2px rgba(180,83,9,.22); }
+
+  /* La barra de arriba, mientras quede algo sin guardar. */
+  #cu-barra-sucia{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:20; margin-bottom:14px;
+    padding:11px 16px; border-radius:10px;
+    /* Opaco a proposito: pegada arriba pasa por encima de la primera ficha, y
+       con un fondo translucido se leian las dos cosas a la vez. */
+    background:#3B2C10; border:1px solid rgba(242,169,59,.55);
+    box-shadow:0 6px 16px rgba(0,0,0,.38);
+  }
+  #cu-barra-sucia .pt{ color:var(--accent3); font-size:13px; }
+  #cu-barra-sucia .txt{ font-size:13px; font-weight:600; color:var(--text); }
+  #cu-barra-sucia .sp{ flex:1; min-width:4px; }
+
   /* La raya que parte la lista: arriba las cuentas que se facturan, debajo las
      que no. Va a lo ancho de las dos columnas con el rotulo en medio. */
   .cu-sep{
@@ -2072,6 +2103,16 @@
         <button class="btn btn-primary" onclick="openModal('modal-cuenta','dr')">＋ Cuenta</button>
       </div>
     </div>
+    <!-- Mientras haya algo escrito y sin guardar, esta barra no se va. Con las
+         fichas en dos columnas y la pagina larga, la de abajo se pierde de
+         vista; esta se queda pegada arriba y dice cuántas quedan. -->
+    <div id="cu-barra-sucia" style="display:none">
+      <span class="pt">●</span>
+      <span class="txt"></span>
+      <span class="sp"></span>
+      <button class="btn btn-ghost btn-sm" onclick="cuDescartarTodo()">Descartar todo</button>
+      <button class="btn btn-primary btn-sm" onclick="cuGuardarTodo()">Guardar todo</button>
+    </div>
     <div id="cuentas-fichas"></div>
   </div>
 
@@ -3277,32 +3318,174 @@ function guardarCuentasSiempre(){
 // Escribe un campo de la cuenta y lo guarda. Los campos de texto se guardan
 // tal cual; los numericos pasan por Number y un valor sin sentido se queda en
 // lo que habia, para que un dedazo no ponga la tarifa en cero.
+// ── Borrador de la ficha ────────────────────────────────────────────────────
+// Lo que se escribe no se guarda solo: queda aqui hasta que se pulsa Guardar.
+// Escribir encima y que se guardara al salir del campo era comodo, pero un
+// roce en el teclado cambiaba una tarifa sin que nadie lo viera. Ahora el
+// cambio se ve —la ficha se marca— y hay que confirmarlo.
+//   _cuPend[idCuenta] = { campo: valor, ... }
+// La tarifa del invoice no es un campo de la cuenta sino de otra tabla, asi que
+// viaja en el borrador de la cuenta que manda el grupo, con un nombre reservado.
+const _cuPend = {};
+const CU_TARIFA = '__tarifa';
+
+function cuPendDe(id){ return _cuPend[id] || null; }
+function cuValor(c, campo){
+  const p = _cuPend[c.id];
+  return (p && Object.prototype.hasOwnProperty.call(p, campo)) ? p[campo] : c[campo];
+}
+function cuSucia(ids){
+  return String(ids).split('|').some(id => _cuPend[id] && Object.keys(_cuPend[id]).length);
+}
+function cuCuentasSucias(){
+  return Object.keys(_cuPend).filter(id => Object.keys(_cuPend[id]).length);
+}
+// Para contar, lo que vale es la ficha, no la fila de configuracion: un cambio
+// en los datos de ACCESS toca sus dos cuentas, y decir "2 cuentas sin guardar"
+// por una sola ficha editada se lee como si faltara algo por encontrar.
+function cuFichasSucias(){
+  const ks = new Set();
+  cuCuentasSucias().forEach(id => {
+    const c = cuentas.find(x => x.id === id);
+    if(c) ks.add(normalizeAccountName(c.nombre));
+  });
+  return ks.size;
+}
+// El aviso de la ficha y el de la pagina, sin repintar: repintar mientras se
+// escribe mueve el cursor de sitio.
+function cuPintarEstado(){
+  document.querySelectorAll('#cuentas-fichas .cu-ficha').forEach(f => {
+    const ids = f.getAttribute('data-ids') || '';
+    const sucia = cuSucia(ids);
+    f.classList.toggle('sucia', sucia);
+    const pie = f.querySelector('.cu-pie');
+    if(pie) pie.classList.toggle('activo', sucia);
+  });
+  const barra = document.getElementById('cu-barra-sucia');
+  if(barra){
+    const n = cuFichasSucias();
+    barra.style.display = n ? 'flex' : 'none';
+    const txt = barra.querySelector('.txt');
+    if(txt) txt.textContent = n === 1
+      ? 'Hay 1 cuenta con cambios sin guardar'
+      : 'Hay ' + n + ' cuentas con cambios sin guardar';
+  }
+}
+
 // 'ids' puede traer varias cuentas separadas por '|': los datos de facturacion
 // de un grupo —ACCESS con doctor y ACCESS (OWN) son un solo cliente— se escriben
 // en todas sus cuentas. El invoice lee la primera que encuentra con ese nombre,
 // asi que si solo una los tuviera, el PDF saldria con direccion o sin ella
 // segun cual quedara antes en la lista.
-function cuCampo(ids, campo, valor, tipo){
+function cuCampo(ids, campo, valor, tipo, el){
   const lista = String(ids).split('|')
     .map(id => cuentas.find(x => x.id === id)).filter(Boolean);
   if(!lista.length) return;
+  // Un valor sin sentido no entra en el borrador: el campo vuelve a lo que
+  // tenia y no se marca nada como cambiado.
+  const deshacer = () => { if(el) el.value = cuMostrar(lista[0], campo, tipo); };
   let v;
   if(tipo === 'num' || tipo === 'pct'){
     const n = parseFloat(String(valor).replace(',', '.'));
-    if(!isFinite(n) || n < 0){ renderCuentasFichas(); return; }
+    if(!isFinite(n) || n < 0){ deshacer(); return; }
     v = tipo === 'pct' ? n / 100 : n;
   } else if(tipo === 'qdays'){
     const t = String(valor).trim();
     v = t === '' ? null : Math.max(1, Math.min(15, parseInt(t) || 1));
   } else if(campo === 'nombre'){
     v = String(valor).trim().toUpperCase();
-    if(!v){ renderCuentasFichas(); return; }
+    if(!v){ deshacer(); return; }
   } else {
     v = String(valor).trim();
   }
-  lista.forEach(c => { c[campo] = v; });
+  lista.forEach(c => {
+    const p = _cuPend[c.id] = _cuPend[c.id] || {};
+    // Volver al valor guardado quita el apunte, para que no quede una ficha
+    // marcada como cambiada sin que nada haya cambiado de verdad.
+    if(_cuIguales(c[campo], v)) delete p[campo]; else p[campo] = v;
+  });
+  cuPintarEstado();
+}
+function _cuIguales(a, b){
+  if(typeof a === 'number' || typeof b === 'number'){
+    return Math.abs((Number(a)||0) - (Number(b)||0)) < 1e-9;
+  }
+  return (a == null ? '' : String(a)) === (b == null ? '' : String(b));
+}
+// Como se escribe un valor en su campo. Se usa para deshacer un dedazo.
+function cuMostrar(c, campo, tipo){
+  const v = cuValor(c, campo);
+  if(tipo === 'pct') return ((v || 0) * 100).toFixed(1);
+  if(tipo === 'qdays') return v != null ? v : '';
+  return v != null ? v : '';
+}
+
+function cuTarifaCampo(idJefe, valor, el){
+  const c = cuentas.find(x => x.id === idJefe);
+  if(!c) return;
+  const n = parseFloat(String(valor).replace(',', '.'));
+  const k = normalizeAccountName(c.nombre);
+  const guardada = (INVOICE_RATES[k] || 0) || tarifaDesdeCuenta(k);
+  if(!isFinite(n) || n <= 0){ if(el) el.value = guardada || ''; return; }
+  const p = _cuPend[c.id] = _cuPend[c.id] || {};
+  if(Math.abs(n - guardada) < 1e-9) delete p[CU_TARIFA]; else p[CU_TARIFA] = n;
+  cuPintarEstado();
+}
+
+// Guardar: el borrador pasa a las cuentas y se manda a guardar.
+function cuGuardar(ids){
+  const lista = String(ids).split('|')
+    .map(id => cuentas.find(x => x.id === id)).filter(Boolean);
+  if(!lista.length || !cuSucia(ids)) return;
+  lista.forEach(c => {
+    const p = _cuPend[c.id];
+    if(!p) return;
+    Object.keys(p).forEach(campo => {
+      if(campo === CU_TARIFA){
+        const k = normalizeAccountName(c.nombre);
+        if(k) INVOICE_RATES[k] = p[campo];
+      } else {
+        c[campo] = p[campo];
+      }
+    });
+    delete _cuPend[c.id];
+  });
+  guardarInvoiceRates();
   guardarCuentasSiempre();
   recalcAll();
+}
+
+// Descartar: el borrador se tira y la ficha vuelve a lo guardado.
+function cuDescartar(ids, preguntar){
+  if(!cuSucia(ids)) return;
+  if(preguntar !== false && !confirm('¿Descartar los cambios sin guardar de esta cuenta?')) return;
+  String(ids).split('|').forEach(id => { delete _cuPend[id]; });
+  renderCuentasFichas();
+}
+
+function cuGuardarTodo(){
+  cuCuentasSucias().slice().forEach(id => cuGuardar(id));
+  renderCuentasFichas();
+}
+function cuDescartarTodo(){
+  if(!cuCuentasSucias().length) return;
+  if(!confirm('¿Descartar todos los cambios sin guardar?')) return;
+  Object.keys(_cuPend).forEach(id => { delete _cuPend[id]; });
+  renderCuentasFichas();
+}
+
+// Antes de irse de la pagina —o de abrir el formulario completo de una cuenta
+// que tiene cambios a medias— se pregunta, porque lo que esta en el borrador no
+// existe en ningun otro sitio.
+function cuConfirmarSalida(){
+  const n = cuFichasSucias();
+  if(!n) return true;
+  const r = confirm(
+    (n === 1 ? 'Hay 1 cuenta con cambios sin guardar.' : 'Hay ' + n + ' cuentas con cambios sin guardar.') +
+    '\n\nAceptar = guardar ahora\nCancelar = salir sin guardar');
+  if(r) cuGuardarTodo();
+  else  Object.keys(_cuPend).forEach(id => { delete _cuPend[id]; });
+  return true;
 }
 
 // Volver a encender una cuenta desde el panel de desactivadas.
@@ -3312,22 +3495,6 @@ function cuReactivar(id){
   c.activo = true;
   guardarCuentasSiempre();
   recalcAll();
-}
-
-// La tarifa que se factura no vive en la cuenta sino en la tabla de tarifas por
-// invoice, y la comparten las cuentas que se facturan juntas —ACCESS con doctor
-// y ACCESS (OWN) salen en un solo invoice, con una sola tarifa—. Por eso se
-// avisa en la ficha cuando una tarifa esta compartida.
-function cuTarifaFactura(id, valor){
-  const c = cuentas.find(x => x.id === id);
-  if(!c) return;
-  const n = parseFloat(String(valor).replace(',', '.'));
-  if(!isFinite(n) || n <= 0){ renderCuentasFichas(); return; }
-  const k = normalizeAccountName(c.nombre);
-  if(INVOICE_RATES[k] === n){ return; }
-  INVOICE_RATES[k] = n;
-  guardarInvoiceRates();
-  renderCuentasFichas();
 }
 
 // Con quien comparte invoice esta cuenta, si lo comparte con alguien.
@@ -3348,6 +3515,13 @@ function cuCobroDe(c){
   const k = normalizeAccountName(c.nombre);
   return _cuCobrosCache.find(x => normalizeAccountName(x.nombre) === k) || null;
 }
+
+// Cerrar la pestaña o recargar con el borrador a medias: el navegador pone su
+// propio aviso. No se puede elegir guardar desde ahi —ningun navegador lo
+// permite—, pero al menos no se pierde sin enterarse.
+window.addEventListener('beforeunload', (e) => {
+  try { if(cuCuentasSucias().length){ e.preventDefault(); e.returnValue = ''; } } catch(err){}
+});
 
 function renderCuentasFichas(){
   const el = $('cuentas-fichas');
@@ -3399,9 +3573,9 @@ function renderCuentasFichas(){
   const campo = (ids, c, etiqueta, clave, marcador, tipo, clase) => `
     <div class="cu-campo">
       <label>${etiqueta}</label>
-      <input type="text" class="${clase||''}" value="${esc(c[clave] != null ? c[clave] : '')}"
+      <input type="text" class="${clase||''}" value="${esc(cuValor(c, clave) != null ? cuValor(c, clave) : '')}"
         placeholder="${esc(marcador || '')}"
-        onchange="cuCampo('${ids.join('|')}','${clave}',this.value,'${tipo||'txt'}')">
+        onchange="cuCampo('${ids.join('|')}','${clave}',this.value,'${tipo||'txt'}',this)">
     </div>`;
 
   let yaSepare = false;
@@ -3420,7 +3594,9 @@ function renderCuentasFichas(){
     const titulo= varias ? k : jefe.nombre;
     const facturable = !isExcluded(jefe.nombre);
     const tarifaMaster = INVOICE_RATES[k] || 0;
-    const tarifaInv    = tarifaMaster > 0 ? tarifaMaster : tarifaDesdeCuenta(k);
+    const tarifaGuard  = tarifaMaster > 0 ? tarifaMaster : tarifaDesdeCuenta(k);
+    const _pendJefe    = cuPendDe((gr.find(c => c.tipo === 'dr') || gr[0]).id);
+    const tarifaInv    = (_pendJefe && _pendJefe[CU_TARIFA] != null) ? _pendJefe[CU_TARIFA] : tarifaGuard;
     const vieneDelCobro= tarifaMaster <= 0 && tarifaInv > 0;
     const ags   = agentes.filter(a => ids.indexOf(a.cuenta) >= 0);
     const agsOn = ags.filter(a => a.estado === 'active');
@@ -3472,7 +3648,7 @@ function renderCuentasFichas(){
         <label>Tarifa que se factura — USD/mes por agente</label>
         <input type="text" class="cifra" value="${tarifaInv || ''}" placeholder="0"
           ${facturable ? '' : 'disabled'}
-          onchange="cuTarifaFactura('${jefe.id}',this.value)">
+          onchange="cuTarifaCampo('${jefe.id}',this.value,this)">
       </div>`;
     // Al lado de la tarifa va el Dollar Comp %, no el cobro mensual: son dos
     // cifras distintas pero casi siempre valen lo mismo, y verlas iguales una al
@@ -3483,8 +3659,8 @@ function renderCuentasFichas(){
     const acompanante = drs.length ? `
       <div class="cu-campo">
         <label>Dollar Comp % — Payroll</label>
-        <input type="text" class="cifra" value="${((drs[0].dollarPctReal || 0) * 100).toFixed(1)}"
-          onchange="cuCampo('${drs[0].id}','dollarPctReal',this.value,'pct')">
+        <input type="text" class="cifra" value="${((cuValor(drs[0],'dollarPctReal') || 0) * 100).toFixed(1)}"
+          onchange="cuCampo('${drs[0].id}','dollarPctReal',this.value,'pct',this)">
       </div>` : '';
 
     const parteDr = c => `
@@ -3499,8 +3675,8 @@ function renderCuentasFichas(){
       ${c.id !== drs[0].id ? `
       <div class="cu-campo">
         <label>Dollar Comp % — Payroll</label>
-        <input type="text" class="cifra" value="${((c.dollarPctReal || 0) * 100).toFixed(1)}"
-          onchange="cuCampo('${c.id}','dollarPctReal',this.value,'pct')">
+        <input type="text" class="cifra" value="${((cuValor(c,'dollarPctReal') || 0) * 100).toFixed(1)}"
+          onchange="cuCampo('${c.id}','dollarPctReal',this.value,'pct',this)">
       </div>` : ''}`;
 
     const parteOwn = c => `
@@ -3510,14 +3686,14 @@ function renderCuentasFichas(){
       </div>
       <div class="cu-campo">
         <label>Días laborables por quincena</label>
-        <input type="text" class="cifra" value="${c.qdaysOwn != null ? c.qdaysOwn : ''}"
-          placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays')">
+        <input type="text" class="cifra" value="${cuValor(c,'qdaysOwn') != null ? cuValor(c,'qdaysOwn') : ''}"
+          placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays',this)">
       </div>`;
 
     const subtitulo = (c, etiqueta) => varias
       ? `<div class="cu-sub"><span class="et">${etiqueta}</span>
-           <input class="nomsub" type="text" value="${esc(c.nombre)}" aria-label="Nombre de esta parte"
-             onchange="cuCampo('${c.id}','nombre',this.value,'nombre')"></div>`
+           <input class="nomsub" type="text" value="${esc(cuValor(c,'nombre'))}" aria-label="Nombre de esta parte"
+             onchange="cuCampo('${c.id}','nombre',this.value,'nombre',this)"></div>`
       : '';
 
     const valores =
@@ -3527,14 +3703,15 @@ function renderCuentasFichas(){
       + owns.map(c => subtitulo(c,'Parte 24/7') + parteOwn(c)).join('');
 
     return separador + `
-    <div class="cu-ficha" style="--c:${esc(jefe.color || '#888')}">
+    <div class="cu-ficha${cuSucia(ids.join('|')) ? ' sucia' : ''}" data-ids="${ids.join('|')}"
+      style="--c:${esc(cuValor(jefe,'color') || '#888')}">
       <div class="cu-cab">
-        <input type="color" value="${esc(jefe.color || '#888888')}" title="Color de la cuenta"
-          onchange="cuCampo('${ids.join('|')}','color',this.value,'txt')">
+        <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" title="Color de la cuenta"
+          onchange="cuCampo('${ids.join('|')}','color',this.value,'txt',this)">
         ${varias
           ? `<span class="nomgrupo">${esc(titulo)}</span>`
-          : `<input class="nom" type="text" value="${esc(titulo)}" aria-label="Nombre de la cuenta"
-               onchange="cuCampo('${jefe.id}','nombre',this.value,'nombre')">`}
+          : `<input class="nom" type="text" value="${esc(cuValor(jefe,'nombre'))}" aria-label="Nombre de la cuenta"
+               onchange="cuCampo('${jefe.id}','nombre',this.value,'nombre',this)">`}
         ${drs.length ? '<span class="tag joint">Callcenter</span>' : ''}
         ${owns.length ? '<span class="tag own">24/7</span>' : ''}
         ${tiraCobro}
@@ -3553,6 +3730,16 @@ function renderCuentasFichas(){
       <div class="cu-bloque">
         <div class="tit">Valores y tarifas</div>
         ${valores}
+      </div>
+
+      <!-- El pie: lo escrito no se guarda solo, hay que confirmarlo aqui. El
+           boton existe siempre —asi se sabe donde esta antes de necesitarlo— y
+           se enciende cuando hay algo que guardar. -->
+      <div class="cu-pie${cuSucia(ids.join('|')) ? ' activo' : ''}">
+        <span class="aviso">● Cambios sin guardar</span>
+        <span class="sp"></span>
+        <button class="btn btn-ghost btn-sm" onclick="cuDescartar('${ids.join('|')}')">Descartar</button>
+        <button class="btn btn-primary btn-sm" onclick="cuGuardar('${ids.join('|')}')">Guardar cambios</button>
       </div>
 
       <details class="cu-mas">
@@ -3611,6 +3798,7 @@ function renderCuentasFichas(){
     </details>` : '';
 
   el.innerHTML = fichas + panelApagadas;
+  cuPintarEstado();
 }
 function renderCuentasDr(){
   const el = $('cuentas-dr-list');
@@ -4117,6 +4305,14 @@ function recalcAll(){
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
 function showPage(id){
+  // Salir de Cuentas con algo escrito y sin guardar: se pregunta antes, porque
+  // el borrador no vive en ningun otro sitio.
+  if(id !== 'cuentas'){
+    const pag = document.getElementById('page-cuentas');
+    if(pag && !pag.classList.contains('hidden')){
+      try { cuConfirmarSalida(); } catch(e){}
+    }
+  }
   ['resumen','cuentas','cuentas-dr','cuentas-own','agentes','historial','invoices','pagos','utilidad'].forEach(p=>{
     $('page-'+p).classList.toggle('hidden', p!==id);
   });
@@ -4990,6 +5186,17 @@ function saveCuenta(){
 function editCuenta(id){
   const c = cuentas.find(x=>x.id===id);
   if(!c) return;
+  // El formulario lee de la cuenta guardada: con un borrador a medias mostraria
+  // una cosa y la ficha otra. Se resuelve antes de abrirlo.
+  try {
+    if(cuSucia(id)){
+      if(confirm('Esta cuenta tiene cambios sin guardar en la ficha.\n\nAceptar = guardarlos y abrir el formulario\nCancelar = descartarlos y abrir el formulario')){
+        cuGuardar(id);
+      } else {
+        cuDescartar(id, false);
+      }
+    }
+  } catch(e){}
   $('cuenta-edit-id').value = id;
   $('cu-nombre').value = c.nombre;
   $('cu-tipo').value = c.tipo;
