@@ -4392,8 +4392,18 @@ function renderCuentasDr(){
   }).join('');
 }
 
+// Las dos columnas calculadas de cada fila 24/7 —"Nomina a Pagar" y "Cobro
+// Quincenal"— solo se refrescaban al repintar la tabla entera. Ahora que el
+// repintado se aplaza mientras el cursor sigue dentro de la tabla, hay que
+// poder parchearlas en su sitio, igual que ya se hacia con los totales. Aqui se
+// apunta, por cuenta, que fila corresponde a que agente y con cuantos dias
+// habiles se calculo, para que el parche use exactamente los mismos numeros que
+// el render.
+let _filasOwn = {};
+
 function renderCuentasOwn(){
   const el = $('cuentas-own-list');
+  _filasOwn = {};
   const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
   if(!owns.length){ el.innerHTML = '<p class="empty">Sin cuentas propias. Crea la primera.</p>'; return; }
 
@@ -4511,7 +4521,15 @@ function renderCuentasOwn(){
         <tbody>
           ${(()=>{
             let rows = '';
+            // Con la quincena aprobada y sin desbloquear, las filas salen del
+            // snapshot y los campos son de solo lectura: ahi no se parchea
+            // nada, porque parchear traeria los numeros vivos encima de los
+            // historicos.
+            const _vivo = !snapCuenta || _periodoDesbloqueado;
+            if(_vivo) _filasOwn[c.id] = { qd: snapQdays, filas: [] };
             agsParaRender.forEach((a, i) => {
+              const _k = _vivo ? (c.id + '-' + i) : null;
+              if(_vivo) _filasOwn[c.id].filas.push({ k: _k, id: a.id, nombre: a.nombre });
               // diasCobrar=undefined + dias=0 → 0; diasCobrar=undefined + dias>0 → qdCuenta
               const diasCobrarVal = a.diasCobrar !== undefined
                 ? a.diasCobrar
@@ -4546,13 +4564,14 @@ function renderCuentasOwn(){
                 style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDias('${a.id}',this.value)" onchange="updateDias('${a.id}',this.value)">
             </td>
-            <td class="mono">${fmt(nominaAgente(a))}</td>
+            <td class="mono"${_k ? ` data-calc="nomown-${_k}"` : ''}>${fmt(nominaAgente(a))}</td>
             <td>
               <input type="number" value="${diasCobrarVal}" min="0" max="15"
+                data-agid="${a.id}" data-field="diasCobrar"
                 style="width:54px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
-                onchange="updateDiasCobrar('${a.id}',this.value)">
+                oninput="updateDiasCobrar('${a.id}',this.value)" onchange="updateDiasCobrar('${a.id}',this.value)">
             </td>
-            <td class="mono" style="color:var(--accent2)">${fmt(cobroVal)}</td>
+            <td class="mono" style="color:var(--accent2)"${_k ? ` data-calc="cobroown-${_k}"` : ''}>${fmt(cobroVal)}</td>
             <td><button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editAgente('${a.id}')">✏️</button></td>
           </tr>`;
             });
@@ -5146,10 +5165,28 @@ let _recalcTimer = null;
 // Valor/Hr— no pasaba nada hasta salir del campo: ni se recalculaba al teclear,
 // ni estaban protegidos del repintado. Ahora los campos se marcan con
 // data-vivo="1" y todos reciben el mismo trato.
+//
+// Tercera version de esta pregunta, y las dos anteriores fallaron por lo mismo:
+// eran una LISTA de campos, y la lista se quedaba corta. Primero faltaban los
+// del pie; despues faltaba "Dias a Cobrar", que no llevaba ninguna marca. Al
+// llegar a el con el Tab, el vigilante de blur de mas abajo creia que el cursor
+// se habia ido de la tabla, repintaba, y el repintado borraba el campo que
+// acababa de recibir el foco: el cursor caia al body y el Tab siguiente volvia
+// al mismo agente. Visto desde fuera, el Tab "no bajaba de fila".
+// Asi que ya no se pregunta que campo es, sino si el cursor esta DENTRO de lo
+// que el repintado reemplaza. Un campo nuevo en estas tablas queda protegido
+// sin tener que acordarse de apuntarlo en ninguna lista.
+function esCampoDeNomina(el){
+  if(!el || !el.tagName) return false;
+  const t = el.tagName;
+  if(t !== 'INPUT' && t !== 'SELECT' && t !== 'TEXTAREA') return false;
+  if(el.dataset && (el.dataset.vivo === '1' || el.dataset.field === 'dias' ||
+     el.dataset.field === 'diasStd' || el.dataset.field === 'diasCobrar')) return true;
+  return !!(el.closest && el.closest('#cuentas-dr-list, #cuentas-own-list'));
+}
+
 function isEditingDays(){
-  const a = document.activeElement;
-  if(!a || !a.dataset) return false;
-  return a.dataset.vivo === '1' || a.dataset.field === 'dias' || a.dataset.field === 'diasStd';
+  return esCampoDeNomina(document.activeElement);
 }
 
 function recalcDebounced(){
@@ -5338,6 +5375,19 @@ function patchCalcValues(){
     patch(`total-cobro-own-${c.id}`, fmt(r.totalCobro));
     const elU = document.querySelector(`[data-calc="utilidad-own-${c.id}"]`);
     if(elU) elU.innerHTML = `${fmt(r.utilidad)} &nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalCobro,1))})</span>`;
+    // Las dos columnas calculadas de cada fila, con la misma formula del render.
+    const F = _filasOwn[c.id];
+    if(F){
+      const cobroEf = c._cobroAgenteOverride !== undefined ? c._cobroAgenteOverride : c.cobroAgente;
+      const qd = F.qd;
+      F.filas.forEach(f => {
+        const a = agentes.find(x => x.id === f.id) || agentes.find(x => x.nombre === f.nombre);
+        if(!a) return;
+        const dc = a.diasCobrar !== undefined ? a.diasCobrar : (a.dias === 0 ? 0 : qd);
+        patch('nomown-'  + f.k, fmt(nominaAgente(a)));
+        patch('cobroown-'+ f.k, fmt((cobroDeAgenteOwn(a, cobroEf) / 2) * (qd > 0 ? dc / qd : 0)));
+      });
+    }
   });
   // Patch summary cards and KPIs
   renderKPIs();
@@ -5656,7 +5706,7 @@ function deleteCuenta(id){
 
 // Recalc when user leaves a days input (Tab or click away)
 document.addEventListener('blur', function(e){
-  if(e.target && (e.target.dataset.field === 'dias' || e.target.dataset.field === 'diasStd')){
+  if(esCampoDeNomina(e.target)){
     clearTimeout(_recalcTimer);
     patchCalcValues(); // update computed cells immediately
     // After 30ms check where focus landed
