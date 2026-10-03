@@ -438,6 +438,42 @@
   .cu-mas[open] > summary .fl{ transform:rotate(90deg); }
   .cu-mas > summary .n{ color:var(--text3); }
   .cu-panel{ padding:4px 16px 14px; }
+  /* La facturacion mensual: es una cifra que se mira, no un campo que se toca. */
+  .cu-suma{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    padding:10px 12px; margin-bottom:12px; border-radius:8px;
+    background:var(--surface2); border:1px solid var(--border);
+  }
+  .cu-suma .et{ font-size:11.5px; color:var(--text2); }
+  .cu-suma .v{ font-family:'DM Mono',monospace; font-size:19px; font-weight:700; color:var(--text); }
+  .cu-suma .nota{ flex:1 1 100%; font-size:11px; color:var(--text3); }
+
+  /* Los agentes de la cuenta, con lo que se les paga y lo que se cobra por
+     ellos. Tres columnas: quien, cuanto se le paga, cuanto se le cobra. */
+  .cu-agtab{ display:flex; flex-direction:column; gap:6px; }
+  .cu-agtab .cab, .cu-agtab .fila{
+    display:grid; grid-template-columns:minmax(0,1.5fr) 120px 120px; gap:9px; align-items:center;
+  }
+  .cu-agtab .cab{ font-size:10px; color:var(--text3); text-transform:uppercase;
+    letter-spacing:.06em; font-weight:600; }
+  .cu-agtab .cab .c{ text-align:right; }
+  .cu-agtab .fila .n{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text); }
+  .cu-agtab .fila.off{ opacity:.6; }
+  .cu-agtab input.c{
+    width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:7px; padding:6px 9px; font-size:12.5px;
+    font-family:'DM Mono',monospace; text-align:right;
+  }
+  .cu-agtab input.c:focus{ outline:none; border-color:var(--accent2); }
+  .cu-agtab input.c::placeholder{ color:#636363; }
+  .cu-agtab .quieto{ font-family:'DM Mono',monospace; font-size:12.5px;
+    color:var(--text3); text-align:right; }
+  @media (max-width:620px){
+    .cu-agtab .cab{ display:none; }
+    .cu-agtab .fila{ grid-template-columns:1fr 1fr; }
+    .cu-agtab .fila .n{ grid-column:1 / -1; }
+  }
+
   .cu-ags{ display:flex; flex-wrap:wrap; gap:7px; }
   .cu-ag{
     display:inline-flex; align-items:center; gap:7px;
@@ -3301,6 +3337,16 @@ function guardarCuentasSiempre(){
     const prev = JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) || 'null');
     if(prev && typeof prev === 'object'){
       prev.cuentas = cuentas;
+      // De los agentes solo lo que no es de quincena: su pago por hora y lo que
+      // se le cobra al cliente. Los dias se quedan como estaban, que es lo que
+      // el candado del periodo aprobado protege.
+      if(Array.isArray(prev.agentes)){
+        prev.agentes = prev.agentes.map(pa => {
+          const viva = agentes.find(x => x.id === pa.id);
+          return viva ? Object.assign({}, pa, { valor: viva.valor, horas: viva.horas,
+                           nombre: viva.nombre, tarifaCobro: viva.tarifaCobro }) : pa;
+        });
+      }
       localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(prev));
     }
   } catch(e){}
@@ -3327,18 +3373,41 @@ function guardarCuentasSiempre(){
 // La tarifa del invoice no es un campo de la cuenta sino de otra tabla, asi que
 // viaja en el borrador de la cuenta que manda el grupo, con un nombre reservado.
 const _cuPend = {};
+// Y el de los agentes, aparte, porque un agente no es una cuenta. Se guarda con
+// el mismo boton: lo que cuelga de una ficha se guarda con esa ficha.
+const _cuPendAg = {};
 const CU_TARIFA = '__tarifa';
 
 function cuPendDe(id){ return _cuPend[id] || null; }
+function cuValorAg(a, campo){
+  const p = _cuPendAg[a.id];
+  return (p && Object.prototype.hasOwnProperty.call(p, campo)) ? p[campo] : a[campo];
+}
+// Los agentes que cuelgan de estas cuentas y tienen algo escrito sin guardar.
+function _cuAgsDe(ids){
+  const set = String(ids).split('|');
+  return agentes.filter(a => set.indexOf(a.cuenta) >= 0);
+}
+function cuSuciaAg(ids){
+  return _cuAgsDe(ids).some(a => _cuPendAg[a.id] && Object.keys(_cuPendAg[a.id]).length);
+}
 function cuValor(c, campo){
   const p = _cuPend[c.id];
   return (p && Object.prototype.hasOwnProperty.call(p, campo)) ? p[campo] : c[campo];
 }
 function cuSucia(ids){
-  return String(ids).split('|').some(id => _cuPend[id] && Object.keys(_cuPend[id]).length);
+  return String(ids).split('|').some(id => _cuPend[id] && Object.keys(_cuPend[id]).length)
+      || cuSuciaAg(ids);
 }
 function cuCuentasSucias(){
-  return Object.keys(_cuPend).filter(id => Object.keys(_cuPend[id]).length);
+  const ids = Object.keys(_cuPend).filter(id => Object.keys(_cuPend[id]).length);
+  // Un agente con algo escrito ensucia la cuenta de la que cuelga.
+  Object.keys(_cuPendAg).forEach(idAg => {
+    if(!Object.keys(_cuPendAg[idAg]).length) return;
+    const a = agentes.find(x => x.id === idAg);
+    if(a && ids.indexOf(a.cuenta) < 0) ids.push(a.cuenta);
+  });
+  return ids;
 }
 // Para contar, lo que vale es la ficha, no la fila de configuracion: un cambio
 // en los datos de ACCESS toca sus dos cuentas, y decir "2 cuentas sin guardar"
@@ -3420,6 +3489,28 @@ function cuMostrar(c, campo, tipo){
   return v != null ? v : '';
 }
 
+// Un campo de un agente: lo que se le paga por hora y lo que se le cobra al
+// cliente al mes. Mismo borrador, mismo boton de guardar.
+function cuCampoAg(idAg, campo, valor, el){
+  const a = agentes.find(x => x.id === idAg);
+  if(!a) return;
+  const t = String(valor).trim();
+  let v;
+  if(campo === 'tarifaCobro' && t === ''){
+    v = undefined;                 // vacio = hereda la de la cuenta
+  } else {
+    const n = parseFloat(t.replace(',', '.'));
+    if(!isFinite(n) || n < 0){
+      if(el) el.value = (cuValorAg(a, campo) != null ? cuValorAg(a, campo) : '');
+      return;
+    }
+    v = n;
+  }
+  const p = _cuPendAg[a.id] = _cuPendAg[a.id] || {};
+  if(_cuIguales(a[campo], v)) delete p[campo]; else p[campo] = v;
+  cuPintarEstado();
+}
+
 function cuTarifaCampo(idJefe, valor, el){
   const c = cuentas.find(x => x.id === idJefe);
   if(!c) return;
@@ -3450,6 +3541,14 @@ function cuGuardar(ids){
     });
     delete _cuPend[c.id];
   });
+  _cuAgsDe(ids).forEach(a => {
+    const p = _cuPendAg[a.id];
+    if(!p) return;
+    Object.keys(p).forEach(campo => {
+      if(p[campo] === undefined) delete a[campo]; else a[campo] = p[campo];
+    });
+    delete _cuPendAg[a.id];
+  });
   guardarInvoiceRates();
   guardarCuentasSiempre();
   recalcAll();
@@ -3460,6 +3559,7 @@ function cuDescartar(ids, preguntar){
   if(!cuSucia(ids)) return;
   if(preguntar !== false && !confirm('¿Descartar los cambios sin guardar de esta cuenta?')) return;
   String(ids).split('|').forEach(id => { delete _cuPend[id]; });
+  _cuAgsDe(ids).forEach(a => { delete _cuPendAg[a.id]; });
   renderCuentasFichas();
 }
 
@@ -3471,6 +3571,7 @@ function cuDescartarTodo(){
   if(!cuCuentasSucias().length) return;
   if(!confirm('¿Descartar todos los cambios sin guardar?')) return;
   Object.keys(_cuPend).forEach(id => { delete _cuPend[id]; });
+  Object.keys(_cuPendAg).forEach(id => { delete _cuPendAg[id]; });
   renderCuentasFichas();
 }
 
@@ -3484,7 +3585,8 @@ function cuConfirmarSalida(){
     (n === 1 ? 'Hay 1 cuenta con cambios sin guardar.' : 'Hay ' + n + ' cuentas con cambios sin guardar.') +
     '\n\nAceptar = guardar ahora\nCancelar = salir sin guardar');
   if(r) cuGuardarTodo();
-  else  Object.keys(_cuPend).forEach(id => { delete _cuPend[id]; });
+  else { Object.keys(_cuPend).forEach(id => { delete _cuPend[id]; });
+         Object.keys(_cuPendAg).forEach(id => { delete _cuPendAg[id]; }); }
   return true;
 }
 
@@ -3643,9 +3745,30 @@ function renderCuentasFichas(){
     // Arriba, en la misma linea, las dos cifras que de verdad mandan: lo que se
     // factura y lo que se cobra al mes. Lo demas, debajo, por partes cuando la
     // cuenta tiene dos.
+    // Lo que de verdad se le factura al cliente: la suma de los agentes activos
+    // de este grupo, cada uno con su tarifa. Es el numero que Carlos llama "la
+    // tarifa de la cuenta"; no se escribe, se calcula.
+    const agsActivos = ags.filter(a => a.estado === 'active');
+    const sumaAgentes = invR2(agsActivos.reduce((t,a) => {
+      const propia = Number(cuValorAg(a,'tarifaCobro'));
+      return t + ((isFinite(propia) && propia > 0) ? propia : tarifaInv);
+    }, 0));
+    const hayPropias = agsActivos.some(a => {
+      const v = Number(cuValorAg(a,'tarifaCobro'));
+      return isFinite(v) && v > 0 && Math.abs(v - tarifaInv) > 0.005;
+    });
+    const campoSuma = facturable ? `
+      <div class="cu-suma">
+        <span class="et">Facturación mensual · ${agsActivos.length} agente${agsActivos.length!==1?'s':''} activo${agsActivos.length!==1?'s':''}</span>
+        <span class="v">${fmt(sumaAgentes)}</span>
+        <span class="nota">${hayPropias
+          ? 'Hay agentes con tarifa propia — se ven en «Agentes», abajo.'
+          : 'Todos a la tarifa por defecto. Cada agente puede tener la suya en «Agentes», abajo.'}</span>
+      </div>` : '';
+
     const campoTarifa = `
       <div class="cu-campo">
-        <label>Tarifa que se factura — USD/mes por agente</label>
+        <label>Tarifa por agente — por defecto, USD/mes</label>
         <input type="text" class="cifra" value="${tarifaInv || ''}" placeholder="0"
           ${facturable ? '' : 'disabled'}
           onchange="cuTarifaCampo('${jefe.id}',this.value,this)">
@@ -3681,13 +3804,12 @@ function renderCuentasFichas(){
 
     const parteOwn = c => `
       <div class="cu-par">
-        ${campo([c.id], c,'Cobro mensual por agente','cobroAgente','0','num','cifra')}
         ${campo([c.id], c,'Accountant','accountant','0','num','cifra')}
-      </div>
-      <div class="cu-campo">
-        <label>Días laborables por quincena</label>
-        <input type="text" class="cifra" value="${cuValor(c,'qdaysOwn') != null ? cuValor(c,'qdaysOwn') : ''}"
-          placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays',this)">
+        <div class="cu-campo">
+          <label>Días laborables por quincena</label>
+          <input type="text" class="cifra" value="${cuValor(c,'qdaysOwn') != null ? cuValor(c,'qdaysOwn') : ''}"
+            placeholder="calendario 🇺🇸" onchange="cuCampo('${c.id}','qdaysOwn',this.value,'qdays',this)">
+        </div>
       </div>`;
 
     const subtitulo = (c, etiqueta) => varias
@@ -3697,7 +3819,8 @@ function renderCuentasFichas(){
       : '';
 
     const valores =
-      `<div class="cu-par cu-par-tarifa${acompanante ? '' : ' sola'}">${campoTarifa}${acompanante}</div>
+      campoSuma
+      + `<div class="cu-par cu-par-tarifa${acompanante ? '' : ' sola'}">${campoTarifa}${acompanante}</div>
        <div class="pista">${pistaTarifa}</div>`
       + drs.map(c => subtitulo(c,'Parte Callcenter') + parteDr(c)).join('')
       + owns.map(c => subtitulo(c,'Parte 24/7') + parteOwn(c)).join('');
@@ -3746,13 +3869,32 @@ function renderCuentasFichas(){
         <summary><span class="fl">▶</span> Agentes <span class="n">· ${agsOn.length} activo${agsOn.length!==1?'s':''}${
           ags.length !== agsOn.length ? ` de ${ags.length}` : ''}</span></summary>
         <div class="cu-panel">
-          ${ags.length ? `<div class="cu-ags">${ags
-            .slice().sort((a,b) => String(a.nombre).localeCompare(String(b.nombre)))
-            .map(a => `<span class="cu-ag${a.estado==='active'?'':' off'}">
-              <span class="status-dot ${a.estado==='active'?'active':'inactive'}"></span>
-              ${esc(a.nombre)}
-              <span class="hr">${a.horas||8}h · ${fmt(a.valor||0)}/h</span>
-            </span>`).join('')}</div>`
+          ${ags.length ? `
+          <div class="cu-agtab">
+            <div class="cab">
+              <span class="n">Agente</span>
+              <span class="c">Se le paga · USD/hora</span>
+              <span class="c">Se le cobra · USD/mes</span>
+            </div>
+            ${ags.slice().sort((a,b) => String(a.nombre).localeCompare(String(b.nombre))).map(a => {
+              const activo = a.estado === 'active';
+              const propia = cuValorAg(a,'tarifaCobro');
+              return `
+              <div class="fila${activo?'':' off'}">
+                <span class="n"><span class="status-dot ${activo?'active':'inactive'}"></span>${esc(a.nombre)}</span>
+                ${activo ? `
+                <input class="c cifra" type="text" value="${esc(cuValorAg(a,'valor') != null ? cuValorAg(a,'valor') : '')}"
+                  onchange="cuCampoAg('${a.id}','valor',this.value,this)">
+                <input class="c cifra" type="text" value="${propia != null ? esc(propia) : ''}"
+                  placeholder="${tarifaInv || 0}" title="Vacío = usa la tarifa por defecto de la cuenta"
+                  onchange="cuCampoAg('${a.id}','tarifaCobro',this.value,this)">`
+                : `<span class="c quieto">${fmt(a.valor||0)}</span>
+                   <span class="c quieto">${propia != null ? fmt(propia) : '—'}</span>`}
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="pista">Vacío en «se le cobra» = usa la tarifa por defecto de la cuenta
+            (${fmt(tarifaInv)}). Los invoices ya cerrados guardan la tarifa que tenían y no cambian.</div>`
             : '<div style="font-size:12px;color:var(--text3)">Esta cuenta no tiene agentes asignados.</div>'}
           <div style="margin-top:10px">
             <button class="btn btn-ghost btn-sm" onclick="showPage('agentes')">Ir a Agentes</button>
@@ -3768,6 +3910,16 @@ function renderCuentasFichas(){
               varias ? esc(c.nombre) : 'Abrir el formulario completo'}</button>`).join('')}
             ${facturable ? `<button class="btn btn-ghost btn-sm" onclick="showPage('invoices')">Ver sus invoices</button>` : ''}
           </div>
+          <!-- El cobro mensual de la cuenta no es lo que se factura —eso sale de
+               los agentes— sino la cifra con la que la pagina de nomina calcula
+               la utilidad. Se parecian tanto que puestas una al lado de la otra
+               se leian como el mismo campo repetido, asi que esta vive aqui. -->
+          ${owns.length ? `<div style="margin-top:12px">
+            ${owns.map(c => campo([c.id], c,
+              'Cobro mensual por agente' + (varias ? ' · ' + esc(c.nombre) : '') + ' — solo para la utilidad',
+              'cobroAgente','0','num','cifra')).join('')}
+            <div class="pista">No es lo que se factura: el invoice usa las tarifas de los agentes.</div>
+          </div>` : ''}
           <div class="pista" style="margin-top:9px">
             Para desactivar o eliminar, usa el formulario completo.
           </div>
@@ -5458,7 +5610,10 @@ function agentesParaConfig(){
   return agentes.map(a => ({
     id: a.id, nombre: a.nombre, cuenta: a.cuenta,
     horas: a.horas, valor: a.valor, estado: a.estado,
-    tipoPago: a.tipoPago || 'empresa'
+    tipoPago: a.tipoPago || 'empresa',
+    // Lo que se le cobra al cliente por este agente. Vacio = hereda la de su
+    // cuenta, que es como estaba todo hasta ahora.
+    tarifaCobro: a.tarifaCobro
     // dias y diasStd NO se guardan en config — son específicos de cada quincena
   }));
 }
@@ -5473,7 +5628,7 @@ function guardarConfigLocal(){
       agentes: agentes.map(a => ({
         id: a.id, nombre: a.nombre, cuenta: a.cuenta,
         horas: a.horas, valor: a.valor, estado: a.estado,
-        tipoPago: a.tipoPago || 'empresa',
+        tipoPago: a.tipoPago || 'empresa', tarifaCobro: a.tarifaCobro,
         dias: a.dias, diasStd: a.diasStd
       })),
       cuentas,
@@ -5590,6 +5745,7 @@ function cargarConfigRemoto(){
           valor:      current.valor,
           estado:     current.estado,
           tipoPago:   current.tipoPago || sa.tipoPago || 'empresa',
+          tarifaCobro: current.tarifaCobro !== undefined ? current.tarifaCobro : sa.tarifaCobro,
           dias:       current.dias,
           diasStd:    current.diasStd,
           diasCobrar: current.diasCobrar,
@@ -7659,8 +7815,22 @@ function cerrarInvoice(mkid, nombre){
   const _tarifaSnap = _curOv.tarifa !== undefined && _curOv.tarifa !== null
     ? _curOv.tarifa
     : (INVOICE_RATES[_invKey] || 0);
+  // Y la tarifa de cada agente que entra en este invoice. Sin esto, subirle la
+  // tarifa a un agente cambiaria lo que dicen los invoices ya enviados.
+  let _tarifasAg = null;
+  try {
+    const _d = buildInvData(mkid, nombre, _curOv._tipo || 'dr',
+                            _invSubCuentasCache[invOvKey(normMkid(mkid), nombre)] || null);
+    if(_d && Array.isArray(_d.agentes) && _d.agentes.length){
+      _tarifasAg = {};
+      _d.agentes.forEach(a => {
+        _tarifasAg[a.nombre] = tarifaDeAgente(a.nombre, _tarifaSnap, _curOv.tarifaAgente || null);
+      });
+    }
+  } catch(e){}
   // Mark closed + snapshot tarifa in a single write
-  setOv(mkid, nombre, { cerrado: true, tarifa: _tarifaSnap });
+  setOv(mkid, nombre, Object.assign({ cerrado: true, tarifa: _tarifaSnap },
+                                    _tarifasAg ? { tarifaAgente: _tarifasAg } : {}));
   const ovs = loadInvOv();
   const key = invOvKey(normMkid(mkid), nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
@@ -8269,13 +8439,36 @@ function invCargos(lista){
   }).filter(c => c.t.trim() || Math.abs(c.total) > 0.005);
 }
 
+// Con que tarifa se factura un agente. Mandan, en este orden: la congelada en
+// el invoice —para que un invoice cerrado no cambie nunca, aunque despues se
+// toque la tarifa del agente—, la del propio agente, y si no tiene ninguna, la
+// de la cuenta. Mientras todos hereden la de la cuenta, el resultado es el
+// mismo de siempre, al centavo.
+function _normNomAg(n){
+  return String(n || '').replace(/\s*\([^)]+\)\s*$/, '').trim().toUpperCase();
+}
+function tarifaDeAgente(nombre, tarifaCuenta, congeladas){
+  if(congeladas && congeladas[nombre] != null){
+    const f = Number(congeladas[nombre]);
+    if(isFinite(f) && f > 0) return invR2(f);
+  }
+  try {
+    const nn = _normNomAg(nombre);
+    const a = (agentes || []).find(x => x.nombre === nombre)
+           || (agentes || []).find(x => _normNomAg(x.nombre) === nn);
+    const v = a ? Number(a.tarifaCobro) : NaN;
+    if(isFinite(v) && v > 0) return invR2(v);
+  } catch(e){}
+  return tarifaCuenta;
+}
+
 function calcInvCobro(data, lineaOv, descDias){
   const tarifa   = Number(data.tarifa)  || 0;
   const diasMes  = Number(data.diasMes) || 0;
   const d1 = calcDiasHabilesUSA(data.anio, data.mes, 1);
   const d2 = calcDiasHabilesUSA(data.anio, data.mes, 2);
-  const valorDia = invR2(diasMes > 0 ? tarifa / diasMes : 0);
-  const mediaQ   = invR2(tarifa / 2);
+  const congeladas = data.tarifasAgente || null;
+  const tarAg = nombre => tarifaDeAgente(nombre, tarifa, congeladas);
 
   const completos = [], parciales = [];
   (data.agentes || []).forEach(a => {
@@ -8286,23 +8479,49 @@ function calcInvCobro(data, lineaOv, descDias){
   });
 
   const nCompletos = completos.length;
-  const bruto      = invR2(nCompletos * tarifa);
+  // Lo bruto ya no es "tarifa x numero de agentes": es la suma de lo que cuesta
+  // cada uno. Con todos a la misma tarifa da exactamente lo mismo.
+  const bruto      = invR2(completos.reduce((s,a) => s + tarAg(a.nombre), 0));
+  // El valor del dia sale de la tarifa MEDIA de los agentes de mes completo, no
+  // de la de quien falto: Carlos eligio prorratear la ausencia entre todos, asi
+  // que un dia de ausencia vale lo mismo lo pierda quien lo pierda. Con todos a
+  // la misma tarifa, la media es esa tarifa y el valor del dia no se mueve.
+  const tarifaProm = nCompletos > 0 ? invR2(bruto / nCompletos) : tarifa;
+  const valorDia   = invR2(diasMes > 0 ? tarifaProm / diasMes : 0);
+  const mediaQ     = invR2(tarifa / 2);
+
   const ausCalc    = invR2(completos.reduce((s,a) => s + (diasMes - a.total), 0));
   const ausencias  = (descDias !== undefined && descDias !== null)
                      ? invR2(Number(descDias) || 0) : ausCalc;
   const descuento  = invR2(valorDia * ausencias);
 
-  // Los parciales se agrupan por quincena y por dias, que es como salen
-  // impresos: dos agentes nuevos que entraron el mismo dia son una sola linea.
+  // Los de mes completo se agrupan por tarifa, que es como salen impresos:
+  // "3 agentes x $1.350" y debajo "1 agente x $1.400". Con una sola tarifa es
+  // una sola linea, igual que antes.
+  const mapaC = {};
+  completos.forEach(a => {
+    const t = tarAg(a.nombre);
+    const k = t.toFixed(2);
+    if(!mapaC[k]) mapaC[k] = { tarifa: t, nombres: [] };
+    mapaC[k].nombres.push(a.nombre);
+  });
+  const gruposCompletos = Object.values(mapaC).sort((x,y) => y.tarifa - x.tarifa);
+  gruposCompletos.forEach(g => { g.total = invR2(g.tarifa * g.nombres.length); });
+
+  // Los parciales se agrupan por quincena, por dias y por tarifa, que es como
+  // salen impresos: dos agentes nuevos que entraron el mismo dia y cuestan lo
+  // mismo son una sola linea.
   const mapa = {};
   parciales.forEach(pz => {
     const dias = invR2(pz.a.total);
-    const k = pz.q + '|' + dias;
-    if(!mapa[k]) mapa[k] = { q: pz.q, dias, diasQ: pz.diasQ, nombres: [],
-                             importe: invR2(pz.diasQ > 0 ? mediaQ * dias / pz.diasQ : 0) };
+    const t    = tarAg(pz.a.nombre);
+    const mq   = invR2(t / 2);
+    const k = pz.q + '|' + dias + '|' + t.toFixed(2);
+    if(!mapa[k]) mapa[k] = { q: pz.q, dias, diasQ: pz.diasQ, nombres: [], tarifa: t, mediaQ: mq,
+                             importe: invR2(pz.diasQ > 0 ? mq * dias / pz.diasQ : 0) };
     mapa[k].nombres.push(pz.a.nombre);
   });
-  const grupos = Object.values(mapa).sort((x,y) => (x.q - y.q) || (y.dias - x.dias));
+  const grupos = Object.values(mapa).sort((x,y) => (x.q - y.q) || (y.dias - x.dias) || (y.tarifa - x.tarifa));
   grupos.forEach(g => { g.total = invR2(g.importe * g.nombres.length); });
   const totalParciales = invR2(grupos.reduce((s,g) => s + g.total, 0));
 
@@ -8311,7 +8530,7 @@ function calcInvCobro(data, lineaOv, descDias){
   // repartir por dias daria un numero que no corresponde a nadie.
   const porAgente = {};
   completos.forEach(a => {
-    porAgente[a.nombre] = invR2(tarifa - invR2((diasMes - a.total) * valorDia));
+    porAgente[a.nombre] = invR2(tarAg(a.nombre) - invR2((diasMes - a.total) * valorDia));
   });
   grupos.forEach(g => g.nombres.forEach(n => { porAgente[n] = g.importe; }));
 
@@ -8320,8 +8539,9 @@ function calcInvCobro(data, lineaOv, descDias){
   const cargos = invCargos(data.cargos);
   const totalCargos = invR2(cargos.reduce((s2, c) => s2 + c.total, 0));
 
-  return { valorDia, mediaQ, d1, d2, nCompletos,
+  return { valorDia, mediaQ, tarifaProm, d1, d2, nCompletos,
            nombresCompletos: completos.map(a => a.nombre),
+           gruposCompletos,
            bruto, ausencias, descuento, grupos, totalParciales, porAgente,
            cargos, totalCargos,
            monto: invR2(bruto - descuento + totalParciales + totalCargos) };
@@ -8336,8 +8556,9 @@ function calcInvDescuento(data){
   return {
     agentesFact: c.nCompletos, nombresCompletos: c.nombresCompletos, valorDia: c.valorDia,
     diasPlenos: invR2(c.nCompletos * data.diasMes),
-    diasAus: c.ausencias, d1: c.d1, d2: c.d2, mediaQ: c.mediaQ,
+    diasAus: c.ausencias, d1: c.d1, d2: c.d2, mediaQ: c.mediaQ, tarifaProm: c.tarifaProm,
     bruto: c.bruto, descuento: c.descuento, neto: c.monto,
+    gruposCompletos: c.gruposCompletos,
     grupos: c.grupos, totalParciales: c.totalParciales,
     cargos: c.cargos, totalCargos: c.totalCargos,
     manual: data.descManual === true,
@@ -8658,7 +8879,8 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   // Antes, con el descuento puesto a mano, aqui se reescribian los dias
   // trabajados para que el prorrateo cuadrara. Ya no hace falta: el descuento
   // manual entra como dias de ausencia y los dias siguen diciendo la verdad.
-  const monto = calcInvCobro({ tarifa, diasMes, anio, mes, agentes, cargos: ov.cargos },
+  const monto = calcInvCobro({ tarifa, diasMes, anio, mes, agentes, cargos: ov.cargos,
+                               tarifasAgente: ov.tarifaAgente || null },
                              ov.agenteLinea, ov.descDias).monto;
   const numAgentes = agentes.length;
 
@@ -8692,6 +8914,9 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     agenteLinea: ov.agenteLinea || {},
     notas:       ov.notas || '',
     cargos:      Array.isArray(ov.cargos) ? ov.cargos : [],
+    // Las tarifas por agente congeladas al cerrar. Un invoice cerrado no cambia
+    // porque despues se le suba la tarifa a un agente.
+    tarifasAgente: ov.tarifaAgente || null,
     descDias:    descManual ? ov.descDias : null,
     // Datos del cliente para el bloque "To:" del PDF. Viven en la ficha de la
     // cuenta porque son los mismos todos los meses; vacios no se imprimen.
@@ -9060,18 +9285,17 @@ function buildInvSummaryHTML(data, locked, iid){
     </div>`;
 
   const rows =
-    ((desc && desc.agentesFact > 0)
-      ? filaDet(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo`,
-                desc.nombresCompletos.join(', '),
-                `${desc.agentesFact} × ${fmt(data.tarifa)}`,
-                fmt(desc.bruto))
-      : '')
+    ((desc && desc.gruposCompletos) || []).map(g => filaDet(
+        `${g.nombres.length} agente${g.nombres.length!==1?'s':''} de mes completo`,
+        g.nombres.join(', '),
+        `${g.nombres.length} × ${fmt(g.tarifa)}`,
+        fmt(g.total))).join('')
     + ((desc && desc.grupos) || []).map(g => filaDet(
         `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`,
         g.nombres.join(', '),
         g.dias < g.diasQ - 0.005
-          ? `${fmtDias(g.dias)}d / ${fmtDias(g.diasQ)}d × ${fmt(desc.mediaQ)}`
-          : `media tarifa · ${fmt(desc.mediaQ)}`,
+          ? `${fmtDias(g.dias)}d / ${fmtDias(g.diasQ)}d × ${fmt(g.mediaQ !== undefined ? g.mediaQ : desc.mediaQ)}`
+          : `media tarifa · ${fmt(g.mediaQ !== undefined ? g.mediaQ : desc.mediaQ)}`,
         fmt(g.total))).join('')
     + ((desc && desc.cargos) || []).map(c => filaDet(
         c.t || 'Cargo adicional',
@@ -9136,7 +9360,9 @@ function buildInvSummaryHTML(data, locked, iid){
       <div style="font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.6">
         ${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmtDias(data.diasMes)} días hábiles =
         <b style="color:var(--text)">${fmtDias(desc.diasPlenos)} días</b> facturables &nbsp;·&nbsp;
-        valor del día = ${fmt(data.tarifa)} ÷ ${fmtDias(data.diasMes)} = <b style="color:var(--text)">${fmt(desc.valorDia)}</b>
+        valor del día = ${fmt(desc.tarifaProm !== undefined ? desc.tarifaProm : data.tarifa)} ÷ ${fmtDias(data.diasMes)} = <b style="color:var(--text)">${fmt(desc.valorDia)}</b>${
+          (desc.gruposCompletos && desc.gruposCompletos.length > 1)
+            ? ' <span style="color:var(--text3)">· tarifa media de los ' + desc.agentesFact + ' agentes</span>' : ''}
       </div>
       <div class="desc-fila">
         <span style="font-size:12px;color:var(--text2)">${desc.aplicaExtra ? 'Días adicionales' : 'Días no trabajados'}</span>
@@ -9181,9 +9407,9 @@ function buildInvTotalesHTML(data){
               agentes de mes completo, una por cada grupo de media quincena y el
               descuento por ausencias. Si no hay nada que explicar no sale. */''}
         ${desc && (desc.aplica || desc.aplicaExtra || desc.grupos.length || desc.cargos.length)
-          ? (desc.agentesFact > 0
-              ? filaTot(`${desc.agentesFact} agente${desc.agentesFact!==1?'s':''} de mes completo × ${fmt(data.tarifa)}`, fmt(desc.bruto), 'var(--text)')
-              : '')
+          ? (desc.gruposCompletos || []).map(g => filaTot(
+                `${g.nombres.length} agente${g.nombres.length!==1?'s':''} de mes completo × ${fmt(g.tarifa)}`,
+                fmt(g.total), 'var(--text)')).join('')
             + desc.grupos.map(g => filaTot(
                 `${g.nombres.length} agente${g.nombres.length!==1?'s':''} · ${g.q===1?'1ª':'2ª'} quincena`
                 + (g.dias < g.diasQ - 0.005 ? ` (${fmtDias(g.dias)} de ${fmtDias(g.diasQ)} días)` : ''),
@@ -10625,21 +10851,24 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla){
     : `${MESES_EN[data.mes-1]} 16 to ${MESES_EN[data.mes-1]} ${String(ultimoDia).padStart(2,'0')}`;
   const nAg = n => `${n} agent${n !== 1 ? 's' : ''}`;
 
-  const filaCompletos = (desc && desc.agentesFact > 0) ? `
+  // Una linea por tarifa: con todos los agentes a la misma sale una sola, como
+  // siempre; con dos tarifas distintas salen dos —"3 agents x $1,350" y
+  // "1 agent x $1,400"— sin nombres, que es lo que Carlos no quiere en el papel.
+  const filaCompletos = ((desc && desc.gruposCompletos) || []).map(g => `
     <tr>
       <td>
         <div class="it-desc">Callcenter Agents</div>
         <div class="it-sub">
           Services provided during the period of ${periodoDesc}<br>
-          ${nAg(desc.agentesFact)}
+          ${nAg(g.nombres.length)}
         </div>
       </td>
       <td class="qty">
-        <div class="q-num">${desc.agentesFact}</div>
-        <div class="q-sub">$${fmtN(data.tarifa)}</div>
+        <div class="q-num">${g.nombres.length}</div>
+        <div class="q-sub">$${fmtN(g.tarifa)}</div>
       </td>
-      <td class="amt">$${fmtN(desc.bruto)}</td>
-    </tr>` : '';
+      <td class="amt">$${fmtN(g.total)}</td>
+    </tr>`).join('');
 
   const filasParciales = ((desc && desc.grupos) || []).map(g => `
     <tr>
