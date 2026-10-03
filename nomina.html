@@ -214,6 +214,11 @@
     border-bottom: 1px solid var(--border);
   }
   .table-title { font-weight: 600; font-size: 14px; }
+  /* Valor/Hr va alineado a la derecha, asi que la cifra quedaba pegada a las
+     flechitas del navegador. El relleno del campo no las aparta —se dibujan
+     despues del texto, no en el borde—: hay que darles margen a ellas. */
+  input.valorhr::-webkit-inner-spin-button,
+  input.valorhr::-webkit-outer-spin-button{ margin-left:9px; }
   table { width: 100%; border-collapse: collapse; }
   th {
     font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
@@ -4160,7 +4165,6 @@ function renderCuentasDr(){
   const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
   if(!drs.length){ el.innerHTML = '<p class="empty">Sin cuentas. Crea la primera.</p>'; return; }
 
-  let cuentaTabBase = 1; // global tab counter across all accounts
 
   el.innerHTML = drs.map(c=>{
     const r = getResultadoDr(c);
@@ -4175,7 +4179,7 @@ function renderCuentasDr(){
           <span style="font-size:12px"><span class="leve">Callcenter Check</span> <b>${fmt(r.totalDrCheck)}</b></span>
           <span style="font-size:12px"><span class="leve">Payroll</span> <b>${fmt(r.totalReal)}</b></span>
           <span class="cab-pill solida">Utilidad <b>${fmt(r.utilidad)}</b></span>
-          <button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️ Editar</button>
+          <button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editCuenta('${c.id}')">✏️ Editar</button>
         </div>
       </div>
       <table>
@@ -4237,8 +4241,6 @@ function renderCuentasDr(){
               }
               return r.ags||r.agentes||[];
             })()).forEach((a, i) => {
-              const tStd  = cuentaTabBase + i*2 + 1;
-              const tReal = cuentaTabBase + i*2 + 2;
               rows += `
           <tr>
             <td>${a.nombre}</td>
@@ -4246,7 +4248,8 @@ function renderCuentasDr(){
             <td>
               <input type="number" value="${a.valor}" min="1" max="50" step="0.5"
                 tabindex="-1"
-                style="width:64px;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:2px 4px;text-align:right"
+                class="valorhr"
+                style="width:78px;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:2px 4px;text-align:right"
                 onfocus="this.style.borderBottomColor='var(--border)';this.style.background='var(--surface2)'"
                 onblur="this.style.borderBottomColor='transparent';this.style.background='transparent'"
                 onchange="updateValorAgente('${a.id}',this.value)">
@@ -4255,7 +4258,6 @@ function renderCuentasDr(){
             <td>
               <input type="number" value="${a.diasStd !== undefined ? a.diasStd : qdays()}" min="0" max="15"
                 data-agid="${a.id}" data-field="diasStd"
-                tabindex="${tStd}"
                 style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDiasStd('${a.id}',this.value)" onchange="updateDiasStd('${a.id}',this.value)">
             </td>
@@ -4266,7 +4268,6 @@ function renderCuentasDr(){
             <td class="col-real">
               <input type="number" value="${a.dias}" min="0" max="15"
                 data-agid="${a.id}" data-field="dias"
-                tabindex="${tReal}"
                 style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDias('${a.id}',this.value)" onchange="updateDias('${a.id}',this.value)">
             </td>
@@ -4274,7 +4275,6 @@ function renderCuentasDr(){
             <td><button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editAgente('${a.id}')">✏️</button></td>
           </tr>`;
             });
-            cuentaTabBase += (r.ags||r.agentes||[]).length * 2;
             return rows;
           })()}
           <tr style="background:var(--surface2)">
@@ -4399,7 +4399,6 @@ function renderCuentasOwn(){
       </div>`;
   }
 
-  let ownTabBase = 1000;
 
   el.innerHTML = owns.map(c=>{
     const r = getResultadoOwn(c);
@@ -4484,7 +4483,7 @@ function renderCuentasOwn(){
           </div>
           <span style="font-size:12px"><span class="leve">Cobro</span> <b>${fmt(r.totalCobro)}</b></span>
           <span class="cab-pill solida">Utilidad <b>${fmt(r.utilidad)}</b></span>
-          <button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️</button>
+          <button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editCuenta('${c.id}')">✏️</button>
         </div>
       </div>
       <table>
@@ -4498,7 +4497,6 @@ function renderCuentasOwn(){
           ${(()=>{
             let rows = '';
             agsParaRender.forEach((a, i) => {
-              const tIdx = ownTabBase + i + 1;
               // diasCobrar=undefined + dias=0 → 0; diasCobrar=undefined + dias>0 → qdCuenta
               const diasCobrarVal = a.diasCobrar !== undefined
                 ? a.diasCobrar
@@ -4513,9 +4511,15 @@ function renderCuentasOwn(){
             <td>${a.nombre}</td>
             <td class="mono">${a.horas}</td>
             <td>
+              ${/* Valor/Hr se queda FUERA del recorrido del Tab a proposito: es
+                    una tarifa, no un dato de quincena. Si entrara, habria que
+                    pasar por nueve tarifas para llegar a los dias, y un dedazo
+                    de paso cambiaria lo que se le paga a alguien. Se sigue
+                    pudiendo editar con un clic. */''}
               <input type="number" value="${a.valor}" min="1" max="50" step="0.5"
                 tabindex="-1"
-                style="width:64px;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:2px 4px;text-align:right"
+                class="valorhr"
+                style="width:78px;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:2px 4px;text-align:right"
                 onfocus="this.style.borderBottomColor='var(--border)';this.style.background='var(--surface2)'"
                 onblur="this.style.borderBottomColor='transparent';this.style.background='transparent'"
                 onchange="updateValorAgente('${a.id}',this.value)">
@@ -4523,14 +4527,12 @@ function renderCuentasOwn(){
             <td>
               <input type="number" value="${a.dias}" min="0" max="15"
                 data-agid="${a.id}" data-field="dias"
-                tabindex="${tIdx}"
                 style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDias('${a.id}',this.value)" onchange="updateDias('${a.id}',this.value)">
             </td>
             <td class="mono">${fmt(nominaAgente(a))}</td>
             <td>
               <input type="number" value="${diasCobrarVal}" min="0" max="15"
-                tabindex="-1"
                 style="width:54px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 onchange="updateDiasCobrar('${a.id}',this.value)">
             </td>
@@ -4538,7 +4540,6 @@ function renderCuentasOwn(){
             <td><button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editAgente('${a.id}')">✏️</button></td>
           </tr>`;
             });
-            ownTabBase += agsParaRender.length;
             return rows;
           })()}
           <tr><td colspan="3" style="color:var(--text2)">Accountant</td>
