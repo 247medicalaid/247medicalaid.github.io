@@ -297,6 +297,10 @@
   }
   .cu-cobro b{ font-family:'DM Mono',monospace; font-size:12.5px; }
   .cu-cobro .sep{ color:var(--text3); }
+  /* Lo dado por perdido no es un pendiente —ya se decidio no cobrarlo— pero
+     tampoco es un dato de relleno: es plata que esta cuenta se llevo. Se marca
+     con el mismo ambar que usa la ficha para lo que hay que mirar. */
+  .cu-cobro .perdido{ color:var(--accent3); }
 
   /* El cuerpo, como el formulario completo: una columna, etiqueta arriba. */
   .cu-bloque{ padding:14px 16px; }
@@ -3781,12 +3785,23 @@ function renderCuentasFichas(){
       tiraCobro = `<span class="cu-cobro"><span class="sep">no se factura — solo nómina</span></span>`;
     } else if(cob){
       const ult = cob.meses[0];
+      // Un invoice dado por perdido sale de las dos cifras de arriba: ni suma
+      // en lo facturado ni cuenta como pendiente, porque ya se decidio no
+      // cobrarlo. Eso esta bien para la gestion del cobro, pero hace que en la
+      // ficha la perdida desaparezca: la cuenta se lee como si nunca hubiera
+      // pasado. Por eso se nombra aparte, con su numero y su importe.
+      const nPerd = cob.meses.filter(x => x.noPago).length;
       tiraCobro = `<span class="cu-cobro">
         <span>Facturado <b>${fmt(cob.total)}</b></span>
         <span class="sep">·</span>
         <span>Pendiente <b style="color:${cob.saldo > 0.005 ? 'var(--accent3)' : 'var(--accent)'}">${fmt(cob.saldo)}</b></span>
         <span class="sep">·</span>
-        <span>${cob.pendientes ? cob.pendientes + ' sin cobrar' : 'todo cobrado'}</span>
+        ${/* "todo cobrado" con un invoice perdido detras seria mentira: se
+              cobro todo lo que se seguia cobrando, no todo lo que se facturo. */''}
+        <span>${cob.pendientes ? cob.pendientes + ' sin cobrar'
+                : nPerd ? 'lo demás cobrado' : 'todo cobrado'}</span>
+        ${nPerd ? `<span class="sep">·</span>
+        <span class="perdido" title="Invoices dados por perdidos: no cuentan como pendientes por cobrar ni dentro de lo facturado.">✕ ${nPerd} perdido${nPerd!==1?'s':''} <b>${fmt(cob.perdido)}</b></span>` : ''}
         ${ult ? `<span class="sep">·</span> <span style="color:var(--text3)">último ${MESES[ult.mes-1]} ${ult.anio}</span>` : ''}
       </span>`;
     } else if(tarifaInv <= 0){
