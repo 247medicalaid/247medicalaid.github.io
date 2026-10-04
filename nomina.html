@@ -473,7 +473,12 @@
      mes. Al 90% de la tinta, que es lo maximo que se puede bajar sin perder los
      4,5:1 contra el peor de los colores. */
   .cab-color .leve{ color:color-mix(in srgb, var(--tinta,#fff) 90%, var(--c,#888)); }
+  /* Una pastilla NO se encoge. Lleva 'white-space:nowrap', asi que al
+     apretarla su caja se achica y el texto se sale por la derecha, encima del
+     grupo siguiente: eso era el "/7" de la pastilla 24/7 pisando "Dias:".
+     Es texto corto; o cabe entero o la banda pasa de renglon. */
   .cab-pill{
+    flex:0 0 auto;
     display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
     font-size:11px; font-weight:700; line-height:1; padding:4px 9px;
     border-radius:20px; border:1.5px solid var(--tinta,#fff); color:var(--tinta,#fff);
@@ -4705,7 +4710,11 @@ function renderCuentasOwn(){
     return `
     <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="flex-wrap:wrap;gap:10px;${cabEstilo(c.color)}">
-        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <!-- Sin 'min-width:0' a proposito: con el, este grupo se encogia por
+             debajo de su contenido y el nombre de la cuenta se salia por la
+             derecha encima de "Dias:". Su minimo es ahora la palabra mas larga
+             del nombre; si no cabe, la banda pasa de renglon (flex-wrap). -->
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
           <span class="nomcuenta">${c.nombre}</span>
           <span class="cab-pill">24/7</span>
         </div>
