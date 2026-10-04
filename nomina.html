@@ -8565,6 +8565,11 @@ function cerrarInvoice(mkid, nombre){
     return;
   }
   if(!confirm('¿Cerrar este invoice definitivamente? No podrá editarse hasta que lo re-abras.')) return;
+  // Aqui es donde se gasta el numero: al emitirlo, no al mirarlo. Si ya tiene
+  // uno escrito a mano —un invoice viejo que se esta recreando— se respeta.
+  if(!getOv(mkid, nombre).invnum){
+    setOv(mkid, nombre, { invnum: nextInvNum() });
+  }
   // Force-save any pending input values (user may have typed without blurring)
   const iid = makeIid(normMkid(mkid), normalizeAccountName(nombre), getOv(mkid,nombre)._tipo||'dr');
   const panel = document.getElementById(iid);
@@ -9825,15 +9830,14 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   const due = new Date(now); due.setDate(due.getDate()+15);
   const dueStr = `${due.getFullYear()}-${pad2(due.getMonth()+1)}-${pad2(due.getDate())}`;
 
-  // Auto-assign invoice number on first access.
-  // Mientras el mes esté EN PROCESO (quincenas sin cerrar) no se consume
-  // número — se asigna al quedar ambas quincenas aprobadas.
+  // El numero NO se asigna por mirar. Antes se asignaba en el primer acceso:
+  // entrar a ver el invoice de un mes pasado ya gastaba un numero, y al
+  // escribir encima el numero real de Bloom el gastado no volvia. Recrear diez
+  // invoices viejos se llevaba diez numeros de la serie viva.
+  // Ahora se asigna al CERRAR el invoice, que es cuando de verdad se emite y
+  // cuando el numero sale impreso. Mientras esta abierto, el campo muestra en
+  // gris el que le tocaria.
   const _enProceso = mesEnProceso(mk);
-  if(!ov.invnum && !_enProceso){
-    const autoNum = nextInvNum();
-    setOv(mk, cuentaNombre, { invnum: autoNum });
-    ov.invnum = autoNum;
-  }
 
   // Default billedTo from cuenta config (use first matching cuenta for merged)
   const cuentaObj = cuentas.find(c => normalizeAccountName(c.nombre) === normalizeAccountName(cuentaNombre));
@@ -9860,6 +9864,9 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
     plantilla:  ov.plantilla || plantillaPorDefecto(cuentaNombre),
     contact:    ov.contact   !== undefined ? ov.contact : defaultBilledTo,
     invnum:     ov.invnum    || '',
+    // Lo que le tocaria si se cerrara ahora. Es solo para el texto en gris del
+    // campo: mirarlo no reserva nada ni lo quita de en medio para otro invoice.
+    proximoNum: 'INV-' + String(loadInvCounter()+1).padStart(INV_DIGITOS,'0'),
     dateissue:  ov.dateissue || todayStr,
     duedate:    ov.duedate   || dueStr,
     paid:       ov.paid      !== undefined ? ov.paid : 0,
@@ -9930,7 +9937,8 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Invoice #</div>
-        <input type="text" placeholder="INV-00149"
+        <input type="text" placeholder="${data.proximoNum}"
+          title="${data.invnum ? 'Numero del invoice.' : 'Todavia sin numero: se asigna al cerrar el invoice. Si estas recreando uno viejo, escribe aqui su numero real.'}"
           value="${data.invnum}"
           ${locked ? 'readonly' : ''}
           onchange="fijarNumInvoice('${mk}','${esc(cuNombre)}',this.value)"
