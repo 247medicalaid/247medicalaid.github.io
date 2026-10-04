@@ -8381,6 +8381,14 @@ function alertaInvoicesCerrados(periodoKey, accion){
 // Structure: { "2025-03|CUENTA": { diasMes, agenteDias, contact, invnum, dateissue, duedate, pagado } }
 const INV_CACHE_KEY   = 'inv_overrides_cache';   // localStorage cache key
 const INV_COUNTER_KEY = 'inv_counter_cache';    // counter cache key
+// Donde vive "por donde va la serie", para que sea la misma en el computador y
+// en el celular. NO se usa '__counter__': esa fila del servidor ya tiene dueno
+// —la escribe la accion saveInvCounter— y hoy contiene {value:4}; leerla
+// pondria la serie en INV-00005, y escribirla la pisa a destiempo. Esta es una
+// fila propia, por la misma via que ya usan las tarifas maestras (__rates__),
+// que es la unica que esta comprobado que va y vuelve.
+const INV_SERIE_OV_KEY   = '__serie__';
+const INV_COUNTER_TS_KEY = 'inv_counter_ts';   // cuando se fijo, en este equipo
 const _invSubCuentasCache = {};  // invOvKey → subCuentas[] (in-memory, set on render)
 
 function normMkid(mkid){ const p=mkid.split('-'); return p[0]+'-'+String(parseInt(p[1])).padStart(2,'0'); }
@@ -8473,6 +8481,36 @@ function loadInvCounter(){
 }
 function _cacheInvCounter(n){
   localStorage.setItem(INV_COUNTER_KEY, String(n));
+}
+function _tsSerie(){
+  return parseInt(localStorage.getItem(INV_COUNTER_TS_KEY)||'0') || 0;
+}
+// Publica por donde va la serie para los demas dispositivos.
+function _publicarSerie(n, ts){
+  try {
+    const ovs = loadInvOv();
+    ovs[INV_SERIE_OV_KEY] = { n, ts };
+    _cacheInvOv(ovs);
+    _guardarInvOvSheets(INV_SERIE_OV_KEY, { n, ts });
+  } catch(e){}
+}
+
+// La UNICA forma de BAJAR el contador, y es deliberada: el chip existe para
+// decir "la serie va en 149" cuando el numero guardado quedo mas arriba, que es
+// justo lo que pasa con los 66 invoices del formato viejo. Manda la marca de
+// tiempo mas RECIENTE, no el numero mas alto: si mandara el mas alto, un equipo
+// que lleva una semana sin abrirse volveria a imponer el suyo.
+// Lo que sigue mandando sobre esto es un numero que YA esta puesto en un
+// invoice; eso se aplica despues, y solo sube.
+function aplicarSerieRemota(d){
+  if(!d || typeof d !== 'object') return false;
+  const n  = parseInt(d.n, 10);
+  const ts = parseInt(d.ts, 10) || 0;
+  if(!isFinite(n) || n < 0 || n > 99999) return false;
+  if(ts <= _tsSerie()) return false;            // no es mas nuevo que lo mio
+  _cacheInvCounter(n);
+  try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
+  return true;
 }
 
 function getOv(mkid, nombre){
@@ -8590,11 +8628,17 @@ function cargarInvOvRemoto(){
         _cacheInvOv(data);
         // Congelar tarifa histórica en invoices ya cerrados (idempotente)
         migrateInvoiceTarifasIfNeeded();
+        // Por donde va la serie, segun el ultimo dispositivo que la fijo. Va
+        // ANTES del repaso de abajo a proposito: primero se adopta la serie
+        // elegida y despues un numero ya puesto la sube si hace falta. Al
+        // reves, el repaso pisaria lo que acaba de llegar.
+        const adoptada = aplicarSerieRemota(data[INV_SERIE_OV_KEY]);
         // Also extract counter from data
         const maxN = Object.values(data)
           .map(v => numeroDeInvoice(v.invnum))
           .reduce((a,b)=>Math.max(a,b), 0);
         if(maxN > loadInvCounter()) _cacheInvCounter(maxN);
+        if(adoptada && typeof pintarProximoNum === 'function') pintarProximoNum();
         // Re-render invoices if on that page
         if(!$('page-invoices').classList.contains('hidden')) renderInvoices();
         // Also force re-render after a short delay in case historial wasn't loaded yet
@@ -8617,10 +8661,14 @@ function pintarProximoNum(){
 }
 
 function _guardarContador(n){
+  const ts = Date.now();
   _cacheInvCounter(n);
+  try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
+  // Se deja la llamada de siempre: no se le quita nada al backend.
   fetch(GS_URL, { method:'POST', mode:'no-cors',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ action:'saveInvCounter', value:n }) }).catch(()=>{});
+  _publicarSerie(n, ts);   // y ademas, por la via que si viaja
 }
 
 function pedirProximoNum(){
@@ -8652,7 +8700,10 @@ function fijarNumInvoice(mk, nombre, valor){
 // Auto-increment invoice counter — persisted to Sheets
 function nextInvNum(){
   const n = loadInvCounter() + 1;
+  const ts = Date.now();
   _cacheInvCounter(n);
+  try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
+  _publicarSerie(n, ts);
   // Persist counter to Sheets
   fetch(GS_URL, {
     method: 'POST', mode: 'no-cors',
