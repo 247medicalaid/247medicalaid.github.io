@@ -8381,14 +8381,6 @@ function alertaInvoicesCerrados(periodoKey, accion){
 // Structure: { "2025-03|CUENTA": { diasMes, agenteDias, contact, invnum, dateissue, duedate, pagado } }
 const INV_CACHE_KEY   = 'inv_overrides_cache';   // localStorage cache key
 const INV_COUNTER_KEY = 'inv_counter_cache';    // counter cache key
-// El contador vivia SOLO en el dispositivo: el chip "Proximo n" lo guardaba
-// aqui y lo mandaba a Sheets, pero nada lo leia de vuelta al cargar. Fijarlo
-// en el celular dejaba al computador con el suyo, y como el contador solo
-// sube, el primer invoice hecho desde el equipo atrasado se llevaba la serie
-// por delante. Viaja ahora dentro del almacen de invoices bajo una clave
-// reservada, igual que las tarifas maestras: la via que si sincroniza hoy.
-const INV_COUNTER_OV_KEY = '__counter__';
-const INV_COUNTER_TS_KEY = 'inv_counter_ts';   // cuando se fijo a mano, aqui
 const _invSubCuentasCache = {};  // invOvKey → subCuentas[] (in-memory, set on render)
 
 function normMkid(mkid){ const p=mkid.split('-'); return p[0]+'-'+String(parseInt(p[1])).padStart(2,'0'); }
@@ -8481,26 +8473,6 @@ function loadInvCounter(){
 }
 function _cacheInvCounter(n){
   localStorage.setItem(INV_COUNTER_KEY, String(n));
-}
-function _tsContador(){
-  return parseInt(localStorage.getItem(INV_COUNTER_TS_KEY)||'0') || 0;
-}
-
-// La UNICA forma de bajar el contador. Es deliberada: el chip existe
-// justamente para decir "la serie sigue en 149" cuando el numero guardado
-// quedo mas arriba. Manda el mas RECIENTE, no el mas alto, porque si no un
-// equipo que lleva una semana sin abrirse volveria a imponer su numero viejo.
-// Lo que SI sigue mandando sobre esto es un invoice que ya existe con ese
-// numero: eso se aplica despues, y sube.
-function aplicarContadorRemoto(d){
-  if(!d || typeof d !== 'object') return false;
-  const n  = parseInt(d.n, 10);
-  const ts = parseInt(d.ts, 10) || 0;
-  if(!isFinite(n) || n < 0 || n > 99999) return false;
-  if(ts <= _tsContador()) return false;          // no es mas nuevo que lo mio
-  _cacheInvCounter(n);
-  localStorage.setItem(INV_COUNTER_TS_KEY, String(ts));
-  return true;
 }
 
 function getOv(mkid, nombre){
@@ -8618,17 +8590,11 @@ function cargarInvOvRemoto(){
         _cacheInvOv(data);
         // Congelar tarifa histórica en invoices ya cerrados (idempotente)
         migrateInvoiceTarifasIfNeeded();
-        // El numero que se fijo a mano, venga del dispositivo que venga. Va
-        // ANTES del repaso de abajo a proposito: primero se adopta la serie
-        // elegida, y despues un invoice que ya exista con un numero mayor la
-        // sube. Al reves, el repaso pisaria lo que acaba de llegar.
-        const adoptado = aplicarContadorRemoto(data[INV_COUNTER_OV_KEY]);
         // Also extract counter from data
         const maxN = Object.values(data)
           .map(v => numeroDeInvoice(v.invnum))
           .reduce((a,b)=>Math.max(a,b), 0);
         if(maxN > loadInvCounter()) _cacheInvCounter(maxN);
-        if(adoptado && typeof pintarProximoNum === 'function') pintarProximoNum();
         // Re-render invoices if on that page
         if(!$('page-invoices').classList.contains('hidden')) renderInvoices();
         // Also force re-render after a short delay in case historial wasn't loaded yet
@@ -8651,20 +8617,10 @@ function pintarProximoNum(){
 }
 
 function _guardarContador(n){
-  const ts = Date.now();
   _cacheInvCounter(n);
-  try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
-  // Via propia (por si el backend llega a implementar la lectura)
   fetch(GS_URL, { method:'POST', mode:'no-cors',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ action:'saveInvCounter', value:n }) }).catch(()=>{});
-  // Via que si viaja hoy: el almacen de overrides de invoices
-  try {
-    const ovs = loadInvOv();
-    ovs[INV_COUNTER_OV_KEY] = { n, ts };
-    _cacheInvOv(ovs);
-    _guardarInvOvSheets(INV_COUNTER_OV_KEY, { n, ts });
-  } catch(e){}
 }
 
 function pedirProximoNum(){
