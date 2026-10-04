@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04141F">
+<title>Reloj · 24/7 Medical Aid</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304141F'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%2317A9DE' stroke-width='2.6'/%3E%3Cpath d='M16 11v5l3.5 2.5' stroke='%23ED3237' stroke-width='2.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sb.js?v=3"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink-900:#04141F; --ink-800:#082436; --ink-700:#0D3247; --ink-600:#1A4A63;
+  --brand-700:#0A6A90; --brand-600:#0E86B4; --brand-500:#17A9DE; --brand-100:#D3ECF9; --brand-50:#EFF8FD;
+  --accent-600:#C81F29; --accent-500:#ED3237; --accent-50:#FDECEC;
+  --paper:#FFFFFF; --sand:#F5F8F9; --sand-2:#EBF1F3;
+  --text:#0B2233; --text-muted:#4A6478; --line:#DCE6EA;
+  --warn:#A85B00; --warn-50:#FFF4E5;
+  --st-trab:#0E86B4; --st-alm:#B86E00; --st-fuera:#7C8F9C;
+  --radius-sm:10px; --radius:16px; --radius-lg:24px;
+  --shadow-sm:0 1px 2px rgba(4,20,31,.06), 0 2px 8px rgba(4,20,31,.05);
+  --shadow:0 4px 12px rgba(4,20,31,.07), 0 14px 40px rgba(4,20,31,.08);
+  --font-display:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-body:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--sand);color:var(--text);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+h1,h2,h3{font-family:var(--font-display);font-weight:800;letter-spacing:-.02em;line-height:1.15}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--brand-500);outline-offset:2px;border-radius:6px}
+.hidden{display:none !important}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)}
+
+/* ── barra ── */
+.top{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top,0px)) clamp(14px,4vw,32px) 10px;
+  display:flex;align-items:center;gap:14px}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
+.marca img{height:30px;width:auto}
+.marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700)}
+.top .esp{flex:1}
+@media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px} }
+.esfera .yo{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;margin-bottom:2px}
+.quien{font-size:13.5px;color:var(--text-muted);text-align:right;line-height:1.25}
+.quien b{display:block;color:var(--text);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-display);
+  font-weight:700;font-size:14.5px;padding:10px 18px;border-radius:999px;border:1px solid transparent;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s,opacity .15s;white-space:nowrap;
+  text-decoration:none;background:none}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{border-color:var(--line);background:var(--paper);color:var(--text)}
+.btn-ghost:hover:not(:disabled){background:var(--sand-2)}
+.btn-ink{background:var(--ink-900);color:#fff}
+.btn-ink:hover:not(:disabled){background:var(--ink-700)}
+.btn-brand{background:var(--brand-600);color:#fff}
+.btn-brand:hover:not(:disabled){background:var(--brand-700)}
+.btn-sm{padding:7px 13px;font-size:13px}
+.btn-link{border:0;background:none;color:var(--brand-700);font-weight:700;cursor:pointer;padding:4px 2px;font-size:14px}
+
+/* ── pestañas del administrador ── */
+.tabs{display:flex;gap:4px;padding:10px clamp(14px,4vw,32px) 0;background:var(--paper);
+  border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{border:0;background:none;padding:10px 14px 12px;font-family:var(--font-display);font-weight:700;font-size:14.5px;
+  color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink-900);border-bottom-color:var(--accent-500)}
+main{max-width:1240px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,32px) 80px}
+
+/* ── estado (forma + color) ── */
+.st{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:14px}
+.st i{width:12px;height:12px;border-radius:50%;flex:none;display:inline-block}
+.st-trabajando i{background:var(--st-trab)}
+.st-almuerzo i{background:linear-gradient(90deg,var(--st-alm) 50%,transparent 50%);border:2px solid var(--st-alm)}
+.st-fuera i{border:2.5px solid var(--st-fuera)}
+.st-sin i{border:2.5px dashed var(--st-fuera)}
+
+/* ── RELOJ DEL AGENTE ── */
+.reloj{max-width:560px;margin:0 auto}
+.esfera{background:var(--ink-900);color:#EAF4F6;border-radius:var(--radius-lg);padding:28px 24px 24px;
+  position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.esfera .fecha{font-size:14px;color:#9FBECB}
+.esfera .fecha::first-letter,.cap::first-letter{text-transform:uppercase}
+.esfera .hora{font-family:var(--font-display);font-weight:800;font-size:clamp(64px,19vw,104px);
+  letter-spacing:-.045em;line-height:.95;margin:6px 0 4px;font-variant-numeric:tabular-nums}
+.esfera .hora small{font-size:.3em;letter-spacing:0;font-weight:700;margin-left:6px;color:#9FBECB}
+.esfera .zona{font-size:12.5px;color:#9FBECB}
+.esfera .estado{margin-top:18px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.esfera .estado .st{color:#fff;font-size:16px}
+.esfera .estado .st-fuera i{border-color:#9FBECB}
+.esfera .acum{font-size:14px;color:#9FBECB}
+.esfera .acum b{color:#fff;font-weight:700}
+.esfera .anillo{position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
+  border:2px solid rgba(23,169,222,.18);pointer-events:none}
+.esfera .anillo::after{content:"";position:absolute;inset:26px;border-radius:50%;border:2px solid rgba(23,169,222,.10)}
+
+.acciones{display:grid;gap:10px;margin:16px 0 8px}
+.marcar{width:100%;border:0;border-radius:999px;padding:20px 24px;font-family:var(--font-display);
+  font-weight:800;font-size:20px;letter-spacing:-.01em;cursor:pointer;color:#fff;background:var(--accent-500);
+  box-shadow:0 6px 18px rgba(237,50,55,.28);transition:background .15s,transform .1s}
+.marcar:hover:not(:disabled){background:var(--accent-600)}
+.marcar:active{transform:scale(.99)}
+.marcar:disabled{opacity:.55;cursor:wait}
+.marcar.alm{background:var(--brand-600);box-shadow:0 6px 18px rgba(14,134,180,.28)}
+.marcar.alm:hover:not(:disabled){background:var(--brand-700)}
+.marcar-2{width:100%;padding:15px;font-size:16px}
+
+.cinta-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 12px;margin-top:14px}
+.cinta-box h2{font-size:16px;margin-bottom:12px}
+.cinta{position:relative;height:30px;background:var(--sand-2);border-radius:8px;overflow:hidden}
+.cinta .seg{position:absolute;top:0;bottom:0}
+.seg.trab{background:var(--st-trab)}
+.seg.alm{background:repeating-linear-gradient(135deg,var(--st-alm) 0 5px,#E3A33E 5px 10px)}
+.seg.vivo{opacity:.65}
+.cinta.doble{height:42px;background:linear-gradient(var(--sand-2) 0 26px,transparent 26px 31px,var(--sand-2) 31px)}
+.cinta.doble .seg.trab,.cinta.doble .seg.alm{bottom:16px}
+.cinta.doble .seg.pcon,.cinta.doble .seg.pc{height:11px;opacity:1}
+.cinta.doble .seg.pcon{background:#8FA3AF}
+.seg.pcon{background:var(--ink-600);top:auto;height:7px;bottom:0;opacity:.55}
+.seg.pc{background:var(--accent-500);top:auto;height:7px;bottom:0}
+.cinta .ahora{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink-900)}
+.eje{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-muted);margin-top:5px}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--text-muted);margin-top:10px}
+.leyenda span{display:inline-flex;align-items:center;gap:6px}
+.leyenda i{width:14px;height:10px;border-radius:3px;display:inline-block}
+
+.marcas{list-style:none;margin-top:12px;border-top:1px solid var(--line)}
+.marcas li{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.marcas li:last-child{border-bottom:0}
+.marcas .h{font-weight:700}
+.marcas .corr{font-size:12px;color:var(--text-muted);margin-left:6px}
+
+.semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px}
+.dia{background:var(--sand);border-radius:12px;padding:9px 4px;text-align:center;font-size:12px;color:var(--text-muted);
+  border:1.5px solid transparent;min-width:0}
+.dia b{display:block;font-size:15px;color:var(--text);font-weight:700;margin-top:2px}
+.dia.hoy{border-color:var(--ink-900);background:var(--paper)}
+.dia .ico{display:block;height:16px;margin-top:2px;font-size:12px}
+.total-sem{display:flex;justify-content:space-between;margin-top:12px;font-size:14.5px}
+
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border-radius:var(--radius-sm);font-size:14.5px;margin-bottom:14px}
+.aviso.alerta{background:var(--accent-50);color:#7A1418}
+.aviso.warn{background:var(--warn-50);color:#6B3A00}
+.aviso.info{background:var(--brand-50);color:var(--ink-700)}
+.aviso svg{flex:none;margin-top:2px}
+
+/* ── banderas (forma + color) ── */
+.fl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none}
+.fl-alerta{color:var(--accent-500)}
+.fl-aviso{color:var(--warn)}
+.fl-info{color:var(--text-muted)}
+.fl-ok{color:var(--brand-600)}
+.banderas{list-style:none;display:grid;gap:8px;margin:10px 0}
+.banderas li{display:flex;gap:9px;align-items:flex-start;font-size:14px;line-height:1.4}
+
+/* ── ADMIN: HOY ── */
+.resumen{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.cifra{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;min-width:140px}
+.cifra b{font-family:var(--font-display);font-size:26px;font-weight:800;display:block;line-height:1.1}
+.cifra .st{font-size:13px;color:var(--text-muted);font-weight:500}
+.cabecera{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:16px}
+.cabecera h1{font-size:clamp(22px,3vw,28px)}
+.cabecera .esp{flex:1}
+.lista-hoy{display:grid;gap:8px}
+.fila-hoy{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(230px,1.3fr) 64px minmax(0,2.4fr);gap:8px 16px;align-items:center;
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 16px;cursor:pointer;
+  text-align:left;width:100%}
+.fila-hoy:hover{border-color:var(--brand-500)}
+.fila-hoy .nom{font-weight:600}
+.fila-hoy .min{font-weight:700;text-align:right}
+.fila-hoy .fls{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--text-muted)}
+.fila-hoy .fls span{display:flex;gap:6px;align-items:flex-start}
+@media (max-width:720px){
+  .fila-hoy{grid-template-columns:1fr auto}
+  .fila-hoy .fls{grid-column:1/-1}
+  .fila-hoy .st{grid-column:1}
+}
+
+/* ── ADMIN: HOJA ── */
+.periodo{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.periodo select,.periodo input,.campo input,.campo select{padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);font-size:14.5px}
+.tabla-wrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);-webkit-overflow-scrolling:touch}
+table.hoja{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%}
+.hoja th,.hoja td{padding:0;border-bottom:1px solid var(--line);white-space:nowrap}
+.hoja thead th{position:sticky;top:0;background:var(--sand);font-weight:600;font-size:12px;color:var(--text-muted);
+  padding:8px 4px;text-align:center;z-index:1}
+.hoja thead th.fin{color:#9AAAB5}
+.hoja .nombre{position:sticky;left:0;background:var(--paper);z-index:2;text-align:left;padding:8px 14px;font-weight:600;
+  min-width:150px;max-width:210px;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line)}
+.hoja thead .nombre{background:var(--sand);z-index:3}
+.hoja .tot{padding:8px 12px;text-align:right;font-weight:700;background:var(--sand);border-left:1px solid var(--line)}
+.hoja .tot.sub{font-weight:500;color:var(--text-muted)}
+.celda{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;min-width:46px;height:46px;
+  border:0;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);position:relative}
+.celda:hover{background:var(--brand-50)}
+.celda.vacia{color:#B5C3CC;font-weight:400}
+.celda.futuro{cursor:default}
+.celda.futuro:hover{background:none}
+.celda.ok{background:var(--brand-50)}
+.celda .ics{display:flex;gap:2px;height:14px}
+.celda .ics svg{width:13px;height:13px}
+.celda.hoy::after{content:"";position:absolute;left:6px;right:6px;bottom:2px;height:2px;background:var(--ink-900);border-radius:2px}
+.barra-acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.barra-acc .esp{flex:1}
+.nota{font-size:13px;color:var(--text-muted)}
+
+/* ── EMPLEADOS ── */
+table.emps{width:100%;border-collapse:collapse;font-size:14px}
+.emps th{text-align:left;font-size:12.5px;color:var(--text-muted);font-weight:600;padding:10px 14px;background:var(--sand);border-bottom:1px solid var(--line)}
+.emps td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.emps tr:last-child td{border-bottom:0}
+.emps .inact td{color:#9AAAB5}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sand-2);color:var(--text-muted)}
+.pill.no{background:var(--warn-50);color:var(--warn)}
+
+/* ── VENTANAS ── */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(4,20,31,.45);display:flex;align-items:flex-end;justify-content:center;
+  padding:0}
+.ventana{background:var(--paper);width:100%;max-width:620px;max-height:92vh;overflow:auto;border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  padding:22px 22px calc(22px + env(safe-area-inset-bottom,0px));box-shadow:var(--shadow)}
+@media (min-width:700px){ .overlay{align-items:center;padding:20px} .ventana{border-radius:var(--radius-lg)} }
+.ventana h2{font-size:21px}
+.ventana .sub{color:var(--text-muted);font-size:14px;margin:2px 0 14px}
+.ventana .sub::first-letter{text-transform:uppercase}
+.ventana .pie{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:18px}
+.ventana .pie .esp{flex:1}
+.bloque{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.bloque h3{font-size:14.5px;margin-bottom:8px}
+.pcdato{font-size:14px;color:var(--text-muted)}
+.pcdato b{color:var(--text)}
+.edit-fila{display:grid;grid-template-columns:minmax(0,1fr) 142px 40px;gap:8px;margin-bottom:8px}
+.edit-fila select,.edit-fila input,.campo input,.campo select,.campo textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);font-size:15px}
+.edit-fila button{border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);cursor:pointer;font-size:18px;color:var(--text-muted)}
+.campo{display:block;margin-bottom:12px}
+.campo span{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.campo small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:4px}
+.err{color:var(--accent-600);font-size:14px;margin-top:8px;min-height:1px}
+
+#toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
+  background:var(--ink-900);color:#fff;padding:12px 18px;border-radius:12px;font-size:14.5px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:90;max-width:calc(100vw - 32px);box-shadow:var(--shadow)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--accent-600)}
+.velo{position:fixed;inset:0;background:var(--ink-900);color:#9FBECB;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;z-index:100;font-size:14px}
+.spin{width:24px;height:24px;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:g .8s linear infinite}
+.spin.dark{border-color:rgba(4,20,31,.12);border-top-color:var(--brand-600);width:18px;height:18px;display:inline-block;vertical-align:-3px}
+@keyframes g{to{transform:rotate(360deg)}}
+.vacio{text-align:center;padding:48px 20px;color:var(--text-muted);background:var(--paper);border:1px dashed var(--line);border-radius:var(--radius)}
+.vacio h2{color:var(--text);font-size:19px;margin-bottom:6px}
+.demo-tag{background:var(--warn-50);color:var(--warn);font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+
+<div class="velo" id="velo"><div class="spin"></div><span>Abriendo el reloj…</span></div>
+
+<header class="top">
+  <a class="marca" href="https://247medicalaid.github.io/" title="Volver al portal">
+    <img src="https://247medical-aid.com/logo-247-dark.svg" alt="24/7 Medical Aid" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'txt',textContent:'24/7 Medical Aid'}))">
+    <span class="txt">Reloj</span>
+  </a>
+  <span class="demo-tag hidden" id="demoTag">Modo de ejemplo</span>
+  <span class="esp"></span>
+  <div class="quien"><b id="quienNom"></b><span id="quienRol"></span></div>
+  <a class="btn btn-ghost btn-sm" href="https://247medicalaid.github.io/">Portal</a>
+</header>
+
+<nav class="tabs hidden" id="tabs" role="tablist">
+  <button class="tab" role="tab" data-v="reloj" id="tabReloj">Mi reloj</button>
+  <button class="tab" role="tab" data-v="hoy">Hoy</button>
+  <button class="tab" role="tab" data-v="hoja">Hoja de horas</button>
+  <button class="tab" role="tab" data-v="emps">Empleados</button>
+</nav>
+
+<main>
+  <!-- RELOJ DEL AGENTE -->
+  <section id="vReloj" class="hidden">
+    <div class="reloj">
+      <div id="avisosAgente"></div>
+      <div class="esfera">
+        <div class="anillo" aria-hidden="true"></div>
+        <div class="yo" id="rYo"></div>
+        <div class="fecha" id="rFecha"></div>
+        <div class="hora num" id="rHora" aria-live="off"></div>
+        <div class="zona" id="rZona"></div>
+        <div class="estado">
+          <span class="st" id="rEstado"></span>
+          <span class="acum" id="rAcum"></span>
+        </div>
+      </div>
+      <div class="acciones" id="rAcciones"></div>
+      <div class="cinta-box">
+        <h2>Tu día</h2>
+        <div class="cinta" id="rCinta"></div>
+        <div class="eje" id="rEje"></div>
+        <ul class="marcas" id="rMarcas"></ul>
+      </div>
+      <div class="cinta-box">
+        <h2>Esta semana</h2>
+        <div class="semana" id="rSemana"></div>
+        <div class="total-sem"><span class="muted">Total de la semana</span><b class="num" id="rTotSem"></b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIN RELOJ -->
+  <section id="vSin" class="hidden">
+    <div class="vacio">
+      <h2>Tu usuario aún no tiene reloj</h2>
+      <p>Pídele al administrador que te agregue en la lista de empleados del Reloj.</p>
+    </div>
+  </section>
+
+  <!-- ADMIN: HOY -->
+  <section id="vHoy" class="hidden">
+    <div class="cabecera">
+      <h1>Hoy</h1>
+      <span class="muted cap" id="hoyFecha" style="display:inline-block"></span>
+      <span class="esp"></span>
+      <span class="nota" id="hoyAct"></span>
+      <button class="btn btn-ghost btn-sm" id="hoyRefrescar">Actualizar</button>
+    </div>
+    <div class="resumen" id="hoyResumen"></div>
+    <div id="hoyAvisos"></div>
+    <div class="lista-hoy" id="hoyLista"></div>
+  </section>
+
+  <!-- ADMIN: HOJA DE HORAS -->
+  <section id="vHoja" class="hidden">
+    <div class="cabecera">
+      <h1>Hoja de horas</h1>
+      <span class="esp"></span>
+      <div class="periodo">
+        <select id="hPreset" aria-label="Periodo">
+          <option value="q0">Quincena actual</option>
+          <option value="q1">Quincena anterior</option>
+          <option value="s0">Esta semana</option>
+          <option value="s1">Semana pasada</option>
+          <option value="c">Otras fechas…</option>
+        </select>
+        <input type="date" id="hDesde" class="hidden" aria-label="Desde">
+        <input type="date" id="hHasta" class="hidden" aria-label="Hasta">
+      </div>
+    </div>
+    <div id="hojaAvisos"></div>
+    <div class="tabla-wrap" id="hojaTabla"></div>
+    <div class="barra-acc">
+      <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Aprobar días sin novedades</button>
+      <span class="nota" id="hAprobarNota"></span>
+      <span class="esp"></span>
+      <button class="btn btn-ghost btn-sm" id="hExpResumen">Exportar resumen para Nómina</button>
+      <button class="btn btn-ghost btn-sm" id="hExpDetalle">Exportar detalle por día</button>
+    </div>
+    <div class="leyenda" id="hojaLeyenda"></div>
+  </section>
+
+  <!-- ADMIN: EMPLEADOS -->
+  <section id="vEmps" class="hidden">
+    <div class="cabecera">
+      <h1>Empleados</h1>
+      <span class="esp"></span>
+      <button class="btn btn-ink btn-sm" id="eNuevo">Agregar empleado</button>
+    </div>
+    <p class="nota" style="margin:-6px 0 14px;max-width:70ch">Cada empleado entra al Reloj con su usuario del portal. Créalo primero en el portal como Operador; no hace falta marcarle ninguna aplicación.</p>
+    <div class="tabla-wrap" id="empsTabla"></div>
+  </section>
+</main>
+
+<!-- detalle de un día -->
+<div class="overlay hidden" id="ovDia" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
+  <div class="ventana">
+    <h2 id="dTitulo"></h2>
+    <div class="sub" id="dSub"></div>
+    <div id="dCuerpo"></div>
+    <div class="err" id="dErr"></div>
+    <div class="pie" id="dPie"></div>
+  </div>
+</div>
+
+<!-- confirmar salida -->
+<div class="overlay hidden" id="ovConf" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
+  <div class="ventana" style="max-width:420px">
+    <h2 id="cTitulo"></h2>
+    <p class="muted" id="cTexto" style="margin-top:6px"></p>
+    <div class="pie">
+      <button class="btn btn-ghost" id="cNo">Cancelar</button>
+      <button class="btn btn-ink" id="cSi"></button>
+    </div>
+  </div>
+</div>
+
+<!-- empleado -->
+<div class="overlay hidden" id="ovEmp" role="dialog" aria-modal="true" aria-labelledby="eTitulo">
+  <div class="ventana" style="max-width:520px">
+    <h2 id="eTitulo">Agregar empleado</h2>
+    <div class="sub">Vincula su usuario del portal con su nombre en el Monitor y en Nómina.</div>
+    <label class="campo"><span>Usuario del portal</span><input id="eUsuario" list="eUsuarios" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ej.: laura.a"><datalist id="eUsuarios"></datalist><small>El mismo con el que entra al portal.</small></label>
+    <label class="campo"><span>Nombre</span><input id="eNombre" autocomplete="off"></label>
+    <label class="campo"><span>Agente en el Monitor</span><select id="eMonitor"></select>
+      <small>Con esto se comparan sus marcas con la actividad de su PC.</small></label>
+    <label class="campo"><span>Nombre en Nómina</span><input id="eNomina" autocomplete="off" placeholder="Como aparece en la Calculadora de Nómina"></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <label class="campo"><span>Horas por día</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
+      <label class="campo"><span>Estado</span><select id="eActivo"><option value="si">Activo</option><option value="no">Inactivo</option></select></label>
+    </div>
+    <div class="err" id="eErr"></div>
+    <div class="pie">
+      <button class="btn btn-ghost" data-cerrar>Cancelar</button>
+      <button class="btn btn-ink" id="eGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   RELOJ 24/7 MEDICAL AID
+   Entrada, almuerzo y salida de los agentes, verificados con el Monitor.
+   La hora de cada marca la pone el servidor; aquí solo se muestra.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+
+const PORTAL = 'https://247medicalaid.github.io/';
+const CLAVE  = 'portal247.sesion';
+// Fuera del portal (archivo descargado, vista previa) no hay sesión ni
+// servidor: se abre directamente el modo de ejemplo.
+const DEMO   = new URLSearchParams(location.search).has('demo') || location.hostname !== '247medicalaid.github.io';
+
+const NOMBRE_TIPO = { entrada:'Entrada', almuerzo_ini:'Salida a almorzar', almuerzo_fin:'Regreso del almuerzo', salida:'Salida' };
+const S = { token:null, yo:null, offset:0, zona:'America/New_York', vista:null, hoja:null, emps:null,
+            periodo:null, timerReloj:null, timerHoy:null, ocupado:false, dia:null };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ── tiempo ── */
+const ahora = () => Date.now() + S.offset;
+function fmt(ms, op){ return new Intl.DateTimeFormat('es-US', Object.assign({ timeZone:S.zona }, op)).format(new Date(ms)); }
+const hora   = ms => ms == null ? '—' : fmt(ms, { hour:'numeric', minute:'2-digit' });
+const hhmm   = ms => fmt(ms, { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+const fechaL = f => new Intl.DateTimeFormat('es-US', { timeZone:'UTC', weekday:'long', day:'numeric', month:'long' }).format(new Date(f + 'T12:00:00Z'));
+const diaC   = f => new Intl.DateTimeFormat('es-US', { timeZone:'UTC', weekday:'short' }).format(new Date(f + 'T12:00:00Z')).replace('.', '');
+const diaN   = f => Number(f.slice(8));
+function hm(min){ if(min == null) return '—'; const h = Math.floor(min/60), m = Math.round(min%60); return h + ':' + String(m).padStart(2,'0'); }
+function dur(min){ const h = Math.floor(min/60), m = Math.round(min%60); return h ? (m ? h + ' h ' + m + ' min' : h + ' h') : m + ' min'; }
+function sumarDias(f, n){ const d = new Date(f + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
+function fechaHoy(){ return new Intl.DateTimeFormat('en-CA', { timeZone:S.zona, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(ahora())); }
+// ms de una hora de pared en la zona del negocio
+function wall(fecha, hm){
+  const [y,mo,d] = fecha.split('-').map(Number), [h,mi] = hm.split(':').map(Number);
+  const objetivo = Date.UTC(y, mo-1, d, h, mi); let g = objetivo;
+  for(let i = 0; i < 3; i++){
+    const p = {}; new Intl.DateTimeFormat('en-US', { timeZone:S.zona, year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', hourCycle:'h23' }).formatToParts(new Date(g)).forEach(x => p[x.type] = x.value);
+    g += objetivo - Date.UTC(+p.year, p.month-1, +p.day, +p.hour, +p.minute);
+  }
+  return g;
+}
+
+/* ── íconos (la forma dice el nivel, no solo el color) ── */
+const IC = {
+  alerta:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M8 1.5 15 14H1z" fill="currentColor"/><path d="M8 6v3.6" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="11.7" r="1" fill="#fff"/></svg>',
+  aviso:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M8 4.6v4" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="11.2" r="1" fill="#fff"/></svg>',
+  info:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.2v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="4.9" r="1" fill="currentColor"/></svg>',
+  ok:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+const icono = n => '<span class="fl fl-' + n + '" title="' + ({alerta:'Alerta',aviso:'Aviso',info:'Nota',ok:'Aprobado'})[n] + '">' + IC[n] + '</span>';
+const nivelMax = fl => fl.some(b => b.n === 'alerta') ? 'alerta' : fl.some(b => b.n === 'aviso') ? 'aviso' : fl.length ? 'info' : null;
+const ESTADO_TXT = { trabajando:'Trabajando', almuerzo:'En almuerzo', fuera:'Fuera de turno', sin:'Sin marcar' };
+const estadoHTML = (e, txt) => '<span class="st st-' + e + '"><i></i>' + esc(txt || ESTADO_TXT[e]) + '</span>';
+
+function toast(msg, tipo){
+  const t = $('toast'); t.textContent = msg; t.className = 'show' + (tipo ? ' ' + tipo : '');
+  clearTimeout(t._t); t._t = setTimeout(() => { t.className = ''; }, 3600);
+}
+function abrir(id){ $(id).classList.remove('hidden'); }
+function cerrar(id){ $(id).classList.add('hidden'); }
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if(e.target === ov || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); });
+
+/* ── SESIÓN Y SERVIDOR ── */
+function alPortal(motivo){
+  if(motivo === 'expirada'){ try{ localStorage.removeItem(CLAVE); }catch(e){} }
+  location.replace(PORTAL + '?motivo=' + motivo + '&app=reloj');
+}
+/* ══════════════════ DATOS: SUPABASE ══════════════════
+   Marcar, corregir y aprobar son funciones de la base de datos (validan y
+   ponen la hora del servidor). Leer es directo, filtrado por las reglas de
+   acceso. Los cálculos del día y las banderas se hacen aquí, con las mismas
+   reglas que tenía el servidor de Apps Script.
+   La verificación con el Monitor (que sigue en Apps Script, lento) llega
+   después: la hoja se pinta al instante y las alertas del PC se agregan
+   cuando responde. */
+const CFG = { TOLERANCIA_MIN: 15, AUSENCIA_MIN: 5, ALMUERZO_MAX_MIN: 60, SIN_ALMUERZO_MIN: 360, MAX_DIAS: 31 };
+const DOMINIO_SB = '@usuarios.247medical-aid.com';
+const EPISODIOS_AUSENCIA = { 'Inactivo': 1, 'Sin señal': 1, 'Sin internet': 1 };
+const MON_CLAVE = 'reloj_mon_v1';
+const TIEMPOS = [];
+
+function normal(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); }
+function agrupar(marcas){ const g = {}; marcas.forEach(m => { (g[m.fecha] = g[m.fecha] || []).push(m); }); return g; }
+function rango(desde, hasta){ const r = []; for(let f = desde; f <= hasta && r.length <= CFG.MAX_DIAS; f = sumarDias(f, 1)) r.push(f); return r; }
+
+/* Máquina de estados del día (igual que reloj_dia en la base de datos). */
+function armarDia(marcas, ahora, esHoy){
+  let estado = 'fuera', ini = null, iniAlm = null; const bloques = [], almuerzos = []; let invalidas = 0;
+  marcas.forEach(m => {
+    if(m.tipo === 'entrada' && estado === 'fuera'){ estado = 'trabajando'; ini = m.ms; }
+    else if(m.tipo === 'almuerzo_ini' && estado === 'trabajando'){ bloques.push([ini, m.ms]); iniAlm = m.ms; estado = 'almuerzo'; }
+    else if(m.tipo === 'almuerzo_fin' && estado === 'almuerzo'){ almuerzos.push([iniAlm, m.ms]); ini = m.ms; estado = 'trabajando'; }
+    else if(m.tipo === 'salida' && estado === 'trabajando'){ bloques.push([ini, m.ms]); estado = 'fuera'; }
+    else invalidas++;
+  });
+  const abierto = estado !== 'fuera';
+  const desde = estado === 'trabajando' ? ini : estado === 'almuerzo' ? iniAlm : null;
+  const b = bloques.slice(), a = almuerzos.slice();
+  if(abierto && esHoy){ if(estado === 'trabajando') b.push([ini, ahora]); else a.push([iniAlm, ahora]); }
+  const suma = l => Math.round(l.reduce((s, x) => s + (x[1] - x[0]), 0) / 60000);
+  return { estado, desde, abierto, enCurso: abierto && esHoy, incompleto: abierto && !esHoy,
+           min: suma(b), alm: suma(a), bloques: b, almuerzos: a, invalidas };
+}
+
+/* Banderas del día. mon: datos del Monitor para ese día ({agente: {p,u,e}}),
+   undefined = todavía llegando, false = sin configurar, null = no respondió. */
+function banderas(dia, marcas, emp, mon, ahora){
+  const f = [], tol = CFG.TOLERANCIA_MIN * 60000;
+  if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Falta marcar la salida. Las horas de este día no cuentan hasta corregirla.' });
+  if(dia.alm > CFG.ALMUERZO_MAX_MIN) f.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Almuerzo de ' + dia.alm + ' min: ' + (dia.alm - CFG.ALMUERZO_MAX_MIN) + ' min por encima de la hora.' });
+  if(!dia.almuerzos.length && !dia.enCurso && dia.min >= CFG.SIN_ALMUERZO_MIN) f.push({ c:'SIN_ALMUERZO', n:'info', t:'No marcó almuerzo.' });
+  const corr = marcas.find(m => m.origen === 'admin');
+  if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corregido por ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
+  if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + ' marca(s) fuera de orden no se tuvieron en cuenta.' });
+  if(!marcas.length) return f;
+  if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'No está vinculado a un agente del Monitor: no se pudo verificar.' }); return f; }
+  if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Comparando con el Monitor…' }); return f; }
+  if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'La verificación con el Monitor no está configurada en este navegador.' }); return f; }
+  if(mon === null){ f.push({ c:'MONITOR_NO', n:'info', t:'El Monitor no respondió: no se pudo verificar.' }); return f; }
+  const a = mon[normal(emp.agenteMonitor)];
+  if(!a || a.p == null){ f.push({ c:'PC_SIN_SENAL', n:'alerta', t:'Marcó turno, pero su PC no reportó al Monitor en todo el día.' }); return f; }
+  const ent = marcas.find(m => m.tipo === 'entrada');
+  if(ent && a.p - ent.ms > tol) f.push({ c:'PC_TARDE', n:'alerta', t:'Marcó entrada a las ' + hora(ent.ms) + '; su PC empezó a reportar a las ' + hora(a.p) + ' (' + Math.round((a.p - ent.ms) / 60000) + ' min después).' });
+  const sal = marcas.filter(m => m.tipo === 'salida').pop();
+  if(sal && !dia.abierto && sal.ms - a.u > tol) f.push({ c:'PC_ANTES', n:'alerta', t:'Marcó salida a las ' + hora(sal.ms) + '; su PC dejó de reportar a las ' + hora(a.u) + ' (' + Math.round((sal.ms - a.u) / 60000) + ' min antes).' });
+  if(dia.enCurso && dia.estado === 'trabajando' && ahora - a.u > tol) f.push({ c:'PC_CALLADO', n:'alerta', t:'Está marcado como trabajando, pero su PC no reporta desde las ' + hora(a.u) + '.' });
+  let n = 0, mins = 0;
+  (a.e || []).forEach(ep => {
+    let s = 0; dia.bloques.forEach(b => { s += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); });
+    s = Math.round(s / 60000); if(s >= CFG.AUSENCIA_MIN){ n++; mins += s; }
+  });
+  if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' ausencia' : ' ausencias') + ' del PC durante el turno marcado: ' + mins + ' min en total.', min:mins });
+  return f;
+}
+
+/* Vista del agente: hoy (o el turno de ayer aún abierto), la semana y los días sin salida. */
+function resumenAgente(marcas, aprob, ahora, hoy){
+  const porFecha = agrupar(marcas);
+  const mHoy = porFecha[hoy] || [], ayer = sumarDias(hoy, -1), dAyer = armarDia(porFecha[ayer] || [], ahora, false);
+  const turnoDeAyer = !mHoy.length && dAyer.abierto && dAyer.desde && (ahora - dAyer.desde) < 14 * 3600000;
+  const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7, lunes = sumarDias(hoy, -dow);
+  const semana = rango(lunes, sumarDias(lunes, 6)).map(f => {
+    const d = armarDia(porFecha[f] || [], ahora, f === hoy);
+    return { fecha:f, min:d.min, alm:d.alm, incompleto:d.incompleto, enCurso:d.enCurso, aprobado:!!aprob[f], marcas:(porFecha[f] || []).length };
+  });
+  const pendientes = Object.keys(porFecha).filter(f => f < hoy && f >= sumarDias(hoy, -14) && armarDia(porFecha[f], ahora, false).incompleto).sort();
+  const fv = turnoDeAyer ? ayer : hoy, mv = porFecha[fv] || [], dv = armarDia(mv, ahora, true);
+  return { fecha:fv, estado:dv.estado, desde:dv.desde, min:dv.min, alm:dv.alm,
+           marcas:mv.map(m => ({ tipo:m.tipo, ms:m.ms, origen:m.origen })), turnoDeAyer, semana, pendientes };
+}
+
+/* Hoja de horas a partir de los datos crudos y lo que haya llegado del Monitor. */
+function construirHoja(raw, monDias, ahora){
+  const hoy = raw.hoy, porUsuario = {};
+  raw.marcas.forEach(m => { (porUsuario[m.usuario] = porUsuario[m.usuario] || []).push(m); });
+  const aprob = {}; raw.aprob.forEach(a => { aprob[a.usuario + '|' + a.fecha] = a; });
+  const empleados = raw.emps.map(emp => {
+    const porFecha = agrupar(porUsuario[emp.usuario] || []);
+    const dias = {}, tot = { min:0, minAprob:0, dias:0, diasAprob:0, alertas:0 };
+    raw.fechas.forEach(f => {
+      const m = porFecha[f] || [], ap = aprob[emp.usuario + '|' + f];
+      if(!m.length && !ap) return;
+      const d = armarDia(m, ahora, f === hoy);
+      const mon = f > hoy ? false : monDias[f];
+      const fl = banderas(d, m, emp, mon, ahora);
+      dias[f] = { estado:d.estado, enCurso:d.enCurso, incompleto:d.incompleto, desde:d.desde, min:d.min, alm:d.alm, banderas:fl,
+        marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, origen:x.origen })),
+        aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en) } : null,
+        monitor: (mon && emp.agenteMonitor) ? (mon[normal(emp.agenteMonitor)] || null) : null };
+      tot.min += d.incompleto ? 0 : d.min;
+      if(m.length) tot.dias++;
+      if(ap){ tot.minAprob += Math.round(Number(ap.horas) * 60); tot.diasAprob++; }
+      if(fl.some(b => b.n === 'alerta')) tot.alertas++;
+    });
+    return Object.assign({}, emp, { dias, totales:tot });
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const pasadas = raw.fechas.filter(f => f <= hoy);
+  return { desde:raw.desde, hasta:raw.hasta, hoy, ahora, zona:S.zona, fechas:raw.fechas, empleados,
+           monitor: !pasadas.some(f => monDias[f] === false),
+           monitorFalla: pasadas.filter(f => monDias[f] === null).length,
+           monitorCargando: pasadas.some(f => monDias[f] === undefined) };
+}
+
+/* Respuesta del Monitor reducida a lo necesario: {agente normalizado: {p, u, e}}. */
+function reducirMonitor(j){
+  if(!j || !j.ok || !Array.isArray(j.agentes)) return null;
+  const d = {};
+  j.agentes.forEach(ag => {
+    d[normal(ag.agente)] = { p: ag.primera == null ? null : Number(ag.primera), u: ag.ultima == null ? null : Number(ag.ultima),
+      e: (ag.episodios || []).filter(ep => EPISODIOS_AUSENCIA[ep.tipo] && !ep.justificado).map(ep => [ep.tipo, Number(ep.ini), Number(ep.fin)]) };
+  });
+  return d;
+}
+
+
+/* ── conexión: leer, marcar y medir ── */
+function tiempo(nombre, t0){ const ms = Math.round(performance.now() - t0); TIEMPOS.push({ nombre, ms, en: Date.now() }); if(TIEMPOS.length > 60) TIEMPOS.shift(); window.__tiempos = TIEMPOS; return ms; }
+const seg = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+async function q(p){ const { data, error } = await p; if(error){ const e = new Error(error.message || 'Error de la base de datos.'); e.codigo = error.code; throw e; } return data; }
+// Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
+async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
+const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
+const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo });
+const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
+
+async function sesionSB(){
+  if(!window.sb) throw Object.assign(new Error('No se pudo cargar la conexión con la base de datos. Revisa tu internet y recarga la página.'), { codigo:'SIN_LIB' });
+  const { data } = await window.sb.auth.getSession();
+  if(!data.session) throw Object.assign(new Error('Para activar el Reloj, sal del portal y vuelve a entrar una vez con tu usuario y contraseña.'), { codigo:'SIN_SB' });
+  return data.session;
+}
+
+async function api(action, p){
+  if(DEMO) return demoApi(action, p || {});
+  p = p || {};
+  if(action === 'yo') return yoSB();
+  if(action === 'marcar'){
+    const t0 = performance.now();
+    const r = await q(sb.rpc('reloj_marcar', { p_tipo: p.tipo }));
+    const ms = tiempo('marcar', t0);
+    const yo = await yoSB();
+    yo.marcada = { tipo:r.tipo, nombre:NOMBRE_TIPO[r.tipo], ms:Date.parse(r.ts), fecha:r.fecha, minTurno:r.minTurno, seg:ms };
+    return yo;
+  }
+  if(action === 'hoja') return hojaSB(p.desde, p.hasta);
+  if(action === 'corregir'){ await q(sb.rpc('reloj_corregir', { p_usuario:p.usuario, p_fecha:p.fecha, p_marcas:p.marcas, p_motivo:p.motivo })); return { ok:true }; }
+  if(action === 'aprobar' || action === 'desaprobar') return q(sb.rpc('reloj_aprobar', { p_items:p.items, p_aprobar: action === 'aprobar' }));
+  if(action === 'empleados') return empleadosSB();
+  if(action === 'guardarEmpleado'){ await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return { empleados:(await q(sb.from('reloj_empleados').select('*'))).map(empJS) }; }
+  throw new Error('Acción desconocida: ' + action);
+}
+
+async function yoSB(){
+  const t0 = performance.now(), ses = await sesionSB();
+  const usuario = ses.user.email.replace(DOMINIO_SB, ''), desde = sumarDias(fechaHoy(), -15);
+  // Todo en paralelo: un solo viaje de ida y vuelta, no cinco seguidos.
+  const [ahoraSrv, perfil, emp, marcas, aprob] = await Promise.all([
+    q(sb.rpc('ahora')),
+    q(sb.from('perfiles').select('usuario,nombre,rol,activo').eq('user_id', ses.user.id).maybeSingle()),
+    q(sb.from('reloj_empleados').select('*').eq('usuario', usuario).maybeSingle()),
+    q(sb.from('reloj_marcas').select(COLS_M).eq('usuario', usuario).is('anulada_en', null).gte('fecha', desde).order('ts').order('id')),
+    q(sb.from('reloj_aprobaciones').select('fecha').eq('usuario', usuario).gte('fecha', desde))
+  ]);
+  S.offset = Date.parse(ahoraSrv) - Date.now();
+  if(!perfil || !perfil.activo) throw Object.assign(new Error('Tu usuario no está activo. Habla con el administrador.'), { codigo:'INACTIVO' });
+  const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia) } : null;
+  const ahoraMs = ahora(), hoy = fechaHoy(), ap = {};
+  aprob.forEach(a => { ap[a.fecha] = true; });
+  const ms = tiempo('abrir', t0);
+  return { ahora:ahoraMs, zona:S.zona, hoy, seg:ms,
+    usuario:{ username:perfil.usuario, nombre:perfil.nombre, rol:perfil.rol }, esAdmin: perfil.rol === 'admin',
+    empleado:e, reloj: e ? resumenAgente(marcas.map(mapM), ap, ahoraMs, hoy) : null,
+    config:{ almuerzoMax:CFG.ALMUERZO_MAX_MIN, monitor:!!monCfg() } };
+}
+
+async function hojaSB(desde, hasta){
+  const t0 = performance.now(); await sesionSB();
+  const hoy = fechaHoy();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(desde || '')) desde = hoy;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) hasta = desde;
+  if(hasta < desde){ const t = desde; desde = hasta; hasta = t; }
+  const fechas = rango(desde, hasta);
+  if(fechas.length > CFG.MAX_DIAS) throw new Error('Elige un periodo de 31 días como máximo.');
+  hasta = fechas[fechas.length - 1];
+  const [emps, marcas, aprob] = await Promise.all([
+    q(sb.from('reloj_empleados').select('*').eq('activo', true)),
+    todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
+    todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta))
+  ]);
+  const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob };
+  const h = construirHoja(raw, monDisponible(fechas), ahora());
+  h._raw = raw; h.seg = tiempo('hoja', t0);
+  return h;
+}
+// Recalcula una hoja ya cargada cuando llegan datos del Monitor (sin volver a Supabase).
+function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ahora()); n._raw = h._raw; n.seg = h.seg; return n; }
+
+async function empleadosSB(){
+  await sesionSB();
+  const [emps, perfiles] = await Promise.all([q(sb.from('reloj_empleados').select('*')), q(sb.from('perfiles').select('usuario,nombre,activo'))]);
+  if(!MON.agentes && monCfg()) await Promise.race([monPedir([fechaHoy()]), new Promise(r => setTimeout(r, 12000))]);
+  return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo })), monitor:MON.agentes || [] };
+}
+
+/* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
+const MON = { hoy:null, hoyEn:0, hoyFalla:false, falla:{}, vuelo:{}, agentes:null };
+function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = localStorage.getItem('mon247_token'); return url && tok ? { url, tok } : null; }catch(e){ return null; } }
+function monGuardados(){ try{ return JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){ return {}; } }
+const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
+function monDisponible(fechas){
+  const cfg = monCfg(), g = monGuardados(), hoy = fechaHoy(), r = {};
+  fechas.forEach(f => {
+    if(f > hoy) return;
+    if(!cfg){ r[f] = false; return; }
+    if(f === hoy) r[f] = (MON.hoy && Date.now() - MON.hoyEn < 120000) ? MON.hoy : (MON.hoyFalla ? null : (MON.hoy || undefined));
+    else r[f] = (g[f] && Date.now() - g[f].en < MON_VIGENCIA) ? g[f].d : (MON.falla[f] ? null : (g[f] ? g[f].d : undefined));
+  });
+  return r;
+}
+async function monPedir(fechas, alTerminar){
+  const cfg = monCfg(); if(!cfg) return;
+  const hoy = fechaHoy(), g = monGuardados();
+  const faltan = fechas.filter(f => f <= hoy && !MON.vuelo[f] &&
+    (f === hoy ? !(MON.hoy && Date.now() - MON.hoyEn < 120000) : !(g[f] && Date.now() - g[f].en < MON_VIGENCIA)));
+  if(!faltan.length) return;
+  faltan.forEach(f => { MON.vuelo[f] = true; });
+  // De a 3 a la vez: el Apps Script del Monitor no aguanta muchas juntas.
+  const cola = faltan.slice().sort().reverse();
+  async function trabajador(){
+    while(cola.length){
+      const f = cola.shift();
+      try{
+        const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) + (f === hoy ? '' : '&fecha=' + f);
+        const j = await (await fetch(u)).json(), d = reducirMonitor(j);
+        if(!d) throw new Error('sin datos');
+        if(f === hoy){ MON.hoy = d; MON.hoyEn = Date.now(); MON.hoyFalla = false; MON.agentes = j.agentes.map(a => ({ agente:a.agente, cuenta:a.cuenta || '' })); }
+        else {
+          const gg = monGuardados(); gg[f] = { d, en:Date.now() };
+          const ks = Object.keys(gg).sort(); while(ks.length > 45) delete gg[ks.shift()];
+          try{ localStorage.setItem(MON_CLAVE, JSON.stringify(gg)); }catch(e){}
+          delete MON.falla[f];
+        }
+      }catch(e){ if(f === hoy) MON.hoyFalla = true; else MON.falla[f] = true; }
+      finally{ delete MON.vuelo[f]; }
+      if(alTerminar) alTerminar();   // cada día se muestra apenas llega
+    }
+  }
+  await Promise.all([trabajador(), trabajador(), trabajador()]);
+}
+
+/* ── ARRANQUE ── */
+async function inicio(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); }catch(e){}
+  if(!DEMO && (!s || !s.token)) return alPortal('entra');
+  S.token = s && s.token;
+  if(DEMO) $('demoTag').classList.remove('hidden');
+  try{
+    const yo = await api('yo');
+    aplicarYo(yo);
+    $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
+    $('quienRol').textContent = yo.esAdmin ? 'Administrador' : (yo.empleado ? 'Agente' : '');
+    if(yo.esAdmin){
+      $('tabs').classList.remove('hidden');
+      $('tabReloj').classList.toggle('hidden', !yo.empleado);
+      const pedida = location.hash.slice(1);
+      irA(['reloj','hoy','hoja','emps'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+    } else if(yo.empleado) irA('reloj');
+    else irA('sin');
+  }catch(e){
+    if(e.codigo === 'SIN_SB'){
+      $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px;line-height:1.6">' + esc(e.message) +
+        '<br><br><a class="btn" href="' + PORTAL + '" style="color:#fff;border-color:rgba(255,255,255,.4)">Ir al portal</a></div>';
+      return;
+    }
+    $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px">' + esc(e.message) +
+      '<br><br><button class="btn" onclick="location.reload()" style="color:#fff;border-color:rgba(255,255,255,.4)">Reintentar</button></div>';
+    return;
+  }
+  $('velo').remove();
+}
+
+function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; }
+
+function irA(v){
+  S.vista = v;
+  ['reloj','sin','hoy','hoja','emps'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
+  if(S.yo && S.yo.esAdmin){ try{ history.replaceState(null, '', '#' + v); }catch(e){} }
+  clearInterval(S.timerReloj); clearInterval(S.timerHoy);
+  if(v === 'reloj'){ pintarReloj(); S.timerReloj = setInterval(tic, 1000); }
+  if(v === 'hoy'){ cargarHoy(); S.timerHoy = setInterval(() => { if(!document.hidden) cargarHoy(true); }, 60000); }
+  if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else cargarHoja(); }
+  if(v === 'emps') cargarEmps();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => irA(t.dataset.v)));
+
+/* ══════════════════ RELOJ DEL AGENTE ══════════════════ */
+function tic(){
+  const r = S.yo.reloj, t = ahora();
+  const partes = fmt(t, { hour:'numeric', minute:'2-digit', hour12:true }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m').split(' ');
+  $('rHora').innerHTML = esc(partes[0]) + '<small>' + esc((partes[1] || '').replace('am','a. m.').replace('pm','p. m.')) + '</small>';
+  $('rFecha').textContent = fmt(t, { weekday:'long', day:'numeric', month:'long' });
+  if(r.estado !== 'fuera'){
+    // minutos que van, contados aquí desde la última marca
+    const extra = (t - r.desde) / 60000;
+    const min = r.estado === 'trabajando' ? r.minBase + extra : r.minBase;
+    $('rAcum').innerHTML = 'Llevas <b class="num">' + dur(Math.floor(min)) + '</b> trabajadas' +
+      (r.estado === 'almuerzo' ? ' · almuerzo de <b class="num">' + dur(Math.floor(r.almBase + extra)) + '</b>' : '');
+  }
+  if(t % 60000 < 1000) pintarCinta();
+}
+
+function pintarReloj(){
+  const yo = S.yo, r = yo.reloj;
+  // minutos cerrados (sin el tramo abierto), para contar en vivo sin pedir al servidor
+  const abierto = r.estado !== 'fuera' ? (yo.ahora - r.desde) / 60000 : 0;
+  r.minBase = r.estado === 'trabajando' ? r.min - abierto : r.min;
+  r.almBase = r.estado === 'almuerzo' ? r.alm - abierto : r.alm;
+  $('rZona').textContent = 'Hora de Orlando (' + S.zona.replace('_',' ') + ')';
+  $('rYo').textContent = yo.empleado.nombre;
+  $('rEstado').outerHTML = '<span class="st st-' + r.estado + '" id="rEstado"><i></i>' +
+    (r.estado === 'trabajando' ? 'Trabajando · entraste a las ' + hora((r.marcas.find(m => m.tipo === 'entrada') || { ms:r.desde }).ms) :
+     r.estado === 'almuerzo' ? 'En almuerzo desde las ' + hora(r.desde) : 'Fuera de turno') + '</span>';
+  if(r.estado === 'fuera') $('rAcum').innerHTML = r.min ? 'Hoy: <b class="num">' + dur(r.min) + '</b> trabajadas' : '';
+
+  const a = $('rAcciones');
+  if(r.estado === 'fuera') a.innerHTML = '<button class="marcar" data-t="entrada">Marcar entrada</button>';
+  if(r.estado === 'trabajando') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_ini">Salir a almorzar</button>' +
+    '<button class="btn btn-ink marcar-2" data-t="salida">Marcar salida</button>';
+  if(r.estado === 'almuerzo') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_fin">Regresar del almuerzo</button>';
+  a.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => pedirMarca(b.dataset.t)));
+
+  const av = [];
+  if(r.turnoDeAyer) av.push(['info', 'Tu turno empezó ayer y sigue abierto. La salida se anotará a ese día.']);
+  r.pendientes.forEach(f => av.push(['alerta', 'Falta tu salida del ' + fechaL(f) + '. Avísale al administrador para que la corrija.']));
+  if(r.estado === 'almuerzo' && r.almBase + (ahora() - r.desde) / 60000 > yo.config.almuerzoMax)
+    av.push(['warn', 'Llevas más de una hora de almuerzo.']);
+  $('avisosAgente').innerHTML = av.map(([n, t]) => '<div class="aviso ' + n + '">' + IC[n === 'warn' ? 'aviso' : n] + '<span>' + esc(t) + '</span></div>').join('');
+
+  $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] +
+      (m.origen === 'admin' ? '<span class="corr">corregida</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
+    : '<li class="muted">Todavía no hay marcas hoy.</li>';
+  pintarCinta();
+
+  const hoy = yo.hoy;
+  $('rSemana').innerHTML = r.semana.map(d => {
+    const ico = d.incompleto ? '<span class="fl fl-alerta" title="Falta la salida">' + IC.alerta + '</span>'
+              : d.aprobado ? '<span class="fl fl-ok" title="Aprobado">' + IC.ok + '</span>' : '';
+    return '<div class="dia' + (d.fecha === hoy ? ' hoy' : '') + '">' + esc(diaC(d.fecha)) + '<br>' + diaN(d.fecha) +
+      '<b class="num">' + (d.marcas ? hm(d.min) : '—') + '</b><span class="ico">' + ico + '</span></div>';
+  }).join('');
+  $('rTotSem').textContent = dur(r.semana.reduce((s, d) => s + (d.incompleto ? 0 : d.min), 0));
+  tic();
+}
+
+function pintarCinta(){ cintaEn($('rCinta'), $('rEje'), S.yo.reloj.fecha, S.yo.reloj.marcas, null, true); }
+
+/* La cinta del día: tramos trabajados, almuerzo, y (para el admin) las
+   ausencias del PC según el Monitor. Va de 6 a. m. a 8 p. m., o más si hace falta. */
+function cintaEn(el, eje, fecha, marcas, monitor, vivo){
+  let ini = wall(fecha, '06:00'), fin = wall(fecha, '20:00');
+  const t = ahora(), tramos = []; let abierto = null, tipoAb = null;
+  marcas.forEach(m => {
+    if(m.tipo === 'entrada' || m.tipo === 'almuerzo_fin'){
+      if(abierto && tipoAb === 'alm') tramos.push(['alm', abierto, m.ms]);
+      abierto = m.ms; tipoAb = 'trab';
+    } else {
+      if(abierto) tramos.push([tipoAb, abierto, m.ms]);
+      if(m.tipo === 'almuerzo_ini'){ abierto = m.ms; tipoAb = 'alm'; } else abierto = null;
+    }
+  });
+  const esHoy = fecha === fechaHoy();
+  if(abierto && esHoy) tramos.push([tipoAb + ' vivo', abierto, t]);
+  tramos.forEach(x => { ini = Math.min(ini, x[1]); fin = Math.max(fin, x[2]); });
+  if(monitor && monitor.p != null){ ini = Math.min(ini, monitor.p); fin = Math.max(fin, monitor.u); }
+  const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
+  let h = tramos.map(x => '<div class="seg ' + x[0] + '" style="left:' + pct(x[1]) + '%;width:' + (pct(x[2]) - pct(x[1])) + '%"></div>').join('');
+  if(monitor && monitor.p != null){
+    h += '<div class="seg pcon" title="PC con señal ' + hora(monitor.p) + ' – ' + hora(monitor.u) + '" style="left:' + pct(monitor.p) + '%;width:' + (pct(monitor.u) - pct(monitor.p)) + '%"></div>';
+  }
+  if(monitor && monitor.e) h += monitor.e.map(ep => '<div class="seg pc" title="' + esc(ep[0]) + ' ' + hora(ep[1]) + ' – ' + hora(ep[2]) +
+    '" style="left:' + pct(ep[1]) + '%;width:' + Math.max(.5, pct(ep[2]) - pct(ep[1])) + '%"></div>').join('');
+  if(esHoy && t > ini && t < fin) h += '<div class="ahora" style="left:' + pct(t) + '%"></div>';
+  el.innerHTML = h;
+  el.classList.toggle('doble', !!(monitor && monitor.p != null));
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', tramos.length ? 'Tramos del día: ' + tramos.map(x => (x[0].startsWith('alm') ? 'almuerzo ' : 'trabajo ') + hora(x[1]) + ' a ' + hora(x[2])).join(', ') : 'Sin marcas');
+  const marcasEje = [];
+  for(let k = 0; k <= 4; k++) marcasEje.push(hora(ini + (fin - ini) * k / 4));
+  eje.innerHTML = marcasEje.map(x => '<span>' + esc(x) + '</span>').join('');
+}
+
+function pedirMarca(tipo){
+  if(S.ocupado) return;
+  if(tipo === 'salida'){
+    $('cTitulo').textContent = '¿Marcar tu salida?';
+    $('cTexto').textContent = 'Se anota con la hora del servidor: ' + hora(ahora()) + '. Si te equivocas, solo el administrador puede corregirla.';
+    $('cSi').textContent = 'Marcar salida';
+    $('cSi').onclick = () => { cerrar('ovConf'); marcar(tipo); };
+    $('cNo').onclick = () => cerrar('ovConf');
+    return abrir('ovConf');
+  }
+  marcar(tipo);
+}
+async function marcar(tipo){
+  S.ocupado = true;
+  document.querySelectorAll('#rAcciones button').forEach(b => { b.disabled = true; });
+  try{
+    const yo = await api('marcar', { tipo });
+    aplicarYo(yo); pintarReloj();
+    const m = yo.marcada;
+    // «p. m.» ya termina en punto: no se le agrega otro
+    const h = hora(m.ms), conPunto = /\.$/.test(h) ? h : h + '.';
+    const t = (S.yo.esAdmin && m.seg) ? ' (' + seg(m.seg) + ')' : '';
+    toast((tipo === 'salida' ? 'Salida marcada a las ' + conPunto + ' Turno de ' + dur(m.minTurno) + '.'
+                             : m.nombre + ' marcada a las ' + conPunto) + t);
+  }catch(e){
+    toast(e.message, 'err');
+    document.querySelectorAll('#rAcciones button').forEach(b => { b.disabled = false; });
+  }
+  S.ocupado = false;
+}
+
+/* ══════════════════ ADMIN: HOY ══════════════════ */
+async function cargarHoy(silencioso){
+  if(!silencioso && !S.hojaHoy) $('hoyLista').innerHTML = '<div class="vacio"><span class="spin dark"></span> Cargando…</div>';
+  try{
+    const hoy = fechaHoy();
+    S.hojaHoy = await api('hoja', { desde:hoy, hasta:hoy });
+    pintarHoy();
+    if(!DEMO){ const raw = S.hojaHoy._raw; monPedir(S.hojaHoy.fechas, () => { if(S.hojaHoy && S.hojaHoy._raw === raw){ S.hojaHoy = rehacer(S.hojaHoy); if(S.vista === 'hoy') pintarHoy(); } }); }
+  }catch(e){ if(!silencioso) toast(e.message, 'err'); }
+}
+function pintarHoy(){
+  const h = S.hojaHoy, f = h.hoy;
+  $('hoyFecha').textContent = fechaL(f);
+  $('hoyAct').textContent = 'Actualizado ' + hora(h.ahora) + (h.seg ? ' · ' + seg(h.seg) : '');
+  const filas = h.empleados.map(e => {
+    const d = e.dias[f];
+    return { e, d, estado: d ? d.estado : 'sin', fl: d ? d.banderas : [] };
+  });
+  const cuenta = k => filas.filter(x => x.estado === k).length;
+  $('hoyResumen').innerHTML = [['trabajando'],['almuerzo'],['fuera'],['sin']].map(([k]) =>
+    '<div class="cifra"><b class="num">' + cuenta(k) + '</b>' + estadoHTML(k) + '</div>').join('') +
+    '<div class="cifra"><b class="num">' + filas.filter(x => nivelMax(x.fl) === 'alerta').length + '</b><span class="st">' + icono('alerta') + 'Con alertas</span></div>';
+  $('hoyAvisos').innerHTML = avisosMonitor(h);
+  const peso = x => (nivelMax(x.fl) === 'alerta' ? 0 : nivelMax(x.fl) === 'aviso' ? 1 : 2) * 10 +
+    ({ trabajando:0, almuerzo:1, sin:2, fuera:3 })[x.estado];
+  filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'es'));
+  if(!filas.length){
+    $('hoyLista').innerHTML = '<div class="vacio"><h2>Aún no hay empleados en el Reloj</h2><p>Agrégalos en la pestaña Empleados.</p></div>';
+    return;
+  }
+  $('hoyLista').innerHTML = filas.map(x => {
+    const d = x.d;
+    const ent = d && d.marcas.find(m => m.tipo === 'entrada');
+    const sal = d && d.marcas.filter(m => m.tipo === 'salida').pop();
+    const txt = !d ? 'Sin marcar' : d.estado === 'trabajando' ? 'Trabajando · entró ' + hora(ent && ent.ms)
+              : d.estado === 'almuerzo' ? 'Almuerzo desde ' + hora(d.desde) : 'Salió ' + hora(sal && sal.ms);
+    return '<button class="fila-hoy" data-u="' + esc(x.e.usuario) + '">' +
+      '<span class="nom">' + esc(x.e.nombre) + '</span>' + estadoHTML(x.estado, txt) +
+      '<span class="min num">' + (d ? hm(d.min) : '') + '</span>' +
+      '<span class="fls">' + x.fl.filter(b => b.n !== 'info').map(b => '<span>' + icono(b.n) + esc(b.t) + '</span>').join('') + '</span></button>';
+  }).join('');
+  $('hoyLista').querySelectorAll('.fila-hoy').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, f, S.hojaHoy)));
+}
+$('hoyRefrescar').addEventListener('click', () => cargarHoy());
+
+function avisosMonitor(h){
+  if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Comparando con el Monitor… Las horas ya están; las alertas del PC aparecen en unos segundos (el Monitor todavía corre en el sistema anterior).</span></div>';
+  if(!h.monitor) return '<div class="aviso info">' + IC.info + '<span>La verificación con el Monitor no está configurada en este navegador. Abre una vez el Monitor de Agentes aquí, con su URL y token, y el Reloj la usará.</span></div>';
+  if(h.monitorFalla) return '<div class="aviso warn">' + IC.aviso + '<span>El Monitor no respondió para ' + h.monitorFalla +
+    (h.monitorFalla === 1 ? ' día' : ' días') + '. Esas marcas no se pudieron verificar; vuelve a cargar en un momento.</span></div>';
+  return '';
+}
+
+/* ══════════════════ ADMIN: HOJA DE HORAS ══════════════════ */
+function elegirPreset(p){
+  $('hPreset').value = p;
+  const hoy = fechaHoy(), d = +hoy.slice(8), mes = hoy.slice(0,7);
+  const finMes = m => { const [y, mo] = m.split('-').map(Number); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2,'0'); };
+  const mesAnt = m => sumarDias(m + '-01', -1).slice(0,7);
+  const lunes = f => sumarDias(f, -((new Date(f + 'T12:00:00Z').getUTCDay() + 6) % 7));
+  let desde, hasta;
+  if(p === 'q0'){ desde = d <= 15 ? mes + '-01' : mes + '-16'; hasta = d <= 15 ? mes + '-15' : finMes(mes); }
+  if(p === 'q1'){ if(d <= 15){ const m = mesAnt(mes); desde = m + '-16'; hasta = finMes(m); } else { desde = mes + '-01'; hasta = mes + '-15'; } }
+  if(p === 's0'){ desde = lunes(hoy); hasta = sumarDias(desde, 6); }
+  if(p === 's1'){ desde = sumarDias(lunes(hoy), -7); hasta = sumarDias(desde, 6); }
+  const custom = p === 'c';
+  $('hDesde').classList.toggle('hidden', !custom); $('hHasta').classList.toggle('hidden', !custom);
+  if(custom){ desde = $('hDesde').value || (S.periodo && S.periodo.desde) || hoy; hasta = $('hHasta').value || (S.periodo && S.periodo.hasta) || hoy; }
+  $('hDesde').value = desde; $('hHasta').value = hasta;
+  S.periodo = { desde, hasta };
+  cargarHoja();
+}
+$('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
+['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
+
+async function cargarHoja(){
+  $('hojaTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Cargando y comparando con el Monitor…</div>';
+  try{
+    S.hoja = await api('hoja', S.periodo);
+    pintarHoja();
+    if(!DEMO){ const raw = S.hoja._raw; monPedir(S.hoja.fechas, () => { if(S.hoja && S.hoja._raw === raw){ S.hoja = rehacer(S.hoja); if(S.vista === 'hoja') pintarHoja(); } }); }
+  }catch(e){ $('hojaTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
+}
+function pintarHoja(){
+  const h = S.hoja;
+  $('hojaAvisos').innerHTML = avisosMonitor(h);
+  if(!h.empleados.length){
+    $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>Aún no hay empleados en el Reloj</h2><p>Agrégalos en la pestaña Empleados.</p></div>';
+    return;
+  }
+  const finde = f => [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
+  let t = '<table class="hoja"><thead><tr><th class="nombre">Empleado</th>' +
+    h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
+    '<th class="tot">Horas</th><th class="tot">Aprobadas</th><th class="tot">Días eq.</th></tr></thead><tbody>';
+  h.empleados.forEach(e => {
+    t += '<tr><td class="nombre" title="' + esc(e.nombre) + '">' + esc(e.nombre) + '</td>';
+    h.fechas.forEach(f => {
+      const d = e.dias[f], futuro = f > h.hoy;
+      if(!d){
+        t += '<td><button class="celda vacia' + (futuro ? ' futuro' : '') + (f === h.hoy ? ' hoy' : '') + '" ' +
+          (futuro ? 'disabled aria-label="Día futuro"' : 'data-u="' + esc(e.usuario) + '" data-f="' + f + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', sin marcas"') + '>·</button></td>';
+        return;
+      }
+      const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
+      const ics = (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
+        (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
+      const etiqueta = d.incompleto ? 'falta' : hm(d.min);
+      t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
+        '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'falta la salida' : dur(d.min)) +
+        (d.aprobado ? ', aprobado' : '') + (n === 'alerta' ? ', con alertas' : n === 'aviso' ? ', con avisos' : '') + '">' +
+        '<span class="num">' + etiqueta + '</span><span class="ics">' + ics + '</span></button></td>';
+    });
+    const tot = e.totales;
+    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot num">' + hm(tot.minAprob) + '</td>' +
+      '<td class="tot sub num">' + (tot.minAprob / 60 / (e.horasDia || 8)).toFixed(2) + '</td></tr>';
+  });
+  t += '</tbody></table>';
+  $('hojaTabla').innerHTML = t;
+  $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
+  const limpios = diasLimpios();
+  $('hAprobarLimpios').disabled = !limpios.length;
+  $('hAprobarLimpios').textContent = limpios.length ? 'Aprobar ' + limpios.length + (limpios.length === 1 ? ' día' : ' días') + ' sin novedades' : 'Aprobar días sin novedades';
+  $('hAprobarNota').textContent = limpios.length ? 'Días cerrados, sin alertas ni avisos, aún sin aprobar.' : '';
+  $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Aprobado</span>' +
+    '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alerta: revisar antes de aprobar</span></span>' +
+    '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Aviso</span></span>' +
+    '<span>«falta» = no marcó la salida</span><span>Días eq. = horas aprobadas ÷ horas por día</span>';
+}
+function diasLimpios(){
+  const out = [];
+  S.hoja.empleados.forEach(e => Object.keys(e.dias).forEach(f => {
+    const d = e.dias[f];
+    if(f < S.hoja.hoy && !d.aprobado && !d.incompleto && d.marcas.length && !d.banderas.some(b => b.n === 'alerta' || b.n === 'aviso'))
+      out.push({ usuario:e.usuario, fecha:f });
+  }));
+  return out;
+}
+$('hAprobarLimpios').addEventListener('click', async () => {
+  const items = diasLimpios(); if(!items.length) return;
+  const b = $('hAprobarLimpios'); b.disabled = true;
+  try{
+    const r = await api('aprobar', { items });
+    toast(r.hechos + (r.hechos === 1 ? ' día aprobado.' : ' días aprobados.'));
+    await cargarHoja();
+  }catch(e){ toast(e.message, 'err'); b.disabled = false; }
+});
+
+/* ── detalle de un día ── */
+function abrirDia(usuario, fecha, fuente){
+  const e = fuente.empleados.find(x => x.usuario === usuario); if(!e) return;
+  const d = e.dias[fecha] || { estado:'fuera', min:0, alm:0, banderas:[], marcas:[], aprobado:null, monitor:null, incompleto:false };
+  S.dia = { e, fecha, d, fuente };
+  $('dTitulo').textContent = e.nombre;
+  $('dSub').textContent = fechaL(fecha);
+  $('dErr').textContent = '';
+  vistaDia();
+  abrir('ovDia');
+}
+function vistaDia(){
+  const { e, fecha, d } = S.dia, hoy = S.dia.fuente.hoy;
+  let h = '';
+  if(d.marcas.length){
+    h += '<div class="cinta" id="dCinta"></div><div class="eje" id="dEje"></div>' +
+      '<div class="leyenda"><span><i style="background:var(--st-trab)"></i>Trabajo marcado</span>' +
+      '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Almuerzo</span>' +
+      (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC con señal (carril de abajo)</span><span><i style="background:var(--accent-500);height:6px"></i>PC sin actividad</span>' : '') + '</div>';
+    h += '<ul class="marcas">' + d.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr">corregida</span>' : '') +
+      '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
+    h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
+      '<span>Trabajadas <b class="num">' + (d.incompleto ? 'sin calcular' : dur(d.min)) + '</b></span>' +
+      '<span>Almuerzo <b class="num">' + dur(d.alm) + '</b></span>' +
+      (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Aprobado: ' + hm(d.aprobado.horas * 60) + ' h por ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div>';
+  } else h += '<p class="muted">No hay marcas este día.</p>';
+  if(d.monitor) h += '<div class="bloque"><h3>Su PC según el Monitor</h3><p class="pcdato">Primera señal <b>' + hora(d.monitor.p) +
+    '</b> · última <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' periodo' : ' periodos') + ' sin actividad' : 'sin ausencias') + '</p></div>';
+  if(d.banderas.length) h += '<div class="bloque"><h3>Novedades</h3><ul class="banderas">' +
+    d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
+  $('dCuerpo').innerHTML = h;
+  if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
+
+  const pie = [];
+  pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Corregir marcas' : 'Agregar marcas') + '</button>');
+  pie.push('<span class="esp"></span>');
+  if(d.aprobado) pie.push('<button class="btn btn-ghost" id="dQuitar">Quitar aprobación</button>');
+  else if(fecha < hoy && d.marcas.length && !d.incompleto) pie.push('<button class="btn btn-brand" id="dAprobar">Aprobar ' + dur(d.min) + '</button>');
+  pie.push('<button class="btn btn-ink" data-cerrar>Cerrar</button>');
+  $('dPie').innerHTML = pie.join('');
+  $('dCorregir').onclick = editarDia;
+  if($('dAprobar')) $('dAprobar').onclick = () => aprobarDia(true);
+  if($('dQuitar')) $('dQuitar').onclick = () => aprobarDia(false);
+}
+async function aprobarDia(si){
+  const { e, fecha } = S.dia;
+  try{
+    const r = await api(si ? 'aprobar' : 'desaprobar', { items:[{ usuario:e.usuario, fecha }] });
+    if(si && r.saltados && r.saltados.length) throw new Error(r.saltados[0].por);
+    toast(si ? 'Día aprobado.' : 'Aprobación quitada.');
+    cerrar('ovDia'); refrescarTrasCambio();
+  }catch(x){ $('dErr').textContent = x.message; }
+}
+function refrescarTrasCambio(){ if(S.vista === 'hoja') cargarHoja(); else if(S.vista === 'hoy') cargarHoy(true); }
+
+function editarDia(){
+  const { d } = S.dia;
+  const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) }))
+    : [{ tipo:'entrada', hora:'08:00' }, { tipo:'almuerzo_ini', hora:'12:00' }, { tipo:'almuerzo_fin', hora:'13:00' }, { tipo:'salida', hora:'17:00' }];
+  if(d.incompleto) filas.push({ tipo:'salida', hora:'17:00' });
+  const CORTO = { entrada:'Entrada', almuerzo_ini:'Inicio almuerzo', almuerzo_fin:'Fin almuerzo', salida:'Salida' };
+  const opts = t => Object.keys(CORTO).map(k => '<option value="' + k + '"' + (k === t ? ' selected' : '') + '>' + CORTO[k] + '</option>').join('');
+  const fila = f => '<div class="edit-fila"><select aria-label="Tipo">' + opts(f.tipo) + '</select><input type="time" value="' + f.hora + '" aria-label="Hora">' +
+    '<button type="button" aria-label="Quitar esta marca">×</button></div>';
+  $('dCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:12px">Horas de Orlando. Las marcas actuales quedan guardadas como anuladas, con tu nombre y el motivo.</p>' +
+    '<div id="dFilas">' + filas.map(fila).join('') + '</div>' +
+    '<button class="btn-link" id="dMas" type="button">+ Agregar marca</button>' +
+    '<label class="campo" style="margin-top:12px"><span>Motivo</span><input id="dMotivo" placeholder="Ej.: olvidó marcar la salida, confirmado por WhatsApp" autocomplete="off"></label>';
+  const enlazar = () => $('dFilas').querySelectorAll('.edit-fila button').forEach(b => b.onclick = () => b.parentNode.remove());
+  enlazar();
+  $('dMas').onclick = () => { $('dFilas').insertAdjacentHTML('beforeend', fila({ tipo:'salida', hora:'17:00' })); enlazar(); };
+  $('dPie').innerHTML = '<button class="btn btn-ghost" id="dVolver">Volver</button><span class="esp"></span><button class="btn btn-ink" id="dGuardar">Guardar corrección</button>';
+  $('dVolver').onclick = vistaDia;
+  $('dGuardar').onclick = guardarCorreccion;
+  setTimeout(() => $('dMotivo').focus(), 50);
+}
+async function guardarCorreccion(){
+  const { e, fecha } = S.dia;
+  const marcas = Array.from($('dFilas').querySelectorAll('.edit-fila')).map(f => ({ tipo:f.querySelector('select').value, hora:f.querySelector('input').value }));
+  const motivo = $('dMotivo').value.trim();
+  $('dErr').textContent = '';
+  if(motivo.length < 3) return $('dErr').textContent = 'Escribe el motivo de la corrección.';
+  if(marcas.some(m => !m.hora)) return $('dErr').textContent = 'Completa todas las horas.';
+  const b = $('dGuardar'); b.disabled = true;
+  try{
+    await api('corregir', { usuario:e.usuario, fecha, marcas, motivo });
+    toast('Corrección guardada.');
+    cerrar('ovDia'); refrescarTrasCambio();
+  }catch(x){ $('dErr').textContent = x.message; b.disabled = false; }
+}
+
+/* ── exportar (CSV que Excel abre directo) ── */
+function descargarCSV(nombre, filas){
+  const csv = '\ufeff' + filas.map(r => r.map(v => { const s = String(v == null ? '' : v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const horasDec = min => (min / 60).toFixed(2);
+$('hExpResumen').addEventListener('click', () => {
+  const h = S.hoja; if(!h) return;
+  const filas = [['Empleado','Nombre en Nómina','Usuario','Horas por día','Días con marcas','Horas marcadas','Horas aprobadas','Días aprobados','Días equivalentes','Días con alertas','Días sin aprobar']];
+  h.empleados.forEach(e => {
+    const t = e.totales;
+    filas.push([e.nombre, e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(t.minAprob), t.diasAprob,
+      (t.minAprob / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]);
+  });
+  descargarCSV('reloj_resumen_' + h.desde + '_a_' + h.hasta + '.csv', filas);
+});
+$('hExpDetalle').addEventListener('click', () => {
+  const h = S.hoja; if(!h) return;
+  const filas = [['Empleado','Nombre en Nómina','Fecha','Entrada','Salida a almorzar','Regreso','Salida','Horas trabajadas','Minutos de almuerzo','Aprobado','Horas aprobadas','Novedades']];
+  h.empleados.forEach(e => h.fechas.forEach(f => {
+    const d = e.dias[f]; if(!d || !d.marcas.length) return;
+    const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
+    const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
+    filas.push([e.nombre, e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
+      d.incompleto ? '' : horasDec(d.min), d.alm, d.aprobado ? 'Sí' : 'No', d.aprobado ? d.aprobado.horas : '',
+      d.banderas.map(b => b.t).join(' | ')]);
+  }));
+  descargarCSV('reloj_detalle_' + h.desde + '_a_' + h.hasta + '.csv', filas);
+});
+
+/* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
+async function cargarEmps(){
+  $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Cargando…</div>';
+  try{ S.emps = await api('empleados'); pintarEmps(); }
+  catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
+}
+function pintarEmps(){
+  const l = S.emps.empleados.slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'es'));
+  if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>Todavía no hay empleados</h2><p>Agrega el primero con su usuario del portal.</p></div>'; return; }
+  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Nombre</th><th>Usuario del portal</th><th>Agente en el Monitor</th><th>Nombre en Nómina</th><th>Horas/día</th><th></th></tr></thead><tbody>' +
+    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactivo</span>') + '</td>' +
+      '<td>' + esc(e.usuario) + '</td><td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Sin vincular</span>') + '</td>' +
+      '<td>' + esc(e.nombreNomina || '—') + '</td><td class="num">' + e.horasDia + '</td>' +
+      '<td style="text-align:right"><button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Editar</button></td></tr>').join('') + '</tbody></table>';
+  $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
+}
+function abrirEmp(usuario){
+  const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
+  $('eTitulo').textContent = e ? 'Editar empleado' : 'Agregar empleado';
+  const usados = S.emps.empleados.map(x => x.usuario);
+  const portal = S.emps.portal.filter(p => p.activo && (p.username === usuario || usados.indexOf(p.username) < 0));
+  $('eUsuarios').innerHTML = portal.map(p => '<option value="' + esc(p.username) + '">' + esc(p.nombre) + '</option>').join('');
+  $('eUsuario').disabled = !!e;
+  const mon = S.emps.monitor.map(m => m.agente);
+  if(e && e.agenteMonitor && mon.indexOf(e.agenteMonitor) < 0) mon.push(e.agenteMonitor);
+  $('eMonitor').innerHTML = '<option value="">Sin vincular</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
+  $('eUsuario').value = e ? e.usuario : '';
+  $('eNombre').value = e ? e.nombre : '';
+  $('eMonitor').value = e ? e.agenteMonitor : '';
+  $('eNomina').value = e ? e.nombreNomina : '';
+  $('eHoras').value = e ? e.horasDia : 8;
+  $('eActivo').value = !e || e.activo ? 'si' : 'no';
+  $('eErr').textContent = '';
+  abrir('ovEmp');
+}
+$('eNuevo').addEventListener('click', () => abrirEmp(null));
+$('eUsuario').addEventListener('change', () => {
+  const u = $('eUsuario').value.trim().toLowerCase(); $('eUsuario').value = u;
+  const pp = S.emps.portal.find(p => p.username === u); if(!pp || !pp.nombre) return;
+  const o = { dataset:{ n:pp.nombre } };
+  if(!$('eNombre').value) $('eNombre').value = o.dataset.n;
+  const n = o.dataset.n.toLowerCase();
+  const m = S.emps.monitor.find(x => x.agente.toLowerCase() === n);
+  if(m && !$('eMonitor').value) $('eMonitor').value = m.agente;
+  if(!$('eNomina').value) $('eNomina').value = o.dataset.n.toUpperCase();
+});
+$('eGuardar').addEventListener('click', async () => {
+  const datos = { usuario:$('eUsuario').value.trim().toLowerCase(), nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
+                  nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:$('eActivo').value === 'si' };
+  if(!datos.usuario) return $('eErr').textContent = 'Elige el usuario del portal.';
+  if(!datos.nombre) return $('eErr').textContent = 'Escribe el nombre.';
+  const b = $('eGuardar'); b.disabled = true;
+  try{
+    const r = await api('guardarEmpleado', { empleado:datos });
+    S.emps.empleados = r.empleados; pintarEmps(); cerrar('ovEmp'); toast('Empleado guardado.');
+    S.hoja = null; S.hojaHoy = null;
+  }catch(e){ $('eErr').textContent = e.message; }
+  b.disabled = false;
+});
+
+/* ══════════════════ MODO DE EJEMPLO (?demo=1) ══════════════════
+   Datos inventados para ver la app sin servidor. No guarda nada. */
+const DM = { listo:false };
+function demoInit(){
+  if(DM.listo) return; DM.listo = true;
+  S.zona = 'America/New_York';
+  const hoy = fechaHoy();
+  DM.emps = [
+    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true },
+    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true },
+    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true },
+    { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true },
+    { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true }
+  ];
+  DM.marcas = {}; DM.aprob = {};
+  let semilla = 7; const rnd = () => (semilla = (semilla * 9301 + 49297) % 233280) / 233280;
+  const desde = sumarDias(hoy, -20);
+  for(let f = desde; f <= hoy; f = sumarDias(f, 1)){
+    const dw = new Date(f + 'T12:00:00Z').getUTCDay(); if((dw === 0 || dw === 6) && f !== hoy) continue;
+    DM.emps.forEach((e, i) => {
+      if(rnd() < .06) return;
+      const k = e.usuario + '|' + f, m = [];
+      const ent = 7 * 60 + 52 + Math.floor(rnd() * 16), alm = 12 * 60 + Math.floor(rnd() * 40), almD = 45 + Math.floor(rnd() * (rnd() < .1 ? 50 : 18));
+      const sal = 17 * 60 + Math.floor(rnd() * 14) - 4;
+      const t = min => wall(f, String(Math.floor(min / 60)).padStart(2,'0') + ':' + String(min % 60).padStart(2,'0'));
+      m.push({ tipo:'entrada', ms:t(ent), origen:'agente' });
+      if(f === hoy){
+        const ya = (ahora() - wall(f, '00:00')) / 60000;
+        if(ya < ent){ return; }
+        if(ya > alm){ m.push({ tipo:'almuerzo_ini', ms:t(alm), origen:'agente' }); }
+        if(ya > alm + almD && i !== 2){ m.push({ tipo:'almuerzo_fin', ms:t(alm + almD), origen:'agente' }); }
+        if(ya > sal){ m.push({ tipo:'salida', ms:t(sal), origen:'agente' }); }
+      } else {
+        m.push({ tipo:'almuerzo_ini', ms:t(alm), origen:'agente' }, { tipo:'almuerzo_fin', ms:t(alm + almD), origen:'agente' });
+        if(!(i === 3 && f === sumarDias(hoy, -1)) && !(i === 1 && f === sumarDias(hoy, -6))) m.push({ tipo:'salida', ms:t(sal), origen:'agente' });
+        if(f < sumarDias(hoy, -7) && rnd() < .9) DM.aprob[k] = true;
+      }
+      DM.marcas[k] = m;
+      DM.mon = DM.mon || {};
+      const ep = rnd() < .18 ? [['Sin señal', t(14 * 60 + 10), t(14 * 60 + 38)]] : [];
+      DM.mon[k] = { p: t(ent + (i === 0 && rnd() < .3 ? 35 : -3)), u: f === hoy ? ahora() - 60000 : t(sal + 2), e: ep };
+    });
+  }
+}
+function demoDia(e, f){
+  const m = DM.marcas[e.usuario + '|' + f] || [], hoy = fechaHoy(), esHoy = f === hoy, t = ahora();
+  let est = 'fuera', ini = null, ia = null, mn = 0, al = 0, almuerzos = 0; const bloques = [];
+  m.forEach(x => {
+    if(x.tipo === 'entrada'){ est = 'trabajando'; ini = x.ms; }
+    if(x.tipo === 'almuerzo_ini'){ mn += x.ms - ini; bloques.push([ini, x.ms]); ia = x.ms; est = 'almuerzo'; }
+    if(x.tipo === 'almuerzo_fin'){ al += x.ms - ia; ini = x.ms; est = 'trabajando'; almuerzos++; }
+    if(x.tipo === 'salida'){ mn += x.ms - ini; bloques.push([ini, x.ms]); est = 'fuera'; }
+  });
+  if(est !== 'fuera' && esHoy){ if(est === 'trabajando'){ mn += t - ini; bloques.push([ini, t]); } else al += t - ia; }
+  const incompleto = est !== 'fuera' && !esHoy;
+  const d = { estado:est, enCurso:est !== 'fuera' && esHoy, incompleto, desde: est === 'trabajando' ? ini : est === 'almuerzo' ? ia : null,
+              min:Math.round(mn / 60000), alm:Math.round(al / 60000), marcas:m, banderas:[],
+              aprobado: DM.aprob[e.usuario + '|' + f] ? { horas:Math.round(mn / 36000) / 100, por:'carloshtl75' } : null,
+              monitor: e.agenteMonitor ? DM.mon[e.usuario + '|' + f] || null : null };
+  if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Falta marcar la salida. Las horas de este día no cuentan hasta corregirla.' }); }
+  if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Almuerzo de ' + d.alm + ' min: ' + (d.alm - 60) + ' min por encima de la hora.' });
+  if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corregido por carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
+  if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'No está vinculado a un agente del Monitor: no se pudo verificar.' });
+  const mo = d.monitor;
+  if(mo && m.length){
+    if(mo.p - m[0].ms > 15 * 60000) d.banderas.push({ c:'PC_TARDE', n:'alerta', t:'Marcó entrada a las ' + hora(m[0].ms) + '; su PC empezó a reportar a las ' + hora(mo.p) + ' (' + Math.round((mo.p - m[0].ms) / 60000) + ' min después).' });
+    let mins = 0; mo.e.forEach(ep => bloques.forEach(b => { mins += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); }));
+    mins = Math.round(mins / 60000);
+    if(mins >= 5) d.banderas.push({ c:'PC_AUSENCIAS', n:'aviso', t:'1 ausencia del PC durante el turno marcado: ' + mins + ' min en total.', min:mins });
+  }
+  return d;
+}
+async function demoApi(action, p){
+  demoInit();
+  await new Promise(s => setTimeout(s, 250));
+  const hoy = fechaHoy(), yoU = 'laura.a';
+  const hojaDe = (desde, hasta) => {
+    const fechas = []; for(let f = desde; f <= hasta; f = sumarDias(f, 1)) fechas.push(f);
+    return { desde, hasta, hoy, ahora:ahora(), zona:S.zona, fechas, monitor:true, monitorFalla:0,
+      empleados: DM.emps.filter(e => e.activo).map(e => {
+        const dias = {}, tot = { min:0, minAprob:0, dias:0, diasAprob:0, alertas:0 };
+        fechas.forEach(f => { if(!DM.marcas[e.usuario + '|' + f]) return; const d = demoDia(e, f); dias[f] = d;
+          tot.min += d.min; tot.dias++; if(d.aprobado){ tot.minAprob += Math.round(d.aprobado.horas * 60); tot.diasAprob++; }
+          if(d.banderas.some(b => b.n === 'alerta')) tot.alertas++; });
+        return Object.assign({}, e, { dias, totales:tot });
+      }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) };
+  };
+  const yo = () => {
+    const e = DM.emps[0], d = demoDia(e, hoy);
+    const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7, lun = sumarDias(hoy, -dow), semana = [];
+    for(let i = 0; i < 7; i++){ const f = sumarDias(lun, i), x = demoDia(e, f); semana.push({ fecha:f, min:x.min, alm:x.alm, incompleto:x.incompleto, enCurso:x.enCurso, aprobado:!!x.aprobado, marcas:x.marcas.length }); }
+    return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'carloshtl75', nombre:'Carlos Tobon (ejemplo)', rol:'admin' }, esAdmin:true,
+      empleado:{ nombre:e.nombre, horasDia:8 }, config:{ almuerzoMax:60, monitor:true },
+      reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
+  };
+  if(action === 'yo') return yo();
+  if(action === 'marcar'){
+    const k = yoU + '|' + hoy; (DM.marcas[k] = DM.marcas[k] || []).push({ tipo:p.tipo, ms:ahora(), origen:'agente' });
+    const r = yo(); r.marcada = { tipo:p.tipo, nombre:NOMBRE_TIPO[p.tipo], ms:ahora(), fecha:hoy, minTurno:r.reloj.min }; return r;
+  }
+  if(action === 'hoja') return hojaDe(p.desde, p.hasta);
+  if(action === 'aprobar' || action === 'desaprobar'){ p.items.forEach(i => { if(action === 'aprobar') DM.aprob[i.usuario + '|' + i.fecha] = true; else delete DM.aprob[i.usuario + '|' + i.fecha]; }); return { hechos:p.items.length, saltados:[] }; }
+  if(action === 'corregir'){
+    DM.marcas[p.usuario + '|' + p.fecha] = p.marcas.map(m => ({ tipo:m.tipo, ms:wall(p.fecha, m.hora), origen:'admin', motivo:p.motivo }));
+    delete DM.aprob[p.usuario + '|' + p.fecha]; return { corregido:true };
+  }
+  if(action === 'empleados') return { empleados:DM.emps, monitor:DM.emps.filter(e => e.agenteMonitor).map(e => ({ agente:e.agenteMonitor })).concat([{ agente:'Juan Sebastian Urrea' }, { agente:'Maria Jose Vasquez' }]),
+    portal:DM.emps.map(e => ({ username:e.usuario, nombre:e.nombre, activo:true })).concat([{ username:'jsurrea', nombre:'Juan Sebastian Urrea', activo:true }]) };
+  if(action === 'guardarEmpleado'){ const i = DM.emps.findIndex(e => e.usuario === p.empleado.usuario); if(i >= 0) DM.emps[i] = p.empleado; else DM.emps.push(p.empleado); return { empleados:DM.emps }; }
+  throw new Error('Acción no disponible en el ejemplo.');
+}
+
+inicio();
+</script>
+</body>
+</html>
