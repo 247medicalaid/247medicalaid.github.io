@@ -974,6 +974,16 @@
   /* Las flechas y los dos selectores son una sola cosa: no se separan de
      renglon. Si no caben, encoge el nombre del mes antes que partirse. */
   .inv-barra-mes{ display:flex; align-items:center; gap:9px; min-width:0; }
+  /* Por donde va la serie, a la vista. El contador no se puede bajar
+     escribiendo un numero en un invoice —entre el escrito y el que ya habia
+     manda el mayor— asi que hace falta un sitio donde decirlo. */
+  .inv-barra .inv-proximo{
+    margin-left:auto; font-size:11.5px; color:var(--text3); cursor:pointer;
+    font-family:'DM Mono',monospace; white-space:nowrap;
+    border:1px dashed var(--border); border-radius:7px; padding:3px 9px;
+  }
+  .inv-barra .inv-proximo:hover,
+  .inv-barra .inv-proximo:focus{ color:var(--text); border-color:var(--accent2); outline:none; }
   .inv-barra #inv-mes-status{ font-size:12px; color:var(--text3); margin-left:2px;
                               flex:0 1 auto; min-width:0; }
   /* En el celular el boton del menu vive fijo en la esquina superior izquierda.
@@ -2447,6 +2457,10 @@
         <button class="inv-nav" onclick="invNavMes(1)" aria-label="Mes siguiente" title="Mes siguiente">›</button>
       </span>
       <div id="inv-mes-status"></div>
+      <span class="inv-proximo" id="inv-proximo" onclick="pedirProximoNum()"
+        role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pedirProximoNum();}"
+        title="El número que llevará el próximo invoice. Pulsa para decir por dónde sigue la serie."></span>
     </div>
 
     <!-- Las cifras del mes, fuera de la barra: se consultan, no se navegan. -->
@@ -8156,6 +8170,33 @@ function _cacheInvOv(ovs){
   localStorage.setItem(INV_CACHE_KEY, JSON.stringify(ovs));
   _sigmaSello++;  // cualquier cambio en los invoices invalida el conteo del badge
 }
+// ── El numero de invoice ────────────────────────────────────────────────────
+// Carlos viene de Bloom, donde la serie real va en INV-00148. La app asignaba
+// INV-<anio><3 cifras> (INV-2026233), asi que las dos series no se tocaban: el
+// cliente recibia un numero de una y la contabilidad llevaba la otra.
+//
+// Ahora el numero automatico es el de Bloom: INV- y cinco cifras.
+//
+// Lo que hace falta entender para no romperlo: el contador NO se guarda de
+// verdad. Se escribe en Sheets pero no se lee de vuelta; en cada carga se
+// reconstruye a partir de los invoices que existen. Asi que el contador es, de
+// hecho, "el mayor numero que ya esta puesto". De ahi dos consecuencias que
+// Carlos necesita:
+//
+//   · Escribir a mano un numero MENOR —los meses pasados que va a recrear con
+//     la numeracion real de Bloom— no baja el contador: manda el mayor.
+//   · Los numeros viejos con anio (INV-2026233) se IGNORAN a proposito. Si se
+//     leyeran enteros, uno solo dejaria el contador en 2.026.233 y el invoice
+//     siguiente saldria con esa burrada. Se reconocen por el largo: la serie
+//     nueva tiene 5 cifras o menos, la vieja 7.
+const INV_DIGITOS = 5;
+
+function numeroDeInvoice(invnum){
+  const d = String(invnum||'').replace(/[^0-9]/g,'');
+  if(!d || d.length > INV_DIGITOS) return 0;   // vacio, o el formato viejo con anio
+  return parseInt(d, 10) || 0;
+}
+
 function loadInvCounter(){
   return parseInt(localStorage.getItem(INV_COUNTER_KEY)||'0');
 }
@@ -8280,7 +8321,7 @@ function cargarInvOvRemoto(){
         migrateInvoiceTarifasIfNeeded();
         // Also extract counter from data
         const maxN = Object.values(data)
-          .map(v => parseInt((v.invnum||'').replace(/[^0-9]/g,'').slice(-3))||0)
+          .map(v => numeroDeInvoice(v.invnum))
           .reduce((a,b)=>Math.max(a,b), 0);
         if(maxN > loadInvCounter()) _cacheInvCounter(maxN);
         // Re-render invoices if on that page
@@ -8294,6 +8335,49 @@ function cargarInvOvRemoto(){
     .catch(()=>{}); // use cache on failure
 }
 
+// Por donde sigue la serie, dicho a la vista y editable. Hizo falta al traer la
+// numeracion real de Bloom: la app venia en 233 por su formato viejo y la serie
+// de Carlos iba por 148, y como el repaso de arranque solo SUBE el contador, no
+// habia forma de bajarlo desde la pantalla.
+function pintarProximoNum(){
+  const el = $('inv-proximo');
+  if(!el) return;
+  el.textContent = 'Próximo nº: INV-' + String(loadInvCounter()+1).padStart(INV_DIGITOS,'0');
+}
+
+function _guardarContador(n){
+  _cacheInvCounter(n);
+  fetch(GS_URL, { method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'saveInvCounter', value:n }) }).catch(()=>{});
+}
+
+function pedirProximoNum(){
+  const actual = loadInvCounter() + 1;
+  const txt = prompt(
+    'Número del próximo invoice.\n\n' +
+    'Se escribe solo la cifra: 149 para que salga INV-00149.\n' +
+    'Los invoices que ya tienen número no se tocan.',
+    String(actual));
+  if(txt === null) return;
+  const n = parseInt(String(txt).replace(/[^0-9]/g,''), 10);
+  if(!isFinite(n) || n < 1 || n > 99999){
+    alert('Tiene que ser un número entre 1 y 99999.');
+    return;
+  }
+  _guardarContador(n - 1);
+  pintarProximoNum();
+}
+
+// Un numero escrito a mano cuenta igual que uno asignado: si Carlos recrea un
+// mes pasado y pone INV-00160, el siguiente automatico tiene que ser el 161, no
+// repetir el 160. Y si pone uno menor, el contador no baja.
+function fijarNumInvoice(mk, nombre, valor){
+  setOv(mk, nombre, { invnum: valor });
+  const n = numeroDeInvoice(valor);
+  if(n > loadInvCounter()){ _guardarContador(n); pintarProximoNum(); }
+}
+
 // Auto-increment invoice counter — persisted to Sheets
 function nextInvNum(){
   const n = loadInvCounter() + 1;
@@ -8304,8 +8388,7 @@ function nextInvNum(){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'saveInvCounter', value: n })
   }).catch(()=>{});
-  const year = new Date().getFullYear();
-  return 'INV-' + year + String(n).padStart(3,'0');
+  return 'INV-' + String(n).padStart(INV_DIGITOS,'0');
 }
 
 // ── Double-billing overlap detection ──────────────────────────
@@ -9525,10 +9608,10 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       </div>
       <div>
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Invoice #</div>
-        <input type="text" placeholder="INV-2025001"
+        <input type="text" placeholder="INV-00149"
           value="${data.invnum}"
           ${locked ? 'readonly' : ''}
-          onchange="setOv('${mk}','${esc(cuNombre)}',{invnum:this.value})"
+          onchange="fijarNumInvoice('${mk}','${esc(cuNombre)}',this.value)"
           style="width:130px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'DM Mono',monospace">
       </div>
       <div>
@@ -10939,6 +11022,8 @@ function renderInvoicesMes(){
   const m        = months[mk];
   const _mesEnProceso = mesEnProceso(mk);
   const mesLabel = MESES[mes-1] + ' ' + anio;
+
+  pintarProximoNum();
 
   // Update status label
   const statusEl = $('inv-mes-status');
