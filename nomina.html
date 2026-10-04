@@ -1079,13 +1079,24 @@
      arriba. */
   .pg-caja > .pg-cuenta > .pg-cab{ border-radius:8px; }
   .pg-caja > .pg-cuenta > .pg-cab.abierta{ border-radius:8px 8px 0 0; }
+  /* Y abajo igual. El panel de una cuenta abierta pinta su blanco en un
+     rectangulo recto: sin esto se sale por la curva de las dos esquinas de
+     abajo y el bloque se ve cortado. Como el bloque no recorta a sus hijos
+     —recortar le quitaria la cabecera pegajosa— tiene que redondear el panel.
+     Y el bloque pide papel de fondo porque el margen de abajo del ultimo mes
+     se escapa del panel (los margenes del ultimo hijo se colapsan hacia
+     fuera), y dejaba a la vista una franja oscura de 10 px entre el blanco y
+     el borde. */
+  .pg-caja > .pg-cuenta{ background:var(--surface); }
+  .pg-caja > .pg-cuenta > .inv-theme-edit{ border-radius:0 0 8px 8px; }
   /* En el celular el margen lateral le quita ancho a filas que ya van justas,
      igual que con los meses: el hueco se queda, el margen lateral se va. */
   @media (max-width:620px){
     .pg-caja > .pg-cuenta,
     .pg-caja > .pg-cuenta:last-child{ margin:10px 0; border-radius:0; }
     .pg-caja > .pg-cuenta > .pg-cab,
-    .pg-caja > .pg-cuenta > .pg-cab.abierta{ border-radius:0; }
+    .pg-caja > .pg-cuenta > .pg-cab.abierta,
+    .pg-caja > .pg-cuenta > .inv-theme-edit{ border-radius:0; }
   }
 
   /* Entre un mes y el siguiente, un respiro. Con solo la linea de un pixel los
