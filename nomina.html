@@ -150,11 +150,12 @@
     margin-top:10px; padding-top:9px; border-top:1px solid var(--border);
     font-size:10.5px; color:var(--text3); line-height:1.5;
   }
-  @media (max-width:620px){
-    /* En pantalla angosta el panel se abre a lo ancho de la pagina, no colgando
-       de un boton que esta casi en el borde. */
-    .col-panel{ right:auto; left:0; min-width:0; width:min(100%, 280px); }
-  }
+  /* Nunca mas ancho que la pantalla; de donde cuelga lo decide abrirPanelCols,
+     midiendo. Fiarlo a un punto de corte ya fallo: con el corte en 620 px, entre
+     700 y 900 —donde el encabezado se apila y el boton queda a la izquierda— el
+     panel se anclaba por su borde derecho y empezaba en -120, fuera de la
+     pantalla. No se veia nada. */
+  .col-panel{ max-width:calc(100vw - 16px); }
 
   /* ─── QUINCENA CONFIG ─── */
   .quincena-bar {
@@ -5888,8 +5889,31 @@ function abrirPanelCols(btn){
   const panel = btn.parentElement.querySelector('.col-panel');
   const abierto = !panel.classList.contains('hidden');
   document.querySelectorAll('.col-panel').forEach(p => p.classList.add('hidden'));
-  if(!abierto) panel.classList.remove('hidden');
+  if(abierto) return;
+  panel.classList.remove('hidden');
+  colocarPanelCols(panel);
 }
+
+// Donde cuelga el panel se mide, no se supone. Cuelga por defecto del borde
+// izquierdo del boton y se corre lo justo para no salirse por ningun lado; si
+// aun asi no cabe, manda el margen izquierdo, que es el que deja leer.
+function colocarPanelCols(panel){
+  const wrap = panel.parentElement;
+  const m = 8;
+  panel.style.right = 'auto';
+  panel.style.left = '0px';
+  const W = document.documentElement.clientWidth;
+  const rw = wrap.getBoundingClientRect();
+  const ancho = panel.offsetWidth;
+  let x = 0;
+  if(rw.left + ancho > W - m) x = (W - m - ancho) - rw.left;
+  if(rw.left + x < m)         x = m - rw.left;
+  panel.style.left = Math.round(x) + 'px';
+}
+// Si cambia el ancho de la ventana con el panel abierto, se vuelve a colocar.
+window.addEventListener('resize', function(){
+  document.querySelectorAll('.col-panel:not(.hidden)').forEach(colocarPanelCols);
+});
 document.addEventListener('click', function(e){
   if(!e.target.closest || !e.target.closest('.col-wrap'))
     document.querySelectorAll('.col-panel').forEach(p => p.classList.add('hidden'));
