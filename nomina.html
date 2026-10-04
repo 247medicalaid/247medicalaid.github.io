@@ -8592,7 +8592,55 @@ function guardarInvoice(mkid, nombre){
   }
 }
 
+// ── Comprobar que los invoices llegaron ─────────────────────────────────────
+// Misma ceguera que en las cuentas: la escritura va en no-cors y no se puede
+// leer. Pero aqui se escribe muchisimo mas seguido —cada dia capturado— asi
+// que comprobar una por una seria una peticion por tecla. Se apunta la clave
+// y, 3 s despues de dejar de escribir, UNA sola lectura las comprueba todas.
+const _invPend = new Set();
+let _invVerifTimer = null;
+// Orden de claves normalizado: el servidor puede devolver los campos en otro
+// orden y eso no es un fallo. Un avisador que grita sin motivo se acaba
+// ignorando, que es peor que no tenerlo.
+function _norm(o){
+  if(o === null || typeof o !== 'object') return o;
+  if(Array.isArray(o)) return o.map(_norm);
+  const out = {};
+  Object.keys(o).sort().forEach(k => { out[k] = _norm(o[k]); });
+  return out;
+}
+function _mismoOv(a, b){
+  try { return JSON.stringify(_norm(a)) === JSON.stringify(_norm(b)); }
+  catch(e){ return false; }
+}
+function verificarInvoicesGuardados(silencioso){
+  if(!_invPend.size) return Promise.resolve(true);
+  const claves = [..._invPend]; _invPend.clear();
+  const local = loadInvOv();
+  setConexion('loading','Comprobando que se guardó...');
+  return fetch(GS_URL + '?tipo=invoiceOv&v=' + Date.now())
+    .then(r => r.json())
+    .then(d => {
+      if(!d || typeof d !== 'object') throw new Error('vacio');
+      const mal = claves.filter(k => !_mismoOv(local[k], d[k]));
+      if(mal.length){
+        if(!silencioso) avisarNoSeGuardo('No llegó: ' + mal.slice(0,3).join(' · ') +
+          (mal.length > 3 ? ' y ' + (mal.length-3) + ' más' : ''));
+        return false;
+      }
+      setConexion('ok','Invoices \u00b7 guardado confirmado \u2713');
+      return true;
+    })
+    .catch(() => {
+      if(!silencioso) avisarNoSeGuardo('No hubo respuesta al comprobar los invoices.');
+      return false;
+    });
+}
+
 function _guardarInvOvSheets(key, datos){
+  _invPend.add(key);
+  clearTimeout(_invVerifTimer);
+  _invVerifTimer = setTimeout(()=>verificarInvoicesGuardados(false), 3000);
   fetch(GS_URL, {
     method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
@@ -8659,6 +8707,22 @@ function cerrarInvoice(mkid, nombre){
   const key = invOvKey(normMkid(mkid), nombre);
   if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
   renderInvoices();
+  // Cerrar es cuando se gasta el numero y se congelan los importes. Aqui NO se
+  // espera a la tanda: se comprueba ya. Y si no llego, el invoice se vuelve a
+  // abrir, para que nadie se quede con uno cerrado solo en su pantalla.
+  clearTimeout(_invVerifTimer);
+  setConexion('loading','Confirmando el cierre...');
+  setTimeout(() => {
+    verificarInvoicesGuardados(true).then(ok => {
+      if(ok) return;
+      setOv(mkid, nombre, { cerrado:false });
+      renderInvoices();
+      setConexion('error','\u26d4 El cierre NO se guardó');
+      alert('\u26d4 El invoice NO se pudo cerrar: el servidor no confirmó el cambio.\n\n' +
+        'Se dejó ABIERTO a propósito, para que no te quede cerrado solo en esta ' +
+        'pantalla.\n\nVuelve a intentarlo. Si vuelve a fallar, no recargues.');
+    });
+  }, 2000);
 }
 function reabrirInvoice(mkid, nombre){
   if(!confirm('¿Re-abrir este invoice para edición?')) return;
