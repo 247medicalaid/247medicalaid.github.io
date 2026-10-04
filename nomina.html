@@ -8802,13 +8802,31 @@ function pedirProximoNum(){
   pintarProximoNum();
 }
 
+// Escribir "147" y que quede "147" rompe la serie de un vistazo. Se le pone el
+// formato de la serie: INV- y cinco cifras.
+// Solo se normaliza lo que es claramente un numero de la serie —cifras, con o
+// sin el prefijo—. Un numero del formato viejo (INV-2026306, siete cifras) o
+// cualquier otra cosa se guarda tal cual: no se le inventa formato a algo que
+// no se entiende, y el campo vacio sigue significando "vuelve al automatico".
+function normalizarNumInvoice(valor){
+  const t = String(valor === undefined || valor === null ? '' : valor).trim();
+  if(!t) return '';
+  const m = t.match(/^(?:INV[\s\-]*)?0*(\d{1,5})$/i);
+  if(!m) return t;
+  return 'INV-' + m[1].padStart(INV_DIGITOS, '0');
+}
+
 // Un numero escrito a mano cuenta igual que uno asignado: si Carlos recrea un
 // mes pasado y pone INV-00160, el siguiente automatico tiene que ser el 161, no
 // repetir el 160. Y si pone uno menor, el contador no baja.
+// Devuelve lo que quedo guardado, para que el campo muestre el formato ya
+// puesto sin esperar a que se repinte la pantalla.
 function fijarNumInvoice(mk, nombre, valor){
-  setOv(mk, nombre, { invnum: valor });
-  const n = numeroDeInvoice(valor);
+  const limpio = normalizarNumInvoice(valor);
+  setOv(mk, nombre, { invnum: limpio });
+  const n = numeroDeInvoice(limpio);
   if(n > loadInvCounter()){ _guardarContador(n); pintarProximoNum(); }
+  return limpio;
 }
 
 // Toma el siguiente numero de la serie. Se gasta al CERRAR un invoice.
@@ -10044,7 +10062,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
           title="${data.invnum ? 'Numero del invoice.' : 'Todavia sin numero: se asigna al cerrar el invoice. Si estas recreando uno viejo, escribe aqui su numero real.'}"
           value="${data.invnum}"
           ${locked ? 'readonly' : ''}
-          onchange="fijarNumInvoice('${mk}','${esc(cuNombre)}',this.value)"
+          onchange="this.value=fijarNumInvoice('${mk}','${esc(cuNombre)}',this.value)"
           style="width:130px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'DM Mono',monospace">
       </div>
       <div>
