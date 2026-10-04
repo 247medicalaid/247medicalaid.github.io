@@ -3682,7 +3682,8 @@ function renderResumenOwn(){
 // agentesParaConfig(), que ya viene sin dias ni diasStd.
 function guardarCuentasSiempre(){
   if(!isPeriodoAprobado()){ guardarConfig(); return; }
-  if(!configEsConfiable()) return;
+  // Antes esto se devolvia en silencio: no guardaba y no decia nada.
+  if(!configEsConfiable()){ avisarConfigDeFabrica(); avisarNoSeGuardo('La configuración no cargó bien en esta pestaña.'); return; }
   try {
     const prev = JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) || 'null');
     if(prev && typeof prev === 'object'){
@@ -3706,9 +3707,9 @@ function guardarCuentasSiempre(){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action:'saveConfig', agentes: agentesParaConfig(), cuentas })
     })
-    .then(()=>{ setConexion('ok','Google Sheets · cuenta guardada ✓'); })
-    .catch(()=>{ setConexion('error','Cuenta guardada solo en cache local'); });
-  } catch(e){}
+    .then(()=>{ verificarConfigGuardada(); })
+    .catch(()=>{ avisarNoSeGuardo('No se pudo enviar al servidor.'); });
+  } catch(e){ avisarNoSeGuardo('Falló el envío.'); }
 }
 
 // Escribe un campo de la cuenta y lo guarda. Los campos de texto se guardan
@@ -6333,6 +6334,50 @@ function guardarConfigLocal(){
   } catch(e) {}
 }
 
+// ── Comprobar que lo guardado llegó de verdad ───────────────────────────────
+// Todo guardado sale con mode:'no-cors', que NO deja leer la respuesta: el
+// .then se cumple aunque el servidor no haya escrito nada. Por eso el "✓
+// guardada" no probaba nada — el 4 de octubre se perdió una tanda de contactos
+// y de colores sin un solo aviso, y la app los daba por guardados.
+// La LECTURA (?tipo=config) sí se puede leer. Así que despues de guardar se
+// vuelve a pedir la config y se compara. Si no esta, se avisa fuerte.
+function _huellaCuentas(lista){
+  return (lista||[]).map(c => [c.id, c.nombre, c.billedTo, c.cliDir, c.cliTel,
+      c.cliMail, c.color, c.cobroAgente]
+    .map(x => (x === undefined || x === null) ? '' : String(x)).join('\u001f')
+  ).join('\u001e');
+}
+let _verifTimer = null, _avisandoNoGuardo = false;
+function avisarNoSeGuardo(detalle){
+  setConexion('error', '\u26d4 NO se guardó en el servidor');
+  if(_avisandoNoGuardo) return;            // un aviso, no una cascada
+  _avisandoNoGuardo = true;
+  setTimeout(()=>{ _avisandoNoGuardo = false; }, 15000);
+  alert('\u26d4 El cambio NO quedó guardado en el servidor.\n\n' +
+    (detalle ? detalle + '\n\n' : '') +
+    'Lo que escribiste sigue en esta pantalla, pero NO está en Sheets: si ' +
+    'recargas, se pierde.\n\nVuelve a pulsar Guardar. Si vuelve a fallar, NO ' +
+    'recargues la página.');
+}
+function verificarConfigGuardada(){
+  const esperado = _huellaCuentas(cuentas);
+  clearTimeout(_verifTimer);
+  setConexion('loading', 'Comprobando que se guardó...');
+  _verifTimer = setTimeout(() => {
+    fetch(GS_URL + '?tipo=config&v=' + Date.now())
+      .then(r => r.json())
+      .then(d => {
+        if(!d || !Array.isArray(d.cuentas)) { avisarNoSeGuardo('El servidor respondió vacío.'); return; }
+        if(_huellaCuentas(d.cuentas) === esperado){
+          setConexion('ok', 'Google Sheets \u00b7 guardado confirmado \u2713');
+        } else {
+          avisarNoSeGuardo('El servidor devolvió datos distintos de los que acabas de guardar.');
+        }
+      })
+      .catch(() => avisarNoSeGuardo('No hubo respuesta al comprobar.'));
+  }, 2500);
+}
+
 // Guardar config en Sheets (background)
 let _lastConfigSave = 0; // timestamp of last save
 
@@ -6352,8 +6397,8 @@ function guardarConfigRemoto(){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action:'saveConfig', agentes: agentesParaConfig(), cuentas })
   })
-  .then(()=>{ setConexion('ok','Google Sheets · config guardada ✓'); })
-  .catch(()=>{ setConexion('error','Config guardada solo en cache local'); });
+  .then(()=>{ verificarConfigGuardada(); })
+  .catch(()=>{ avisarNoSeGuardo('No se pudo enviar al servidor.'); });
 }
 
 // Guardar en ambos (local inmediato + Sheets en background)
