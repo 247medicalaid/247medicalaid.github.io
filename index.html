@@ -761,6 +761,17 @@ function salir(){
 }
 $('btnLogout').addEventListener('click', salir);
 
+/* Si la cuenta de Supabase se está creando (primer ingreso, ~3 s) y alguien
+   abre una app, se espera a que termine: salir de la página la cortaría. */
+document.addEventListener('click', async ev => {
+  const a = ev.target.closest && ev.target.closest('a.app-card');
+  if(!a || !window.sbPendiente || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+  ev.preventDefault();
+  toast('Preparando tu cuenta… un momento.');
+  await Promise.race([window.sbPendiente, new Promise(r => setTimeout(r, 10000))]);
+  location.href = a.href;
+});
+
 /** Si el servidor rechaza el token, la sesión murió: al login. */
 function manejar(e){
   if(e.codigo === 'NO_SESSION'){

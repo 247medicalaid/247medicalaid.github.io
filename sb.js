@@ -23,12 +23,22 @@
      cuenta aún no existe allá, la crea portal-sync tras confirmar con el
      portal actual. Nunca lanza error: durante la transición, Supabase no debe
      impedir entrar al portal. Devuelve true si quedó conectado. */
-  window.sbConectar = async function (usuario, dk) {
+  window.sbConectar = function (usuario, dk) {
+    // La promesa queda en window.sbPendiente: el portal la espera si alguien
+    // abre una app antes de que termine (salir de la página la cortaría).
+    window.sbPendiente = conectar(usuario, dk).finally(function () { window.sbPendiente = null; });
+    return window.sbPendiente;
+  };
+  async function conectar(usuario, dk) {
     if (!window.sb) return false;
     var email = String(usuario).trim().toLowerCase() + '@' + DOMINIO;
     try {
       var r = await window.sb.auth.signInWithPassword({ email: email, password: dk });
-      if (!r.error) return true;
+      if (!r.error) {
+        // Entró. ¿Tiene perfil? Si un alta anterior quedó a medias, se repara.
+        var pf = await window.sb.from('perfiles').select('usuario').eq('user_id', r.data.user.id).maybeSingle();
+        if (pf.data) return true;
+      }
       var f = await fetch(SB_URL + '/functions/v1/portal-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
@@ -42,7 +52,7 @@
       console.warn('Supabase no disponible:', e && e.message);
       return false;
     }
-  };
+  }
 
   window.sbSalir = function () {
     try { if (window.sb) window.sb.auth.signOut(); } catch (e) {}
