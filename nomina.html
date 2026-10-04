@@ -8387,6 +8387,10 @@ const INV_COUNTER_KEY = 'inv_counter_cache';    // counter cache key
 // pondria la serie en INV-00005, y escribirla la pisa a destiempo. Esta es una
 // fila propia, por la misma via que ya usan las tarifas maestras (__rates__),
 // que es la unica que esta comprobado que va y vuelve.
+// Ya no se llama a 'saveInvCounter': esa accion ANADE una fila cada vez en vez
+// de actualizar la suya —se encontraron cuatro __counter__ en la hoja, y la que
+// ganaba al leer era una de marzo con {value:4}— y desde que la serie viaja en
+// __serie__ no cumplia ninguna funcion. La fila que quedo se deja quieta.
 const INV_SERIE_OV_KEY   = '__serie__';
 const INV_COUNTER_TS_KEY = 'inv_counter_ts';   // cuando se fijo, en este equipo
 const _invSubCuentasCache = {};  // invOvKey → subCuentas[] (in-memory, set on render)
@@ -8669,11 +8673,7 @@ function _guardarContador(n){
   const ts = Date.now();
   _cacheInvCounter(n);
   try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
-  // Se deja la llamada de siempre: no se le quita nada al backend.
-  fetch(GS_URL, { method:'POST', mode:'no-cors',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'saveInvCounter', value:n }) }).catch(()=>{});
-  _publicarSerie(n, ts);   // y ademas, por la via que si viaja
+  _publicarSerie(n, ts);
 }
 
 function pedirProximoNum(){
@@ -8702,19 +8702,13 @@ function fijarNumInvoice(mk, nombre, valor){
   if(n > loadInvCounter()){ _guardarContador(n); pintarProximoNum(); }
 }
 
-// Auto-increment invoice counter — persisted to Sheets
+// Toma el siguiente numero de la serie. Se gasta al CERRAR un invoice.
 function nextInvNum(){
   const n = loadInvCounter() + 1;
   const ts = Date.now();
   _cacheInvCounter(n);
   try { localStorage.setItem(INV_COUNTER_TS_KEY, String(ts)); } catch(e){}
   _publicarSerie(n, ts);
-  // Persist counter to Sheets
-  fetch(GS_URL, {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'saveInvCounter', value: n })
-  }).catch(()=>{});
   return 'INV-' + String(n).padStart(INV_DIGITOS,'0');
 }
 
