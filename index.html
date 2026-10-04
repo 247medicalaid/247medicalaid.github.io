@@ -560,6 +560,8 @@ tbody tr:hover td{background:var(--brand-50)}
 
 <div id="toast"></div>
 
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="./sb.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
    PORTAL 24/7 MEDICAL AID — control de acceso central
@@ -591,6 +593,12 @@ const CATALOGO = [
   { key:'analyzer', titulo:'Call Center Analyzer', corto:'Analyzer', color:'#1A4A63', url:'./analyzer.html',
     desc:'Análisis de reportes y métricas de llamadas. Procesa los archivos en el navegador.',
     icon:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>' }, { key:'monitor', titulo:'Monitor de Agentes', corto:'Monitor', color:'#0E86B4', url:'./monitor.html', desc:'Actividad de los agentes en tiempo real: inactividad, desconexiones y cierres del monitor por cuenta.', icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+  /* Reloj: se muestra a todo usuario con sesion. Que ve cada uno (su reloj o
+     la hoja de horas) lo decide el propio Reloj; asi no depende de que el Apps
+     Script del portal acepte una clave de permiso nueva. */
+  { key:'reloj', titulo:'Reloj', corto:'Reloj', color:'#17A9DE', url:'./reloj.html', soloUsuarios:['carloshtl75'],   // piloto: solo Carlos. Al abrirlo a todos: todos:true
+    desc:'Entrada, almuerzo y salida, verificados con la actividad del PC. Hoja de horas por quincena.',
+    icon:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/>' },
   /* Modulo personal: ademas de este permiso, proyeccion.html solo abre para el
      usuario que figura en su lista de duenos. */
   { key:'proyeccion', titulo:'Proyección Flujo de Caja', corto:'Proyección', color:'#6D28D9', url:'./proyeccion.html',
@@ -724,6 +732,9 @@ $('loginForm').addEventListener('submit', async ev => {
     guardarSesion(res.token, res.user);
     $('lp').value = '';
     entrar();
+    // Transición a Supabase: entra también allá, en segundo plano y sin
+    // frenar al portal. La primera vez crea la cuenta con el mismo rol.
+    if(window.sbConectar) window.sbConectar(u, dk);
   }catch(e){
     aviso('loginErr', e.message);
   }
@@ -742,6 +753,7 @@ function entrar(){
 function salir(){
   S.token = null; S.user = null; S.users = [];
   borrarSesion();
+  if(window.sbSalir) window.sbSalir();
   $('vApp').classList.add('hidden');
   $('vLogin').classList.remove('hidden');
   $('lp').value = '';
@@ -812,6 +824,7 @@ function pintarIdentidad(){
 function esPersonal(a){ return Array.isArray(a.soloUsuarios); }
 function puedeVerApp(a, u){
   const usuario = String((u && u.username) || '').toLowerCase();
+  if(a.todos) return !!usuario;
   if(esPersonal(a)) return a.soloUsuarios.indexOf(usuario) >= 0;
   return ((u && u.apps) || []).indexOf(a.key) >= 0;
 }
@@ -914,7 +927,7 @@ function pintarUsuarios(){
 function pintarPermisos(seleccion){
   // Los modulos personales no salen aqui: marcarlos no serviria de nada porque
   // el servidor descarta las claves que no conoce.
-  $('muApps').innerHTML = CATALOGO.filter(a => !esPersonal(a)).map(a => `
+  $('muApps').innerHTML = CATALOGO.filter(a => !esPersonal(a) && !a.todos).map(a => `
     <label class="perm">
       <input type="checkbox" value="${esc(a.key)}"${seleccion.indexOf(a.key) >= 0 ? ' checked' : ''}>
       <span><b>${esc(a.titulo)}</b><small>${esc(a.desc.split('.')[0])}.</small></span>
