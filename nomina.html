@@ -9689,9 +9689,9 @@ function estadoPagoCliente(ov, total){
 // cheque a Sigma son EL MISMO hecho, y llevarlos a mano por separado es pedir
 // que algun dia no coincidan. Lo que se registre del lado del cliente se
 // refleja aqui, abonos parciales y deshacer incluidos.
-// El importe de Sigma es el invoice MENOS los cargos adicionales (una
-// suscripcion, un equipo: eso no es trabajo de agentes y no va en el cheque),
-// asi que el reflejo se topa en ese total y nunca lo pasa.
+// En estas cuentas el cliente gira el invoice ENTERO a Sigma, cargos incluidos,
+// asi que el reflejo copia el total del invoice. El tope existe igual, por si
+// algun dia se registra de mas.
 function _sigmaDirectoTotal(mk, nombre){
   try {
     const ov  = getOv(mk, nombre);
@@ -9854,10 +9854,16 @@ function calcSigmaCheck(data, cuentaTipo){
   const _cob    = calcInvCobro(data, data.agenteLinea, data.descDias) || {};
   const _cargos = invR2(_cob.totalCargos || 0);
 
+  // Con una excepcion: la cuenta que paga DIRECTO le gira a Sigma el invoice
+  // entero, cargos incluidos — no hace dos pagos, hace uno. Asi que sigmaDirecto
+  // es el total del invoice y no la parte de los agentes. (Dicho por Carlos:
+  // "ellos pagan todo a Sigma".) Ojo con la consecuencia: si hay cargos, Sigma
+  // recibe dinero que es de 24/7; la app no lleva un "Sigma me debe", eso se
+  // arregla por fuera.
   if(ags247.length === 0){
     // Sin agentes (24/7): lo de los agentes va a Sigma, los cargos no
     if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: false,
-                              excluded: true, sigmaDirecto: invR2(data.monto - _cargos) };
+                              excluded: true, sigmaDirecto: invR2(data.monto) };
     return { sigmaAmt: invR2(data.monto - _cargos), amt247: _cargos, hasSplit: false };
   }
   // Mixed → se reparte por lo que cuesta cada agente
@@ -9872,8 +9878,9 @@ function calcSigmaCheck(data, cuentaTipo){
   const _porAg  = _cob.porAgente || {};
   const amt247  = invR2(ags247.reduce((s,a) => s + (_porAg[a.nombre] || 0), 0) + _cargos);
   const sigmaAmt= invR2(data.monto - amt247);
+  // Tambien aqui: paga directo = gira el invoice entero a Sigma.
   if(_pagaDirecto) return { sigmaAmt: 0, amt247: data.monto, hasSplit: true,
-                            excluded: true, sigmaDirecto: sigmaAmt,
+                            excluded: true, sigmaDirecto: invR2(data.monto),
                             ags247, agsDr, dias247, diasDr };
   return { sigmaAmt, amt247, hasSplit: true, ags247, agsDr, dias247, diasDr };
 }
