@@ -670,8 +670,13 @@
   .summary-row .lbl { color: var(--text2); }
   .summary-row .val { font-family: 'DM Mono', monospace; }
   .summary-row.total .lbl { color: var(--text); font-weight: 600; }
-  .summary-row.total .val { color: var(--accent); font-size: 15px; }
-  .summary-row.profit .val { color: var(--accent); }
+  /* Regla de Carlos: una cifra con color va en negrita; si no, va en negro.
+     Aqui el color dice algo —el signo de la utilidad— asi que estas se quedan
+     con el suyo y ganan el peso. En las tablas, donde el color solo marcaba de
+     que lado cae la cifra y se repetia fila tras fila, pasa al reves: la cifra
+     se queda en negro y el color vive solo en los totales. */
+  .summary-row.total .val { color: var(--accent); font-size: 15px; font-weight: 700; }
+  .summary-row.profit .val { color: var(--accent); font-weight: 700; }
   /* El marcado ya decia 'red' cuando la utilidad es negativa, pero la regla
      no existia y la de arriba la pintaba verde igual. Una perdida en verde
      se lee como ganancia. */
@@ -4293,15 +4298,15 @@ function renderCuentasDr(){
                 oninput="updateValorAgente('${a.id}',this.value)"
                 onchange="updateValorAgente('${a.id}',this.value)">
             </td>
-            <td class="mono" style="color:var(--accent3)">${fmt(qmgmt())}</td>
+            <td class="mono">${fmt(qmgmt())}</td>
             <td>
               <input type="number" value="${a.diasStd !== undefined ? a.diasStd : qdays()}" min="0" max="15"
                 data-agid="${a.id}" data-field="diasStd"
-                style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDiasStd('${a.id}',this.value)" onchange="updateDiasStd('${a.id}',this.value)">
             </td>
             <td>
-              <div class="mono" style="color:var(--accent3)" data-calc="drcheck-${a.id}">${fmt(drCheck(a))}</div>
+              <div class="mono" data-calc="drcheck-${a.id}">${fmt(drCheck(a))}</div>
               <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace" data-calc="drcheck-formula-${a.id}">${a.horas}h × ${fmt(a.valor+qmgmt())} × ${a.diasStd !== undefined ? a.diasStd : qdays()}d</div>
             </td>
             <td class="col-real">
@@ -4318,7 +4323,7 @@ function renderCuentasDr(){
           })()}
           <tr style="background:var(--surface2)">
             <td colspan="5" style="font-weight:600">Agentes Subtotal</td>
-            <td class="mono" style="color:var(--accent3)" data-calc="subtotal-dr-${c.id}">${fmt((r.ags||r.agentes||[]).reduce((s,a)=>s+drCheck(a),0))}</td>
+            <td class="mono" data-calc="subtotal-dr-${c.id}">${fmt((r.ags||r.agentes||[]).reduce((s,a)=>s+drCheck(a),0))}</td>
             <td class="col-real"></td>
             <td class="mono col-real" data-calc="subtotal-real-${c.id}">${fmt(r.subAgentesReal)}</td>
             <td></td>
@@ -4327,7 +4332,7 @@ function renderCuentasDr(){
             <td colspan="5" style="color:var(--text2)">Colombian IT</td>
             <td>
               <input type="number" value="${c.colombian}" min="0" step="10"
-                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuenta('${c.id}','colombian',this.value)" onchange="updateCuenta('${c.id}','colombian',this.value)">
             </td>
@@ -4339,7 +4344,7 @@ function renderCuentasDr(){
             <td colspan="5" style="color:var(--text2)">Accountant + Nómina</td>
             <td>
               <input type="number" value="${c.accountant}" min="0" step="10"
-                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuenta('${c.id}','accountant',this.value)" onchange="updateCuenta('${c.id}','accountant',this.value)">
             </td>
@@ -4356,12 +4361,12 @@ function renderCuentasDr(){
             <td colspan="5" style="color:var(--text2)">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</td>
             <td>
               <input type="number" value="${((r.subDrCheck||0) * (c.transferPctDr !== undefined ? c.transferPctDr : qtransf())).toFixed(2)}" min="0" step="1"
-                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateTransferDrValor('${c.id}',this.value,${r.subDrCheck||0})"
                 onchange="updateTransferDrValor('${c.id}',this.value,${r.subDrCheck||0})">
             </td>
-            <td class="mono" style="color:var(--accent3)" data-calc="transfer-dr-${c.id}">${fmt(r.transferDr)}</td>
+            <td class="mono" data-calc="transfer-dr-${c.id}">${fmt(r.transferDr)}</td>
             <td class="col-real"></td>
             <td class="mono col-real">${fmt(c.transferFeeReal||0)} <span style="font-size:10px">fijo</span></td>
             <td></td>
@@ -4375,15 +4380,15 @@ function renderCuentasDr(){
                     recorrido de la cuenta —agentes primero, pie despues— y de
                     ahi se sigue a la cuenta siguiente. */''}
               <input type="number" value="${((c.dollarPctDr !== undefined ? c.dollarPctDr : qdollar())*100).toFixed(1)}" min="0" max="50" step="0.1"
-                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent3);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctDr',this.value)"
                 onchange="updateCuentaPct('${c.id}','dollarPctDr',this.value)"><span style="font-size:11px;color:var(--text3)"> %</span>
             </td>
-            <td class="mono" style="color:var(--accent3)" data-calc="dollar-dr-${c.id}">${fmt(r.dollarDr)}</td>
+            <td class="mono" data-calc="dollar-dr-${c.id}">${fmt(r.dollarDr)}</td>
             <td class="col-real" style="white-space:nowrap">
               <input type="number" value="${((c.dollarPctReal||0.15)*100).toFixed(1)}" min="0" max="50" step="0.1"
-                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctReal',this.value)"
                 onchange="updateCuentaPct('${c.id}','dollarPctReal',this.value)"><span style="font-size:11px;color:var(--text3)"> %</span>
@@ -4540,7 +4545,7 @@ function renderCuentasOwn(){
           <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">
             <span>$/mes:</span>
             <input type="number" value="${c.cobroAgente}" min="0" step="50" tabindex="-1"
-              style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:3px 6px;font-family:'DM Mono',monospace;font-size:12px;text-align:center"
+              style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-family:'DM Mono',monospace;font-size:12px;text-align:center"
               title="Cobro mensual por agente"
               onchange="updateCobroAgente('${c.id}', this.value)">
           </div>
@@ -4609,7 +4614,7 @@ function renderCuentasOwn(){
                 style="width:54px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 oninput="updateDiasCobrar('${a.id}',this.value)" onchange="updateDiasCobrar('${a.id}',this.value)">
             </td>
-            <td class="mono" style="color:var(--accent2)"${_k ? ` data-calc="cobroown-${_k}"` : ''}>${fmt(cobroVal)}</td>
+            <td class="mono"${_k ? ` data-calc="cobroown-${_k}"` : ''}>${fmt(cobroVal)}</td>
             <td><button class="btn btn-ghost btn-sm" tabindex="-1" onclick="editAgente('${a.id}')">✏️</button></td>
           </tr>`;
             });
@@ -4625,7 +4630,7 @@ function renderCuentasOwn(){
                     recorrido de la cuenta —agentes primero, pie despues— y de
                     ahi se sigue a la cuenta siguiente. */''}
               <input type="number" value="${((c.dollarPctOwn !== undefined ? c.dollarPctOwn : 0.15)*100).toFixed(1)}" min="0" max="50" step="0.1"
-                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
+                style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
                 data-vivo="1"
                 oninput="updateCuentaPct('${c.id}','dollarPctOwn',this.value)"
                 onchange="updateCuentaPct('${c.id}','dollarPctOwn',this.value)"><span style="font-size:11px;color:var(--text3)"> %</span>
