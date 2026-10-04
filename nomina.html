@@ -1047,6 +1047,31 @@
     .pg-cab{ top:52px; }
   }
 
+  /* Entre una cuenta y la siguiente, el mismo respiro que ya hay entre mes y
+     mes. Hacia falta por lo mismo que alli: con solo la linea de un pixel
+     —y sobre papel blanco esa linea pesa aun menos— las cuentas se leian como
+     una lista corrida. Cada cuenta pasa a ser su propio bloque. */
+  .pg-caja > .pg-cuenta{ border:1px solid var(--border); border-radius:9px; margin:10px; }
+  /* El ultimo bloque ya no necesita que la caja le cuadre las esquinas de
+     arriba ni que le recorte el desbordamiento. Y el recorte importa: con
+     overflow:hidden, 'position:sticky' deja de funcionar, asi que la cabecera
+     de la ultima cuenta dejaria de pegarse sin que nada lo dijera. */
+  .pg-caja > .pg-cuenta:last-child{ border-radius:9px; overflow:visible; }
+  /* La banda de color llega hasta el borde del bloque, asi que redondea ella.
+     Cerrada, las cuatro esquinas; abierta, solo las de arriba, porque debajo
+     viene el panel. Redondear recortando el bloque no es opcion, por lo de
+     arriba. */
+  .pg-caja > .pg-cuenta > .pg-cab{ border-radius:8px; }
+  .pg-caja > .pg-cuenta > .pg-cab.abierta{ border-radius:8px 8px 0 0; }
+  /* En el celular el margen lateral le quita ancho a filas que ya van justas,
+     igual que con los meses: el hueco se queda, el margen lateral se va. */
+  @media (max-width:620px){
+    .pg-caja > .pg-cuenta,
+    .pg-caja > .pg-cuenta:last-child{ margin:10px 0; border-radius:0; }
+    .pg-caja > .pg-cuenta > .pg-cab,
+    .pg-caja > .pg-cuenta > .pg-cab.abierta{ border-radius:0; }
+  }
+
   /* Entre un mes y el siguiente, un respiro. Con solo la linea de un pixel los
      invoices de una cuenta se leian como una lista corrida y costaba ubicar
      cual es el mes que se esta tocando —sobre todo en los cobrados, que no
@@ -10478,7 +10503,7 @@ function renderPagosClientes(){
     const esc2 = String(c.nombre).replace(/'/g,'&#39;');
     const pend = c.saldo > 0.005;
     return `
-    <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--accent)':''}">
+    <div class="pg-cuenta">
       <div class="pg-cab cobros cab-color${abierta?' abierta':''}"
         onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
@@ -10688,7 +10713,7 @@ function renderSigma(){
     const esc2 = String(c.nombre).replace(/'/g,'&#39;');
     const pend = c.saldo > 0.005;
     return `
-    <div style="border-top:1px solid var(--border)${abierta?';box-shadow:inset 5px 0 0 var(--inv-sigma,#a78bfa)':''}">
+    <div class="pg-cuenta">
       <div class="pg-cab sigma cab-color${abierta?' abierta':''}"
         onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
