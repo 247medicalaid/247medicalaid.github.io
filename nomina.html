@@ -1026,7 +1026,23 @@
      La caja no puede llevar overflow:hidden: el navegador lo convierte en un
      recorte y position:sticky deja de funcionar dentro. Las esquinas se
      redondean en el primer y el ultimo hijo, que es lo que hacia el recorte. */
+  /* El fondo de la caja es el mismo del menu lateral: los dos piden
+     var(--surface) de la paleta oscura, asi que no pueden separarse. El papel
+     vive ahora un nivel mas abajo —en cada cuenta y en la franja de totales—
+     para que el hueco de 10 px entre cuenta y cuenta se lea como un corte y no
+     como papel en blanco. */
   .pg-caja{ border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+  /* La franja de totales se apoyaba en el papel de la caja; ahora se lo tiene
+     que dar ella. Su velo de color estaba escrito en linea con 'background:',
+     que es un atajo y reemplaza el color de fondo — y en linea gana a
+     cualquier regla, asi que no habia forma de meterle el blanco debajo. El
+     velo pasa aqui, como imagen, con el papel de color de fondo. */
+  .pg-caja > .pg-franja{
+    background-color:#FFFFFF;
+    background-image:linear-gradient(var(--pg-velo), var(--pg-velo));
+  }
+  .pg-caja > .pg-franja.cobros{ --pg-velo: var(--pay-tint, rgba(63,207,160,.10)); }
+  .pg-caja > .pg-franja.sigma { --pg-velo: var(--sig-tint, rgba(167,139,250,.10)); }
   .pg-caja > :first-child{ border-radius:var(--radius) var(--radius) 0 0; }
   .pg-caja > :last-child{ border-radius:0 0 var(--radius) var(--radius); overflow:hidden; }
 
@@ -10503,7 +10519,7 @@ function renderPagosClientes(){
     const esc2 = String(c.nombre).replace(/'/g,'&#39;');
     const pend = c.saldo > 0.005;
     return `
-    <div class="pg-cuenta">
+    <div class="pg-cuenta papel">
       <div class="pg-cab cobros cab-color${abierta?' abierta':''}"
         onclick="togglePagoCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
@@ -10551,8 +10567,8 @@ function renderPagosClientes(){
   }).join('');
 
   el.innerHTML = `
-    <div class="pg-caja papel">
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--pay-tint,rgba(63,207,160,.10));border-left:5px solid var(--accent)">
+    <div class="pg-caja">
+      <div class="papel pg-franja cobros" style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;border-left:5px solid var(--accent)">
         <span style="font-size:15px;font-weight:800;color:var(--accent)">💵 Cobros de clientes</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
         <span style="flex:1;min-width:6px"></span>
@@ -10713,7 +10729,7 @@ function renderSigma(){
     const esc2 = String(c.nombre).replace(/'/g,'&#39;');
     const pend = c.saldo > 0.005;
     return `
-    <div class="pg-cuenta">
+    <div class="pg-cuenta papel">
       <div class="pg-cab sigma cab-color${abierta?' abierta':''}"
         onclick="toggleSigmaCuenta('${esc2}')" role="button" tabindex="0" aria-expanded="${abierta}"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
@@ -10757,8 +10773,8 @@ function renderSigma(){
   }).join('');
 
   el.innerHTML = `
-    <div class="pg-caja papel">
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;background:var(--sig-tint,rgba(167,139,250,.10));border-left:5px solid var(--inv-sigma,#a78bfa)">
+    <div class="pg-caja">
+      <div class="papel pg-franja sigma" style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;border-left:5px solid var(--inv-sigma,#a78bfa)">
         <span style="font-size:15px;font-weight:800;color:var(--inv-sigma,#a78bfa)">🏦 Sigma</span>
         <span style="font-size:11.5px;color:var(--text3)">por cuenta y por mes · solo invoices cerrados</span>
         <span style="flex:1;min-width:6px"></span>
