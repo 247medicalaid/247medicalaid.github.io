@@ -114,13 +114,46 @@
 
   /* ─── HEADER ─── */
   .page-header {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 28px;
   }
   .page-title { font-family: 'Plus Jakarta Sans', serif; font-size: 28px; color: var(--text); }
   .page-sub { color: var(--text2); margin-top: 4px; font-size: 13px; }
   .header-meta {
     display: flex; gap: 12px; align-items: center; flex-shrink: 0;
+  }
+
+  /* ── El selector de columnas ─────────────────────────────────────────────
+     Vive junto al titulo de la seccion, que es donde Carlos lo pidio: un boton
+     con cuantas hay escondidas y, al pulsarlo, la lista. */
+  .col-wrap{ position:relative; }
+  .col-btn{ white-space:nowrap; }
+  .col-panel{
+    position:absolute; right:0; top:calc(100% + 6px); z-index:60;
+    min-width:232px; padding:12px 14px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:0 14px 34px rgba(0,0,0,.45);
+    text-align:left;
+  }
+  .col-panel .col-tit{
+    font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text3); margin-bottom:9px;
+  }
+  .col-panel .col-op{
+    display:flex; align-items:center; gap:9px; padding:5px 0;
+    font-size:13px; color:var(--text); cursor:pointer; user-select:none;
+  }
+  .col-panel .col-op input{
+    width:14px; height:14px; accent-color:var(--accent); cursor:pointer; flex-shrink:0;
+  }
+  .col-panel .col-pie{
+    margin-top:10px; padding-top:9px; border-top:1px solid var(--border);
+    font-size:10.5px; color:var(--text3); line-height:1.5;
+  }
+  @media (max-width:620px){
+    /* En pantalla angosta el panel se abre a lo ancho de la pagina, no colgando
+       de un boton que esta casi en el borde. */
+    .col-panel{ right:auto; left:0; min-width:0; width:min(100%, 280px); }
   }
 
   /* ─── QUINCENA CONFIG ─── */
@@ -2426,6 +2459,11 @@
         <div class="page-sub">El Doctor paga al Call Center; nosotros manejamos la nómina.</div>
       </div>
       <div class="header-meta">
+        <div class="col-wrap" data-pag="cuentas-dr">
+          <button class="btn btn-ghost btn-sm col-btn" onclick="abrirPanelCols(this)"
+            title="Elegir que columnas se ven en esta pantalla">▦ Columnas<span class="col-n"></span></button>
+          <div class="col-panel hidden"></div>
+        </div>
         <button class="btn btn-primary" onclick="openModal('modal-cuenta','dr')">＋ Cuenta</button>
       </div>
     </div>
@@ -2439,8 +2477,13 @@
         <div class="page-title">24/7 Callcenter Accounts</div>
         <div class="page-sub">Cuentas manejadas por nosotros, facturadas directamente.</div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div class="header-meta">
         <div id="own-calendar-ref" style="font-size:12px;color:var(--text3);text-align:right;line-height:1.6"></div>
+        <div class="col-wrap" data-pag="cuentas-own">
+          <button class="btn btn-ghost btn-sm col-btn" onclick="abrirPanelCols(this)"
+            title="Elegir que columnas se ven en esta pantalla">▦ Columnas<span class="col-n"></span></button>
+          <div class="col-panel hidden"></div>
+        </div>
         <button class="btn btn-primary" onclick="openModal('modal-cuenta','own')">＋ Cuenta</button>
       </div>
     </div>
@@ -4490,7 +4533,7 @@ function renderCuentasDr(){
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</span></td>
+            <td colspan="4" style="color:var(--text2)"><span class="etq-fija">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</span></td>
             <td>
               <input type="number" value="${((r.subDrCheck||0) * (c.transferPctDr !== undefined ? c.transferPctDr : qtransf())).toFixed(2)}" min="0" step="1"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
@@ -4504,7 +4547,7 @@ function renderCuentasDr(){
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Dollar Compensation</span></td>
+            <td colspan="4" style="color:var(--text2)"><span class="etq-fija">Dollar Compensation</span></td>
             <td style="white-space:nowrap">
               ${/* Los campos del pie estaban en tabindex="-1": el Tab recorria
                     los agentes y se iba al menu sin pasar por aqui, asi que a
@@ -4565,6 +4608,7 @@ function renderCuentasDr(){
       </table>
     </div>`;
   }).join('');
+  aplicarColumnas('#cuentas-dr-list');
 }
 
 // Las dos columnas calculadas de cada fila 24/7 —"Nomina a Pagar" y "Cobro
@@ -4784,6 +4828,7 @@ function renderCuentasOwn(){
       </table>
     </div>`;
   }).join('');
+  aplicarColumnas('#cuentas-own-list');
 }
 
 let _sortAgentes = 'cuenta'; // 'nombre' | 'cuenta'
@@ -5224,6 +5269,7 @@ function _checkAndInit(){
     try {
       inicializarPeriodoActual();
       recalcAll();
+      pintarPanelesCols();
       populatePeriodoSelects();
       updateBadges();
       actualizarBadgePendiente();
@@ -5731,6 +5777,123 @@ function updateCuenta(id, campo, val){
   const c = cuentas.find(x=>x.id===id);
   if(c){ c[campo] = parseFloat(val)||0; recalcDebounced(); }
 }
+
+// ── Que columnas se ven ─────────────────────────────────────────────────────
+// Ocho columnas no caben en la pantalla de un celular, y hay tres —Hrs/Dia,
+// Valor/Hr, Admon/Hr— que no se tocan al capturar dias. Aqui se eligen.
+//
+// Se guarda en el NAVEGADOR, no en la nube, y a proposito: el celular necesita
+// esconder justo lo que en el computador conviene seguir viendo.
+//
+// No se esconde con CSS. Las filas del pie llevan celdas con colspan que cubren
+// las primeras columnas, y un colspan fijo con una columna escondida corre todo
+// lo demas una casilla a la derecha. Asi que la celda NO SE DIBUJA y el colspan
+// se calcula de la misma lista: una sola fuente, y el desajuste no puede
+// ocurrir por construccion.
+const COLS_KEY = 'nomina_columnas_ocultas';
+
+const COLUMNAS = {
+  'cuentas-dr': [
+    { k:'horas',   t:'Hrs/Día' },
+    { k:'valor',   t:'Valor/Hr' },
+    { k:'admon',   t:'Admon/Hr' },
+    { k:'diasstd', t:'Días Std (Dr)' },
+    { k:'check',   t:'Callcenter Check' },
+    { k:'editar',  t:'✏️ (editar agente)' },
+  ],
+  'cuentas-own': [
+    { k:'horas',      t:'Hrs/Día' },
+    { k:'valor',      t:'Valor/Hr' },
+    { k:'diastrab',   t:'Días Trabajados' },
+    { k:'nomina',     t:'Nómina a Pagar' },
+    { k:'diascobrar', t:'Días a Cobrar' },
+    { k:'cobro',      t:'Cobro Quincenal' },
+    { k:'editar',     t:'✏️ (editar agente)' },
+  ],
+};
+
+function colsOcultas(){
+  try { const v = JSON.parse(localStorage.getItem(COLS_KEY) || '[]');
+        return Array.isArray(v) ? v : []; } catch(e){ return []; }
+}
+// En que casilla esta cada columna. Se escribe una vez aqui y no se repite en
+// el marcado, que es lo que haria que las dos cosas se separaran.
+const COLS_INDICE = {
+  '#cuentas-dr-list':  { horas:1, valor:2, admon:3, diasstd:4, check:5, editar:8 },
+  '#cuentas-own-list': { horas:1, valor:2, diastrab:3, nomina:4, diascobrar:5, cobro:6, editar:7 },
+};
+
+// Esconder una columna NO es ponerle display:none. Las filas del pie llevan
+// celdas con colspan que cubren las primeras columnas; con una columna menos, un
+// colspan fijo corre todo lo demas una casilla a la derecha y las cifras quedan
+// bajo el rotulo equivocado. Aqui se quita la celda y se le resta al colspan de
+// quien la cubra, recorriendo las columnas de verdad sobre la tabla ya dibujada.
+// Se le pasa SU lista a cada tabla. Recorrer las dos desde aqui parecia mas
+// comodo y estaba mal: cada render llama a esta funcion, asi que la tabla de
+// Callcenter se recortaba dos veces —una por su propio render y otra por el de
+// 24/7— y desaparecian dos columnas en vez de una. La marca en el elemento es
+// el segundo cinturon: se pierde sola al volver a dibujar la tabla.
+function aplicarColumnas(sel){
+  const ocultas = colsOcultas();
+  if(!ocultas.length) return;
+  [sel].forEach(sel => {
+    const idx = COLS_INDICE[sel];
+    if(!idx) return;
+    const fuera = ocultas.map(k => idx[k]).filter(i => i !== undefined);
+    if(!fuera.length) return;
+    document.querySelectorAll(sel + ' table').forEach(t => {
+      if(t.dataset.colsHecho) return;
+      t.dataset.colsHecho = '1';
+      [...t.rows].forEach(tr => {
+        let col = 0;
+        [...tr.cells].forEach(td => {
+          const n = td.colSpan || 1;
+          const dentro = fuera.filter(i => i >= col && i < col + n).length;
+          if(dentro === n) td.remove();
+          else if(dentro) td.colSpan = n - dentro;
+          col += n;
+        });
+      });
+    });
+  });
+}
+
+function fijarColumna(k, ver){
+  const o = colsOcultas().filter(x => x !== k);
+  if(!ver) o.push(k);
+  try { localStorage.setItem(COLS_KEY, JSON.stringify(o)); } catch(e){}
+  renderCuentasDr(); renderCuentasOwn(); pintarPanelesCols();
+}
+
+function pintarPanelesCols(){
+  const ocultas = colsOcultas();
+  document.querySelectorAll('.col-wrap').forEach(w => {
+    const lista = COLUMNAS[w.dataset.pag] || [];
+    const n = lista.filter(c => ocultas.indexOf(c.k) >= 0).length;
+    const et = w.querySelector('.col-n');
+    if(et) et.textContent = n ? ' · ' + n : '';
+    const panel = w.querySelector('.col-panel');
+    if(panel) panel.innerHTML =
+      '<div class="col-tit">Columnas a la vista</div>' +
+      lista.map(c =>
+        '<label class="col-op"><input type="checkbox"' +
+        (ocultas.indexOf(c.k) < 0 ? ' checked' : '') +
+        ' onchange="fijarColumna(\'' + c.k + '\', this.checked)"><span>' + c.t + '</span></label>'
+      ).join('') +
+      '<div class="col-pie">Se recuerda en este dispositivo. El lado Payroll tiene su propio interruptor en el menú.</div>';
+  });
+}
+
+function abrirPanelCols(btn){
+  const panel = btn.parentElement.querySelector('.col-panel');
+  const abierto = !panel.classList.contains('hidden');
+  document.querySelectorAll('.col-panel').forEach(p => p.classList.add('hidden'));
+  if(!abierto) panel.classList.remove('hidden');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest || !e.target.closest('.col-wrap'))
+    document.querySelectorAll('.col-panel').forEach(p => p.classList.add('hidden'));
+}, true);
 
 function onVistaChange(){
   const solodr = $('q-vista').checked;
