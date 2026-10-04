@@ -23,6 +23,11 @@
     --radius: 10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Chrome en Android infla la letra de los bloques anchos por su cuenta
+     ("font boosting"): la letra crece pero las cajas no, y lo que cabia deja de
+     caber. En un modulo lleno de tablas eso descuadra media pantalla, y no se
+     reproduce en el computador. Esto lo apaga. */
+  html, body { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif;
                font-weight: 800; letter-spacing: -.022em; }
 
@@ -189,7 +194,12 @@
     .page-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 20px; }
     .page-title { font-size: 22px; }
     .header-meta { flex-wrap: wrap; }
-    .cards-row { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    /* La tarjeta bajaba a 148 px y la cifra pide hasta 136: se salia por el
+       borde. Ahora la tarjeta tiene sitio para la cifra mas larga que puede
+       salir, con el relleno recortado y la cifra un punto mas chica. */
+    .cards-row { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .kpi-card { padding: 14px 15px; }
+    .kpi-val { font-size: 19px; }
     .summary-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .quincena-bar { gap: 14px; padding: 14px; margin-bottom: 20px; }
@@ -219,6 +229,58 @@
      despues del texto, no en el borde—: hay que darles margen a ellas. */
   input.valorhr::-webkit-inner-spin-button,
   input.valorhr::-webkit-outer-spin-button{ margin-left:9px; }
+
+  /* ── La columna del agente, anclada ──────────────────────────────────────
+     Las dos tablas de nomina tienen ocho columnas y no caben en la pantalla
+     interna de un plegable: se desplazan con el dedo, pero al hacerlo
+     desaparecia el nombre y ya no se sabia de quien era la fila que se estaba
+     tocando. Ahora la primera columna se queda.
+
+     La celda anclada se pinta ENCIMA de lo que se desplaza, asi que su fondo
+     tiene que ser opaco; por eso las filas con tinte pasaron de rgba a su
+     equivalente ya mezclado sobre el papel. La celda toma el de su fila para
+     que una fila de total no se vea con la primera celda en blanco.
+
+     Las celdas con colspan se quedan fuera: ocupan media tabla y anclarlas
+     taparia lo que se desplaza por debajo. */
+  #cuentas-dr-list tbody tr, #cuentas-own-list tbody tr{ background-color:#FFFFFF; }
+  /* La tabla de agentes de la quincena tiene el mismo problema y la misma cura.
+     Esa no vive sobre papel, asi que su fondo opaco es el de la app. */
+  #page-agentes tbody tr{ background-color:var(--surface); }
+  #cuentas-dr-list td:first-child:not([colspan]),
+  #cuentas-own-list td:first-child:not([colspan]),
+  #page-agentes td:first-child:not([colspan]){
+    position:sticky; left:0; z-index:2;
+    background-color:inherit;
+    box-shadow:1px 0 0 var(--border);
+  }
+  #cuentas-dr-list th:first-child,
+  #cuentas-own-list th:first-child,
+  #page-agentes th:first-child{
+    position:sticky; left:0; z-index:3;
+    background-color:var(--surface2);
+    box-shadow:1px 0 0 var(--border);
+  }
+  /* Los rotulos del pie —"Colombian IT", "T O T A L"— viven en celdas con
+     colspan, que no se anclan: ocupan media tabla y taparian lo que se desplaza
+     por debajo. Lo que se ancla es el rotulo DENTRO de la celda, asi el nombre
+     de la fila sigue a la vista y la celda se mueve con el resto. Sin esto, al
+     desplazar quedaban fragmentos sin sentido: "ina", "on", "5.0%)". */
+  .etq-fija{ position:sticky; left:14px; display:inline-block; }
+
+  /* Mientras la tabla este desplazada, la columna anclada lleva sombra: es lo
+     que dice que hay algo escondido a la izquierda y que esa columna no se
+     mueve porque no debe. */
+  /* Con el id delante: sin el, esta regla perdia contra la de arriba —que lleva
+     id— y la sombra no llegaba a aparecer nunca. */
+  #cuentas-dr-list .table-wrap.desplazada td:first-child:not([colspan]),
+  #cuentas-own-list .table-wrap.desplazada td:first-child:not([colspan]),
+  #page-agentes .table-wrap.desplazada td:first-child:not([colspan]),
+  #cuentas-dr-list .table-wrap.desplazada th:first-child,
+  #cuentas-own-list .table-wrap.desplazada th:first-child,
+  #page-agentes .table-wrap.desplazada th:first-child{
+    box-shadow:1px 0 0 var(--border), 7px 0 9px -7px rgba(6,25,42,.45);
+  }
   table { width: 100%; border-collapse: collapse; }
   th {
     font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
@@ -900,7 +962,11 @@
     --inv-sigma:#5B21B6; --inv-247:#0D6A63; --inv-cobrar:#BE185D;
     --pay-tint:rgba(14,134,180,.06); --sig-tint:rgba(109,40,217,.07);
   }
-  @media (max-width:860px){
+  /* 900, no 860: estos margenes negativos deshacen el relleno de .main, y .main
+     cambia el suyo en 900. Con el corte en 860, entre 861 y 900 la pagina
+     restaba 32 px de margen contra 14 px de relleno y se iba 36 px mas ancha
+     que la pantalla. Los dos cortes tienen que ser el mismo numero. */
+  @media (max-width:900px){
     #page-invoices{ margin:-58px -14px -30px; padding:58px 14px 30px;
                     --pad-x:14px; --pad-t:58px; }
   }
@@ -3396,12 +3462,12 @@ function renderKPIs(){
     </div>
     <div class="kpi-card">
       <div class="kpi-label">🏥 Callcenter Accounts</div>
-      <div class="kpi-val ${drUtil>=0?'green':'red'}" style="font-size:22px">${fmt(drUtil)}</div>
+      <div class="kpi-val ${drUtil>=0?'green':'red'}">${fmt(drUtil)}</div>
       <div class="kpi-sub"><span style="opacity:.7">Utilidad</span> &nbsp;${pct(drUtil/Math.max(drTotal,1))}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">🏢 24/7 Callcenter Accounts</div>
-      <div class="kpi-val ${ownUtil>=0?'green':'red'}" style="font-size:22px">${fmt(ownUtil)}</div>
+      <div class="kpi-val ${ownUtil>=0?'green':'red'}">${fmt(ownUtil)}</div>
       <div class="kpi-sub"><span style="opacity:.7">Utilidad</span> &nbsp;${pct(ownUtil/Math.max(ownCobro,1))}</div>
     </div>
   `;
@@ -4388,14 +4454,14 @@ function renderCuentasDr(){
             return rows;
           })()}
           <tr style="background:var(--surface2)">
-            <td colspan="5" style="font-weight:600">Agentes Subtotal</td>
+            <td colspan="5" style="font-weight:600"><span class="etq-fija">Agentes Subtotal</span></td>
             <td class="mono" data-calc="subtotal-dr-${c.id}">${fmt((r.ags||r.agentes||[]).reduce((s,a)=>s+drCheck(a),0))}</td>
             <td class="col-real"></td>
             <td class="mono col-real" data-calc="subtotal-real-${c.id}">${fmt(r.subAgentesReal)}</td>
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)">Colombian IT</td>
+            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Colombian IT</span></td>
             <td>
               <input type="number" value="${c.colombian}" min="0" step="10"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
@@ -4407,7 +4473,7 @@ function renderCuentasDr(){
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)">Accountant + Nómina</td>
+            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Accountant + Nómina</span></td>
             <td>
               <input type="number" value="${c.accountant}" min="0" step="10"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
@@ -4424,7 +4490,7 @@ function renderCuentasDr(){
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</td>
+            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Transfer Fee (Dr: ${((c.transferPctDr !== undefined ? c.transferPctDr : qtransf())*100).toFixed(1)}%)</span></td>
             <td>
               <input type="number" value="${((r.subDrCheck||0) * (c.transferPctDr !== undefined ? c.transferPctDr : qtransf())).toFixed(2)}" min="0" step="1"
                 style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:13px"
@@ -4438,7 +4504,7 @@ function renderCuentasDr(){
             <td></td>
           </tr>
           <tr>
-            <td colspan="5" style="color:var(--text2)">Dollar Compensation</td>
+            <td colspan="5" style="color:var(--text2)"><span class="etq-fija">Dollar Compensation</span></td>
             <td style="white-space:nowrap">
               ${/* Los campos del pie estaban en tabindex="-1": el Tab recorria
                     los agentes y se iba al menu sin pasar por aqui, asi que a
@@ -4462,16 +4528,16 @@ function renderCuentasDr(){
             <td class="mono col-real" data-calc="dollar-real-${c.id}">${fmt(r.dollarReal)}</td>
             <td></td>
           </tr>
-          <tr style="background:rgba(63,207,160,.06)">
-            <td colspan="5" style="font-weight:700;font-size:15px">T O T A L</td>
+          <tr style="background:#F3FCF9">
+            <td colspan="5" style="font-weight:700;font-size:15px"><span class="etq-fija">T O T A L</span></td>
             <td class="mono" style="color:var(--accent3);font-size:15px;font-weight:700" data-calc="total-dr-${c.id}">${fmt(r.totalDrCheck)}</td>
             <td class="col-real"></td>
             <td class="mono col-real" style="font-size:15px;font-weight:700" data-calc="total-real-${c.id}">${fmt(r.totalReal)}</td>
             <td></td>
           </tr>
-          <tr style="background:rgba(63,207,160,.02)">
+          <tr style="background:#FBFEFD">
             <td colspan="5" style="color:var(--text2);font-size:12px">
-              Costo promedio / hora
+              <span class="etq-fija">Costo promedio / hora</span>
               <span style="font-size:10px;color:var(--text3)" data-calc="costohr-sub-${c.id}">
                 &nbsp;(${fmt(r.totalDrCheck)} ÷ ${(r.ags||r.agentes||[]).reduce((s,a)=>s+(a.diasStd||qdays())*a.horas,0)} hrs)
               </span>
@@ -4486,8 +4552,8 @@ function renderCuentasDr(){
             <td></td>
             <td></td>
           </tr>
-          <tr class="row-real" style="background:rgba(63,207,160,.04)">
-            <td colspan="5" style="color:var(--text2);font-size:12px">Utilidad / Margen</td>
+          <tr class="row-real" style="background:#F7FDFB">
+            <td colspan="5" style="color:var(--text2);font-size:12px"><span class="etq-fija">Utilidad / Margen</span></td>
             <td></td>
             <td></td>
             <td class="mono" style="color:var(--${r.utilidad>=0?'accent':'danger'});font-weight:700" data-calc="utilidad-dr-${c.id}">
@@ -4686,9 +4752,9 @@ function renderCuentasOwn(){
             });
             return rows;
           })()}
-          <tr><td colspan="3" style="color:var(--text2)">Accountant</td>
+          <tr><td colspan="3" style="color:var(--text2)"><span class="etq-fija">Accountant</span></td>
             <td></td><td class="mono">${fmt(c.accountant||0)}</td><td></td><td></td><td></td></tr>
-          <tr><td colspan="3" style="color:var(--text2)">Dollar Compensation</td>
+          <tr><td colspan="3" style="color:var(--text2)"><span class="etq-fija">Dollar Compensation</span></td>
             <td style="white-space:nowrap">
               ${/* Los campos del pie estaban en tabindex="-1": el Tab recorria
                     los agentes y se iba al menu sin pasar por aqui, asi que a
@@ -4701,16 +4767,16 @@ function renderCuentasOwn(){
                 oninput="updateCuentaPct('${c.id}','dollarPctOwn',this.value)"
                 onchange="updateCuentaPct('${c.id}','dollarPctOwn',this.value)"><span style="font-size:11px;color:var(--text3)"> %</span>
             </td><td class="mono" data-calc="dollar-own-${c.id}">${fmt(r.dollarComp)}</td><td></td><td></td><td></td></tr>
-          <tr style="background:rgba(76,194,236,.06)">
-            <td colspan="3" style="font-weight:700;font-size:15px">T O T A L</td>
+          <tr style="background:#F4FBFE">
+            <td colspan="3" style="font-weight:700;font-size:15px"><span class="etq-fija">T O T A L</span></td>
             <td></td>
             <td class="mono" style="font-size:15px;font-weight:700" data-calc="total-costo-own-${c.id}">${fmt(r.totalCosto)}</td>
             <td></td>
             <td class="mono" style="color:var(--accent2);font-size:15px;font-weight:700" data-calc="total-cobro-own-${c.id}">${fmt(r.totalCobro)}</td>
             <td></td>
           </tr>
-          <tr style="background:rgba(63,207,160,.04)">
-            <td colspan="6" style="color:var(--text2)">Utilidad / Margen</td>
+          <tr style="background:#F7FDFB">
+            <td colspan="6" style="color:var(--text2)"><span class="etq-fija">Utilidad / Margen</span></td>
             <td class="mono" style="color:var(--${r.utilidad>=0?'accent':'danger'});font-weight:700" data-calc="utilidad-own-${c.id}">${fmt(r.utilidad)} &nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalCobro,1))})</span></td>
             <td></td>
           </tr>
@@ -5832,6 +5898,15 @@ document.addEventListener('blur', function(e){
       }
     }, 30);
   }
+}, true);
+
+// La sombra de la columna anclada solo aparece cuando la tabla esta desplazada.
+// Se escucha en captura porque 'scroll' no burbujea — y asi vale tambien para
+// las tablas que se vuelven a dibujar, sin tener que re-enganchar nada.
+document.addEventListener('scroll', function(e){
+  const t = e.target;
+  if(t && t.classList && t.classList.contains('table-wrap'))
+    t.classList.toggle('desplazada', t.scrollLeft > 1);
 }, true);
 
 // Close modals on overlay click
