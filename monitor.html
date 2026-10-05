@@ -635,14 +635,14 @@ async function pedirEstado(fecha, url, tok){
         const r = await fetch(window.SB_URL + '/functions/v1/monitor-estado' + (fecha ? '?fecha=' + fecha : ''),
           { headers: { Authorization: 'Bearer ' + ses.data.session.access_token, apikey: window.SB_KEY } });
         const j = await r.json();
-        if (j && j.ok) { FUENTE.ultima = 'Supabase'; FUENTE.ms = Math.round(performance.now() - t0); return j; }
+        if (j && j.ok) { FUENTE.ultima = 'Supabase'; FUENTE.ms = Math.round(performance.now() - t0); FUENTE.en = Date.now(); return j; }
         console.warn('Monitor: Supabase respondió', r.status, j && j.error);
       }
     } catch(e){ console.warn('Monitor: Supabase no disponible:', e && e.message); }
   }
   const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + (fecha ? '&fecha=' + fecha : '');
   const j = await (await fetch(q, { redirect: 'follow' })).json();
-  FUENTE.ultima = 'Google'; FUENTE.ms = Math.round(performance.now() - t0);
+  FUENTE.ultima = 'Google'; FUENTE.ms = Math.round(performance.now() - t0); FUENTE.en = Date.now();
   return j;
 }
 
@@ -735,7 +735,13 @@ async function cargar(){
 
 function programar(){
   clearInterval(S.timer);
-  S.timer = setInterval(() => { if (!document.hidden && (!S.data || S.data.esHoy)) cargar(); }, 60000);
+  // Cada 30 s con Supabase (rápido). Si el dato viene de Google (justo después de un
+  // cambio o con Supabase caído), cada 60 s como antes, para no cargar al Apps Script.
+  S.timer = setInterval(() => {
+    if (document.hidden || (S.data && !S.data.esHoy)) return;
+    if (FUENTE.ultima === 'Google' && Date.now() - (FUENTE.en || 0) < 55000) return;
+    cargar();
+  }, 30000);
 }
 
 // ---------------------------------------------------------------- pintar
@@ -745,7 +751,7 @@ function pintar(){
   $('sub').textContent = 'Alertas a partir de ' + d.config.umbralMin + ' minutos sin actividad · Hora ' + d.config.zona.replace('America/','').replace('_',' ');
   $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado) +
     (FUENTE.ultima && !S.demo ? ' · ' + FUENTE.ultima + ' ' + (FUENTE.ms / 1000).toFixed(1).replace('.', ',') + ' s' +
-      (FUENTE.ultima === 'Supabase' && d.esHoy ? ' (latidos cada 5 min)' : '') : '');
+      (FUENTE.ultima === 'Supabase' && d.esHoy ? ' · se actualiza cada 30 s' : '') : '');
   if (S.demo) $('banner').innerHTML = '<div class="banner demo">Está viendo datos de ejemplo. Use Ajustes para conectar su servidor.</div>';
   $('fecha').value = d.fecha;
   marcarSinCuenta(d);
