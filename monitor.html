@@ -71,6 +71,19 @@ button.sincuenta:hover{filter:brightness(1.15)}
 button.sincuenta:disabled{cursor:default;opacity:.75}
 .sincuenta.encurso{border-color:var(--accent2);background:transparent;color:var(--accent2)}
 .crow{display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:6px;align-items:center;margin-bottom:6px}
+/* Claves de los equipos (agente 2.7) */
+.btn.alerta{border-color:var(--warning);background:var(--warning-bg);font-weight:700}
+.kgrupo{margin:14px 0 6px;font-weight:700;font-size:13px}
+.krow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:start;border:1px solid var(--border);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:var(--surface)}
+.krow .kq{font-weight:600}
+.krow .kd{color:var(--muted);font-size:12px;line-height:1.45}
+.krow .ka{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.krow .ka .btn{padding:5px 10px;font-size:12.5px}
+.krow .kmotivo{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.krow .kmotivo input{flex:1;min-width:160px;border:1px solid var(--border);border-radius:7px;padding:5px 8px;font:inherit;background:var(--surface);color:var(--text)}
+.btn.peligro{border-color:var(--critical);color:var(--critical)}
+#kResumen .banner{margin:0}
+@media (max-width:600px){.krow{grid-template-columns:1fr}.krow .ka{justify-content:flex-start}}
 .crow input{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;min-width:0}
 .crow .cnt{font-size:11.5px;color:var(--text-2);min-width:36px;text-align:right}
 .crow .quitar{margin-top:0}
@@ -315,6 +328,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <button class="btn" id="btnRef" type="button">Actualizar</button>
     <button class="btn" id="btnCuentas" type="button" title="Cuentas que ofrece el instalador">Cuentas</button>
     <button class="btn" id="btnEquipos" type="button" title="Inventario: qué portátil tiene asignado cada agente">Equipos</button>
+    <button class="btn" id="btnClaves" type="button" title="Clave de cada equipo: aprobar los nuevos o anular uno perdido">Claves</button>
     <button class="btn" id="btnCfg" type="button" title="Cambiar URL o token">Ajustes</button>
     <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
   </div>
@@ -506,6 +520,18 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <div class="acc">
       <button class="btn" id="cCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="cGuardar" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalClaves">
+  <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="kTitulo">
+    <h3 id="kTitulo">Claves de los equipos</h3>
+    <p class="sub">Cada PC tiene su propia clave para mandar datos al Monitor. Un equipo nuevo o reinstalado queda <b>pendiente</b> hasta que usted lo apruebe; mientras tanto sus datos esperan guardados en el PC. Si un portátil se pierde o un agente se va con él, <b>anúlelo</b>: ese PC deja de reportar y los demás siguen igual.</p>
+    <div id="kResumen"></div>
+    <div id="kLista"><div class="hint">Cargando…</div></div>
+    <div class="acc">
+      <button class="btn" id="kRecargar" type="button">Volver a cargar</button>
+      <button class="btn primary" id="kCerrar" type="button">Cerrar</button>
     </div>
   </div>
 </div>
@@ -2158,6 +2184,115 @@ async function descargarEquipos(){
 }
 
 $('btnEquipos').addEventListener('click', descargarEquipos);
+
+// ── Claves de los equipos (agente 2.7) ───────────────────────────────────
+// La lista y las decisiones van directo a Supabase con la sesión del portal:
+// monitor_equipos_lista() (quien pueda ver el Monitor) y monitor_equipo_decidir()
+// (solo administradores). La clave nunca llega al navegador, ni su huella.
+const KL = { datos: null, anulando: null };
+async function pedirClaves(){
+  if (!window.sb) throw new Error('Supabase no está disponible en esta página');
+  if (window.sbPendiente) { try { await window.sbPendiente; } catch(e){} }
+  const ses = await window.sb.auth.getSession();
+  if (!ses.data.session) throw new Error('La sesión de Supabase no está activa: salga del portal y vuelva a entrar');
+  const r = await window.sb.rpc('monitor_equipos_lista');
+  if (r.error) throw new Error(r.error.message);
+  return r.data;
+}
+function pintarBotonClaves(){
+  const n = KL.datos ? KL.datos.equipos.filter(e => e.estado === 'pendiente').length : 0;
+  const b = $('btnClaves');
+  b.textContent = n ? 'Claves (' + n + ' por aprobar)' : 'Claves';
+  b.classList.toggle('alerta', n > 0);
+}
+async function refrescarBotonClaves(){
+  if (S.demo || document.hidden) return;
+  try { KL.datos = await pedirClaves(); pintarBotonClaves(); } catch(e){ /* sin sesión: el botón queda normal */ }
+}
+function kFecha(iso){
+  if (!iso) return '—';
+  const d = new Date(iso), min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 2) return 'hace un momento';
+  if (min < 60) return 'hace ' + min + ' min';
+  if (min < 24 * 60) return 'hace ' + Math.round(min / 60) + ' h';
+  return d.toLocaleDateString('es', { timeZone: 'America/New_York', day: 'numeric', month: 'short' }) + ' ' +
+         d.toLocaleTimeString('es', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+}
+function kFila(e, puede){
+  const que = e.origen === 'reemision' ? 'Pidió otra clave: PC reinstalado, o alguien usando el mismo nombre de equipo' :
+              e.origen === 'nuevo' ? 'Equipo nuevo' : 'Equipo que ya reportaba';
+  const det = [
+    'Equipo <b>' + esc(e.equipo) + '</b>' + (e.usuario ? ' · usuario de Windows ' + esc(e.usuario) : '') + (e.version ? ' · v' + esc(e.version) : ''),
+    e.estado === 'pendiente' ? esc(que) + ' · pidió la clave ' + kFecha(e.creado) + (e.ultimo_uso ? ' · último intento ' + kFecha(e.ultimo_uso) : '') :
+    e.estado === 'aprobado' ? 'Último latido con su clave: ' + kFecha(e.ultimo_uso) + (e.decidido_por ? ' · aprobado por ' + esc(e.decidido_por) : (e.origen === 'migracion' ? ' · aprobado solo (ya reportaba)' : '')) :
+    'Anulado ' + kFecha(e.decidido_en) + (e.decidido_por ? ' por ' + esc(e.decidido_por) : '') + (e.motivo ? ' · ' + esc(e.motivo) : '') + (e.ultimo_uso && e.decidido_en && e.ultimo_uso > e.decidido_en ? ' · <b>sigue intentando:</b> ' + kFecha(e.ultimo_uso) : '')
+  ].join('<br>');
+  let acc = '';
+  if (puede && e.estado === 'pendiente') acc += '<button class="btn primary" type="button" data-kaprobar="' + e.id + '">Aprobar</button>';
+  if (puede && e.estado !== 'anulado') acc += '<button class="btn peligro" type="button" data-kanular="' + e.id + '">' + (e.estado === 'pendiente' ? 'Rechazar' : 'Anular') + '</button>';
+  let motivo = '';
+  if (KL.anulando === e.id) motivo = '<div class="kmotivo"><input id="kMotivo" maxlength="200" placeholder="Motivo (ej. portátil perdido)" aria-label="Motivo">' +
+    '<button class="btn peligro" type="button" data-kconfirmar="' + e.id + '">Confirmar: este PC deja de reportar</button>' +
+    '<button class="btn" type="button" data-kcancelar="1">Cancelar</button></div>';
+  return '<div class="krow"><div><div class="kq">' + esc(e.agente || '(sin nombre)') + (e.cuenta ? ' <span class="kd">· ' + esc(e.cuenta) + '</span>' : '') + '</div>' +
+    '<div class="kd">' + det + '</div></div><div class="ka">' + acc + '</div>' + motivo + '</div>';
+}
+function pintarClaves(){
+  const d = KL.datos, puede = !!(d && d.puede_decidir);
+  if (!d) return;
+  const pend = d.equipos.filter(e => e.estado === 'pendiente'), apr = d.equipos.filter(e => e.estado === 'aprobado'),
+        anu = d.equipos.filter(e => e.estado === 'anulado'), sin = d.sin_clave || [];
+  let res;
+  if (pend.length) res = '<div class="banner aviso">' + pend.length + ' equipo(s) esperando aprobación. Apruebe solo los que reconozca.</div>';
+  else if (sin.length) res = '<div class="banner aviso">' + apr.length + ' equipo(s) ya tienen su clave · ' + sin.length + ' todavía reportan sin clave (se ponen al día solos al actualizarse a la 2.7).</div>';
+  else res = '<div class="banner ok">Todos los equipos que reportan tienen su clave (' + apr.length + ').</div>';
+  if (!puede) res += '<div class="hint">Solo un administrador puede aprobar o anular equipos.</div>';
+  $('kResumen').innerHTML = res;
+  let h = '';
+  if (pend.length) h += '<div class="kgrupo">Esperando aprobación</div>' + pend.map(e => kFila(e, puede)).join('');
+  if (sin.length) h += '<div class="kgrupo">Reportan todavía sin clave</div>' + sin.map(x =>
+    '<div class="krow"><div><div class="kq">' + esc(x.agente || '(sin nombre)') + '</div><div class="kd">Equipo <b>' + esc(x.equipo) +
+    '</b> · último latido ' + kFecha(x.ultimo) + '. Recibe su clave sola al actualizarse a la 2.7.</div></div><div class="ka"></div></div>').join('');
+  if (apr.length) h += '<div class="kgrupo">Con clave</div>' + apr.map(e => kFila(e, puede)).join('');
+  if (anu.length) h += '<details><summary class="kgrupo">Anulados (' + anu.length + ')</summary>' + anu.map(e => kFila(e, puede)).join('') + '</details>';
+  $('kLista').innerHTML = h || '<div class="hint">Todavía no hay equipos con clave. Aparecen solos cuando se actualizan al monitor 2.7.</div>';
+  pintarBotonClaves();
+  if (KL.anulando) { const i = $('kMotivo'); if (i) i.focus(); }
+}
+async function abrirClaves(){
+  if (S.demo) { toast('En la demostración no hay claves de equipos.', 'err'); return; }
+  KL.anulando = null;
+  $('modalClaves').classList.add('show');
+  if (KL.datos) pintarClaves(); else $('kLista').innerHTML = '<div class="hint">Cargando…</div>';
+  await recargarClaves();
+}
+async function recargarClaves(){
+  try { KL.datos = await pedirClaves(); pintarClaves(); }
+  catch(e){ $('kResumen').innerHTML = ''; $('kLista').innerHTML = '<div class="banner err">' + esc(e.message) + '</div>'; }
+}
+async function decidirClave(id, accion, motivo, boton){
+  if (boton) { boton.disabled = true; boton.textContent = 'Guardando…'; }
+  try {
+    const r = await window.sb.rpc('monitor_equipo_decidir', { p_id: id, p_accion: accion, p_motivo: motivo || '' });
+    if (r.error) throw new Error(r.error.message);
+    KL.anulando = null;
+    toast(accion === 'aprobar' ? 'Equipo aprobado: sus datos guardados se envían en el próximo minuto.' : 'Equipo anulado: deja de reportar desde ya.', 'ok');
+    await recargarClaves();
+  } catch(e){ toast('No se pudo guardar: ' + e.message, 'err'); if (boton) { boton.disabled = false; boton.textContent = accion === 'aprobar' ? 'Aprobar' : 'Confirmar'; } }
+}
+$('kLista').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.kaprobar) decidirClave(b.dataset.kaprobar, 'aprobar', '', b);
+  else if (b.dataset.kanular) { KL.anulando = b.dataset.kanular; pintarClaves(); }
+  else if (b.dataset.kcancelar) { KL.anulando = null; pintarClaves(); }
+  else if (b.dataset.kconfirmar) decidirClave(b.dataset.kconfirmar, 'anular', ($('kMotivo') || {}).value || '', b);
+});
+$('btnClaves').addEventListener('click', abrirClaves);
+$('kRecargar').addEventListener('click', recargarClaves);
+$('kCerrar').addEventListener('click', () => $('modalClaves').classList.remove('show'));
+$('modalClaves').addEventListener('click', ev => { if (ev.target.id === 'modalClaves') $('modalClaves').classList.remove('show'); });
+setTimeout(refrescarBotonClaves, 4000);
+setInterval(refrescarBotonClaves, 5 * 60000);
 $('rCancelar').addEventListener('click', () => $('modalReporte').classList.remove('show'));
 $('modalReporte').addEventListener('click', ev => { if (ev.target.id === 'modalReporte') $('modalReporte').classList.remove('show'); });
 $('modalReporte').addEventListener('change', actualizarRango);
