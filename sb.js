@@ -54,6 +54,40 @@
     }
   }
 
+  /* ── Login rápido (paso 8) ───────────────────────────────────────────────
+     Supabase confirma usuario y clave (~0,3 s) y la función portal-cuentas
+     firma la llave de sesión del portal igual que Portal.gs. El portal sigue
+     haciendo su login con Google por detrás: Google es quien manda.
+     Devuelve { ok:true, token, user } o { ok:false, codigo }. Nunca lanza. */
+  window.sbCuentas = async function (accion, cuerpo, jwt) {
+    var h = { 'Content-Type': 'application/json', 'apikey': SB_KEY };
+    if (jwt) h.Authorization = 'Bearer ' + jwt;
+    var r = await fetch(SB_URL + '/functions/v1/portal-cuentas', {
+      method: 'POST', headers: h, body: JSON.stringify(Object.assign({ accion: accion }, cuerpo || {}))
+    });
+    var j = null;
+    try { j = await r.json(); } catch (e) {}
+    return j || { ok: false, codigo: 'HTTP_' + r.status };
+  };
+  window.sbEntrarRapido = async function (usuario, dk) {
+    if (!window.sb) return { ok: false, codigo: 'SIN_SUPABASE' };
+    var email = String(usuario).trim().toLowerCase() + '@' + DOMINIO;
+    try {
+      var r = await window.sb.auth.signInWithPassword({ email: email, password: dk });
+      if (r.error || !r.data.session) return { ok: false, codigo: 'SB_CLAVE' };
+      var j = await window.sbCuentas('llave', {}, r.data.session.access_token);
+      return (j && j.ok && j.token) ? j : { ok: false, codigo: (j && j.codigo) || 'SIN_LLAVE' };
+    } catch (e) {
+      return { ok: false, codigo: 'SB_RED' };
+    }
+  };
+  /* Le pasa a Supabase la época de un token real de Google (la necesita para
+     firmar llaves que Google acepte después de «cerrar todas las sesiones»). */
+  window.sbRegistrarEpoca = function (token) {
+    if (!token) return Promise.resolve(null);
+    return window.sbCuentas('epoca', { token: token }).catch(function () { return null; });
+  };
+
   window.sbSalir = function () {
     try { if (window.sb) window.sb.auth.signOut(); } catch (e) {}
   };

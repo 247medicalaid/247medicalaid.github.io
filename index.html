@@ -561,7 +561,7 @@ tbody tr:hover td{background:var(--brand-50)}
 <div id="toast"></div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="./sb.js?v=3"></script>
+<script defer src="./sb.js?v=4"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
    PORTAL 24/7 MEDICAL AID — control de acceso central
@@ -726,20 +726,59 @@ $('loginForm').addEventListener('submit', async ev => {
   cargando(btn, 'Verificando…');
   try{
     const dk = await derivar(u, p);
-    const res = await api('login', { username: u, dk });
-    S.token = res.token;
-    S.user  = res.user;
-    guardarSesion(res.token, res.user);
-    $('lp').value = '';
-    entrar();
-    // Transición a Supabase: entra también allá, en segundo plano y sin
-    // frenar al portal. La primera vez crea la cuenta con el mismo rol.
-    if(window.sbConectar) window.sbConectar(u, dk);
+    // Google (Portal.gs) arranca ya; tarda de 1 a 9 s y es quien manda.
+    const google = api('login', { username: u, dk });
+    google.catch(() => {});
+    // Login rápido (paso 8): Supabase confirma la clave y firma la misma llave
+    // de sesión en menos de un segundo. Si no puede, se espera a Google.
+    const rapido = window.sbEntrarRapido ? await window.sbEntrarRapido(u, dk) : null;
+    if(rapido && rapido.ok){
+      S.token = rapido.token;
+      S.user  = rapido.user;
+      guardarSesion(rapido.token, rapido.user);
+      $('lp').value = '';
+      entrar();
+      confirmarConGoogle(google, rapido.token);
+    }else{
+      const res = await google;
+      S.token = res.token;
+      S.user  = res.user;
+      guardarSesion(res.token, res.user);
+      $('lp').value = '';
+      entrar();
+      // Transición a Supabase: entra también allá, en segundo plano y sin
+      // frenar al portal. La primera vez crea la cuenta con el mismo rol.
+      // Después le pasa la época del token para que la próxima vez sea rápido.
+      if(window.sbConectar) window.sbConectar(u, dk).then(() => window.sbRegistrarEpoca && window.sbRegistrarEpoca(res.token));
+    }
   }catch(e){
     aviso('loginErr', e.message);
   }
   listo(btn);
 });
+
+/* Google confirma por detrás el login rápido. Si acepta, su llave reemplaza a la
+   de Supabase (y actualiza permisos). Si dice que no —contraseña cambiada o
+   usuario bloqueado— se sale de inmediato. Un error de red no saca a nadie:
+   cada app vuelve a validar la llave con Google en cada petición. */
+function confirmarConGoogle(google, tokenRapido){
+  google.then(res => {
+    if(S.token !== tokenRapido) return;          // ya salió o entró de nuevo
+    S.token = res.token;
+    S.user  = res.user;
+    guardarSesion(res.token, res.user);
+    pintarIdentidad();
+    pintarApps();
+    $('tabAdmin').classList.toggle('hidden', S.user.rol !== 'admin');
+    if(window.sbRegistrarEpoca) window.sbRegistrarEpoca(res.token);
+  }).catch(e => {
+    if(S.token !== tokenRapido) return;
+    if(e.codigo === 'BAD_CREDENTIALS' || e.codigo === 'DISABLED'){
+      salir();
+      aviso('loginErr', e.message);
+    }
+  });
+}
 
 function entrar(){
   $('vLogin').classList.add('hidden');
@@ -876,6 +915,9 @@ async function cargarUsuarios(){
     const r = await apiAuth('listUsers');
     S.users = r.users || [];
     pintarUsuarios();
+    // Supabase copia la lista (permisos, bloqueos, ciudades) para el login rápido.
+    // Lo confirma con Google por su cuenta; aquí no se espera.
+    if(window.sbCuentas) window.sbCuentas('sincronizar', { token: S.token }).catch(() => {});
   }catch(e){
     if(!manejar(e)) cuerpo.innerHTML =
       '<tr><td colspan="6" style="color:var(--accent-600)">' + esc(e.message) + '</td></tr>';
@@ -1027,7 +1069,14 @@ $('muGuardar').addEventListener('click', async () => {
     if(pass) datos.dk = await derivar(user, pass);
     await apiAuth('saveUser', { user: datos });
     $('ovUser').classList.add('hidden');
-    toast(S.editando ? 'Usuario actualizado.' : 'Usuario creado.', 'ok');
+    let avisoSb = '';
+    // La contraseña nueva va también a Supabase (login rápido). Si no llegara,
+    // la vieja seguiría abriendo el login rápido hasta que Google la rechace.
+    if(datos.dk && window.sbCuentas){
+      const c = await window.sbCuentas('clave', { token: S.token, username: user, dk: datos.dk }).catch(e => ({ ok:false, msg: e.message }));
+      if(!c || !c.ok) avisoSb = ' Ojo: la contraseña no se copió a Supabase (' + ((c && c.msg) || 'sin respuesta') + '). Vuelve a guardarla.';
+    }
+    toast((S.editando ? 'Usuario actualizado.' : 'Usuario creado.') + avisoSb, avisoSb ? 'err' : 'ok');
     await cargarUsuarios();
   }catch(e){
     if(e.codigo === 'NO_SESSION') manejar(e); else aviso('muErr', e.message);
@@ -1110,6 +1159,9 @@ $('formPass').addEventListener('submit', async ev => {
     const dkActual = await derivar(S.user.username, act);
     const dkNueva  = await derivar(S.user.username, nue);
     await apiAuth('changePassword', { dkActual, dkNueva });
+    // Misma clave en Supabase (login rápido). Si no hay sesión allá, el próximo
+    // login la pone sola (portal-sync).
+    try{ if(window.sb) await window.sb.auth.updateUser({ password: dkNueva }); }catch(e){}
     $('formPass').reset();
     aviso('cpMsg', 'Contraseña actualizada. Úsala la próxima vez que entres.', 'ok');
   }catch(e){
@@ -1157,15 +1209,34 @@ document.querySelectorAll('[data-eye]').forEach(b => b.addEventListener('click',
   const s = leerSesion();
   if(!s || !s.token) return;
   S.token = s.token;
+  // Con sesión guardada en este navegador, el portal se muestra de una (como
+  // ya hacen las apps) y Google confirma por detrás. Lo guardado lo puso este
+  // mismo usuario en este equipo; si Google dice que la sesión ya no vale, sale.
+  const yaVisible = !!(s.user && s.user.nombre);
+  if(yaVisible){ S.user = s.user; entrar(); }
   try{
     const r = await apiAuth('validate');   // el servidor decide si el token sigue vivo
+    if(S.token !== s.token) return;        // salió o entró de nuevo mientras tanto
     S.user = r.user;
     guardarSesion(S.token, S.user);
-    entrar();
+    if(yaVisible){
+      pintarIdentidad();
+      pintarApps();
+      $('tabAdmin').classList.toggle('hidden', S.user.rol !== 'admin');
+    }else{
+      entrar();
+    }
   }catch(e){
-    S.token = null;
-    borrarSesion();
-    if(e.codigo !== 'NO_SESSION') aviso('loginErr', e.message);
+    if(S.token !== s.token) return;
+    if(e.codigo === 'NO_SESSION'){
+      salir();
+      aviso('loginErr', 'Tu sesión expiró. Vuelve a entrar para continuar.', 'warn');
+    }else if(!yaVisible){
+      S.token = null;
+      aviso('loginErr', e.message);
+    }
+    // Sin conexión con Google y ya visible: se sigue con la sesión local; cada
+    // app valida su llave con Google en cada petición.
   }
 })();
 </script>
