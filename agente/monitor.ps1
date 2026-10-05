@@ -8,7 +8,11 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.5'
+$Version = '2.6'
+# Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
+# al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
+$SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
+$script:avisoRespaldo = [DateTime]::MinValue
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'
@@ -289,9 +293,20 @@ function Request-Actualizacion {
 }
 
 function Send-Lote([object[]]$beats) {
+    try { return (Send-A $SupabaseUrl $beats) }
+    catch {
+        if (((Get-Date).ToUniversalTime() - $script:avisoRespaldo).TotalMinutes -ge 30) {
+            Write-Log "Supabase no respondio ($($_.Exception.Message)); se envia directo al Apps Script"
+            $script:avisoRespaldo = (Get-Date).ToUniversalTime()
+        }
+        return (Send-A $cfg.url $beats)
+    }
+}
+
+function Send-A([string]$destino, [object[]]$beats) {
     $body = @{ token = $cfg.token; version = $Version; beats = $beats } | ConvertTo-Json -Depth 8 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
-    $req = [Net.HttpWebRequest]::Create($cfg.url)
+    $req = [Net.HttpWebRequest]::Create($destino)
     $req.Proxy = $null   # ir directo; evita que la deteccion automatica de proxy (WPAD) cuelgue el envio
     $req.Method = 'POST'; $req.ContentType = 'application/json; charset=utf-8'
     $req.AllowAutoRedirect = $true; $req.Timeout = 30000; $req.ContentLength = $bytes.Length   # seguir el 302 para leer la respuesta (comando de velocidad)

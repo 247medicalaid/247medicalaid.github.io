@@ -33,7 +33,12 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.5";
+        const string Version = "2.6";
+        // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
+        // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
+        // Script (la URL de config.json), como en las versiones anteriores.
+        const string SupabaseUrl = "https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido";
+        static DateTime avisoRespaldo = DateTime.MinValue;
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
@@ -331,7 +336,7 @@ namespace Monitor247
                     while (enviados < lineas.Count)
                     {
                         int fin = Math.Min(enviados + MaxLote, lineas.Count);
-                        respuesta = Enviar(url, token, lineas.GetRange(enviados, fin - enviados));
+                        respuesta = EnviarConRespaldo(url, token, lineas.GetRange(enviados, fin - enviados));
                         enviados = fin;
                     }
                     File.WriteAllText(ColaFile, "", Utf8);
@@ -537,6 +542,20 @@ namespace Monitor247
                 sb.Insert(sb.Length - 1, ",\"equipo_info\":" + inv);
             }
             return sb.ToString();
+        }
+
+        static string EnviarConRespaldo(string url, string token, List<string> beats)
+        {
+            try { return Enviar(SupabaseUrl, token, beats); }
+            catch (Exception ex)
+            {
+                if ((DateTime.UtcNow - avisoRespaldo).TotalMinutes >= 30)
+                {
+                    Log("Supabase no respondio (" + ex.Message + "); se envia directo al Apps Script");
+                    avisoRespaldo = DateTime.UtcNow;
+                }
+                return Enviar(url, token, beats);
+            }
         }
 
         // Devuelve el cuerpo de la respuesta del ultimo lote (para leer comandos del servidor).
