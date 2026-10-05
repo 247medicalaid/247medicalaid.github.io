@@ -266,17 +266,20 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
     document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
   }
 
+  // Arranque adelantado (oct 2026): se destapa de una con la sesion guardada y
+  // Google confirma por detras; si dice que la sesion ya no vale, se sale.
+  seguir();
   fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
                body: JSON.stringify({ action:'validate', token:s.token }) })
   .then(function(r){ return r.json(); })
   .then(function(j){
-    if (!j || !j.ok) return alPortal('expirada');
+    if (!j || !j.ok) return (j && j.codigo && j.codigo !== 'NO_SESSION') ? null : alPortal('expirada');
     if (!esDueno(j.user)) return alPortal('sinpermiso');
     window.PORTAL.user = j.user; window.PORTAL.rol = j.user.rol;
     try { localStorage.setItem(CLAVE, JSON.stringify({ token:s.token, user:j.user, guardada:Date.now() })); } catch(e){}
-    seguir();
+    document.dispatchEvent(new CustomEvent('portal:confirmado', { detail: window.PORTAL }));
   })
-  .catch(function(){ seguir(); });   // sin red: se trabaja con la sesion local
+  .catch(function(){});   // sin red: se trabaja con la sesion local
 })();
 </script>
 <div class="wrap">
@@ -2266,7 +2269,9 @@ function aplicarAjustesUI(){
 }
 
 // ═══ Arranque ══════════════════════════════════════════════════════════════
-document.addEventListener('portal:listo', () => {
+// El guard ya pudo avisar 'portal:listo' antes de que existiera este oyente
+// (arranque adelantado): por eso se mira tambien PORTAL.listo.
+function arrancarProyeccion(){
   leerCacheLocal();
   aplicarAjustesUI();
   pintar();
@@ -2274,7 +2279,9 @@ document.addEventListener('portal:listo', () => {
   bajarFlujo().then(cambio => { if(cambio){ aplicarAjustesUI(); pintar(); } }).catch(()=>{});
   // Y en segundo plano, por si otra máquina aprobó una quincena.
   refrescarDesdeServidor().then(cambio => { if(cambio) pintar(); }).catch(()=>{});
-});
+}
+if (window.PORTAL && window.PORTAL.listo) arrancarProyeccion();
+else document.addEventListener('portal:listo', arrancarProyeccion);
 </script>
 </body>
 </html>

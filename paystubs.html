@@ -657,6 +657,17 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     revisar();
   }
 
+  // Arranque adelantado (oct 2026, como Prospectos): con sesión guardada en
+  // este navegador la app se destapa de una y Google confirma por detrás, en
+  // vez de tener la pantalla tapada 1-9 s. Lo guardado lo puso este mismo
+  // usuario en este equipo, y lo que vive en el servidor sigue igual de
+  // protegido: cada pedido lleva su llave y el servidor la valida por su cuenta.
+  window.PORTAL.adelantar = true;
+  window.PORTAL.listo = true;
+  mostrar();
+  document.dispatchEvent(new CustomEvent('portal:adelantar'));
+  document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
+
   // Confirmación contra el servidor: si el token caducó o el usuario fue
   // desactivado, se sale aunque el navegador todavía guarde la sesión.
   fetch(API, {
@@ -666,7 +677,8 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
   })
   .then(function (r) { return r.json(); })
   .then(function (j) {
-    if (!j || !j.ok) return alPortal('expirada');
+    // Solo «sesión inválida» saca; un error pasajero de Google no.
+    if (!j || !j.ok) return (j && j.codigo && j.codigo !== 'NO_SESSION') ? null : alPortal('expirada');
     if ((j.user.apps || []).indexOf(APP) < 0) return alPortal('sinpermiso');
     window.PORTAL.user    = j.user;
     window.PORTAL.rol     = j.user.rol;
@@ -675,16 +687,11 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
     try {
       localStorage.setItem(CLAVE, JSON.stringify({ token: s.token, user: j.user, guardada: Date.now() }));
     } catch (e) {}
-    window.PORTAL.listo = true;
-    mostrar();
-    document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
+    document.dispatchEvent(new CustomEvent('portal:confirmado', { detail: window.PORTAL }));
   })
   .catch(function () {
-    // Sin conexión con el portal: se deja trabajar con la sesión local.
+    // Sin conexión con el portal: se sigue con la sesión local.
     // Los datos igual no llegan si el servidor rechaza el token.
-    window.PORTAL.listo = true;
-    mostrar();
-    document.dispatchEvent(new CustomEvent('portal:listo', { detail: window.PORTAL }));
   });
 })();
 </script>
