@@ -512,6 +512,8 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 <div id="msg" role="status"></div>
 <div id="tip" role="tooltip"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sb.js?v=3"></script>
 <script>
 // Opcional: pegue aquí la URL de la aplicación web para no tener que escribirla en cada navegador.
 const API_URL = '';
@@ -613,7 +615,36 @@ function guardarDia(f, j){
     localStorage.setItem(DIAS_CLAVE, JSON.stringify(o));
   } catch(e){ olvidarDias(); }                 // sin espacio: se vacia y se sigue igual
 }
-function olvidarDias(){ try { localStorage.removeItem(DIAS_CLAVE); } catch(e){} }
+function olvidarDias(){ try { localStorage.removeItem(DIAS_CLAVE); localStorage.setItem('mon247_escrito', String(Date.now())); } catch(e){} }
+
+// ── Migración a Supabase: el día se arma en Supabase (rápido) ──────────────
+// Después de un cambio (autorizar, turnos, horario...) se lee de Google durante
+// 6 minutos: el cambio vive en la hoja y tarda hasta 5 minutos en llegar a
+// Supabase. Si Supabase falla, se lee de Google. ?fuente=google lo apaga.
+const FUENTE = { ultima: '', ms: 0 };
+try { const mf = location.search.match(/[?&]fuente=(google|supabase)/); if (mf) localStorage.setItem('mon247_fuente', mf[1]); } catch(e){}
+async function pedirEstado(fecha, url, tok){
+  const t0 = performance.now();
+  let usarSB = false;
+  try { usarSB = !!window.sb && localStorage.getItem('mon247_fuente') !== 'google' &&
+                 (Date.now() - Number(localStorage.getItem('mon247_escrito') || 0)) > 6 * 60000; } catch(e){}
+  if (usarSB) {
+    try {
+      const ses = await window.sb.auth.getSession();
+      if (ses.data.session) {
+        const r = await fetch(window.SB_URL + '/functions/v1/monitor-estado' + (fecha ? '?fecha=' + fecha : ''),
+          { headers: { Authorization: 'Bearer ' + ses.data.session.access_token, apikey: window.SB_KEY } });
+        const j = await r.json();
+        if (j && j.ok) { FUENTE.ultima = 'Supabase'; FUENTE.ms = Math.round(performance.now() - t0); return j; }
+        console.warn('Monitor: Supabase respondió', r.status, j && j.error);
+      }
+    } catch(e){ console.warn('Monitor: Supabase no disponible:', e && e.message); }
+  }
+  const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + (fecha ? '&fecha=' + fecha : '');
+  const j = await (await fetch(q, { redirect: 'follow' })).json();
+  FUENTE.ultima = 'Google'; FUENTE.ms = Math.round(performance.now() - t0);
+  return j;
+}
 
 // Lo guardado por versiones anteriores del panel ya no sirve: ocupa espacio y
 // podria pintarse incompleto.
@@ -661,8 +692,7 @@ async function seguirPrecarga(){
   for (const f of faltan) {
     if (document.hidden) { alVolverAlFrente(seguirPrecarga); return; }
     try {
-      const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&fecha=' + f;
-      const j = await (await fetch(q, { redirect: 'follow' })).json();
+      const j = await pedirEstado(f, url, tok);
       guardarDia(f, j);
     } catch(e){ return; }                      // sin conexion: se deja para la proxima vez
     await new Promise(r => setTimeout(r, 1500));
@@ -678,9 +708,7 @@ async function cargar(){
   if (guardado) { S.data = guardado; $('banner').innerHTML = ''; pintar(); return; }
   $('upd').textContent = 'Actualizando…';
   try {
-    const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + (S.fecha ? '&fecha=' + S.fecha : '');
-    const r = await fetch(q, { redirect: 'follow' });
-    const j = await r.json();
+    const j = await pedirEstado(S.fecha, url, tok);
     if (!j.ok) throw new Error(j.error || 'respuesta inválida');
     S.data = j;
     if (!S.fecha) $('fecha').value = j.fecha;
@@ -715,7 +743,9 @@ function pintar(){
   const d = S.data;
   $('app').hidden = false; $('setup').hidden = true;
   $('sub').textContent = 'Alertas a partir de ' + d.config.umbralMin + ' minutos sin actividad · Hora ' + d.config.zona.replace('America/','').replace('_',' ');
-  $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado);
+  $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado) +
+    (FUENTE.ultima && !S.demo ? ' · ' + FUENTE.ultima + ' ' + (FUENTE.ms / 1000).toFixed(1).replace('.', ',') + ' s' +
+      (FUENTE.ultima === 'Supabase' && d.esHoy ? ' (latidos cada 5 min)' : '') : '');
   if (S.demo) $('banner').innerHTML = '<div class="banner demo">Está viendo datos de ejemplo. Use Ajustes para conectar su servidor.</div>';
   $('fecha').value = d.fecha;
   marcarSinCuenta(d);
