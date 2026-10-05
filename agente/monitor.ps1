@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.6'
+$Version = '2.7'
 # Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
 # al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
@@ -19,6 +19,11 @@ $ConfigFile = Join-Path $Base 'config.json'
 $DataDir    = Join-Path $env:LOCALAPPDATA 'Monitor247'
 $EstadoDir  = Join-Path $Base 'estado'          # lo lee el actualizador para confirmar que seguimos reportando
 $UltimoFile = Join-Path $EstadoDir 'ultimo.txt'
+# 2.7: clave propia del equipo, cifrada para este PC (DPAPI, ambito de la maquina; la misma
+# que usa el .exe). Se recibe del servidor en "clave_equipo".
+$ClaveFile  = Join-Path $EstadoDir 'clave.dat'
+$Entropia   = [Text.Encoding]::UTF8.GetBytes('Monitor247-clave-equipo')
+$script:Clave = ''
 $ColaFile   = Join-Path $DataDir 'cola.jsonl'
 $LogFile    = Join-Path $DataDir 'monitor.log'
 $Utf8       = New-Object System.Text.UTF8Encoding($false)
@@ -281,6 +286,49 @@ function Get-Inventario {
     return $inv
 }
 
+function Protect-Clave([byte[]]$datos, [bool]$cifrar) {
+    Add-Type -AssemblyName System.Security
+    $ambito = [Security.Cryptography.DataProtectionScope]::LocalMachine
+    if ($cifrar) { return [Security.Cryptography.ProtectedData]::Protect($datos, $Entropia, $ambito) }
+    return [Security.Cryptography.ProtectedData]::Unprotect($datos, $Entropia, $ambito)
+}
+
+function Read-Clave {
+    try {
+        if (-not (Test-Path $ClaveFile)) { return '' }
+        $c = [Text.Encoding]::UTF8.GetString((Protect-Clave ([IO.File]::ReadAllBytes($ClaveFile)) $false)).Trim()
+        if ($c.StartsWith('eq_')) { return $c }
+    } catch { Write-Log "No se pudo leer la clave del equipo ($($_.Exception.Message)); se pedira una nueva" }
+    return ''
+}
+
+function Save-Clave([string]$c) {
+    $script:Clave = $c   # aunque falle el archivo, en esta sesion se usa la nueva
+    try { [IO.File]::WriteAllBytes($ClaveFile, (Protect-Clave ([Text.Encoding]::UTF8.GetBytes($c)) $true)) }
+    catch { Write-Log "No se pudo guardar la clave del equipo: $($_.Exception.Message)" }
+}
+
+function Remove-Clave {
+    $script:Clave = ''
+    try { if (Test-Path $ClaveFile) { Remove-Item $ClaveFile -Force } } catch { }
+    Write-Log 'Clave de equipo descartada; se pedira una nueva'
+}
+
+# Lee la respuesta de un lote. Si trae clave nueva, la guarda. Si el servidor no acepto el
+# lote por la clave o el token, lanza: el lote se queda en la cola y se reintenta (nada se
+# pierde mientras el equipo espera aprobacion). Otros errores se tratan como hasta la 2.6.
+function Read-Respuesta([string]$r) {
+    if (-not $r) { return }
+    $m = [regex]::Match($r, '"clave_equipo"\s*:\s*"(eq_[A-Za-z0-9_-]+)"')
+    if ($m.Success -and $m.Groups[1].Value -ne $script:Clave) { Save-Clave $m.Groups[1].Value; Write-Log 'Clave de equipo recibida y guardada' }
+    if ($r -match '"clave_invalida"\s*:\s*true') { Remove-Clave; throw 'La clave de este equipo no es valida; se pedira una nueva' }
+    if ($r -notmatch '"ok"\s*:\s*false') { return }
+    if ($r -match '"pendiente"\s*:\s*true') { throw 'Equipo pendiente de aprobacion en el panel del Monitor; los latidos esperan en la cola' }
+    if ($r -match '"anulada"\s*:\s*true') { throw 'Este equipo fue anulado en el panel del Monitor' }
+    $e = [regex]::Match($r, '"error"\s*:\s*"((?:\\.|[^"\\])*)"').Groups[1].Value
+    if ($e -match 'token|reinstale') { throw "El servidor rechazo el envio: $e" }
+}
+
 function Request-Actualizacion {
     # El aviso va dentro de 'estado', la unica carpeta donde el agente tiene
     # permiso de escritura (corre como usuario normal). Hasta la 2.3 se escribia
@@ -293,6 +341,9 @@ function Request-Actualizacion {
 }
 
 function Send-Lote([object[]]$beats) {
+    # Con clave de equipo no hay atajo al Apps Script: si Supabase no responde, los
+    # latidos esperan en la cola (el Apps Script no conoce las claves).
+    if ($script:Clave) { return (Send-A $SupabaseUrl $beats) }
     try { return (Send-A $SupabaseUrl $beats) }
     catch {
         if (((Get-Date).ToUniversalTime() - $script:avisoRespaldo).TotalMinutes -ge 30) {
@@ -304,7 +355,9 @@ function Send-Lote([object[]]$beats) {
 }
 
 function Send-A([string]$destino, [object[]]$beats) {
-    $body = @{ token = $cfg.token; version = $Version; beats = $beats } | ConvertTo-Json -Depth 8 -Compress
+    $cuerpo = @{ token = $cfg.token; version = $Version; beats = $beats }
+    if ($script:Clave) { $cuerpo.clave = $script:Clave }
+    $body = $cuerpo | ConvertTo-Json -Depth 8 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
     $req = [Net.HttpWebRequest]::Create($destino)
     $req.Proxy = $null   # ir directo; evita que la deteccion automatica de proxy (WPAD) cuelgue el envio
@@ -322,7 +375,8 @@ function Send-A([string]$destino, [object[]]$beats) {
     return $cuerpo
 }
 
-Write-Log "Inicio v$Version - agente '$($cfg.agente)' cuenta '$($cfg.cuenta)' usuario '$env:USERNAME'"
+$script:Clave = Read-Clave
+Write-Log ("Inicio v$Version - agente '$($cfg.agente)' cuenta '$($cfg.cuenta)' usuario '$env:USERNAME' - " + $(if ($script:Clave) { 'con clave de equipo' } else { 'sin clave de equipo (se pedira al servidor)' }))
 $fallosSeguidos = 0
 $primerEnvio = $true
 $primerCiclo = $true
@@ -369,6 +423,7 @@ while ($true) {
             $fin = [Math]::Min($enviados + $MaxLote, $lineas.Count) - 1
             $lote = @($lineas[$enviados..$fin] | ForEach-Object { $_ | ConvertFrom-Json })
             $respuesta = Send-Lote $lote
+            Read-Respuesta $respuesta   # guarda la clave nueva; si el lote no se acepto, lanza y sigue en cola
             $enviados = $fin + 1
         }
         [IO.File]::WriteAllText($ColaFile, '', $Utf8)

@@ -33,12 +33,18 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.6";
+        const string Version = "2.7";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
         const string SupabaseUrl = "https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido";
         static DateTime avisoRespaldo = DateTime.MinValue;
+        // 2.7: cada equipo tiene su propia clave, cifrada para este PC (DPAPI, ambito de la
+        // maquina) en estado\clave.dat. Se recibe del servidor en "clave_equipo".
+        internal static string ClaveFile = null;
+        internal static string clave = "";
+        static readonly byte[] Entropia = Encoding.UTF8.GetBytes("Monitor247-clave-equipo");
+        internal static Func<byte[], bool, byte[]> Cifrador = Dpapi;
         const int IntervaloSeg = 60;
         const int MaxCola = 5000;
         const int MaxLote = 200;
@@ -286,6 +292,8 @@ namespace Monitor247
             string estadoDir = Path.Combine(baseDir, "estado");
             try { Directory.CreateDirectory(estadoDir); } catch { }
             UltimoFile = Path.Combine(estadoDir, "ultimo.txt");
+            ClaveFile = Path.Combine(estadoDir, "clave.dat");
+            clave = LeerClave();
 
             string txt = File.ReadAllText(configFile, Encoding.UTF8);
             string url = Json(txt, "url");
@@ -307,7 +315,8 @@ namespace Monitor247
             string equipo = Environment.MachineName;
             string usuario = Environment.UserName;
 
-            Log("Inicio v" + Version + " - agente '" + agente + "' cuenta '" + cuenta + "' usuario '" + usuario + "'");
+            Log("Inicio v" + Version + " - agente '" + agente + "' cuenta '" + cuenta + "' usuario '" + usuario + "'" +
+                (clave.Length > 0 ? " - con clave de equipo" : " - sin clave de equipo (se pedira al servidor)"));
             bool primerEnvio = true;
             bool haceSpeed = false;
             int fallos = 0;
@@ -337,6 +346,7 @@ namespace Monitor247
                     {
                         int fin = Math.Min(enviados + MaxLote, lineas.Count);
                         respuesta = EnviarConRespaldo(url, token, lineas.GetRange(enviados, fin - enviados));
+                        ProcesarRespuesta(respuesta);   // guarda la clave nueva; si el servidor no acepto el lote, lanza y el lote sigue en cola
                         enviados = fin;
                     }
                     File.WriteAllText(ColaFile, "", Utf8);
@@ -546,6 +556,9 @@ namespace Monitor247
 
         static string EnviarConRespaldo(string url, string token, List<string> beats)
         {
+            // Con clave de equipo no hay atajo al Apps Script: si Supabase no responde,
+            // los latidos esperan en la cola (el Apps Script no conoce las claves).
+            if (clave.Length > 0) return Enviar(SupabaseUrl, token, beats);
             try { return Enviar(SupabaseUrl, token, beats); }
             catch (Exception ex)
             {
@@ -562,7 +575,9 @@ namespace Monitor247
         static string Enviar(string url, string token, List<string> beats)
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("{\"token\":\"").Append(Esc(token)).Append("\",\"version\":\"").Append(Version).Append("\",\"beats\":[");
+            sb.Append("{\"token\":\"").Append(Esc(token)).Append("\",\"version\":\"").Append(Version).Append("\",");
+            if (clave.Length > 0) sb.Append("\"clave\":\"").Append(Esc(clave)).Append("\",");
+            sb.Append("\"beats\":[");
             for (int i = 0; i < beats.Count; i++) { if (i > 0) sb.Append(","); sb.Append(beats[i]); }
             sb.Append("]}");
             byte[] bytes = Utf8.GetBytes(sb.ToString());
@@ -650,6 +665,91 @@ namespace Monitor247
             correoCache = mail;
             correoCacheTs = DateTime.UtcNow;
             return mail;
+        }
+
+        // ---- Clave del equipo (2.7) ----
+        // Lee la respuesta de un lote. Si trae clave nueva, la guarda. Si el servidor no
+        // acepto el lote por la clave o el token, lanza: el lote se queda en la cola y se
+        // reintenta en el siguiente ciclo (nada se pierde mientras el equipo espera
+        // aprobacion). Otros errores del servidor se tratan como hasta la 2.6.
+        internal static void ProcesarRespuesta(string r)
+        {
+            if (string.IsNullOrEmpty(r)) return;
+            string nueva = Json(r, "clave_equipo");
+            if (nueva.StartsWith("eq_") && nueva != clave) { GuardarClave(nueva); Log("Clave de equipo recibida y guardada"); }
+            if (Regex.IsMatch(r, "\"clave_invalida\"\\s*:\\s*true"))
+            {
+                BorrarClave();
+                throw new Exception("La clave de este equipo no es valida; se pedira una nueva");
+            }
+            if (!Regex.IsMatch(r, "\"ok\"\\s*:\\s*false")) return;
+            if (Regex.IsMatch(r, "\"pendiente\"\\s*:\\s*true")) throw new Exception("Equipo pendiente de aprobacion en el panel del Monitor; los latidos esperan en la cola");
+            if (Regex.IsMatch(r, "\"anulada\"\\s*:\\s*true")) throw new Exception("Este equipo fue anulado en el panel del Monitor");
+            string err = Json(r, "error");
+            if (err.IndexOf("token", StringComparison.OrdinalIgnoreCase) >= 0 || err.IndexOf("reinstale", StringComparison.OrdinalIgnoreCase) >= 0)
+                throw new Exception("El servidor rechazo el envio: " + err);
+        }
+
+        internal static string LeerClave()
+        {
+            try
+            {
+                if (ClaveFile == null || !File.Exists(ClaveFile)) return "";
+                string c = Encoding.UTF8.GetString(Cifrador(File.ReadAllBytes(ClaveFile), false)).Trim();
+                return c.StartsWith("eq_") ? c : "";
+            }
+            catch (Exception ex) { Log("No se pudo leer la clave del equipo (" + ex.Message + "); se pedira una nueva"); return ""; }
+        }
+
+        internal static void GuardarClave(string c)
+        {
+            clave = c;   // aunque falle el archivo, en esta sesion se usa la nueva
+            try { File.WriteAllBytes(ClaveFile, Cifrador(Encoding.UTF8.GetBytes(c), true)); }
+            catch (Exception ex) { Log("No se pudo guardar la clave del equipo: " + ex.Message); }
+        }
+
+        internal static void BorrarClave()
+        {
+            clave = "";
+            try { if (ClaveFile != null && File.Exists(ClaveFile)) File.Delete(ClaveFile); } catch { }
+            Log("Clave de equipo descartada; se pedira una nueva");
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct DATA_BLOB { public int cbData; public IntPtr pbData; }
+        [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool CryptProtectData(ref DATA_BLOB entrada, string descripcion, ref DATA_BLOB entropia,
+            IntPtr reservado, IntPtr aviso, int flags, ref DATA_BLOB salida);
+        [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool CryptUnprotectData(ref DATA_BLOB entrada, IntPtr descripcion, ref DATA_BLOB entropia,
+            IntPtr reservado, IntPtr aviso, int flags, ref DATA_BLOB salida);
+        [DllImport("kernel32.dll")]
+        static extern IntPtr LocalFree(IntPtr h);
+
+        // Igual que ProtectedData con DataProtectionScope.LocalMachine y la misma entropia
+        // (asi el .exe y la version PowerShell leen el mismo archivo).
+        static byte[] Dpapi(byte[] datos, bool cifrar)
+        {
+            const int SIN_VENTANAS = 0x1, DE_LA_MAQUINA = 0x4;
+            DATA_BLOB ent = new DATA_BLOB(), ext = new DATA_BLOB(), sal = new DATA_BLOB();
+            GCHandle hd = GCHandle.Alloc(datos, GCHandleType.Pinned), he = GCHandle.Alloc(Entropia, GCHandleType.Pinned);
+            try
+            {
+                ent.cbData = datos.Length; ent.pbData = hd.AddrOfPinnedObject();
+                ext.cbData = Entropia.Length; ext.pbData = he.AddrOfPinnedObject();
+                bool ok = cifrar
+                    ? CryptProtectData(ref ent, "Monitor247", ref ext, IntPtr.Zero, IntPtr.Zero, SIN_VENTANAS | DE_LA_MAQUINA, ref sal)
+                    : CryptUnprotectData(ref ent, IntPtr.Zero, ref ext, IntPtr.Zero, IntPtr.Zero, SIN_VENTANAS | DE_LA_MAQUINA, ref sal);
+                if (!ok) throw new Exception("DPAPI error " + Marshal.GetLastWin32Error());
+                byte[] r = new byte[sal.cbData];
+                Marshal.Copy(sal.pbData, r, 0, sal.cbData);
+                return r;
+            }
+            finally
+            {
+                hd.Free(); he.Free();
+                if (sal.pbData != IntPtr.Zero) LocalFree(sal.pbData);
+            }
         }
 
         static string Json(string txt, string key)
