@@ -292,6 +292,30 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .nom-btn:hover{color:var(--brand-700)} .nom-btn:hover svg{opacity:1}
 .nom-btn span{overflow:hidden;text-overflow:ellipsis}
 
+/* ── flechas de periodo, filtro de cuenta ── */
+.flecha{min-width:38px;padding:7px 10px;font-size:17px;line-height:1}
+/* ── SETTINGS ── */
+.ajuste{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;max-width:680px;margin-bottom:14px}
+.ajuste h2{font-size:17px;margin-bottom:4px}
+.ajuste .nota{margin-bottom:12px}
+.opciones{display:grid;gap:6px;margin-bottom:12px}
+.opciones label{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.opciones label:has(input:checked){border-color:var(--brand-500);background:var(--brand-50)}
+.opciones input{width:17px;height:17px}
+.ejemplo{font-size:13.5px;color:var(--text-muted);background:var(--sand);border-radius:10px;padding:9px 12px;margin-bottom:12px}
+.ejemplo b{color:var(--text)}
+/* ── USERS (ficha) ── */
+.ventana.ventana-ficha{max-width:780px}
+.ficha-sec{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.ficha-sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px}
+.ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.ficha-grid .ancho{grid-column:1/-1}
+@media (max-width:640px){ .ficha-grid{grid-template-columns:1fr} }
+.users-barra{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.users-barra input,.users-barra select{padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);font-size:14px}
+.users-barra input{min-width:220px}
+.emps td small{display:block;color:var(--text-muted);font-size:12px}
+
 /* ── banderas (forma + color) ── */
 .fl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none}
 .fl-alerta{color:var(--accent-500)}
@@ -428,7 +452,8 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <button class="tab" role="tab" data-v="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Today</span></button>
   <button class="tab" role="tab" data-v="sols"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span>Requests</span><b class="badge hidden" id="solBadge"></b></button>
   <button class="tab" role="tab" data-v="hoja"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg><span>Timesheet</span></button>
-  <button class="tab" role="tab" data-v="emps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Employees</span></button>
+  <button class="tab" role="tab" data-v="emps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span></button>
+  <button class="tab" role="tab" data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   <div class="pie-lat"><a class="tab" href="https://247medicalaid.github.io/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Portal</span></a></div>
 </nav>
 
@@ -516,6 +541,8 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <h1>Timesheet</h1>
       <span class="esp"></span>
       <div class="periodo">
+        <select id="hCuenta" aria-label="Account" class="hidden"><option value="">All accounts</option></select>
+        <button class="btn btn-ghost btn-sm flecha" id="hAntP" type="button" title="Previous period" aria-label="Previous period">‹</button>
         <select id="hPreset" aria-label="Period">
           <option value="q0">Current pay period</option>
           <option value="q1">Previous pay period</option>
@@ -525,6 +552,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
         </select>
         <input type="date" id="hDesde" class="hidden" aria-label="From">
         <input type="date" id="hHasta" class="hidden" aria-label="To">
+        <button class="btn btn-ghost btn-sm flecha" id="hSigP" type="button" title="Next period" aria-label="Next period">›</button>
       </div>
     </div>
     <div id="hojaAvisos"></div>
@@ -539,14 +567,38 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <div class="leyenda" id="hojaLeyenda"></div>
   </section>
 
+  <!-- ADMIN: SETTINGS -->
+  <section id="vAjustes" class="hidden">
+    <div class="cabecera"><h1>Settings</h1></div>
+    <div class="ajuste">
+      <h2>Hour rounding</h2>
+      <p class="nota">When hours are calculated (Timesheet, approvals, exports and My clock), each punch is rounded to the nearest step. The real punch times are kept exactly as they were.</p>
+      <div class="opciones" id="ajRedondeo">
+        <label><input type="radio" name="redondeo" value="1"> Exact (to the minute)</label>
+        <label><input type="radio" name="redondeo" value="5"> Every 5 minutes</label>
+        <label><input type="radio" name="redondeo" value="6"> Every 6 minutes (1/10 of an hour)</label>
+        <label><input type="radio" name="redondeo" value="10"> Every 10 minutes</label>
+        <label><input type="radio" name="redondeo" value="15"> Every 15 minutes</label>
+      </div>
+      <div class="ejemplo" id="ajEjemplo"></div>
+      <button class="btn btn-ink btn-sm" id="ajGuardar" type="button">Save</button>
+      <span class="nota" id="ajEstado" style="margin-left:8px"></span>
+    </div>
+  </section>
+
   <!-- ADMIN: EMPLEADOS -->
   <section id="vEmps" class="hidden">
     <div class="cabecera">
-      <h1>Employees</h1>
+      <h1>Users</h1>
       <span class="esp"></span>
-      <button class="btn btn-ink btn-sm" id="eNuevo">Add employee</button>
+      <button class="btn btn-ink btn-sm" id="eNuevo">Add user</button>
     </div>
-    <p class="nota" style="margin:-6px 0 14px;max-width:70ch">Each employee signs in to the Time Clock with their portal user. Create the user in the portal first as an Operator; you don't need to give them any app.</p>
+    <p class="nota" style="margin:-6px 0 12px;max-width:80ch">Each user signs in to the Time Clock with their portal user. Create it in the portal first as an Operator (no apps needed), then add them here with their account and details.</p>
+    <div class="users-barra">
+      <input id="uBuscar" type="search" placeholder="Search name, phone, email…" autocomplete="off" aria-label="Search users">
+      <select id="uCuenta" aria-label="Account"><option value="">All accounts</option></select>
+      <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="inact">Inactive</option></select>
+    </div>
     <div class="tabla-wrap" id="empsTabla"></div>
   </section>
 </main>
@@ -575,20 +627,48 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   </div>
 </div>
 
-<!-- empleado -->
+<!-- usuario (ficha completa) -->
 <div class="overlay hidden" id="ovEmp" role="dialog" aria-modal="true" aria-labelledby="eTitulo">
-  <div class="ventana" style="max-width:520px">
-    <h2 id="eTitulo">Add employee</h2>
-    <div class="sub">Links their portal user to their name in the Monitor and in Payroll.</div>
-    <label class="campo"><span>Portal user</span><input id="eUsuario" list="eUsuarios" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. laura.a"><datalist id="eUsuarios"></datalist><small>The same one they use to sign in to the portal.</small></label>
-    <label class="campo"><span>Name</span><input id="eNombre" autocomplete="off"></label>
-    <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select>
-      <small>Used to compare their punches with their PC activity.</small></label>
-    <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
-      <label class="campo"><span>Status</span><select id="eActivo"><option value="si">Active</option><option value="no">Inactive</option></select></label>
+  <div class="ventana ventana-ficha">
+    <h2 id="eTitulo">Add user</h2>
+    <div class="sub">Their portal user, account, Monitor and Payroll links, and personal details.</div>
+    <div class="ficha-grid">
+      <label class="campo"><span>Portal user</span><input id="eUsuario" list="eUsuarios" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. laura.a"><datalist id="eUsuarios"></datalist></label>
+      <label class="campo"><span>Full name</span><input id="eNombre" autocomplete="off"></label>
     </div>
+    <div class="ficha-sec"><h3>Work</h3>
+      <div class="ficha-grid">
+        <label class="campo"><span>Account</span><input id="eCuenta" list="eCuentas" autocomplete="off" placeholder="e.g. GASTRO, CARDIO, 24/7 Medical"><datalist id="eCuentas"></datalist></label>
+        <label class="campo"><span>Department</span><input id="eDepto" list="eDeptos" autocomplete="off" placeholder="e.g. Call Center"><datalist id="eDeptos"><option>Call Center</option><option>Human Resources</option></datalist></label>
+        <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select></label>
+        <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
+        <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
+        <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
+        <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
+        <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
+        <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="campo"><span>Status</span><select id="eActivo"><option value="si">Active</option><option value="no">Inactive</option></select></label>
+      </div>
+    </div>
+    <div class="ficha-sec"><h3>Personal</h3>
+      <div class="ficha-grid">
+        <label class="campo"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
+        <label class="campo"><span>Email</span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+        <label class="campo"><span>ID type</span><input id="eTipoId" list="eTiposId" autocomplete="off" placeholder="e.g. CC, Passport"><datalist id="eTiposId"><option>CC</option><option>CE</option><option>Passport</option><option>SSN</option></datalist></label>
+        <label class="campo"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
+        <label class="campo"><span>Birthday</span><input id="eCumple" type="date"></label>
+        <label class="campo"><span>City</span><input id="eCiudad" autocomplete="off"></label>
+        <label class="campo ancho"><span>Home address</span><input id="eDir" autocomplete="off"></label>
+        <label class="campo ancho"><span>Emergency contact</span><input id="eEmerg" autocomplete="off" placeholder="Name, relationship and phone"></label>
+      </div>
+    </div>
+    <div class="ficha-sec"><h3>Bank</h3>
+      <div class="ficha-grid">
+        <label class="campo"><span>Bank name</span><input id="eBanco" autocomplete="off"></label>
+        <label class="campo"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
+      </div>
+    </div>
+    <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
     <div class="err" id="eErr"></div>
     <div class="pie">
       <button class="btn btn-ghost" data-cerrar>Cancel</button>
@@ -759,19 +839,23 @@ function agrupar(marcas){ const g = {}; marcas.forEach(m => { (g[m.fecha] = g[m.
 function rango(desde, hasta){ const r = []; for(let f = desde; f <= hasta && r.length <= CFG.MAX_DIAS; f = sumarDias(f, 1)) r.push(f); return r; }
 
 /* Máquina de estados del día (igual que reloj_dia en la base de datos). */
+/* Aproximación (Settings): cada marca se lleva al múltiplo más cercano SOLO para contar
+   minutos; las horas que se muestran de cada marca son las reales. */
+const redondear = ms => { const r = (S.redondeo || 1) * 60000; return Math.round(ms / r) * r; };
 function armarDia(marcas, ahora, esHoy){
-  let estado = 'fuera', ini = null, iniAlm = null; const bloques = [], almuerzos = []; let invalidas = 0;
+  let estado = 'fuera', ini = null, iniAlm = null, iR = null, iaR = null; const bloques = [], almuerzos = []; let invalidas = 0;
   marcas.forEach(m => {
-    if(m.tipo === 'entrada' && estado === 'fuera'){ estado = 'trabajando'; ini = m.ms; }
-    else if(m.tipo === 'almuerzo_ini' && estado === 'trabajando'){ bloques.push([ini, m.ms]); iniAlm = m.ms; estado = 'almuerzo'; }
-    else if(m.tipo === 'almuerzo_fin' && estado === 'almuerzo'){ almuerzos.push([iniAlm, m.ms]); ini = m.ms; estado = 'trabajando'; }
-    else if(m.tipo === 'salida' && estado === 'trabajando'){ bloques.push([ini, m.ms]); estado = 'fuera'; }
+    const r = redondear(m.ms);
+    if(m.tipo === 'entrada' && estado === 'fuera'){ estado = 'trabajando'; ini = m.ms; iR = r; }
+    else if(m.tipo === 'almuerzo_ini' && estado === 'trabajando'){ bloques.push([iR, r]); iniAlm = m.ms; iaR = r; estado = 'almuerzo'; }
+    else if(m.tipo === 'almuerzo_fin' && estado === 'almuerzo'){ almuerzos.push([iaR, r]); ini = m.ms; iR = r; estado = 'trabajando'; }
+    else if(m.tipo === 'salida' && estado === 'trabajando'){ bloques.push([iR, r]); estado = 'fuera'; }
     else invalidas++;
   });
   const abierto = estado !== 'fuera';
   const desde = estado === 'trabajando' ? ini : estado === 'almuerzo' ? iniAlm : null;
   const b = bloques.slice(), a = almuerzos.slice();
-  if(abierto && esHoy){ if(estado === 'trabajando') b.push([ini, ahora]); else a.push([iniAlm, ahora]); }
+  if(abierto && esHoy){ if(estado === 'trabajando') b.push([iR, ahora]); else a.push([iaR, ahora]); }
   const suma = l => Math.round(l.reduce((s, x) => s + (x[1] - x[0]), 0) / 60000);
   return { estado, desde, abierto, enCurso: abierto && esHoy, incompleto: abierto && !esHoy,
            min: suma(b), alm: suma(a), bloques: b, almuerzos: a, invalidas };
@@ -921,6 +1005,12 @@ const SERVIDOR_EN = [
   [/^Completa las dos horas del almuerzo o deja ambas vacías\.$/, 'Fill in both lunch times or leave both empty.'],
   [/^El almuerzo debe estar dentro del turno\.$/, 'Lunch must be inside the shift.'],
   [/^No hay cambios para guardar\.$/, 'There are no changes to save.'],
+  [/^Solo un administrador puede cambiar los ajustes\.$/, 'Only an administrator can change settings.'],
+  [/^Aproximación no válida\.$/, 'Invalid rounding.'],
+  [/^Ajuste desconocido\.$/, 'Unknown setting.'],
+  [/^Correo no válido\.$/, 'Invalid email.'],
+  [/^Hora de entrada no válida\.$/, 'Invalid scheduled start.'],
+  [/^Pago por hora no válido\.$/, 'Invalid pay rate.'],
   [/^Máximo 31 días por guardado\.$/, '31 days at most per save.'],
   [/^Solo se puede desaprobar una solicitud aprobada\.$/, 'Only an approved request can be undone.'],
   [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
@@ -931,9 +1021,15 @@ function enIngles(m){ m = String(m || '');
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
-const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo });
+const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
+  cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
+  direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
+  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '' });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
+async function cargarConfig(){
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; }); }catch(e){}
+}
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
   const { data } = await window.sb.auth.getSession();
@@ -977,6 +1073,7 @@ async function api(action, p){
   }
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
+  if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
   if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
@@ -993,13 +1090,15 @@ async function yoSB(){
   const usuario = ses.user.email.replace(DOMINIO_SB, ''), desde = sumarDias(fechaHoy(), -15);
   // Todo en paralelo: un solo viaje de ida y vuelta, no cinco seguidos.
   const [ahoraSrv, perfil, emp, marcas, aprob, aus] = await Promise.all([
+    // (la configuración se pide en paralelo y queda en S.redondeo)
     q(sb.rpc('ahora')),
     q(sb.from('perfiles').select('usuario,nombre,rol,activo').eq('user_id', ses.user.id).maybeSingle()),
     q(sb.from('reloj_empleados').select('*').eq('usuario', usuario).maybeSingle()),
     q(sb.from('reloj_marcas').select(COLS_M).eq('usuario', usuario).is('anulada_en', null).gte('fecha', desde).order('ts').order('id')),
     q(sb.from('reloj_aprobaciones').select('fecha').eq('usuario', usuario).gte('fecha', desde)),
     q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', usuario).eq('tipo', 'ausencia')
-      .eq('estado', 'aprobada').gte('fecha_fin', desde)).catch(() => [])
+      .eq('estado', 'aprobada').gte('fecha_fin', desde)).catch(() => []),
+    cargarConfig()
   ]);
   S.offset = Date.parse(ahoraSrv) - Date.now();
   if(!perfil || !perfil.activo) throw Object.assign(new Error('Your user is not active. Talk to the administrator.'), { codigo:'INACTIVO' });
@@ -1028,7 +1127,8 @@ async function hojaSB(desde, hasta){
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
     q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
-      .eq('estado', 'aprobada').lte('fecha', hasta).gte('fecha_fin', desde)).catch(() => [])
+      .eq('estado', 'aprobada').lte('fecha', hasta).gte('fecha_fin', desde)).catch(() => []),
+    cargarConfig()
   ]);
   const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob,
                 aus:aus.map(a => ({ usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
@@ -1043,7 +1143,7 @@ async function empleadosSB(){
   await sesionSB();
   const [emps, perfiles] = await Promise.all([q(sb.from('reloj_empleados').select('*')), q(sb.from('perfiles').select('usuario,nombre,activo'))]);
   if(!MON.agentes && monCfg()) await Promise.race([monPedir([fechaHoy()]), new Promise(r => setTimeout(r, 12000))]);
-  return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo })), monitor:MON.agentes || [] };
+  return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
 
 /* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
@@ -1077,7 +1177,7 @@ async function monPedir(fechas, alTerminar){
         const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) + (f === hoy ? '' : '&fecha=' + f);
         const j = await (await fetch(u)).json(), d = reducirMonitor(j);
         if(!d) throw new Error('sin datos');
-        if(f === hoy){ MON.hoy = d; MON.hoyEn = Date.now(); MON.hoyFalla = false; MON.agentes = j.agentes.map(a => ({ agente:a.agente, cuenta:a.cuenta || '' })); }
+        if(f === hoy){ MON.hoy = d; MON.hoyEn = Date.now(); MON.hoyFalla = false; MON.agentes = j.agentes.map(a => ({ agente:a.agente, cuenta:a.cuenta || '' })); if(Array.isArray(j.cuentas)) MON.cuentas = j.cuentas.map(c => c.n).filter(Boolean); }
         else {
           const gg = monGuardados(); gg[f] = { d, en:Date.now() };
           const ks = Object.keys(gg).sort(); while(ks.length > 45) delete gg[ks.shift()];
@@ -1111,7 +1211,7 @@ async function inicio(){
       $('grpMio').classList.toggle('hidden', !yo.empleado);
       actualizarBadge(); setInterval(() => { if(!document.hidden) actualizarBadge(); }, 60000);
       const pedida = location.hash.slice(1);
-      irA(['reloj','hoy','sols','hoja','emps'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+      irA(['reloj','hoy','sols','hoja','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
     } else if(yo.empleado) irA('reloj');
     else irA('sin');
   }catch(e){
@@ -1140,7 +1240,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S.v
 
 function irA(v){
   S.vista = v;
-  ['reloj','sin','hoy','sols','hoja','emps'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
+  ['reloj','sin','hoy','sols','hoja','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
   if(S.yo && S.yo.esAdmin){ try{ history.replaceState(null, '', '#' + v); }catch(e){} }
   clearInterval(S.timerReloj); clearInterval(S.timerHoy);
@@ -1149,6 +1249,7 @@ function irA(v){
   if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else cargarHoja(); }
   if(v === 'emps') cargarEmps();
   if(v === 'sols') cargarSols();
+  if(v === 'ajustes') pintarAjustes();
 }
 document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
 
@@ -1349,24 +1450,51 @@ function avisosMonitor(h){
 }
 
 /* ══════════════════ ADMIN: HOJA DE HORAS ══════════════════ */
-function elegirPreset(p){
-  $('hPreset').value = p;
+const finMesF = m => { const [y, mo] = m.split('-').map(Number); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2,'0'); };
+function rangoPreset(p){
   const hoy = fechaHoy(), d = +hoy.slice(8), mes = hoy.slice(0,7);
-  const finMes = m => { const [y, mo] = m.split('-').map(Number); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2,'0'); };
   const mesAnt = m => sumarDias(m + '-01', -1).slice(0,7);
   const lunes = f => sumarDias(f, -((new Date(f + 'T12:00:00Z').getUTCDay() + 6) % 7));
-  let desde, hasta;
-  if(p === 'q0'){ desde = d <= 15 ? mes + '-01' : mes + '-16'; hasta = d <= 15 ? mes + '-15' : finMes(mes); }
-  if(p === 'q1'){ if(d <= 15){ const m = mesAnt(mes); desde = m + '-16'; hasta = finMes(m); } else { desde = mes + '-01'; hasta = mes + '-15'; } }
-  if(p === 's0'){ desde = lunes(hoy); hasta = sumarDias(desde, 6); }
-  if(p === 's1'){ desde = sumarDias(lunes(hoy), -7); hasta = sumarDias(desde, 6); }
-  const custom = p === 'c';
+  if(p === 'q0') return { desde: d <= 15 ? mes + '-01' : mes + '-16', hasta: d <= 15 ? mes + '-15' : finMesF(mes) };
+  if(p === 'q1'){ if(d <= 15){ const m = mesAnt(mes); return { desde:m + '-16', hasta:finMesF(m) }; } return { desde:mes + '-01', hasta:mes + '-15' }; }
+  if(p === 's0'){ const l = lunes(hoy); return { desde:l, hasta:sumarDias(l, 6) }; }
+  if(p === 's1'){ const l = sumarDias(lunes(hoy), -7); return { desde:l, hasta:sumarDias(l, 6) }; }
+  return null;
+}
+function presetDe(desde, hasta){ for(const k of ['q0','q1','s0','s1']){ const r = rangoPreset(k); if(r.desde === desde && r.hasta === hasta) return k; } return 'c'; }
+function ponerPeriodo(desde, hasta){
+  const k = presetDe(desde, hasta), custom = k === 'c';
+  $('hPreset').value = k;
   $('hDesde').classList.toggle('hidden', !custom); $('hHasta').classList.toggle('hidden', !custom);
-  if(custom){ desde = $('hDesde').value || (S.periodo && S.periodo.desde) || hoy; hasta = $('hHasta').value || (S.periodo && S.periodo.hasta) || hoy; }
   $('hDesde').value = desde; $('hHasta').value = hasta;
   S.periodo = { desde, hasta };
   cargarHoja();
 }
+function elegirPreset(p){
+  const hoy = fechaHoy();
+  let r = rangoPreset(p);
+  if(!r) r = { desde: $('hDesde').value || (S.periodo && S.periodo.desde) || hoy, hasta: $('hHasta').value || (S.periodo && S.periodo.hasta) || hoy };
+  if(p === 'c'){ $('hPreset').value = 'c'; $('hDesde').classList.remove('hidden'); $('hHasta').classList.remove('hidden');
+    $('hDesde').value = r.desde; $('hHasta').value = r.hasta; S.periodo = r; cargarHoja(); return; }
+  ponerPeriodo(r.desde, r.hasta);
+}
+/* ‹ › : quincena anterior/siguiente (1–15, 16–fin de mes); una semana o un rango libre se corre por su largo. */
+function moverPeriodo(dir){
+  const p = S.periodo; if(!p) return;
+  const dd = +p.desde.slice(8), mes = p.desde.slice(0,7);
+  const esQ = (dd === 1 && p.hasta === mes + '-15') || (dd === 16 && p.hasta === finMesF(mes));
+  let desde, hasta;
+  if(esQ){
+    if(dir < 0){ if(dd === 1){ const m = sumarDias(mes + '-01', -1).slice(0,7); desde = m + '-16'; hasta = finMesF(m); } else { desde = mes + '-01'; hasta = mes + '-15'; } }
+    else { if(dd === 1){ desde = mes + '-16'; hasta = finMesF(mes); } else { const m = sumarDias(finMesF(mes), 1).slice(0,7); desde = m + '-01'; hasta = m + '-15'; } }
+  } else { const n = diasEntre(p.desde, p.hasta); desde = sumarDias(p.desde, dir * n); hasta = sumarDias(p.hasta, dir * n); }
+  ponerPeriodo(desde, hasta);
+}
+$('hAntP').addEventListener('click', () => moverPeriodo(-1));
+$('hSigP').addEventListener('click', () => moverPeriodo(1));
+$('hCuenta').addEventListener('change', () => { S.cuentaFiltro = $('hCuenta').value; pintarHoja(); });
+// Empleados que se ven en la hoja (según el filtro de cuenta).
+const empsVisibles = () => (S.hoja ? S.hoja.empleados : []).filter(e => !S.cuentaFiltro || (e.cuenta || '') === S.cuentaFiltro);
 $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
 
@@ -1381,6 +1509,10 @@ async function cargarHoja(){
 function pintarHoja(){
   const h = S.hoja;
   $('hojaAvisos').innerHTML = avisosMonitor(h);
+  const cuentas = Array.from(new Set(h.empleados.map(e => e.cuenta || '').filter(Boolean))).sort();
+  if(S.cuentaFiltro && cuentas.indexOf(S.cuentaFiltro) < 0) S.cuentaFiltro = '';
+  $('hCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === S.cuentaFiltro ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  $('hCuenta').classList.toggle('hidden', !cuentas.length);
   if(!h.empleados.length){
     $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
@@ -1389,7 +1521,7 @@ function pintarHoja(){
   let t = '<table class="hoja"><thead><tr><th class="nombre">Employee</th>' +
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
     '<th class="tot">Hours</th><th class="tot">Approved</th><th class="tot" title="Paid time off">PTO</th><th class="tot">Equiv. days</th></tr></thead><tbody>';
-  h.empleados.forEach(e => {
+  empsVisibles().forEach(e => {
     t += '<tr><td class="nombre" title="Edit ' + esc(e.nombre) + '\'s hours"><button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '"><span>' + esc(e.nombre) + '</span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
     h.fechas.forEach(f => {
@@ -1431,11 +1563,12 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>';
+    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>' +
+    ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 function diasLimpios(){
   const out = [];
-  S.hoja.empleados.forEach(e => Object.keys(e.dias).forEach(f => {
+  empsVisibles().forEach(e => Object.keys(e.dias).forEach(f => {
     const d = e.dias[f];
     if(f < S.hoja.hoy && !d.aprobado && !d.incompleto && d.marcas.length && !d.banderas.some(b => b.n === 'alerta' || b.n === 'aviso'))
       out.push({ usuario:e.usuario, fecha:f });
@@ -1555,27 +1688,27 @@ function descargarCSV(nombre, filas){
 const horasDec = min => (min / 60).toFixed(2);
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
-  h.empleados.forEach(e => {
+  const filas = [['Employee','Account','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
+  empsVisibles().forEach(e => {
     const t = e.totales;
-    filas.push([e.nombre, e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(t.minAprob), t.diasAprob,
+    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(t.minAprob), t.diasAprob,
       horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]);
   });
-  descargarCSV('timeclock_summary_' + h.desde + '_to_' + h.hasta + '.csv', filas);
+  descargarCSV('timeclock_summary_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 $('hExpDetalle').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Lunch minutes','Approved','Approved hours','Issues','Absence']];
-  h.empleados.forEach(e => h.fechas.forEach(f => {
+  const filas = [['Employee','Account','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Lunch minutes','Approved','Approved hours','Issues','Absence']];
+  empsVisibles().forEach(e => h.fechas.forEach(f => {
     const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
     const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
     const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
-    filas.push([e.nombre, e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
+    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
       d.incompleto ? '' : horasDec(d.min), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
       d.banderas.map(b => b.t).join(' | '),
       d.ausencia ? CLASE_TXT[d.ausencia.clase] + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '']);
   }));
-  descargarCSV('timeclock_detail_' + h.desde + '_to_' + h.hasta + '.csv', filas);
+  descargarCSV('timeclock_detail_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 
 /* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
@@ -1585,18 +1718,32 @@ async function cargarEmps(){
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
 function pintarEmps(){
-  const l = S.emps.empleados.slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'en'));
-  if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees yet</h2><p>Add the first one with their portal user.</p></div>'; return; }
-  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Portal user</th><th>Agent in the Monitor</th><th>Name in Payroll</th><th>Hours/day</th><th></th></tr></thead><tbody>' +
-    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '</td>' +
-      '<td>' + esc(e.usuario) + '</td><td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
-      '<td>' + esc(e.nombreNomina || '—') + '</td><td class="num">' + e.horasDia + '</td>' +
+  const todos = S.emps.empleados;
+  const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
+  const fc = $('uCuenta').value; $('uCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === fc ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  const busca = normal($('uBuscar').value), est = $('uEstado').value;
+  const l = todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : !e.activo)) &&
+      (!busca || normal([e.nombre, e.usuario, e.telefono, e.email, e.cuenta, e.departamento].join(' ')).indexOf(busca) >= 0))
+    .sort((a, b) => (b.activo - a.activo) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
+  if(!todos.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users yet</h2><p>Add the first one with their portal user.</p></div>'; return; }
+  if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users match</h2><p>Try another search or filter.</p></div>'; return; }
+  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Monitor</th><th></th></tr></thead><tbody>' +
+    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '<small>' + esc(e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
+      '<td>' + (e.cuenta ? esc(e.cuenta) : '<span class="pill no">No account</span>') + '</td>' +
+      '<td>' + esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') + '</td>' +
+      '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
+      '<td class="num">' + (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h</td>' +
+      '<td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
       '<td style="text-align:right"><button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></td></tr>').join('') + '</tbody></table>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
 }
+['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
+const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
+  telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
+  contactoEmergencia:'eEmerg', banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas' };
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
-  $('eTitulo').textContent = e ? 'Edit employee' : 'Add employee';
+  $('eTitulo').textContent = e ? 'Edit user' : 'Add user';
   const usados = S.emps.empleados.map(x => x.usuario);
   const portal = S.emps.portal.filter(p => p.activo && (p.username === usuario || usados.indexOf(p.username) < 0));
   $('eUsuarios').innerHTML = portal.map(p => '<option value="' + esc(p.username) + '">' + esc(p.nombre) + '</option>').join('');
@@ -1604,12 +1751,15 @@ function abrirEmp(usuario){
   const mon = S.emps.monitor.map(m => m.agente);
   if(e && e.agenteMonitor && mon.indexOf(e.agenteMonitor) < 0) mon.push(e.agenteMonitor);
   $('eMonitor').innerHTML = '<option value="">Not linked</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
+  const cuentas = Array.from(new Set((S.emps.cuentas || []).concat(S.emps.monitor.map(m => m.cuenta), S.emps.empleados.map(x => x.cuenta)).filter(Boolean))).sort();
+  $('eCuentas').innerHTML = cuentas.map(c => '<option>' + esc(c) + '</option>').join('');
   $('eUsuario').value = e ? e.usuario : '';
   $('eNombre').value = e ? e.nombre : '';
   $('eMonitor').value = e ? e.agenteMonitor : '';
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
   $('eActivo').value = !e || e.activo ? 'si' : 'no';
+  Object.keys(CAMPOS_FICHA).forEach(k => { $(CAMPOS_FICHA[k]).value = e ? (e[k] || '') : (k === 'departamento' ? 'Call Center' : ''); });
   $('eErr').textContent = '';
   abrir('ovEmp');
 }
@@ -1617,24 +1767,51 @@ $('eNuevo').addEventListener('click', () => abrirEmp(null));
 $('eUsuario').addEventListener('change', () => {
   const u = $('eUsuario').value.trim().toLowerCase(); $('eUsuario').value = u;
   const pp = S.emps.portal.find(p => p.username === u); if(!pp || !pp.nombre) return;
-  const o = { dataset:{ n:pp.nombre } };
-  if(!$('eNombre').value) $('eNombre').value = o.dataset.n;
-  const n = o.dataset.n.toLowerCase();
+  if(!$('eNombre').value) $('eNombre').value = pp.nombre;
+  const n = pp.nombre.toLowerCase();
   const m = S.emps.monitor.find(x => x.agente.toLowerCase() === n);
-  if(m && !$('eMonitor').value) $('eMonitor').value = m.agente;
-  if(!$('eNomina').value) $('eNomina').value = o.dataset.n.toUpperCase();
+  if(m && !$('eMonitor').value){ $('eMonitor').value = m.agente; if(!$('eCuenta').value && m.cuenta) $('eCuenta').value = m.cuenta; }
+  if(!$('eNomina').value) $('eNomina').value = pp.nombre.toUpperCase();
 });
+// Al elegir el agente del Monitor, se propone su cuenta.
+$('eMonitor').addEventListener('change', () => { const m = S.emps.monitor.find(x => x.agente === $('eMonitor').value); if(m && m.cuenta && !$('eCuenta').value) $('eCuenta').value = m.cuenta; });
 $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:$('eUsuario').value.trim().toLowerCase(), nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:$('eActivo').value === 'si' };
+  Object.keys(CAMPOS_FICHA).forEach(k => { datos[k] = $(CAMPOS_FICHA[k]).value.trim(); });
   if(!datos.usuario) return $('eErr').textContent = 'Choose the portal user.';
   if(!datos.nombre) return $('eErr').textContent = 'Enter the name.';
+  if(datos.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) return $('eErr').textContent = 'Invalid email.';
+  if(datos.pagoHora !== '' && !(Number(datos.pagoHora) >= 0)) return $('eErr').textContent = 'Invalid pay rate.';
   const b = $('eGuardar'); b.disabled = true;
   try{
     const r = await api('guardarEmpleado', { empleado:datos });
-    S.emps.empleados = r.empleados; pintarEmps(); cerrar('ovEmp'); toast('Employee saved.');
+    S.emps.empleados = r.empleados; pintarEmps(); cerrar('ovEmp'); toast('User saved.');
     S.hoja = null; S.hojaHoy = null;
   }catch(e){ $('eErr').textContent = e.message; }
+  b.disabled = false;
+});
+
+/* ══════════════════ SETTINGS ══════════════════ */
+function ejemploRedondeo(r){
+  const ron = m => { const x = Math.round(m / r) * r; return h12(String(Math.floor(x / 60)).padStart(2,'0') + ':' + String(x % 60).padStart(2,'0')); };
+  if(r === 1) return 'Hours are counted to the exact minute: clock in <b>8:07 AM</b>, clock out <b>5:08 PM</b> → 9 h 1 min.';
+  return 'Example: clock in 8:07 AM counts as <b>' + ron(487) + '</b> · clock out 5:08 PM counts as <b>' + ron(1028) + '</b> · lunch 12:04–12:56 PM counts as <b>' + ron(724) + '–' + ron(776) + '</b>.';
+}
+function pintarAjustes(){
+  const r = S.redondeo || 1;
+  document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
+  $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
+}
+document.querySelectorAll('input[name=redondeo]').forEach(x => x.addEventListener('change', () => { $('ajEjemplo').innerHTML = ejemploRedondeo(Number(x.value)); $('ajEstado').textContent = ''; }));
+$('ajGuardar').addEventListener('click', async () => {
+  const sel = document.querySelector('input[name=redondeo]:checked'); if(!sel) return;
+  const v = Number(sel.value), b = $('ajGuardar'); b.disabled = true;
+  try{
+    await api('guardarConfig', { clave:'redondeo', valor:v });
+    S.redondeo = v; S.hoja = null; S.hojaHoy = null; S.yoEn = 0;
+    $('ajEstado').textContent = 'Saved. Hours now use this rounding.'; toast('Settings saved.');
+  }catch(e){ $('ajEstado').textContent = e.message; }
   b.disabled = false;
 });
 
@@ -1920,7 +2097,7 @@ function diaSimple(marcas){
 const aMin = x => { if(!x) return null; const [h, m] = x.split(':').map(Number); return h * 60 + m; };
 function abrirPeriodo(usuario){
   const h = S.hoja; if(!h) return;
-  const lista = h.empleados.map(e => e.usuario);
+  const lista = empsVisibles().map(e => e.usuario);
   S.ph = { usuario, lista, sucio:false, avisoSalir:false };
   const e = h.empleados.find(x => x.usuario === usuario);
   $('phTitulo').textContent = e.nombre;
@@ -1978,7 +2155,8 @@ function revisarFilaPH(tr){
     else if(d != null && d <= Math.max(a, c == null ? a : c)) err = 'Clock out must be after the other times.';
     else if(d != null && b != null && c == null) err = 'Fill in both lunch times.';
   }
-  const mins = vacio || err || d == null ? null : (d - a) - (b != null ? c - b : 0);
+  const R = S.redondeo || 1, rr = v => v == null ? null : Math.round(v / R) * R;
+  const mins = vacio || err || d == null ? null : (rr(d) - rr(a)) - (b != null ? rr(c) - rr(b) : 0);
   tr.querySelector('.hrs').textContent = mins == null ? (vacio ? '—' : '') : hm(mins);
   const ahora = CAMPOS_PH.map(k => val[k] || '').join('|');
   tr.classList.toggle('cambio', ahora !== tr.dataset.orig && !err);
@@ -2053,11 +2231,11 @@ function demoInit(){
   S.zona = 'America/New_York';
   const hoy = fechaHoy();
   DM.emps = [
-    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true },
-    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true },
-    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true },
-    { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true },
-    { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true }
+    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
+    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00' },
+    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' },
+    { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
+    { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
   ];
   DM.marcas = {}; DM.aprob = {};
   const hace = h => Date.now() - h * 3600000;
@@ -2099,8 +2277,9 @@ function demoInit(){
 }
 function demoDia(e, f){
   const m = DM.marcas[e.usuario + '|' + f] || [], hoy = fechaHoy(), esHoy = f === hoy, t = ahora();
+  const mr = m.map(x => ({ tipo:x.tipo, ms:redondear(x.ms) }));
   let est = 'fuera', ini = null, ia = null, mn = 0, al = 0, almuerzos = 0; const bloques = [];
-  m.forEach(x => {
+  mr.forEach(x => {
     if(x.tipo === 'entrada'){ est = 'trabajando'; ini = x.ms; }
     if(x.tipo === 'almuerzo_ini'){ mn += x.ms - ini; bloques.push([ini, x.ms]); ia = x.ms; est = 'almuerzo'; }
     if(x.tipo === 'almuerzo_fin'){ al += x.ms - ia; ini = x.ms; est = 'trabajando'; almuerzos++; }
@@ -2165,7 +2344,7 @@ async function demoApi(action, p){
     DM.marcas[p.usuario + '|' + p.fecha] = p.marcas.map(m => ({ tipo:m.tipo, ms:wall(p.fecha, m.hora), origen:'admin', motivo:p.motivo }));
     delete DM.aprob[p.usuario + '|' + p.fecha]; return { corregido:true };
   }
-  if(action === 'empleados') return { empleados:DM.emps, monitor:DM.emps.filter(e => e.agenteMonitor).map(e => ({ agente:e.agenteMonitor })).concat([{ agente:'Juan Sebastian Urrea' }, { agente:'Maria Jose Vasquez' }]),
+  if(action === 'empleados') return { empleados:DM.emps, cuentas:['24/7 Medical','CARDIO','GASTRO','MAB Pulmonary','Total Sleep'], monitor:DM.emps.filter(e => e.agenteMonitor).map(e => ({ agente:e.agenteMonitor })).concat([{ agente:'Juan Sebastian Urrea' }, { agente:'Maria Jose Vasquez' }]),
     portal:DM.emps.map(e => ({ username:e.usuario, nombre:e.nombre, activo:true })).concat([{ username:'jsurrea', nombre:'Juan Sebastian Urrea', activo:true }]) };
   if(action === 'solicitar'){
     const s = Object.assign({ id:++DM.solId, usuario:yoU, estado:'pendiente', creada:Date.now(), respuesta:'', pagada:null, horasDia:null }, p.sol);
@@ -2191,6 +2370,7 @@ async function demoApi(action, p){
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
   }
+  if(action === 'guardarConfig'){ S.redondeo = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
       DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
