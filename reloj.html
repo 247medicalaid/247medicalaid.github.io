@@ -483,6 +483,21 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .ventana .pie .esp{flex:1}
 .bloque{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
 .bloque h3{font-size:14.5px;margin-bottom:8px}
+/* historial del día (solo administrador) */
+.hist{list-style:none;margin:2px 0 0;padding:0}
+.hist li{display:grid;grid-template-columns:96px 12px minmax(0,1fr);gap:0 10px;padding:5px 0 7px;font-size:13.5px;position:relative;line-height:1.4}
+.hist li::before{content:"";position:absolute;left:111px;top:0;bottom:0;width:2px;background:var(--sand-2)}
+.hist li:first-child::before{top:12px}
+.hist li:last-child::before{bottom:calc(100% - 12px)}
+.hist .cu{color:var(--text-muted);font-size:12.5px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hist .pt{width:12px;height:12px;border-radius:50%;margin-top:4px;background:var(--brand-600);position:relative;z-index:1;box-shadow:0 0 0 2px var(--paper)}
+.hist .pt.sol{background:#D98200}.hist .pt.ok{background:#1F9D55}.hist .pt.neg{background:var(--accent-600)}
+.hist .pt.cor{background:var(--ink-700)}.hist .pt.apr{background:var(--brand-700)}.hist .pt.gris{background:#9AAAB5}
+.hist .tx b{font-weight:600}
+.hist .de{color:var(--text-muted);font-size:12.5px}
+.hist .anul{text-decoration:line-through;color:var(--text-muted)}
+.hist .quien{color:var(--text-muted)}
+@media (max-width:520px){ .hist li{grid-template-columns:70px 12px minmax(0,1fr);gap:0 8px} .hist li::before{left:83px} .hist .cu{font-size:11.5px;white-space:normal} }
 .pcdato{font-size:14px;color:var(--text-muted)}
 .pcdato b{color:var(--text)}
 .edit-fila{display:grid;grid-template-columns:minmax(0,1fr) 142px 40px;gap:8px;margin-bottom:8px}
@@ -1116,6 +1131,8 @@ const SERVIDOR_EN = [
   [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
   [/^La fecha debe ser de hoy o de los últimos 62 días\.$/, 'The date must be today or within the last 62 days.'],
   [/^No hay cambios en ese día\.$/, 'There are no changes for that day.'],
+  [/^Solo un administrador puede ver el historial\.$/, 'Only an administrator can see the history.'],
+  [/reloj_historial_dia/, 'The history needs SQL step 17 in Supabase.'],
   [/^Una corrección de horas no se edita.*/, 'An hours correction can\'t be edited: undo the approval, or fix the day in the timesheet.']
 ];
 function enIngles(m){ m = String(m || '');
@@ -1190,6 +1207,7 @@ async function api(action, p){
       aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })),
       sols:pend.map(solJS) };
   }
+  if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
@@ -1927,8 +1945,10 @@ function vistaDia(){
     '</b> · last <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' period' : ' periods') + ' with no activity' : 'no absences') + '</p></div>';
   if(d.banderas.length) h += '<div class="bloque"><h3>Issues</h3><ul class="banderas">' +
     d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
+  h += '<div class="bloque"><h3>History</h3><div id="dHist"><div class="nota"><span class="spin dark"></span> Loading…</div></div></div>';
   $('dCuerpo').innerHTML = h;
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
+  cargarHistDia();
 
   const pie = [];
   pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Correct punches' : 'Add punches') + '</button>');
@@ -1940,6 +1960,91 @@ function vistaDia(){
   $('dCorregir').onclick = editarDia;
   if($('dAprobar')) $('dAprobar').onclick = () => aprobarDia(true);
   if($('dQuitar')) $('dQuitar').onclick = () => aprobarDia(false);
+}
+/* ── Historial del día (solo administrador): marcas, solicitudes, correcciones y aprobaciones,
+   en orden, con quién y cuándo. Sale de reloj_historial_dia (marcas también anuladas,
+   solicitudes y auditoría). ── */
+async function cargarHistDia(){
+  const { e, fecha } = S.dia, clave = e.usuario + '|' + fecha;
+  try{
+    const r = await api('historialDia', { usuario:e.usuario, fecha });
+    if(!S.dia || S.dia.e.usuario + '|' + S.dia.fecha !== clave || !$('dHist')) return;
+    const ev = armarHist(r, fecha, e);
+    $('dHist').innerHTML = ev.length ? '<ul class="hist">' + ev.map(x => '<li><span class="cu">' + esc(x.cu) + '</span><span class="pt ' + x.k + '"></span><span class="tx">' + x.h + '</span></li>').join('') + '</ul>'
+      : '<p class="muted" style="font-size:14px">Nothing recorded for this day.</p>';
+  }catch(x){ if($('dHist')) $('dHist').innerHTML = '<p class="err" style="margin:0">' + esc(x.message) + '</p>'; }
+}
+const msDe = t => typeof t === 'number' ? t : Date.parse(t);
+const SOL_UN = { turno:'a shift request', almuerzo:'a break request', ausencia:'an absence request', correccion:'an hours correction' };
+function solDetalle(x){
+  if(x.tipo === 'correccion') return marcasTxt(x.marcas);
+  if(x.tipo === 'ausencia') return (CLASE_TXT[x.clase] || 'Absence') + ' · ' + (x.fecha === (x.fechaFin || x.fecha) ? diaS(x.fecha) : diaS(x.fecha) + ' – ' + diaS(x.fechaFin));
+  return h12(x.horaIni) + ' – ' + h12(x.horaFin) + (x.almIni ? ' · lunch ' + h12(x.almIni) + ' – ' + h12(x.almFin) : '');
+}
+const marcasDeAudit = l => (l || []).map(m => ({ tipo:m.tipo, hora:m.hora || hhmm(msDe(m.ts)) }));
+function armarHist(r, fecha, e){
+  const ev = [], emps = (S.dia.fuente && S.dia.fuente.empleados) || [];
+  const quien = u => u === e.usuario ? e.nombre : ((emps.find(x => x.usuario === u) || {}).nombre || u || '');
+  const sols = (r.sols || []).map(x => x.creada_en ? solJS(x) : x), solDe = id => sols.find(x => x.id === Number(id));
+  const audit = r.audit || [], vistos = new Set();
+  const add = (t, k, h, orden) => ev.push({ t:msDe(t), k, h, o:orden || 0 });
+  const por = u => ' <span class="quien">· ' + esc(quien(u)) + '</span>';
+  // marcas del agente (las del administrador salen en «Punches changed»)
+  // (una corrección vuelve a guardar todas las marcas del día: si la hora sigue igual, no se tacha)
+  const vivas = new Set((r.marcas || []).filter(m => !m.anuladaEn).map(m => m.tipo + '@' + hhmm(msDe(m.ts))));
+  (r.marcas || []).filter(m => m.origen === 'agente').forEach(m => {
+    const ms = msDe(m.ts), cambio = m.anuladaEn && !vivas.has(m.tipo + '@' + hhmm(ms));
+    add(m.creado || m.ts, 'marca', '<span' + (cambio ? ' class="anul"' : '') + '><b>' + NOMBRE_TIPO[m.tipo] + '</b> ' + esc(hora(ms)) + '</span>' + por(m.autor) +
+      (cambio ? '<div class="de">Changed later</div>' : ''), m.id);
+  });
+  audit.forEach(a => {
+    const d = a.detalle || {}, s0 = d.id != null ? solDe(d.id) : null, nom = s0 ? SOL_TIPO[s0.tipo].toLowerCase() : 'request';
+    if(a.accion === 'solicitar'){
+      const x = Object.assign({ fechaFin:d.fechaFin || d.fecha }, d); vistos.add('sol' + d.id);
+      add(a.en, 'sol', '<b>Sent ' + (SOL_UN[d.tipo] || 'a request') + '</b>' + por(a.autor) +
+        '<div class="de">' + esc(solDetalle(x)) + (d.motivo ? ' · “' + esc(d.motivo) + '”' : '') + '</div>', a.id);
+    } else if(a.accion === 'cancelarSolicitud'){ vistos.add('fin' + d.id);
+      add(a.en, 'gris', '<b>Canceled the ' + nom + '</b>' + por(a.autor), a.id);
+    } else if(a.accion === 'aprobarSolicitud' || a.accion === 'rechazarSolicitud'){
+      const si = a.accion === 'aprobarSolicitud'; vistos.add('fin' + d.id);
+      const ultima = s0 && s0.decidida && Math.abs(s0.decidida - msDe(a.en)) < 2000 && s0.respuesta;
+      add(a.en, si ? 'ok' : 'neg', '<b>' + (si ? 'Approved' : 'Denied') + ' the ' + nom + '</b>' + por(a.autor) +
+        (ultima ? '<div class="de">Answer: “' + esc(s0.respuesta) + '”</div>' : ''), a.id);
+    } else if(a.accion === 'revertirSolicitud'){
+      add(a.en, 'gris', '<b>Undid the approval of the ' + nom + '</b>' + por(a.autor) + (d.respuesta ? '<div class="de">Note: “' + esc(d.respuesta) + '”</div>' : '') +
+        '<div class="de">The request went back to Pending.</div>', a.id);
+    } else if(a.accion === 'modificarSolicitud'){
+      add(a.en, 'cor', '<b>Edited the approved ' + nom + '</b>' + por(a.autor), a.id);
+    } else if(a.accion === 'corregir'){
+      const antes = d.antes ? marcasDeAudit(d.antes) : null, despues = marcasDeAudit(d.despues);
+      add(a.en, 'cor', '<b>Punches changed</b>' + por(a.autor) +
+        (antes ? '<div class="de">Before: ' + esc(marcasTxt(antes)) + '</div>' : '') + '<div class="de">After: ' + esc(marcasTxt(despues)) + '</div>' +
+        (d.motivo ? '<div class="de">Reason: ' + esc(d.motivo) + '</div>' : '') +
+        (d.aprobacionQuitada ? '<div class="de">The day\'s approval (' + esc(hm(Number(d.aprobacionQuitada.horas) * 60)) + ' h) was removed.</div>' : ''), a.id);
+    } else if(a.accion === 'aprobar' || a.accion === 'desaprobar'){
+      const x = (d.dias || []).find(z => z.usuario === e.usuario && z.fecha === fecha); if(!x) return;
+      vistos.add('apr' + msDe(a.en));
+      add(a.en, a.accion === 'aprobar' ? 'apr' : 'gris', a.accion === 'aprobar' ? '<b>Approved the day</b> · ' + esc(hm(Number(x.horas) * 60)) + ' h' + por(a.autor)
+        : '<b>Removed the day\'s approval</b>' + por(a.autor), a.id);
+    }
+  });
+  // solicitudes sin registro en la auditoría (las de antes, o reemplazadas solas)
+  sols.forEach(x => {
+    if(!vistos.has('sol' + x.id)) add(x.creada, 'sol', '<b>Sent ' + SOL_UN[x.tipo] + '</b>' + por(x.usuario) +
+      '<div class="de">' + esc(solDetalle(x)) + (x.motivo ? ' · “' + esc(x.motivo) + '”' : '') + '</div>', -1);
+    if(!vistos.has('fin' + x.id) && x.decidida && x.estado !== 'pendiente'){
+      const k = x.estado === 'aprobada' ? 'ok' : x.estado === 'rechazada' ? 'neg' : 'gris';
+      const txt = x.estado === 'cancelada' ? (x.respuesta === 'Replaced by a newer request' ? 'Request replaced by a newer one' : 'Canceled the ' + SOL_TIPO[x.tipo].toLowerCase())
+        : (x.estado === 'aprobada' ? 'Approved' : 'Denied') + ' the ' + SOL_TIPO[x.tipo].toLowerCase();
+      add(x.decidida, k, '<b>' + txt + '</b>' + (x.decididaPor && x.estado !== 'cancelada' ? por(x.decididaPor) : '') + (x.respuesta && x.estado !== 'cancelada' ? '<div class="de">Answer: “' + esc(x.respuesta) + '”</div>' : ''), -1);
+    }
+  });
+  // aprobación vigente que no está en la auditoría (aprobada antes del paso 17)
+  if(r.aprob && ![...vistos].some(v => v.startsWith('apr') && Math.abs(Number(v.slice(3)) - msDe(r.aprob.aprobado_en)) < 2000))
+    add(r.aprob.aprobado_en, 'apr', '<b>Approved the day</b> · ' + esc(hm(Number(r.aprob.horas) * 60)) + ' h' + por(r.aprob.aprobado_por), 1e12);
+  ev.sort((a, b) => a.t - b.t || a.o - b.o);
+  return ev.map(x => ({ k:x.k, h:x.h, cu: fmt(x.t, { year:'numeric', month:'2-digit', day:'2-digit' }) === fmt(wall(fecha, '12:00'), { year:'numeric', month:'2-digit', day:'2-digit' })
+    ? hora(x.t) : fmt(x.t, { month:'short', day:'numeric' }) + ', ' + hora(x.t) }));
 }
 async function aprobarDia(si){
   const { e, fecha } = S.dia;
@@ -2771,6 +2876,7 @@ async function demoApi(action, p){
       .map(s => Object.assign({}, s)).sort((a, b) => b.creada - a.creada);
     return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
   }
+  if(action === 'historialDia') return demoHistorial(p.usuario, p.fecha);
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
@@ -2795,6 +2901,52 @@ async function demoApi(action, p){
   }
   if(action === 'guardarEmpleado'){ const i = DM.emps.findIndex(e => e.usuario === p.empleado.usuario); if(i >= 0) DM.emps[i] = p.empleado; else DM.emps.push(p.empleado); return { empleados:DM.emps }; }
   throw new Error('Action not available in demo mode.');
+}
+
+// Modo de ejemplo: la misma auditoría que guarda el servidor, para el historial.
+const demoBase = demoApi;
+demoApi = async function(action, p){
+  demoInit(); p = p || {};
+  DM.hist = DM.hist || []; DM.histId = DM.histId || 0;
+  const log = (autor, accion, detalle) => DM.hist.push({ id:++DM.histId, en:new Date(Date.now() + DM.histId).toISOString(), autor, accion, detalle });
+  const claves = [];
+  if(action === 'corregir') claves.push([p.usuario, p.fecha]);
+  if(action === 'corregirLote') (p.dias || []).forEach(d => claves.push([p.usuario, d.fecha]));
+  if(['decidir', 'revertir', 'modificarSolicitud'].includes(action)){ const s = DM.sols.find(x => x.id === p.id); if(s && s.tipo !== 'ausencia') claves.push([s.usuario, s.fecha]); }
+  const foto = claves.map(([u, f]) => ({ u, f, m:(DM.marcas[u + '|' + f] || []).slice(), ap:!!DM.aprob[u + '|' + f], h:DM.aprob[u + '|' + f] ? demoDia(DM.emps.find(e => e.usuario === u), f).min : 0 }));
+  const estAntes = p.id != null ? (DM.sols.find(x => x.id === p.id) || {}).estado : null;
+  const r = await demoBase(action, p);
+  foto.forEach(x => { const now = DM.marcas[x.u + '|' + x.f] || [];
+    if(JSON.stringify(now.map(m => m.tipo + m.ms)) === JSON.stringify(x.m.map(m => m.tipo + m.ms))) return;
+    DM.anuladas = DM.anuladas || {}; const k = x.u + '|' + x.f, t = Date.now();
+    x.m.filter(m => !now.includes(m)).forEach(m => (DM.anuladas[k] = DM.anuladas[k] || []).push(Object.assign({}, m, { anuladaEn:t, anuladaPor:'carloshtl75' })));
+    log('carloshtl75', 'corregir', { usuario:x.u, fecha:x.f, antes:x.m.map(m => ({ tipo:m.tipo, ts:new Date(m.ms).toISOString() })),
+      despues:now.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })), motivo:(now[0] && now[0].motivo) || p.motivo || '',
+      aprobacionQuitada: x.ap && !DM.aprob[x.u + '|' + x.f] ? { horas:Math.round(x.h / 0.6) / 100, por:'carloshtl75' } : null }); });
+  if(action === 'solicitar') log('laura.a', 'solicitar', Object.assign({}, p.sol, { id:r.id }));
+  if(action === 'cancelarSolicitud') log('laura.a', 'cancelarSolicitud', { id:p.id });
+  if(action === 'decidir' && estAntes === 'pendiente') log('carloshtl75', p.aprobar ? 'aprobarSolicitud' : 'rechazarSolicitud', { id:p.id });
+  if(action === 'revertir') log('carloshtl75', 'revertirSolicitud', { id:p.id, respuesta:p.respuesta || '' });
+  if(action === 'modificarSolicitud') log('carloshtl75', 'modificarSolicitud', { id:p.id });
+  if(action === 'aprobar' || action === 'desaprobar') log('carloshtl75', action, { dias:p.items.map(i => ({ usuario:i.usuario, fecha:i.fecha,
+    horas:Math.round(demoDia(DM.emps.find(e => e.usuario === i.usuario), i.fecha).min / 0.6) / 100 })) });
+  return r;
+};
+async function demoHistorial(u, f){
+  const k = u + '|' + f, iso = ms => new Date(ms).toISOString();
+  const sols = DM.sols.filter(s => s.usuario === u && s.fecha <= f && (s.fechaFin || s.fecha) >= f).map(s => ({ id:s.id, usuario:s.usuario, tipo:s.tipo, fecha:s.fecha,
+    fecha_fin:s.fechaFin || s.fecha, hora_ini:s.horaIni || null, hora_fin:s.horaFin || null, alm_ini:s.almIni || null, alm_fin:s.almFin || null, clase:s.clase || null,
+    motivo:s.motivo, estado:s.estado, pagada:s.pagada, horas_dia:s.horasDia, respuesta:s.respuesta || '', creada_en:iso(s.creada),
+    decidida_por:s.decididaPor || null, decidida_en:s.decidida ? iso(s.decidida) : null, marcas:s.marcas || null, marcas_antes:s.marcasAntes || null }));
+  const ids = sols.map(s => s.id);
+  const audit = (DM.hist || []).filter(a => (a.accion === 'corregir' && a.detalle.usuario === u && a.detalle.fecha === f)
+    || ((a.accion === 'aprobar' || a.accion === 'desaprobar') && a.detalle.dias.some(d => d.usuario === u && d.fecha === f))
+    || (a.detalle.id != null && ids.includes(a.detalle.id) && a.accion !== 'corregir'));
+  const marcas = (DM.marcas[k] || []).concat((DM.anuladas || {})[k] || []).map((m, i) => ({ id:i + 1, tipo:m.tipo, ts:iso(m.ms), origen:m.origen || 'agente',
+    autor:m.origen === 'admin' ? 'carloshtl75' : u, motivo:m.motivo || '', creado:iso(m.ms), anuladaPor:m.anuladaPor || null, anuladaEn:m.anuladaEn ? iso(m.anuladaEn) : null }));
+  const ap = DM.aprob[k] ? { usuario:u, fecha:f, horas:Math.round(demoDia(DM.emps.find(e => e.usuario === u), f).min / 0.6) / 100, aprobado_por:'carloshtl75',
+    aprobado_en:iso(wall(sumarDias(f, 1), '09:30')) } : null;
+  return { marcas, sols, audit, aprob:ap };
 }
 
 inicio();
