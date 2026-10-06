@@ -47,7 +47,8 @@ button,input,select{font:inherit;color:inherit}
 .marca img{height:30px;width:auto}
 .marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700);white-space:nowrap}
 .top .esp{flex:1}
-@media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px} }
+@media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px}
+  .marca{min-width:0;flex:1 1 auto;overflow:hidden} .marca .txt{overflow:hidden;text-overflow:ellipsis} .top .esp{display:none} .marca img{flex:none} }
 .esfera .yo{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;margin-bottom:2px}
 .quien{font-size:13.5px;color:var(--text-muted);text-align:right;line-height:1.25}
 .quien b{display:block;color:var(--text);font-weight:600}
@@ -324,6 +325,38 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .users-barra input{min-width:220px}
 .emps td small{display:block;color:var(--text-muted);font-size:12px}
 
+/* ── My clock: reloj a la izquierda, quincena a la derecha ── */
+.reloj-grid{display:grid;gap:14px 22px;align-items:start;justify-items:start}
+.reloj-grid .reloj{margin:0;width:100%}
+.per-ag{width:100%;max-width:640px;margin-top:0 !important}
+@media (min-width:1100px){ .reloj-grid{grid-template-columns:396px minmax(0,1fr);max-width:1120px} .per-ag{max-width:none} }
+.per-cab{display:flex;align-items:flex-start;gap:6px;margin-bottom:8px}
+.per-cab h2{margin-bottom:0 !important}
+.per-cab .esp{flex:1}
+.per-sub{font-size:12.5px;color:var(--text-muted)}
+table.per{width:100%;border-collapse:collapse;font-size:13.5px}
+.per th{font-size:11.5px;font-weight:600;color:var(--text-muted);text-align:right;padding:5px 6px;border-bottom:1px solid var(--line)}
+.per th:first-child,.per td:first-child{text-align:left}
+.per td{padding:5px 6px;border-bottom:1px solid var(--sand-2);text-align:right;white-space:nowrap}
+.per td.d{font-weight:600}
+.per tr.fin td{color:#9AAAB5}
+.per tr.fin td.d{font-weight:500}
+.per tr.hoy td{background:var(--brand-50)}
+.per tr.hoy td.d{box-shadow:inset 3px 0 0 var(--ink-900)}
+.per tr.fut td{color:#B5C3CC}
+.per td.h{font-weight:700}
+.per .falta{color:var(--accent-600);font-weight:700;font-size:12px}
+.per .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:#EAF9F5;color:#0F7F70}
+.per .tag.np{background:var(--sand-2);color:var(--text-muted)}
+.per .ok{color:var(--brand-600);display:inline-flex;vertical-align:-2px;margin-right:3px}
+.per .ok svg{width:12px;height:12px}
+.per-tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+.per-tot div{background:var(--sand);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--text-muted)}
+.per-tot b{display:block;font-family:var(--font-display);font-size:18px;color:var(--text);font-weight:800}
+.per-tot .grande{background:var(--ink-900);color:#9FBECB}
+.per-tot .grande b{color:#fff}
+@media (max-width:420px){ .per td,.per th{padding:5px 3px} table.per{font-size:12.5px} }
+
 /* ── banderas (forma + color) ── */
 .fl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none}
 .fl-alerta{color:var(--accent-500)}
@@ -468,6 +501,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 <main>
   <!-- RELOJ DEL AGENTE -->
   <section id="vReloj" class="hidden">
+   <div class="reloj-grid">
     <div class="reloj">
       <div id="avisosAgente"></div>
       <div class="esfera">
@@ -488,11 +522,6 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
         <div class="eje" id="rEje"></div>
         <ul class="marcas" id="rMarcas"></ul>
       </div>
-      <div class="cinta-box">
-        <h2>This week</h2>
-        <div class="semana" id="rSemana"></div>
-        <div class="total-sem"><span class="muted">Week total</span><b class="num" id="rTotSem"></b></div>
-      </div>
       <div class="cinta-box sol-box">
         <h2>Requests</h2>
         <div class="sol-btns">
@@ -503,6 +532,17 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
         <button class="sol-ver" type="button" id="solVer">View your requests<b id="solMiasN" class="hidden"></b></button>
       </div>
     </div>
+    <aside class="cinta-box per-ag" aria-labelledby="pTitulo">
+      <div class="per-cab">
+        <div><h2 id="pTitulo">Pay period</h2><div class="per-sub" id="pSub"></div></div>
+        <span class="esp"></span>
+        <button class="btn btn-ghost btn-sm flecha" id="pAnt" type="button" title="Previous pay period" aria-label="Previous pay period">‹</button>
+        <button class="btn btn-ghost btn-sm flecha" id="pSig" type="button" title="Next pay period" aria-label="Next pay period">›</button>
+      </div>
+      <div id="pTabla" class="per-tabla"></div>
+      <div class="per-tot" id="pTot"></div>
+    </aside>
+   </div>
   </section>
 
   <!-- SIN RELOJ -->
@@ -1090,6 +1130,17 @@ async function api(action, p){
   }
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
+  if(action === 'miPeriodo'){
+    const ses = await sesionSB(), u = ses.user.email.replace(DOMINIO_SB, '');
+    const [marcas, aprob, aus] = await Promise.all([
+      todas(() => sb.from('reloj_marcas').select(COLS_M).eq('usuario', u).is('anulada_en', null).gte('fecha', p.desde).lte('fecha', p.hasta).order('ts').order('id')),
+      q(sb.from('reloj_aprobaciones').select('fecha,horas').eq('usuario', u).gte('fecha', p.desde).lte('fecha', p.hasta)),
+      q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', u).eq('tipo', 'ausencia').eq('estado', 'aprobada')
+        .lte('fecha', p.hasta).gte('fecha_fin', p.desde)).catch(() => [])
+    ]);
+    return { desde:p.desde, hasta:p.hasta, marcas:marcas.map(mapM), aprob,
+      aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })) };
+  }
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
@@ -1334,18 +1385,64 @@ function pintarReloj(){
   pintarCinta();
 
   const hoy = yo.hoy;
-  $('rSemana').innerHTML = r.semana.map(d => {
-    const ico = d.incompleto ? '<span class="fl fl-alerta" title="Clock-out missing">' + IC.alerta + '</span>'
-              : d.aprobado ? '<span class="fl fl-ok" title="Approved">' + IC.ok + '</span>' : '';
-    const aus = !d.marcas && d.aus;
-    return '<div class="dia' + (d.fecha === hoy ? ' hoy' : '') + (aus ? ' aus' : '') + '"' + (aus ? ' title="' + esc(CLASE_TXT[d.aus.clase] + (d.aus.pagada ? ' · paid' : ' · unpaid')) + '"' : '') + '>' +
-      esc(diaC(d.fecha)) + ' ' + diaN(d.fecha) +
-      (aus ? '<b class="aus">' + CLASE_CORTA[d.aus.clase] + '</b>' : '<b class="num">' + (d.marcas ? hm(d.min) : '—') + '</b>') + '<span class="ico">' + ico + '</span></div>';
-  }).join('');
   if(!S.contadas){ S.contadas = true; contarMias(); }
-  $('rTotSem').textContent = dur(r.semana.reduce((s, d) => s + (d.incompleto ? 0 : d.min), 0));
+  cargarPeriodoAg();
   tic();
 }
+
+/* ── La quincena del agente (panel de la derecha): un renglón por día y los totales ── */
+function quincenaDe(f){ const d = +f.slice(8), m = f.slice(0,7); return d <= 15 ? { desde:m + '-01', hasta:m + '-15' } : { desde:m + '-16', hasta:finMesF(m) }; }
+function quincenaVecina(p, dir){
+  const dd = +p.desde.slice(8), mes = p.desde.slice(0,7);
+  if(dir < 0) return dd === 1 ? quincenaDe(sumarDias(mes + '-01', -1)) : { desde:mes + '-01', hasta:mes + '-15' };
+  return dd === 1 ? { desde:mes + '-16', hasta:finMesF(mes) } : quincenaDe(sumarDias(finMesF(mes), 1));
+}
+async function cargarPeriodoAg(p){
+  if(p) S.perAg = p; if(!S.perAg) S.perAg = quincenaDe(S.yo.hoy);
+  const pedido = S.perAg.desde;
+  $('pSub').textContent = diaS(S.perAg.desde).replace(/^\w+, /, '') + ' – ' + diaS(S.perAg.hasta).replace(/^\w+, /, '');
+  $('pTitulo').textContent = S.perAg.desde === quincenaDe(S.yo.hoy).desde ? 'Current pay period' : 'Pay period';
+  $('pSig').disabled = S.perAg.desde >= quincenaDe(S.yo.hoy).desde;
+  if(!S.perAgDatos || S.perAgDatos.desde !== pedido) $('pTabla').innerHTML = '<div class="nota" style="padding:10px 0"><span class="spin dark"></span> Loading…</div>';
+  try{
+    const r = await api('miPeriodo', S.perAg);
+    if(S.perAg.desde !== pedido) return;   // se movió a otra quincena mientras cargaba
+    S.perAgDatos = r; pintarPeriodoAg();
+  }catch(e){ $('pTabla').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+function pintarPeriodoAg(){
+  const r = S.perAgDatos, hoy = fechaHoy(), porFecha = agrupar(r.marcas), ap = {}, ausM = {};
+  r.aprob.forEach(a => { ap[a.fecha] = Number(a.horas); });
+  r.aus.forEach(a => { for(let f = a.fecha; f <= a.fechaFin; f = sumarDias(f, 1)) ausM[f] = a; });
+  let tot = 0, totAp = 0, pto = 0, dias = 0, faltan = 0;
+  const filas = rango(r.desde, r.hasta).map(f => {
+    const m = porFecha[f] || [], d = armarDia(m, ahora(), f === hoy), au = ausM[f], fut = f > hoy;
+    const finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
+    if(m.length && !d.incompleto){ tot += d.min; dias++; }
+    if(d.incompleto) faltan++;
+    if(ap[f] != null) totAp += Math.round(ap[f] * 60);
+    if(au && au.pagada) pto += Math.round(au.horas * 60);
+    const ent = m.find(x => x.tipo === 'entrada'), sal = m.filter(x => x.tipo === 'salida').pop();
+    const cls = (finde ? 'fin ' : '') + (f === hoy ? 'hoy ' : '') + (fut ? 'fut' : '');
+    let cel;
+    if(!m.length && au) cel = '<td colspan="3" style="text-align:center"><span class="tag' + (au.pagada ? '' : ' np') + '">' + esc(CLASE_TXT[au.clase] || '') + (au.pagada ? ' · paid ' + au.horas + ' h' : ' · unpaid') + '</span></td>';
+    else if(!m.length) cel = '<td>—</td><td>—</td><td>—</td>';
+    else cel = '<td class="num">' + hora(ent ? ent.ms : m[0].ms) + '</td>' +
+      '<td class="num" title="' + esc(d.almuerzos.length ? d.almuerzos.length + ' lunch' + (d.almuerzos.length > 1 ? 'es' : '') : 'No lunch') + '">' + (d.alm ? d.alm + ' min' : '—') + '</td>' +
+      '<td class="num">' + (sal && !d.abierto ? hora(sal.ms) : d.incompleto ? '<span class="falta">missing</span>' : d.enCurso ? 'working…' : '—') + '</td>';
+    const horas = !m.length ? (au && au.pagada ? '' : '') : d.incompleto ? '—' : hm(d.min);
+    return '<tr class="' + cls.trim() + '"><td class="d">' + esc(diaC(f)) + ' ' + diaN(f) + '</td>' + cel +
+      '<td class="h num">' + (ap[f] != null ? '<span class="ok" title="Approved">' + IC.ok + '</span>' : '') + horas + '</td></tr>';
+  }).join('');
+  $('pTabla').innerHTML = '<table class="per"><thead><tr><th>Day</th><th>Clock in</th><th>Lunch</th><th>Clock out</th><th>Hours</th></tr></thead><tbody>' + filas + '</tbody></table>';
+  $('pTot').innerHTML = '<div class="grande">Total worked<b class="num">' + dur(tot) + '</b></div>' +
+    '<div>Days worked<b class="num">' + dias + '</b></div>' +
+    '<div>Approved<b class="num">' + hm(totAp) + '</b></div>' +
+    (pto ? '<div>Paid time off<b class="num">' + hm(pto) + '</b></div>' : '') +
+    (faltan ? '<div style="background:var(--accent-50);color:#7A1418">Missing clock-out<b class="num" style="color:var(--accent-600)">' + faltan + (faltan === 1 ? ' day' : ' days') + '</b></div>' : '');
+}
+$('pAnt').addEventListener('click', () => cargarPeriodoAg(quincenaVecina(S.perAg, -1)));
+$('pSig').addEventListener('click', () => cargarPeriodoAg(quincenaVecina(S.perAg, 1)));
 
 function pintarCinta(){ cintaEn($('rCinta'), $('rEje'), S.yo.reloj.fecha, S.yo.reloj.marcas, null, true); }
 
@@ -2436,6 +2533,17 @@ async function demoApi(action, p){
     if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? ['vacaciones','enfermedad'].includes(s.clase) : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? 8 : p.horas) : 0; }
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
+  }
+  if(action === 'miPeriodo'){
+    const marcas = [], aprob = [];
+    for(let f = p.desde; f <= p.hasta; f = sumarDias(f, 1)){
+      (DM.marcas[yoU + '|' + f] || []).forEach(m => marcas.push(Object.assign({ usuario:yoU, fecha:f }, m)));
+      if(DM.aprob[yoU + '|' + f]){ const x = demoDia(DM.emps[0], f); aprob.push({ fecha:f, horas:Math.round(x.min / 0.6) / 100 }); }
+    }
+    marcas.sort((a, b) => a.ms - b.ms);
+    const aus = DM.sols.filter(s => s.usuario === yoU && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= p.hasta && s.fechaFin >= p.desde)
+      .map(s => ({ fecha:s.fecha, fechaFin:s.fechaFin, clase:s.clase, pagada:!!s.pagada, horas:s.horasDia || 0 }));
+    return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus };
   }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
