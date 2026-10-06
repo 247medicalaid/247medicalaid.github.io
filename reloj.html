@@ -553,6 +553,12 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .acceso .listo{background:var(--brand-50);color:var(--ink-700);border-radius:var(--radius-sm);padding:12px 14px;font-size:14.5px;line-height:1.5;margin-bottom:12px}
 .acceso .pie-acc{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-size:12.5px;color:var(--text-muted)}
 .acceso .pie-acc a{color:var(--brand-700);font-weight:600}
+/* Users: botones de estado y confirmación encima de la ficha */
+#ovConf{z-index:60}
+.btn-peligro{border-color:#F3C3C5;background:var(--paper);color:var(--accent-600)}
+.btn-peligro:hover:not(:disabled){background:var(--accent-50)}
+.acc-emp.inactiva{background:var(--sand-2)}
+.emps .acc-fila{display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 /* My profile (agente) */
 .datos-ro{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:6px}
 .datos-ro div{font-size:14.5px}
@@ -830,7 +836,6 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
         <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
         <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
         <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
-        <label class="campo"><span>Status</span><select id="eActivo"><option value="si">Active</option><option value="no">Inactive</option></select></label>
       </div>
     </div>
     <div class="ficha-sec"><h3>Personal</h3>
@@ -853,6 +858,9 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
     <div class="err" id="eErr"></div>
     <div class="pie">
+      <button class="btn btn-ghost hidden" id="eActivar" type="button">Deactivate</button>
+      <button class="btn btn-peligro hidden" id="eBorrar" type="button">Delete</button>
+      <span class="esp"></span>
       <button class="btn btn-ghost" data-cerrar>Cancel</button>
       <button class="btn btn-ink" id="eGuardar">Save</button>
     </div>
@@ -1201,6 +1209,9 @@ const SERVIDOR_EN = [
   [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
   [/^La fecha debe ser de hoy o de los últimos 62 días\.$/, 'The date must be today or within the last 62 days.'],
   [/^No hay cambios en ese día\.$/, 'There are no changes for that day.'],
+  [/^Tiene registros de horas: desactívalo en vez de borrarlo\.$/, 'They have time records, so they can\'t be deleted. Deactivate them instead: their hours stay for payroll.'],
+  [/^Esta persona entra por el portal; se maneja en el portal\.$/, 'This person signs in through the portal; manage them there.'],
+  [/^Estado no válido\.$/, 'Invalid status.'],
   [/^Elige una opción de la lista\.$/, 'Choose an option from the list.'],
   [/^Escribe el correo del empleado\.$/, 'Enter the employee\'s email. They\'ll use it to sign in.'],
   [/^Ese correo ya lo tiene otro empleado\.$/, 'Another employee already has that email.'],
@@ -1268,6 +1279,8 @@ async function api(action, p){
     if(error) throw new Error(/different from the old/i.test(error.message) ? 'Use a password different from your current one.' : error.message);
     return { ok:true };
   }
+  if(action === 'activarEmpleado') return q(sb.rpc('reloj_activar_empleado', { p_usuario:p.usuario, p_activo:p.activo }));
+  if(action === 'borrarEmpleado'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('borrar', { usuario:p.usuario }, ses.access_token)); }
   if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false }, ses.access_token)); }
   if(action === 'solicitar'){ const r = await q(sb.rpc('reloj_solicitar', { p:p.sol })); avisarSolicitud(r.id); return r; }
   if(action === 'misSolicitudes'){
@@ -2015,7 +2028,7 @@ function pedirMarca(tipo){
   if(tipo === 'salida'){
     $('cTitulo').textContent = 'Clock out?';
     $('cTexto').textContent = 'It\'s recorded with the server time: ' + hora(ahora()) + '. If it\'s a mistake, only the administrator can correct it.';
-    $('cSi').textContent = 'Clock out';
+    $('cSi').textContent = 'Clock out'; $('cSi').className = 'btn btn-ink';
     $('cSi').onclick = () => { cerrar('ovConf'); marcar(tipo); };
     $('cNo').onclick = () => cerrar('ovConf');
     return abrir('ovConf');
@@ -2449,6 +2462,12 @@ async function cargarEmps(){
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
 function estadoPill(e){ const k = accesoDe(e).k; return k === 'invitada' ? ' <span class="pill inv" title="Invitation sent; they haven\'t created their password yet">Invited</span>' : k === 'sin' ? ' <span class="pill no" title="They can\'t sign in yet">No access</span>' : ''; }
+function botonInvitar(e){
+  if(!e.activo || !e.email) return '';
+  const k = accesoDe(e).k;
+  return k === 'invitada' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Send the invitation email again">Resend invite</button>'
+    : k === 'sin' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Email them the link to create their password">Send invite</button>' : '';
+}
 function pintarEmps(){
   const todos = S.emps.empleados;
   const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
@@ -2466,8 +2485,9 @@ function pintarEmps(){
       '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
       '<td class="num">' + (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h</td>' +
       '<td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
-      '<td style="text-align:right"><button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></td></tr>').join('') + '</tbody></table>';
+      '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>').join('') + '</tbody></table>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
+  $('empsTabla').querySelectorAll('[data-inv]').forEach(b => b.addEventListener('click', () => invitarDesdeLista(b.dataset.inv, b)));
 }
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
@@ -2498,6 +2518,7 @@ function pintarAccesoEmp(e){
   const el = $('eAcceso');
   if(!e){ el.className = 'acc-emp'; el.innerHTML = '<span class="t">When you save, they get an email to <b>create their password</b>. Then they sign in to the Time Clock with this email.</span>'; return; }
   const a = accesoDe(e);
+  if(!e.activo){ el.className = 'acc-emp inactiva'; el.innerHTML = '<span class="t"><b>Inactive</b> · can\'t sign in to the Time Clock. Their hours stay for payroll. Use <b>Reactivate</b> to give access back.</span>'; return; }
   el.className = 'acc-emp ' + a.k;
   if(a.k === 'portal'){ el.innerHTML = '<span class="t"><b>Signs in through the portal</b> (administrative user <i>' + esc(e.usuario) + '</i>).</span>'; return; }
   if(a.k === 'activa'){ el.innerHTML = '<span class="t"><b>Active</b> · signs in with ' + esc(e.email) + (a.p.activado ? ' · since ' + esc(fechaCorta(a.p.activado)) : '') + '</span>'; return; }
@@ -2516,6 +2537,49 @@ function pintarAccesoEmp(e){
     }catch(x){ $('eErr').textContent = x.message; b.disabled = false; b.textContent = 'Resend invitation'; }
   });
 }
+function confirmar(titulo, texto, boton, peligro){
+  return new Promise(res => {
+    $('cTitulo').textContent = titulo; $('cTexto').innerHTML = texto; $('cSi').textContent = boton;
+    $('cSi').className = 'btn ' + (peligro ? 'btn-peligro' : 'btn-ink');
+    $('cSi').onclick = () => { cerrar('ovConf'); res(true); };
+    $('cNo').onclick = () => { cerrar('ovConf'); res(false); };
+    abrir('ovConf');
+  });
+}
+$('eActivar').addEventListener('click', async () => {
+  const e = S.emps.empleados.find(x => x.usuario === S.empEdit); if(!e) return;
+  const desact = e.activo;
+  const ok = await confirmar(desact ? 'Deactivate ' + e.nombre + '?' : 'Reactivate ' + e.nombre + '?',
+    desact ? 'They won\'t be able to sign in to the Time Clock, and any invitation link they have stops working. Their hours and requests stay for payroll. You can reactivate them anytime.'
+           : 'They\'ll be able to sign in to the Time Clock again with their email and password.', desact ? 'Deactivate' : 'Reactivate', desact);
+  if(!ok) return;
+  const b = $('eActivar'); b.disabled = true; $('eErr').textContent = '';
+  try{
+    await api('activarEmpleado', { usuario:e.usuario, activo:!desact });
+    S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
+    toast(desact ? e.nombre + ' was deactivated.' : e.nombre + ' was reactivated.');
+    S.hoja = null; S.hojaHoy = null;
+  }catch(x){ $('eErr').textContent = x.message; }
+  b.disabled = false;
+});
+$('eBorrar').addEventListener('click', async () => {
+  const e = S.emps.empleados.find(x => x.usuario === S.empEdit); if(!e) return;
+  const ok = await confirmar('Delete ' + e.nombre + '?', 'Use this only for someone added by mistake: their account and profile are removed and <b>this can\'t be undone</b>. ' +
+    'If they already have hours or requests, they can\'t be deleted — deactivate them instead.', 'Delete', true);
+  if(!ok) return;
+  const b = $('eBorrar'); b.disabled = true; $('eErr').textContent = '';
+  try{
+    await api('borrarEmpleado', { usuario:e.usuario });
+    S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp'); toast(e.nombre + ' was deleted.');
+  }catch(x){ $('eErr').textContent = x.message; }
+  b.disabled = false;
+});
+// Reenviar la invitación desde la lista
+async function invitarDesdeLista(u, b){
+  b.disabled = true; const t = b.textContent; b.innerHTML = '<span class="spin dark"></span>';
+  try{ const r = await api('invitar', { usuario:u }); toast('Invitation sent to ' + r.email + '.'); S.emps = await api('empleados'); pintarEmps(); }
+  catch(x){ toast(x.message, 'err'); b.disabled = false; b.textContent = t; }
+}
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
   $('eTitulo').textContent = e ? 'Edit user' : 'Add user';
@@ -2527,7 +2591,9 @@ function abrirEmp(usuario){
   $('eMonitor').value = e ? e.agenteMonitor : '';
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
-  $('eActivo').value = !e || e.activo ? 'si' : 'no';
+  // Deactivate / Reactivate y Delete (Delete no aplica a quien entra por el portal)
+  $('eActivar').classList.toggle('hidden', !e); $('eBorrar').classList.toggle('hidden', !e || accesoDe(e).k === 'portal');
+  if(e) $('eActivar').textContent = e.activo ? 'Deactivate' : 'Reactivate';
   Object.keys(CAMPOS_FICHA).forEach(k => {
     const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
@@ -2551,7 +2617,7 @@ function proponerCuenta(c){ if(!c || $('eCuenta').value) return; const l = lista
 $('eMonitor').addEventListener('change', () => { const m = S.emps.monitor.find(x => x.agente === $('eMonitor').value); if(m) proponerCuenta(m.cuenta); });
 $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:S.empEdit || '', nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
-                  nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:$('eActivo').value === 'si' };
+                  nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:S.empEdit ? !!(S.emps.empleados.find(x => x.usuario === S.empEdit) || {}).activo : true };
   Object.keys(CAMPOS_FICHA).forEach(k => { datos[k] = $(CAMPOS_FICHA[k]).value.trim(); });
   datos.email = datos.email.toLowerCase();
   const antes = S.empEdit ? S.emps.empleados.find(x => x.usuario === S.empEdit) : null, acc = accesoDe(antes);
@@ -3302,6 +3368,13 @@ async function demoApi(action, p){
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
+  if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; return { ok:true }; }
+  if(action === 'borrarEmpleado'){
+    const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.');
+    const tiene = Object.keys(DM.marcas).some(k => k.startsWith(p.usuario + '|') && DM.marcas[k].length) || DM.sols.some(x => x.usuario === p.usuario);
+    if(tiene) throw new Error('They have time records, so they can\'t be deleted. Deactivate them instead: their hours stay for payroll.');
+    DM.emps = DM.emps.filter(x => x.usuario !== p.usuario); if(DM.cuentas) delete DM.cuentas[p.usuario]; return { ok:true };
+  }
   if(action === 'miFicha'){ demoPortal(); return { ficha:Object.assign({ telefono:'', cumpleanos:'', ciudad:'', direccion:'', tipoId:'', numId:'', banco:'', cuentaBanco:'', jefe:'' }, DM.emps[0]), email:DM.emps[0].email }; }
   if(action === 'guardarMiFicha'){
     const e = DM.emps[0], f = p.ficha, L = listas();
