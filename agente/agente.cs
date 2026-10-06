@@ -6,6 +6,8 @@
 //    - calidad de internet: latencia y perdida (conexion TCP a 1.1.1.1)
 //    - si la app de telefono de la cuenta esta abierta
 //  A demanda (boton del panel) corre un test de megas (descarga).
+//  2.8: cuando el servidor lo pide ("ubicar"), toma la ubicacion de Windows y la manda
+//  en el latido: durante el turno cada 30 min, o cada 5 si el equipo esta marcado perdido.
 //  Si no hay internet, guarda los latidos y los envia cuando vuelva.
 //  Captura SOLO nombres de programa, nunca titulos de ventana ni paginas
 //  web, para no arrastrar datos de pacientes. El instalador lo compila
@@ -18,6 +20,7 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -33,7 +36,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.7";
+        const string Version = "2.8";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
@@ -319,6 +322,8 @@ namespace Monitor247
                 (clave.Length > 0 ? " - con clave de equipo" : " - sin clave de equipo (se pedira al servidor)"));
             bool primerEnvio = true;
             bool haceSpeed = false;
+            bool haceUbic = false;
+            string ubicMotivo = "";
             int fallos = 0;
 
             while (true)
@@ -332,11 +337,15 @@ namespace Monitor247
                     double mbps = -1;
                     if (haceSpeed) { mbps = SpeedTest(); haceSpeed = false; Log("Test de velocidad: " + (mbps >= 0 ? mbps + " Mbps" : "fallo")); }
 
+                    // Ubicacion a pedido del servidor (en el ciclo anterior)
+                    string ubic = null;
+                    if (haceUbic) { ubic = Ubicacion(ubicMotivo); haceUbic = false; }
+
                     double lat, loss;
                     Latencia(out lat, out loss);
 
                     string beat = ConstruirBeat(agente, cuenta, equipo, usuario, IdleSeconds(),
-                        AppAbierta(patrones), primerEnvio, ProgramaActivo(), ProgramasAbiertos(), lat, loss, mbps);
+                        AppAbierta(patrones), primerEnvio, ProgramaActivo(), ProgramasAbiertos(), lat, loss, mbps, ubic);
                     File.AppendAllText(ColaFile, beat + "\r\n", Utf8);
                     primerEnvio = false;
 
@@ -353,6 +362,7 @@ namespace Monitor247
                     try { File.WriteAllText(UltimoFile, Version + "|" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), Utf8); } catch { }
                     if (respuesta.IndexOf("\"cmd\":\"speedtest\"") >= 0) haceSpeed = true;
                     if (respuesta.IndexOf("\"actualizar\":true") >= 0) PedirActualizacion();
+                    if (respuesta.IndexOf("\"ubicar\":true") >= 0) { haceUbic = true; ubicMotivo = Json(respuesta, "ubicar_motivo"); }
                     if (fallos > 0) Log("Conexion restablecida; enviados " + enviados + " latidos pendientes");
                     fallos = 0;
                 }
@@ -513,7 +523,7 @@ namespace Monitor247
         }
 
         static string ConstruirBeat(string ag, string cu, string eq, string us, uint idle, object app,
-            bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps)
+            bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps, string ubic)
         {
             int bat;
             string energia = Energia(out bat);
@@ -544,7 +554,9 @@ namespace Monitor247
                 if (i > 0) sb.Append(",");
                 sb.Append("{\"n\":\"").Append(Esc((string)progs[i][0])).Append("\",\"mb\":").Append(((int)progs[i][1]).ToString(CultureInfo.InvariantCulture)).Append("}");
             }
-            sb.Append("]}");
+            sb.Append("]");
+            if (ubic != null) sb.Append(",\"ubic\":").Append(ubic);
+            sb.Append("}");
             // El inventario del equipo solo viaja en el latido de arranque: cambia muy
             // poco y no tiene sentido repetirlo cada minuto.
             if (inicio) {
@@ -665,6 +677,77 @@ namespace Monitor247
             correoCache = mail;
             correoCacheTs = DateTime.UtcNow;
             return mail;
+        }
+
+        // ---- Ubicacion (2.8) ----
+        // Usa la ubicacion de Windows (System.Device, que trae .NET Framework), cargada por
+        // reflexion para no cambiar como se compila el .exe. En portatiles sin GPS, Windows la
+        // calcula con las redes Wi-Fi cercanas. Si la ubicacion esta apagada o no se permite a
+        // las apps de escritorio, se informa eso (sin coordenadas). Espera como mucho 25 s.
+        internal static string Ubicacion(string motivo)
+        {
+            string ts = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+            string mot = motivo == "perdido" ? "perdido" : "turno";
+            string estado = "error";
+            double lat = 0, lng = 0, prec = -1;
+            object w = null;
+            try
+            {
+                Assembly asm = Assembly.Load("System.Device, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
+                Type tW = asm.GetType("System.Device.Location.GeoCoordinateWatcher", true);
+                Type tAcc = asm.GetType("System.Device.Location.GeoPositionAccuracy", true);
+                w = Activator.CreateInstance(tW, new object[] { Enum.Parse(tAcc, "High") });
+                MethodInfo tryStart = tW.GetMethod("TryStart", new Type[] { typeof(bool), typeof(TimeSpan) });
+                tryStart.Invoke(w, new object[] { false, TimeSpan.FromSeconds(5) });
+                PropertyInfo pPerm = tW.GetProperty("Permission"), pStatus = tW.GetProperty("Status"), pPos = tW.GetProperty("Position");
+                DateTime tope = DateTime.UtcNow.AddSeconds(20);
+                while (true)
+                {
+                    string st = Convert.ToString(pStatus.GetValue(w, null));
+                    string perm = Convert.ToString(pPerm.GetValue(w, null));
+                    if (st == "Disabled") { estado = "apagada"; break; }
+                    if (perm == "Denied") { estado = "denegada"; break; }
+                    object pos = pPos.GetValue(w, null);
+                    object loc = pos == null ? null : pos.GetType().GetProperty("Location").GetValue(pos, null);
+                    if (loc != null && st == "Ready" && !(bool)loc.GetType().GetProperty("IsUnknown").GetValue(loc, null))
+                    {
+                        Type tl = loc.GetType();
+                        lat = (double)tl.GetProperty("Latitude").GetValue(loc, null);
+                        lng = (double)tl.GetProperty("Longitude").GetValue(loc, null);
+                        prec = (double)tl.GetProperty("HorizontalAccuracy").GetValue(loc, null);
+                        estado = (double.IsNaN(lat) || double.IsNaN(lng)) ? "sin_dato" : "ok";
+                        break;
+                    }
+                    if (DateTime.UtcNow > tope) { estado = "sin_dato"; break; }
+                    Thread.Sleep(500);
+                }
+            }
+            catch (Exception ex)
+            {
+                Exception e = (ex is TargetInvocationException && ex.InnerException != null) ? ex.InnerException : ex;
+                estado = "error";
+                Log("Ubicacion: " + e.Message);
+            }
+            finally
+            {
+                try { if (w != null) { w.GetType().GetMethod("Stop").Invoke(w, null); IDisposable d = w as IDisposable; if (d != null) d.Dispose(); } } catch { }
+            }
+            Log("Ubicacion (" + mot + "): " + estado + (estado == "ok" ? " +-" + Math.Round(prec) + " m" : ""));
+            return UbicJson(ts, estado, lat, lng, prec, mot);
+        }
+
+        internal static string UbicJson(string ts, string estado, double lat, double lng, double prec, string motivo)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("{\"ts\":\"").Append(ts).Append("\",\"estado\":\"").Append(Esc(estado)).Append("\"");
+            if (estado == "ok")
+            {
+                sb.Append(",\"lat\":").Append(lat.ToString("0.######", CultureInfo.InvariantCulture));
+                sb.Append(",\"lng\":").Append(lng.ToString("0.######", CultureInfo.InvariantCulture));
+                sb.Append(",\"prec\":").Append((prec < 0 || double.IsNaN(prec) || double.IsInfinity(prec)) ? "null" : Math.Round(prec).ToString(CultureInfo.InvariantCulture));
+            }
+            sb.Append(",\"motivo\":\"").Append(Esc(motivo)).Append("\"}");
+            return sb.ToString();
         }
 
         // ---- Clave del equipo (2.7) ----

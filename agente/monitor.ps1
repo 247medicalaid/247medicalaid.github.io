@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.7'
+$Version = '2.8'
 # Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
 # al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
@@ -286,6 +286,38 @@ function Get-Inventario {
     return $inv
 }
 
+# 2.8: ubicacion de Windows (System.Device) cuando el servidor la pide ("ubicar").
+function Get-Ubicacion([string]$motivo) {
+    $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $mot = if ($motivo -eq 'perdido') { 'perdido' } else { 'turno' }
+    $r = [ordered]@{ ts = $ts; estado = 'error' }
+    $w = $null
+    try {
+        Add-Type -AssemblyName System.Device
+        $w = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::High)
+        [void]$w.TryStart($false, [TimeSpan]::FromSeconds(5))
+        $tope = (Get-Date).AddSeconds(20)
+        while ($true) {
+            $st = [string]$w.Status; $perm = [string]$w.Permission
+            if ($st -eq 'Disabled') { $r.estado = 'apagada'; break }
+            if ($perm -eq 'Denied') { $r.estado = 'denegada'; break }
+            $loc = $w.Position.Location
+            if ($st -eq 'Ready' -and $loc -and -not $loc.IsUnknown) {
+                $r.estado = 'ok'
+                $r.lat = [Math]::Round($loc.Latitude, 6); $r.lng = [Math]::Round($loc.Longitude, 6)
+                $r.prec = if ($loc.HorizontalAccuracy -ge 0) { [int][Math]::Round($loc.HorizontalAccuracy) } else { $null }
+                break
+            }
+            if ((Get-Date) -gt $tope) { $r.estado = 'sin_dato'; break }
+            Start-Sleep -Milliseconds 500
+        }
+    } catch { $r.estado = 'error'; Write-Log "Ubicacion: $($_.Exception.Message)" }
+    finally { try { if ($w) { $w.Stop(); $w.Dispose() } } catch { } }
+    $r.motivo = $mot
+    Write-Log ("Ubicacion ($mot): " + $r.estado)
+    return $r
+}
+
 function Protect-Clave([byte[]]$datos, [bool]$cifrar) {
     Add-Type -AssemblyName System.Security
     $ambito = [Security.Cryptography.DataProtectionScope]::LocalMachine
@@ -381,6 +413,8 @@ $fallosSeguidos = 0
 $primerEnvio = $true
 $primerCiclo = $true
 $haceSpeed = $false
+$haceUbic = $false
+$ubicMotivo = ''
 
 while ($true) {
     $inicioCiclo = Get-Date
@@ -388,6 +422,8 @@ while ($true) {
     try {
         $mbps = $null
         if ($haceSpeed) { $m = Invoke-SpeedTest; $haceSpeed = $false; if ($m -ge 0) { $mbps = $m }; Write-Log "Test de velocidad: $m Mbps" }
+        $ubic = $null
+        if ($haceUbic) { $ubic = Get-Ubicacion $ubicMotivo; $haceUbic = $false }
 
         if ($primerCiclo) { Write-Log "diag: midiendo internet" }
         $net = Get-Latencia
@@ -410,6 +446,7 @@ while ($true) {
             pantallas = $pant; energia = $ener; bateria = $bat
             progs = $pr
         }
+        if ($ubic) { $beat.ubic = $ubic }
         # El inventario del equipo solo viaja en el latido de arranque.
         if ($primerEnvio) { $beat.equipo_info = Get-Inventario }
         $primerEnvio = $false
@@ -432,6 +469,10 @@ while ($true) {
         if ($primerCiclo) { Write-Log "diag: primer envio OK" }
         if ($respuesta -and $respuesta.IndexOf('"cmd":"speedtest"') -ge 0) { $haceSpeed = $true }
         if ($respuesta -and $respuesta.IndexOf('"actualizar":true') -ge 0) { Request-Actualizacion }
+        if ($respuesta -and $respuesta.IndexOf('"ubicar":true') -ge 0) {
+            $haceUbic = $true
+            $ubicMotivo = if ($respuesta -match '"ubicar_motivo"\s*:\s*"perdido"') { 'perdido' } else { 'turno' }
+        }
         if ($fallosSeguidos -gt 0) { Write-Log "Conexion restablecida; enviados $enviados latidos pendientes" }
         $fallosSeguidos = 0
     } catch {
