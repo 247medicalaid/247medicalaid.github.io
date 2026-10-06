@@ -585,6 +585,32 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .pcdato{font-size:14px;color:var(--text-muted)}
 .pcdato b{color:var(--text)}
 .edit-fila{display:grid;grid-template-columns:minmax(0,1fr) 142px 40px;gap:8px;margin-bottom:8px}
+/* Editar el día en la misma ventana (v21) */
+.marcas-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.marcas-cab h3{font:700 13px/1 var(--font-body);text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:0}
+.marcas-cab .btn{padding:6px 12px;font-size:13.5px;display:inline-flex;gap:6px;align-items:center}
+.marcas-cab .btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.marcas.editable li{cursor:pointer;border-radius:8px}
+.marcas.editable li:hover{background:var(--brand-50)}
+.marcas.editable li:hover .h::after{content:" ✎";color:var(--brand-600);font-weight:400}
+.ed-dia{margin-top:10px;border:1px solid var(--brand-100);background:var(--brand-50);border-radius:var(--radius);padding:14px}
+.ed-dia .edit-fila{margin-bottom:6px;align-items:center}
+.ed-dia .edit-fila select,.ed-dia .edit-fila input{background:var(--paper)}
+.ed-dia .edit-fila.cambio select,.ed-dia .edit-fila.cambio input{background:var(--warn-50);border-color:#F1C98A;color:#6B3A00;font-weight:600}
+.ed-dia .edit-fila.malo input{border-color:var(--accent-500);box-shadow:0 0 0 2px var(--accent-50)}
+.ed-dia .edit-fila button{height:40px;border-radius:10px;border:1px solid var(--line);background:var(--paper);font-size:18px;cursor:pointer;color:var(--text-muted)}
+.ed-dia .edit-fila button:hover{color:var(--accent-600);border-color:#F3C3C5}
+.ed-dia .quitada{font-size:13px;color:var(--text-muted);margin:2px 0 6px}
+.ed-tot{display:flex;gap:18px;flex-wrap:wrap;font-size:14.5px;margin:10px 0 4px}
+.ed-tot b{font-variant-numeric:tabular-nums}
+.ed-tot .dif{color:#8A4B00}
+.ed-acc{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+#dEdErr{min-height:0;margin:4px 0 0}
+/* El PC no estaba donde marcó: rojo y titila */
+.ubics li.pc-lejos{background:#FDE7E8;box-shadow:inset 0 0 0 1.5px #E5484D;animation:pcTitila 1.1s ease-in-out infinite}
+.ubics li.pc-lejos .pc.mal{color:#B4232A}
+@keyframes pcTitila{50%{background:#FFF7F7;box-shadow:inset 0 0 0 1.5px #F2A7AA}}
+@media (prefers-reduced-motion:reduce){ .ubics li.pc-lejos{animation:none} }
 .edit-fila select,.edit-fila input,.campo input,.campo select,.campo textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);font-size:15px}
 .edit-fila button{border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);cursor:pointer;font-size:18px;color:var(--text-muted)}
 .campo{display:block;margin-bottom:12px}
@@ -1327,7 +1353,7 @@ function ubicBloque(e, d){
   let h = '<div class="bloque"><h3>Punch locations</h3>';
   h += ub.lugar ? '<p class="nota" style="margin:0 0 4px">Work location set · allowed distance ' + esc(radioTxt(ub.lugar.radio)) + ' · <a href="' + mapaUrl(ub.lugar.lat, ub.lugar.lng) + '" target="_blank" rel="noopener">view on map</a></p>'
                 : '<p class="nota" style="margin:0 0 4px">No work location set for ' + esc(e.nombre) + '. Choose <b>Use as work location</b> on a punch made from where they work.</p>';
-  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
+  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.pcLejos && e.agenteMonitor && x.pc && x.pc.estado === 'ok' ? ' pc-lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
     '<span class="dd">' + (x.lejos ? '⚠ ' : '') + (x.dist != null ? '<b>' + esc(fmtDist(x.dist)) + '</b> from work location' : 'Location recorded') +
     (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
     '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
@@ -2660,13 +2686,14 @@ function vistaDia(){
       '<div class="leyenda"><span><i style="background:var(--st-trab)"></i>Clocked work</span>' +
       '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Lunch</span>' +
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
-    h += '<ul class="marcas">' + d.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : '') +
+    h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3><button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button></div>' +
+      '<ul class="marcas editable" id="dMarcas" title="Click a punch to edit the day">' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
       '<span>Lunch <b class="num">' + dur(d.alm) + '</b></span>' +
-      (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Approved: ' + hm(d.aprobado.horas * 60) + ' h by ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div>';
-  } else h += '<p class="muted">No punches on this day.</p>';
+      (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Approved: ' + hm(d.aprobado.horas * 60) + ' h by ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div></div>';
+  } else h += '<div id="dZona"><p class="muted">No punches on this day.</p></div>';
   if(d.ausencia) h = '<div class="aviso info">' + IC.info + '<span>Approved absence: <b>' + esc(CLASE_TXT[d.ausencia.clase]) + '</b> · ' +
     (d.ausencia.pagada ? 'paid ' + d.ausencia.horas + ' h' : 'unpaid') + (d.ausencia.por ? ' · by ' + esc(d.ausencia.por) : '') + '</span></div>' + h;
   if(d.monitor) h += '<div class="bloque"><h3>Their PC per the Monitor</h3><p class="pcdato">First signal <b>' + hora(d.monitor.p) +
@@ -2679,6 +2706,8 @@ function vistaDia(){
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
   conectarUbicBloque();
   cargarHistDia();
+  if($('dEditar')) $('dEditar').onclick = () => editarDia();
+  if($('dMarcas')) $('dMarcas').querySelectorAll('li').forEach(li => li.addEventListener('click', () => editarDia(Number(li.dataset.i))));
 
   const pie = [];
   pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Correct punches' : 'Add punches') + '</button>');
@@ -2687,7 +2716,7 @@ function vistaDia(){
   else if(fecha < hoy && d.marcas.length && !d.incompleto) pie.push('<button class="btn btn-brand" id="dAprobar">Approve ' + dur(d.min) + '</button>');
   pie.push('<button class="btn btn-ink" data-cerrar>Close</button>');
   $('dPie').innerHTML = pie.join('');
-  $('dCorregir').onclick = editarDia;
+  $('dCorregir').onclick = () => editarDia();
   if($('dAprobar')) $('dAprobar').onclick = () => aprobarDia(true);
   if($('dQuitar')) $('dQuitar').onclick = () => aprobarDia(false);
 }
@@ -2787,39 +2816,104 @@ async function aprobarDia(si){
 }
 function refrescarTrasCambio(){ S.yoEn = 0; if(S.vista === 'hoja') cargarHoja(); else if(S.vista === 'hoy') cargarHoy(true); }
 
-function editarDia(){
+/* ── Editar el día en la misma ventana ──
+   Cada marca es una fila (tipo + hora). Las que no se tocan conservan sus segundos al guardar
+   (paso 25); si la base aún no los acepta, se guarda solo con minutos. */
+const hhmmss = ms => fmt(ms, { hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+const ORD_TIPO = { entrada:0, almuerzo_ini:1, almuerzo_fin:2, salida:3 };
+const segDe = x => { const p = String(x || '').split(':').map(Number); return p.length < 2 || p.some(isNaN) ? null : p[0] * 3600 + p[1] * 60 + (p[2] || 0); };
+function editarDia(foco){
   const { d } = S.dia;
-  const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) }))
+  const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms), orig:hhmmss(m.ms), origTipo:m.tipo }))
     : [{ tipo:'entrada', hora:'08:00' }, { tipo:'almuerzo_ini', hora:'12:00' }, { tipo:'almuerzo_fin', hora:'13:00' }, { tipo:'salida', hora:'17:00' }];
-  if(d.incompleto) filas.push({ tipo:'salida', hora:'17:00' });
-  const CORTO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
-  const opts = t => Object.keys(CORTO).map(k => '<option value="' + k + '"' + (k === t ? ' selected' : '') + '>' + CORTO[k] + '</option>').join('');
-  const fila = f => '<div class="edit-fila"><select aria-label="Type">' + opts(f.tipo) + '</select><input type="time" value="' + f.hora + '" aria-label="Time">' +
-    '<button type="button" aria-label="Remove this punch">×</button></div>';
-  $('dCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:12px">Orlando times. The current punches are kept as voided, with your name and the reason.</p>' +
-    '<div id="dFilas">' + filas.map(fila).join('') + '</div>' +
+  if(d.incompleto && d.marcas.length && d.marcas[d.marcas.length - 1].tipo !== 'salida' && S.dia.fecha < S.dia.fuente.hoy) filas.push({ tipo:'salida', hora:'' });
+  S.dia.ed = { quitadas:0 };
+  const opts = t => Object.keys(NOMBRE_TIPO).map(k => '<option value="' + k + '"' + (k === t ? ' selected' : '') + '>' + NOMBRE_TIPO[k] + '</option>').join('');
+  const fila = f => '<div class="edit-fila"' + (f.orig ? ' data-orig="' + f.orig + '" data-otipo="' + f.origTipo + '"' : '') + '><select aria-label="Type">' + opts(f.tipo) + '</select>' +
+    '<input type="time" value="' + f.hora + '" aria-label="Time"><button type="button" aria-label="Remove this punch" title="Remove this punch">×</button></div>';
+  S.dia.filaHTML = fila;
+  $('dZona').innerHTML = '<div class="ed-dia" id="dEd"><div class="marcas-cab" style="margin-top:0"><h3>Edit punches</h3><span class="nota" style="margin:0">Orlando time · changes in amber</span></div>' +
+    '<div id="dFilas" style="margin-top:10px">' + filas.map(fila).join('') + '</div><div class="quitada" id="dQuitadas"></div>' +
     '<button class="btn-link" id="dMas" type="button">+ Add punch</button>' +
-    '<label class="campo" style="margin-top:12px"><span>Reason <i class="opc">(optional)</i></span><input id="dMotivo" placeholder="E.g. forgot to clock out, confirmed on WhatsApp" autocomplete="off"></label>';
-  const enlazar = () => $('dFilas').querySelectorAll('.edit-fila button').forEach(b => b.onclick = () => b.parentNode.remove());
-  enlazar();
-  $('dMas').onclick = () => { $('dFilas').insertAdjacentHTML('beforeend', fila({ tipo:'salida', hora:'17:00' })); enlazar(); };
-  $('dPie').innerHTML = '<button class="btn btn-ghost" id="dVolver">Back</button><span class="esp"></span><button class="btn btn-ink" id="dGuardar">Save correction</button>';
-  $('dVolver').onclick = vistaDia;
+    '<div class="ed-tot" id="dEdTot"></div><div class="err" id="dEdErr" role="alert"></div>' +
+    '<label class="campo" style="margin-top:8px"><span>Reason <i class="opc">(optional)</i></span><input id="dMotivo" placeholder="E.g. forgot to clock out, confirmed on WhatsApp" autocomplete="off"></label>' +
+    '<p class="nota" style="margin:2px 0 8px">The old punches are kept as voided, with your name. If the day was approved, it will need approval again.</p>' +
+    '<div class="ed-acc"><button class="btn btn-ghost" id="dEdCancelar" type="button">Cancel</button><button class="btn btn-ink" id="dGuardar" type="button">Save changes</button></div></div>';
+  $('dPie').innerHTML = '<span class="esp"></span><button class="btn btn-ghost" data-cerrar>Close</button>';
+  $('dFilas').addEventListener('input', revisarEdicion); $('dFilas').addEventListener('change', revisarEdicion);
+  $('dFilas').addEventListener('click', ev => { const b = ev.target.closest('.edit-fila button'); if(!b) return;
+    const f = b.parentNode; if(f.dataset.orig) S.dia.ed.quitadas++; f.remove(); revisarEdicion(); });
+  $('dMas').onclick = () => {
+    const l = leerEdicion(), ult = l.length ? l[l.length - 1] : null;
+    const sig = !ult ? 'entrada' : { entrada:'salida', almuerzo_ini:'almuerzo_fin', almuerzo_fin:'salida', salida:'entrada' }[ult.tipo];
+    $('dFilas').insertAdjacentHTML('beforeend', fila({ tipo:sig, hora:'' }));
+    revisarEdicion(); const ins = $('dFilas').querySelectorAll('input'); ins[ins.length - 1].focus();
+  };
+  $('dEdCancelar').onclick = vistaDia;
   $('dGuardar').onclick = guardarCorreccion;
-  setTimeout(() => $('dMotivo').focus(), 50);
+  revisarEdicion();
+  const ins = $('dFilas').querySelectorAll('input');
+  setTimeout(() => { const x = foco != null && ins[foco] ? ins[foco] : (ins[ins.length - 1] && !ins[ins.length - 1].value ? ins[ins.length - 1] : null);
+    if(x){ x.focus(); x.scrollIntoView({ block:'center' }); } else $('dEd').scrollIntoView({ block:'nearest' }); }, 60);
+}
+// Filas del editor: lo que se va a guardar, en orden de hora (sin tocar = con sus segundos).
+function leerEdicion(){
+  return Array.from($('dFilas').querySelectorAll('.edit-fila')).map((f, i) => {
+    const tipo = f.querySelector('select').value, hora = f.querySelector('input').value;
+    const igual = f.dataset.orig && f.dataset.orig.slice(0, 5) === hora;
+    return { f, i, tipo, hora, envio:igual ? f.dataset.orig : hora, cambio:!f.dataset.orig || !igual || f.dataset.otipo !== tipo };
+  }).sort((a, b) => ((segDe(a.envio) ?? 1e9) - (segDe(b.envio) ?? 1e9)) || (ORD_TIPO[a.tipo] - ORD_TIPO[b.tipo]) || a.i - b.i);
+}
+// Revisa como lo hará el servidor; pinta lo cambiado, la cinta y las horas.
+function revisarEdicion(){
+  const { d, fecha } = S.dia, hoy = S.dia.fuente.hoy, l = leerEdicion();
+  let err = '', estado = 'fuera', prev = null;
+  l.forEach(x => { x.f.classList.toggle('cambio', x.cambio); x.f.classList.remove('malo'); });
+  for(const x of l){
+    if(!x.hora){ err = 'Fill in the time of every punch (or remove it with ×).'; x.f.classList.add('malo'); break; }
+    const sg = segDe(x.envio);
+    if(prev != null && sg <= prev.sg){ err = NOMBRE_TIPO[x.tipo] + ' at ' + h12(x.hora) + ' must be after ' + NOMBRE_TIPO[prev.tipo].toLowerCase() + ' at ' + h12(prev.hora) + '.'; x.f.classList.add('malo'); break; }
+    const ok = { fuera:['entrada'], trab:['almuerzo_ini', 'salida'], alm:['almuerzo_fin'] }[estado];
+    if(ok.indexOf(x.tipo) < 0){
+      err = estado === 'fuera' ? 'At ' + h12(x.hora) + ' they aren\'t clocked in: the next punch must be a Clock in.'
+        : estado === 'alm' ? 'At ' + h12(x.hora) + ' they\'re at lunch: the next punch must be a Lunch end.'
+        : 'At ' + h12(x.hora) + ' they\'re working: the next punch must be a Lunch start or a Clock out.';
+      x.f.classList.add('malo'); break;
+    }
+    estado = x.tipo === 'entrada' || x.tipo === 'almuerzo_fin' ? 'trab' : x.tipo === 'almuerzo_ini' ? 'alm' : 'fuera';
+    if(fecha === hoy && wall(fecha, x.hora) > ahora()){ err = h12(x.hora) + ' hasn\'t happened yet.'; x.f.classList.add('malo'); break; }
+    prev = { sg, tipo:x.tipo, hora:x.hora };
+  }
+  if(!err && estado !== 'fuera' && fecha < hoy) err = 'A past day must end with a Clock out.';
+  const lista = l.filter(x => x.hora).map(x => ({ tipo:x.tipo, hora:x.envio }));
+  // cinta y totales en vivo
+  if($('dCinta') && !err) cintaEn($('dCinta'), $('dEje'), fecha, lista.map(m => ({ tipo:m.tipo, ms:wall(fecha, m.hora.slice(0, 5)) + (segDe(m.hora) % 60) * 1000 })), d.monitor, false);
+  let alm = 0, ini = null; ordenarMarcas(lista).forEach(m => { if(m.tipo === 'almuerzo_ini') ini = aMin(m.hora); else if(m.tipo === 'almuerzo_fin' && ini != null){ alm += aMin(m.hora) - ini; ini = null; } });
+  const trab = minutosLista(lista), cambio = l.some(x => x.cambio) || S.dia.ed.quitadas > 0;
+  $('dEdTot').innerHTML = err ? '' : '<span>Worked <b' + (trab !== d.min ? ' class="dif"' : '') + '>' + dur(trab) + '</b>' + (trab !== d.min && !d.incompleto ? ' <span class="nota" style="margin:0">(was ' + dur(d.min) + ')</span>' : '') + '</span>' +
+    '<span>Lunch <b' + (alm !== d.alm ? ' class="dif"' : '') + '>' + dur(alm) + '</b></span>';
+  $('dQuitadas').textContent = S.dia.ed.quitadas ? S.dia.ed.quitadas + (S.dia.ed.quitadas === 1 ? ' punch removed.' : ' punches removed.') : '';
+  $('dEdErr').textContent = err;
+  $('dGuardar').disabled = !!err || !cambio;
+  S.dia.ed.lista = err ? null : lista;
 }
 async function guardarCorreccion(){
-  const { e, fecha } = S.dia;
-  const marcas = Array.from($('dFilas').querySelectorAll('.edit-fila')).map(f => ({ tipo:f.querySelector('select').value, hora:f.querySelector('input').value }));
-  const motivo = $('dMotivo').value.trim();
-  $('dErr').textContent = '';
-  if(marcas.some(m => !m.hora)) return $('dErr').textContent = 'Fill in all the times.';
-  const b = $('dGuardar'); b.disabled = true;
+  const { e, fecha } = S.dia, lista = S.dia.ed && S.dia.ed.lista;
+  if(!lista) return;
+  const motivo = $('dMotivo').value.trim(), b = $('dGuardar'); b.disabled = true; $('dEdErr').textContent = '';
+  const fuente = S.dia.fuente === S.hojaHoy ? 'hoy' : 'hoja';
   try{
-    await api('corregir', { usuario:e.usuario, fecha, marcas, motivo });
-    toast('Correction saved.');
-    cerrar('ovDia'); refrescarTrasCambio();
-  }catch(x){ $('dErr').textContent = x.message; b.disabled = false; }
+    try{ await api('corregir', { usuario:e.usuario, fecha, marcas:lista, motivo }); }
+    catch(x){   // la base todavía sin el paso 25: solo minutos
+      if(!/^Invalid time/.test(x.message) || !lista.some(m => m.hora.length > 5)) throw x;
+      await api('corregir', { usuario:e.usuario, fecha, marcas:lista.map(m => ({ tipo:m.tipo, hora:m.hora.slice(0, 5) })), motivo });
+    }
+    toast('Punches saved for ' + e.nombre + '.');
+    S.yoEn = 0;
+    // se vuelve a abrir el mismo día con los datos nuevos
+    if(fuente === 'hoy'){ await cargarHoy(true); if(S.hojaHoy && S.hojaHoy.empleados.some(x => x.usuario === e.usuario)) abrirDia(e.usuario, fecha, S.hojaHoy); else cerrar('ovDia'); }
+    else { await cargarHoja(); if(S.hoja && S.hoja.empleados.some(x => x.usuario === e.usuario)) abrirDia(e.usuario, fecha, S.hoja); else cerrar('ovDia'); }
+  }catch(x){ $('dEdErr').textContent = x.message; b.disabled = false; }
 }
 
 /* ── exportar (CSV que Excel abre directo) ── */
