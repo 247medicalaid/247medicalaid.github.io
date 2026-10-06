@@ -470,6 +470,20 @@ table.hoja{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .hoja thead .nombre{background:var(--sand);z-index:3}
 .hoja .tot{padding:8px 12px;text-align:right;font-weight:700;background:var(--sand);border-left:1px solid var(--line)}
 .hoja .tot.sub{font-weight:500;color:var(--text-muted)}
+.hoja .tot.ot{color:#9A5B00}
+.hoja .tot.ot.cero{color:var(--text-muted);font-weight:500}
+.hoja thead .ord{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0;display:inline-flex;gap:3px;align-items:center}
+.hoja thead .ord:hover{color:var(--text)}
+.hoja thead .ord.on{color:var(--text)}
+.hoja thead .ord .fl{font-size:10px}
+.hoja tr.grupo td{background:#EEF4F7;font-weight:700;font-size:13px;border-bottom:1px solid var(--line)}
+.hoja tr.grupo td.nombre{background:#EEF4F7;color:var(--ink-900)}
+.hoja tr.grupo td.nombre .n{font-weight:500;color:var(--text-muted);margin-left:6px}
+.hoja tr.grupo td.tot{background:#E3EDF2}
+.celda .ot{font-size:10.5px;font-weight:700;color:#9A5B00;line-height:14px}
+.orden-hoja{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.orden-hoja label{display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--text-muted)}
+.orden-hoja input[type=checkbox]{width:16px;height:16px}
 .celda{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;min-width:46px;height:46px;
   border:0;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);position:relative}
 .celda:hover{background:var(--brand-50)}
@@ -736,6 +750,10 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <h1>Timesheet</h1>
       <span class="esp"></span>
       <div class="periodo">
+        <span class="orden-hoja">
+          <label><input type="checkbox" id="hGrupo"> Group by account</label>
+          <select id="hOrden" aria-label="Sort by"><option value="nombre">Sort: Name</option><option value="cuenta">Sort: Account</option><option value="ot">Sort: Overtime</option><option value="horas">Sort: Hours</option></select>
+        </span>
         <select id="hCuenta" aria-label="Account" class="hidden"><option value="">All accounts</option></select>
         <button class="btn btn-ghost btn-sm flecha" id="hAntP" type="button" title="Previous period" aria-label="Previous period">‹</button>
         <select id="hPreset" aria-label="Period">
@@ -2370,8 +2388,32 @@ function moverPeriodo(dir){
 $('hAntP').addEventListener('click', () => moverPeriodo(-1));
 $('hSigP').addEventListener('click', () => moverPeriodo(1));
 $('hCuenta').addEventListener('change', () => { S.cuentaFiltro = $('hCuenta').value; pintarHoja(); });
+$('hGrupo').addEventListener('change', () => { ordenHoja().grupo = $('hGrupo').checked; guardarOrden(); if(S.hoja) pintarHoja(); });
+$('hOrden').addEventListener('change', () => { ordenHoja().por = $('hOrden').value; guardarOrden(); if(S.hoja) pintarHoja(); });
 // Empleados que se ven en la hoja (según el filtro de cuenta).
-const empsVisibles = () => (S.hoja ? S.hoja.empleados : []).filter(e => !S.cuentaFiltro || (e.cuenta || '') === S.cuentaFiltro);
+// Overtime: lo que cada día cerrado pase de las horas por día del agente (los días sin salida no cuentan).
+function otDia(e, d){ if(!d || d.incompleto || !d.marcas || !d.marcas.length) return 0; return Math.max(0, d.min - Math.round((e.horasDia || 8) * 60)); }
+function otEmp(e){ return Object.keys(e.dias || {}).reduce((s, f) => s + otDia(e, e.dias[f]), 0); }
+// Orden de la hoja (se recuerda en este navegador)
+const ORDEN_CLAVE = 'reloj_hoja_orden_v1';
+function ordenHoja(){
+  if(!S.ordenHoja){ let o = null; try{ o = JSON.parse(localStorage.getItem(ORDEN_CLAVE) || 'null'); }catch(x){}
+    S.ordenHoja = Object.assign({ por:'nombre', grupo:true }, o || {}); }
+  return S.ordenHoja;
+}
+function guardarOrden(){ try{ localStorage.setItem(ORDEN_CLAVE, JSON.stringify(S.ordenHoja)); }catch(x){} }
+const SIN_CUENTA = 'No account';
+function ordenarEmps(lista){
+  const o = ordenHoja(), nom = (a, b) => a.nombre.localeCompare(b.nombre, 'en'), cta = e => e.cuenta || '\uffff';
+  const cmp = o.por === 'ot' ? (a, b) => otEmp(b) - otEmp(a) || nom(a, b)
+            : o.por === 'horas' ? (a, b) => b.totales.min - a.totales.min || nom(a, b)
+            : o.por === 'cuenta' ? (a, b) => cta(a).localeCompare(cta(b), 'en') || nom(a, b) : nom;
+  const l = lista.slice();
+  if(o.grupo) l.sort((a, b) => cta(a).localeCompare(cta(b), 'en') || cmp(a, b)); else l.sort(cmp);
+  return l;
+}
+// Empleados que se ven en la hoja (según el filtro de cuenta), en el orden elegido.
+const empsVisibles = () => ordenarEmps((S.hoja ? S.hoja.empleados : []).filter(e => !S.cuentaFiltro || (e.cuenta || '') === S.cuentaFiltro));
 $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
 
@@ -2395,10 +2437,29 @@ function pintarHoja(){
     return;
   }
   const finde = f => [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
-  let t = '<table class="hoja"><thead><tr><th class="nombre">Employee</th>' +
+  const o = ordenHoja();
+  $('hGrupo').checked = !!o.grupo; $('hOrden').value = o.por;
+  const ord = (por, txt, tit) => '<button class="ord' + (o.por === por ? ' on' : '') + '" type="button" data-ord="' + por + '" title="' + tit + '">' + txt +
+    (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
+  let t = '<table class="hoja"><thead><tr><th class="nombre">' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
-    '<th class="tot">Hours</th><th class="tot">Approved</th><th class="tot" title="Paid time off">PTO</th><th class="tot">Equiv. days</th></tr></thead><tbody>';
-  empsVisibles().forEach(e => {
+    '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
+    '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
+    '<th class="tot">Approved</th><th class="tot" title="Paid time off">PTO</th><th class="tot">Equiv. days</th></tr></thead><tbody>';
+  const lista = empsVisibles();
+  let grupoAct = null;
+  lista.forEach(e => {
+    if(o.grupo){
+      const g = e.cuenta || SIN_CUENTA;
+      if(g !== grupoAct){
+        grupoAct = g;
+        const del = lista.filter(x => (x.cuenta || SIN_CUENTA) === g);
+        const sum = k => del.reduce((s, x) => s + (x.totales[k] || 0), 0), ot = del.reduce((s, x) => s + otEmp(x), 0);
+        t += '<tr class="grupo"><td class="nombre">' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
+          '<td class="tot num">' + hm(sum('min')) + '</td><td class="tot ot num' + (ot ? '' : ' cero') + '">' + (ot ? hm(ot) : '—') + '</td>' +
+          '<td class="tot num">' + hm(sum('minAprob')) + '</td><td class="tot num">' + (sum('minPto') ? hm(sum('minPto')) : '—') + '</td><td class="tot"></td></tr>';
+      }
+    }
     t += '<tr><td class="nombre" title="Edit ' + esc(e.nombre) + '\'s hours"><button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '"><span>' + esc(e.nombre) + '</span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
     h.fechas.forEach(f => {
@@ -2418,14 +2479,15 @@ function pintarHoja(){
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const ics = (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
-      const etiqueta = d.incompleto ? 'missing' : hm(d.min);
+      const etiqueta = d.incompleto ? 'missing' : hm(d.min), otd = otDia(e, d);
       t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
         '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'clock-out missing' : dur(d.min)) +
-        (d.aprobado ? ', approved' : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '">' +
-        '<span class="num">' + etiqueta + '</span><span class="ics">' + ics + '</span></button></td>';
+        (d.aprobado ? ', approved' : '') + (otd ? ', overtime ' + dur(otd) : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '"' +
+        (otd ? ' title="Overtime: ' + hm(otd) + ' above ' + (e.horasDia || 8) + ' h"' : '') + '>' +
+        '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot num">+' + hm(otd) + '</span>' : '') + ics + '</span></button></td>';
     });
-    const tot = e.totales;
-    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot num">' + hm(tot.minAprob) + '</td>' +
+    const tot = e.totales, ote = otEmp(e);
+    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot ot num' + (ote ? '' : ' cero') + '">' + (ote ? hm(ote) : '—') + '</td><td class="tot num">' + hm(tot.minAprob) + '</td>' +
       '<td class="tot num">' + (tot.minPto ? hm(tot.minPto) : '—') + '</td>' +
       '<td class="tot sub num">' + ((tot.minAprob + tot.minPto) / 60 / (e.horasDia || 8)).toFixed(2) + '</td></tr>';
   });
@@ -2433,6 +2495,7 @@ function pintarHoja(){
   $('hojaTabla').innerHTML = t;
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
   $('hojaTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrirPeriodo(b.dataset.editar)));
+  $('hojaTabla').querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => { ordenHoja().por = b.dataset.ord; guardarOrden(); pintarHoja(); }));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
   $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
@@ -2440,7 +2503,7 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 function diasLimpios(){
@@ -2654,23 +2717,23 @@ function descargarCSV(nombre, filas){
 const horasDec = min => (min / 60).toFixed(2);
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
+  const filas = [['Employee','Account','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
   empsVisibles().forEach(e => {
     const t = e.totales;
-    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(t.minAprob), t.diasAprob,
+    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(otEmp(e)), horasDec(t.minAprob), t.diasAprob,
       horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]);
   });
   descargarCSV('timeclock_summary_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 $('hExpDetalle').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Lunch minutes','Approved','Approved hours','Issues','Absence']];
+  const filas = [['Employee','Account','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Overtime hours','Lunch minutes','Approved','Approved hours','Issues','Absence']];
   empsVisibles().forEach(e => h.fechas.forEach(f => {
     const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
     const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
     const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
     filas.push([e.nombre, e.cuenta || '', e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
-      d.incompleto ? '' : horasDec(d.min), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
+      d.incompleto ? '' : horasDec(d.min), d.incompleto ? '' : horasDec(otDia(e, d)), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
       d.banderas.map(b => b.t).join(' | '),
       d.ausencia ? CLASE_TXT[d.ausencia.clase] + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '']);
   }));
