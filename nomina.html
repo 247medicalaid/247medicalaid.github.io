@@ -2224,8 +2224,8 @@
 (function () {
   var GS = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
   var CLAVE_FUENTE = 'nomina.fuente';      // 'sheets' = este navegador lee de Google
-  var LECTURAS = { historial: 1, config: 1, borradores: 1, borrador: 1, invoiceRates: 1, invoiceOv: 1 };
-  var ESCRITURAS = { save: 1, 'delete': 1, clear: 1, saveConfig: 1, saveBorrador: 1, deleteBorrador: 1, saveInvoiceRates: 1, saveInvoiceOv: 1 };
+  var LECTURAS = { historial: 1, config: 1, borradores: 1, borrador: 1, invoiceRates: 1, invoiceOv: 1, gastosUtil: 1 };
+  var ESCRITURAS = { save: 1, 'delete': 1, clear: 1, saveConfig: 1, saveBorrador: 1, deleteBorrador: 1, saveInvoiceRates: 1, saveInvoiceOv: 1, saveGastosUtil: 1 };
   var previo = window.fetch;                // el del bloque de acceso (agrega el token para Google)
   var N = window.__nomSB = { tiempos: [], fallos: 0, leyoDeGoogle: false };
   // ?fuente=supabase en la dirección: volver a leer de Supabase (tras resincronizar).
@@ -2243,8 +2243,39 @@
     return r.data;
   }
 
+  /* Gastos de Utilidad (oct 2026): Google nunca los guardó (su Apps Script no
+     conoce 'gastosUtil'), así que vivían solo en cada navegador. La primera vez
+     que un navegador lee de Supabase, sube los meses que Supabase todavía no
+     tiene. Si un mes ya está en Supabase y aquí es distinto, manda Supabase y lo
+     de aquí queda guardado aparte (util_gastos_mes_previo): nada se borra. */
+  async function leerGastos(t0) {
+    var txt = await rpc('nomina_leer', { p_tipo: 'gastosUtil' });
+    var remoto = JSON.parse(txt), local = {};
+    try { local = JSON.parse(localStorage.getItem('util_gastos_mes') || '{}') || {}; } catch (e) {}
+    var subir = [], distintos = {};
+    Object.keys(local).forEach(function (mk) {
+      if (!Array.isArray(local[mk])) return;             // basura vieja (p. ej. una respuesta de error)
+      if (!(mk in remoto)) subir.push(mk);
+      else if (JSON.stringify(remoto[mk]) !== JSON.stringify(local[mk])) distintos[mk] = local[mk];
+    });
+    for (var i = 0; i < subir.length; i++) {
+      await rpc('nomina_guardar', { p_tipo: 'gastosUtil', p_clave: subir[i], p_texto: JSON.stringify(local[subir[i]]) });
+    }
+    if (Object.keys(distintos).length) {
+      try {
+        var prev = JSON.parse(localStorage.getItem('util_gastos_mes_previo') || '{}') || {};
+        Object.keys(distintos).forEach(function (mk) { prev[mk] = distintos[mk]; });
+        localStorage.setItem('util_gastos_mes_previo', JSON.stringify(prev));
+      } catch (e) {}
+    }
+    if (subir.length) txt = await rpc('nomina_leer', { p_tipo: 'gastosUtil' });
+    medir('leer gastosUtil', t0);
+    return txt;
+  }
+
   async function leer(tipo, clave) {
     var t0 = performance.now();
+    if (tipo === 'gastosUtil') return leerGastos(t0);
     var txt = await rpc('nomina_leer', { p_tipo: tipo === 'borrador' ? 'borradores' : tipo });
     if (tipo === 'borrador') { var todos = JSON.parse(txt); txt = JSON.stringify(todos[clave] || null); }
     medir('leer ' + tipo, t0);
@@ -2261,6 +2292,7 @@
       case 'saveBorrador':     await g('borrador', c.key, c.datos); break;
       case 'deleteBorrador':   await rpc('nomina_borrar', { p_tipo: 'borrador', p_clave: c.key }); break;
       case 'saveInvoiceRates': await g('invoiceRates', '_', c.datos); break;
+      case 'saveGastosUtil':   await g('gastosUtil', String(c.mk), c.gastos); break;
       case 'saveInvoiceOv':
         if (c.datos === undefined || c.datos === null) await rpc('nomina_borrar', { p_tipo: 'invoiceOv', p_clave: c.key });
         else await g('invoiceOv', c.key, c.datos);
