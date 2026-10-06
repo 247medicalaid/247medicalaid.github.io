@@ -263,6 +263,35 @@ main{max-width:1240px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .celda.aus{color:#0F7F70;font-size:11.5px;font-weight:700;letter-spacing:.02em;background:#EAF9F5}
 .celda.aus.np{color:var(--text-muted);background:var(--sand)}
 
+/* ── EDITAR HORAS DEL PERIODO (hoja por agente) ── */
+.ventana.ventana-ancha{max-width:900px}
+.ph-cab{display:flex;align-items:flex-start;gap:8px}
+.ph-cab .esp{flex:1}
+.ph-std{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:13px;color:var(--text-muted);margin:4px 0 10px}
+.ph-std input{padding:5px 6px;border:1px solid var(--line);border-radius:8px;font-size:13px;width:108px;background:var(--paper)}
+table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
+.ph th{font-size:12px;color:var(--text-muted);font-weight:600;text-align:left;padding:7px 6px;background:var(--sand);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
+.ph td{padding:3px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ph td.phdia{font-weight:600;min-width:78px}
+.ph td.fin{color:#9AAAB5}
+.ph input[type=time]{padding:5px 4px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;width:112px;background:var(--paper)}
+.ph input[type=time]:focus{border-color:var(--brand-500);outline:2px solid var(--brand-100)}
+.ph td.hrs{font-weight:700;text-align:right;min-width:52px}
+.ph tr.cambio td{background:#FFF9E8}
+.ph tr.cambio td.phdia::before{content:"● ";color:var(--warn)}
+.ph tr.malo td{background:var(--accent-50)}
+.ph tr.bloq td{color:#9AAAB5}
+.ph tr.bloq input{background:var(--sand)}
+.ph .x{border:0;background:none;color:var(--text-muted);cursor:pointer;font-size:17px;padding:2px 6px;border-radius:6px}
+.ph .x:hover{background:var(--sand-2);color:var(--text)}
+.ph .msg{font-size:12px;color:var(--accent-600);white-space:normal;min-width:120px}
+.ph .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:#EAF9F5;color:#0F7F70;margin-left:4px}
+.ph .tag.ok{background:var(--brand-50);color:var(--brand-700)}
+.nom-btn{border:0;background:none;font:inherit;font-weight:600;color:inherit;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:6px;max-width:100%;text-align:left}
+.nom-btn svg{width:13px;height:13px;flex:none;stroke:var(--brand-600);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.55}
+.nom-btn:hover{color:var(--brand-700)} .nom-btn:hover svg{opacity:1}
+.nom-btn span{overflow:hidden;text-overflow:ellipsis}
+
 /* ── banderas (forma + color) ── */
 .fl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none}
 .fl-alerta{color:var(--accent-500)}
@@ -608,6 +637,33 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   </div>
 </div>
 
+<!-- editar horas del periodo (administrador) -->
+<div class="overlay hidden" id="ovHoras" role="dialog" aria-modal="true" aria-labelledby="phTitulo">
+  <div class="ventana ventana-ancha">
+    <div class="ph-cab">
+      <div><h2 id="phTitulo"></h2><div class="sub" id="phSub" style="margin-bottom:4px"></div></div>
+      <span class="esp"></span>
+      <button class="btn btn-ghost btn-sm" id="phAnt" type="button" title="Previous employee">‹ Prev</button>
+      <button class="btn btn-ghost btn-sm" id="phSig" type="button" title="Next employee">Next ›</button>
+    </div>
+    <div class="ph-std">Standard day
+      <input type="time" id="phStd0" aria-label="Standard clock in"><input type="time" id="phStd1" aria-label="Standard lunch start">
+      <input type="time" id="phStd2" aria-label="Standard lunch end"><input type="time" id="phStd3" aria-label="Standard clock out">
+      <button class="btn btn-ghost btn-sm" id="phLlenar" type="button">Fill empty weekdays</button>
+    </div>
+    <div class="tabla-wrap" style="max-height:56vh;overflow:auto"><table class="ph" id="phTabla"></table></div>
+    <label class="campo" style="margin-top:12px"><span>Reason <i class="opc">(optional)</i></span><input id="phMotivo" maxlength="300" placeholder="Timesheet adjustment" autocomplete="off"></label>
+    <div class="err" id="phErr"></div>
+    <div class="pie">
+      <span class="nota" id="phCambios"></span>
+      <span class="esp"></span>
+      <button class="btn btn-ghost" id="phCerrar" type="button">Close</button>
+      <button class="btn btn-ghost" id="phGuardarSig" type="button">Save &amp; next</button>
+      <button class="btn btn-ink" id="phGuardar" type="button">Save all</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -674,9 +730,9 @@ function toast(msg, tipo){
 function abrir(id){ $(id).classList.remove('hidden'); }
 function cerrar(id){ $(id).classList.add('hidden'); }
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if(e.target === ov || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+  ov.addEventListener('click', e => { if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
 });
-document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio)) o.classList.add('hidden'); }); });
 
 /* ── SESIÓN Y SERVIDOR ── */
 function alPortal(motivo){
@@ -863,9 +919,15 @@ const SERVIDOR_EN = [
   [/^Esa solicitud ya fue decidida\.$/, 'That request was already decided.'],
   [/^Las horas por día deben estar entre 0 y 12\.$/, 'Hours per day must be between 0 and 12.'],
   [/^Completa las dos horas del almuerzo o deja ambas vacías\.$/, 'Fill in both lunch times or leave both empty.'],
-  [/^El almuerzo debe estar dentro del turno\.$/, 'Lunch must be inside the shift.']
+  [/^El almuerzo debe estar dentro del turno\.$/, 'Lunch must be inside the shift.'],
+  [/^No hay cambios para guardar\.$/, 'There are no changes to save.'],
+  [/^Máximo 31 días por guardado\.$/, '31 days at most per save.'],
+  [/^Solo se puede desaprobar una solicitud aprobada\.$/, 'Only an approved request can be undone.'],
+  [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
+  [/^La fecha debe ser de hoy o de los últimos 62 días\.$/, 'The date must be today or within the last 62 days.']
 ];
-function enIngles(m){ m = String(m || ''); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
+function enIngles(m){ m = String(m || '');
+  const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
@@ -915,6 +977,10 @@ async function api(action, p){
   }
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
+  if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
+  if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
+  if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
+    p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas, p_respuesta: p.respuesta == null ? null : p.respuesta }));
   if(action === 'pendientes'){
     const { count, error } = await sb.from('reloj_solicitudes').select('id', { count:'exact', head:true }).eq('estado', 'pendiente');
     if(error) throw new Error(error.message); return count || 0;
@@ -1324,7 +1390,8 @@ function pintarHoja(){
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
     '<th class="tot">Hours</th><th class="tot">Approved</th><th class="tot" title="Paid time off">PTO</th><th class="tot">Equiv. days</th></tr></thead><tbody>';
   h.empleados.forEach(e => {
-    t += '<tr><td class="nombre" title="' + esc(e.nombre) + '">' + esc(e.nombre) + '</td>';
+    t += '<tr><td class="nombre" title="Edit ' + esc(e.nombre) + '\'s hours"><button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '"><span>' + esc(e.nombre) + '</span>' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
     h.fechas.forEach(f => {
       const d = e.dias[f], futuro = f > h.hoy;
       if(!d){
@@ -1356,6 +1423,7 @@ function pintarHoja(){
   t += '</tbody></table>';
   $('hojaTabla').innerHTML = t;
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
+  $('hojaTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrirPeriodo(b.dataset.editar)));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
   $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
@@ -1363,7 +1431,7 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>“missing” = didn\'t clock out</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>';
+    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (approved + PTO hours) ÷ hours per day</span>';
 }
 function diasLimpios(){
   const out = [];
@@ -1453,7 +1521,7 @@ function editarDia(){
   $('dCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:12px">Orlando times. The current punches are kept as voided, with your name and the reason.</p>' +
     '<div id="dFilas">' + filas.map(fila).join('') + '</div>' +
     '<button class="btn-link" id="dMas" type="button">+ Add punch</button>' +
-    '<label class="campo" style="margin-top:12px"><span>Reason</span><input id="dMotivo" placeholder="E.g. forgot to clock out, confirmed on WhatsApp" autocomplete="off"></label>';
+    '<label class="campo" style="margin-top:12px"><span>Reason <i class="opc">(optional)</i></span><input id="dMotivo" placeholder="E.g. forgot to clock out, confirmed on WhatsApp" autocomplete="off"></label>';
   const enlazar = () => $('dFilas').querySelectorAll('.edit-fila button').forEach(b => b.onclick = () => b.parentNode.remove());
   enlazar();
   $('dMas').onclick = () => { $('dFilas').insertAdjacentHTML('beforeend', fila({ tipo:'salida', hora:'17:00' })); enlazar(); };
@@ -1467,7 +1535,6 @@ async function guardarCorreccion(){
   const marcas = Array.from($('dFilas').querySelectorAll('.edit-fila')).map(f => ({ tipo:f.querySelector('select').value, hora:f.querySelector('input').value }));
   const motivo = $('dMotivo').value.trim();
   $('dErr').textContent = '';
-  if(motivo.length < 3) return $('dErr').textContent = 'Enter the reason for the correction.';
   if(marcas.some(m => !m.hora)) return $('dErr').textContent = 'Fill in all the times.';
   const b = $('dGuardar'); b.disabled = true;
   try{
@@ -1722,13 +1789,17 @@ function pintarSols(){
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? (s.pagada ? ' · paid ' + s.horasDia + ' h/day' : ' · unpaid') : '') +
       (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') + '</div>' +
     '<div class="acc">' + (s.estado === 'pendiente' ? '<button class="btn btn-ghost btn-sm" data-dec="no" data-id="' + s.id + '">Deny</button>' +
-      '<button class="btn btn-brand btn-sm" data-dec="si" data-id="' + s.id + '">Approve</button>' : '') + '</div></div>').join('');
-  $('solsLista').querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => abrirDecision(Number(b.dataset.id), b.dataset.dec === 'si')));
+      '<button class="btn btn-brand btn-sm" data-dec="si" data-id="' + s.id + '">Approve</button>'
+      : s.estado === 'aprobada' ? '<button class="btn btn-ghost btn-sm" data-dec="deshacer" data-id="' + s.id + '">Undo approval</button>' +
+      '<button class="btn btn-ghost btn-sm" data-dec="editar" data-id="' + s.id + '">Edit</button>' : '') + '</div></div>').join('');
+  $('solsLista').querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => abrirDecision(Number(b.dataset.id), b.dataset.dec)));
 }
-function abrirDecision(id, aprobar){
+function abrirDecision(id, modo){
+  if(modo === 'editar' || modo === 'deshacer') return abrirCambioAprobada(id, modo);
+  const aprobar = modo === 'si';
   const r = S.sols, s = r.sols.find(x => x.id === id); if(!s) return;
   const emp = r.emps.find(e => e.usuario === s.usuario) || {};
-  S.dec = { s, aprobar };
+  S.dec = { s, aprobar, modo };
   $('xTitulo').textContent = (aprobar ? 'Approve ' : 'Deny ') + SOL_TIPO[s.tipo].toLowerCase();
   $('xSub').textContent = (emp.nombre || s.usuario) + ' · ' + solCuando(s);
   let h = '<p class="muted" style="font-size:14px;margin-bottom:12px">“' + esc(s.motivo) + '”</p>';
@@ -1749,6 +1820,7 @@ function abrirDecision(id, aprobar){
   abrir('ovDec');
 }
 $('xSi').addEventListener('click', async () => {
+  if(S.dec.modo === 'editar' || S.dec.modo === 'deshacer') return guardarCambioAprobada();
   const { s, aprobar } = S.dec, b = $('xSi');
   const p = { id:s.id, aprobar, respuesta:$('xNota').value.trim() };
   if(aprobar && s.tipo === 'ausencia'){ p.pagada = $('xPagada').checked; p.horas = p.pagada ? Number($('xHoras').value) : 0;
@@ -1759,6 +1831,218 @@ $('xSi').addEventListener('click', async () => {
     cerrar('ovDec'); toast(aprobar ? 'Request approved.' : 'Request denied.');
     S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
   }catch(e){ $('xErr').textContent = (aprobar ? 'Couldn\'t approve: ' : '') + e.message; b.disabled = false; }
+});
+
+/* ── administrador: deshacer o editar una solicitud aprobada ── */
+function abrirCambioAprobada(id, modo){
+  const r = S.sols, s = r.sols.find(x => x.id === id); if(!s) return;
+  const emp = r.emps.find(e => e.usuario === s.usuario) || {};
+  S.dec = { s, modo, emp };
+  $('xSub').textContent = (emp.nombre || s.usuario) + ' · ' + solCuando(s);
+  $('xErr').textContent = '';
+  let h = '<p class="muted" style="font-size:14px;margin-bottom:12px">“' + esc(s.motivo) + '”</p>';
+  const b = $('xSi'); b.disabled = false;
+  if(modo === 'deshacer'){
+    $('xTitulo').textContent = 'Undo approval';
+    h += '<div class="aviso info">' + IC.info + '<span>' + (s.tipo === 'ausencia' ? 'These days off will stop counting.'
+      : 'The punches this request added will be removed from ' + esc(diaS(s.fecha)) + ' (other punches stay).') +
+      ' The request goes back to <b>Pending</b>.</span></div>' +
+      '<label class="campo"><span>Note to the employee (optional)</span><input id="xNota" maxlength="500" autocomplete="off"></label>';
+    b.textContent = 'Undo approval'; b.className = 'btn btn-ink';
+  } else {
+    $('xTitulo').textContent = 'Edit ' + SOL_TIPO[s.tipo].toLowerCase();
+    const hoy = fechaHoy();
+    if(s.tipo === 'ausencia'){
+      h += '<label class="campo"><span>Type</span><select id="eClase">' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '"' + (k === s.clase ? ' selected' : '') + '>' + CLASE_TXT[k] + '</option>').join('') + '</select></label>' +
+        '<div class="dos-col"><label class="campo"><span>From</span><input type="date" id="eDesde" value="' + s.fecha + '"></label>' +
+        '<label class="campo"><span>To</span><input type="date" id="eHasta" value="' + s.fechaFin + '"></label></div>' +
+        '<label class="chk"><input type="checkbox" id="xPagada"' + (s.pagada ? ' checked' : '') + '> Paid time off</label>' +
+        '<label class="campo" id="xHorasC"' + (s.pagada ? '' : ' style="display:none"') + '><span>Paid hours per day</span><input type="number" id="xHoras" min="0" max="12" step="0.5" value="' + (s.pagada ? s.horasDia : (emp.horasDia || 8)) + '"></label>';
+    } else {
+      const [a, z] = s.tipo === 'turno' ? ['Clock in', 'Clock out'] : ['Lunch start', 'Lunch end'];
+      h += '<label class="campo"><span>Date</span><input type="date" id="eFecha" value="' + s.fecha + '" max="' + hoy + '"></label>' +
+        '<div class="dos-col"><label class="campo"><span>' + a + '</span><input type="time" id="eIni" value="' + (s.horaIni || '') + '"></label>' +
+        '<label class="campo"><span>' + z + '</span><input type="time" id="eFin" value="' + (s.horaFin || '') + '"></label></div>';
+      if(s.tipo === 'turno') h += '<div class="dos-col"><label class="campo"><span>Lunch start <i class="opc">(optional)</i></span><input type="time" id="eAlmIni" value="' + (s.almIni || '') + '"></label>' +
+        '<label class="campo"><span>Lunch end <i class="opc">(optional)</i></span><input type="time" id="eAlmFin" value="' + (s.almFin || '') + '"></label></div>';
+      h += '<p class="nota" style="margin:-4px 0 12px">The old punches from this request are replaced by the new ones. Other punches that day stay.</p>';
+    }
+    h += '<label class="campo"><span>Note to the employee (optional)</span><input id="xNota" maxlength="500" autocomplete="off" value="' + esc(s.respuesta || '') + '"></label>';
+    b.textContent = 'Save changes'; b.className = 'btn btn-brand';
+  }
+  $('xCuerpo').innerHTML = h;
+  if($('xPagada')) $('xPagada').addEventListener('change', () => { $('xHorasC').style.display = $('xPagada').checked ? '' : 'none'; });
+  abrir('ovDec');
+}
+async function guardarCambioAprobada(){
+  const { s, modo } = S.dec, b = $('xSi');
+  const nota = $('xNota').value.trim();
+  let accion, p;
+  if(modo === 'deshacer'){ accion = 'revertir'; p = { id:s.id, respuesta:nota }; }
+  else {
+    const sol = {};
+    if(s.tipo === 'ausencia'){
+      sol.clase = $('eClase').value; sol.fecha = $('eDesde').value; sol.fechaFin = $('eHasta').value || sol.fecha;
+      if(!sol.fecha || sol.fechaFin < sol.fecha){ $('xErr').textContent = 'The end date can\'t be before the start date.'; return; }
+    } else {
+      sol.fecha = $('eFecha').value; sol.horaIni = $('eIni').value; sol.horaFin = $('eFin').value;
+      if(s.tipo === 'turno'){ sol.almIni = $('eAlmIni').value; sol.almFin = $('eAlmFin').value; }
+      const e = !sol.fecha ? 'Choose the date.' : (!sol.horaIni || !sol.horaFin) ? 'Fill in both times.' : sol.horaFin <= sol.horaIni ? 'The end time must be after the start time.'
+        : s.tipo === 'turno' && (!!sol.almIni !== !!sol.almFin) ? 'Fill in both lunch times or leave both empty.'
+        : s.tipo === 'turno' && sol.almIni && !(sol.horaIni < sol.almIni && sol.almIni < sol.almFin && sol.almFin < sol.horaFin) ? 'Lunch must be inside the shift.' : '';
+      if(e){ $('xErr').textContent = e; return; }
+    }
+    p = { id:s.id, sol, respuesta:nota };
+    if(s.tipo === 'ausencia'){ p.pagada = $('xPagada').checked; p.horas = p.pagada ? Number($('xHoras').value) : 0;
+      if(p.pagada && !(p.horas > 0 && p.horas <= 12)){ $('xErr').textContent = 'Hours per day must be between 0 and 12.'; return; } }
+    accion = 'modificarSolicitud';
+  }
+  b.disabled = true;
+  try{
+    await api(accion, p);
+    cerrar('ovDec'); toast(modo === 'deshacer' ? 'Approval undone. The request is pending again.' : 'Request updated.');
+    S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
+  }catch(e){ $('xErr').textContent = e.message; b.disabled = false; }
+}
+
+/* ══════════════════ EDITAR HORAS DEL PERIODO (hoja por agente) ══════════════════
+   Una tabla con un renglón por día: Clock in, Lunch start, Lunch end, Clock out.
+   Se edita con Tab como una hoja de cálculo y se guarda todo junto
+   (reloj_corregir_lote: si un día no cuadra no se guarda nada y dice cuál). */
+const STD_CLAVE = 'reloj_dia_estandar';
+const CAMPOS_PH = ['entrada', 'almuerzo_ini', 'almuerzo_fin', 'salida'];
+function stdDia(){ try{ const v = JSON.parse(localStorage.getItem(STD_CLAVE) || 'null'); if(Array.isArray(v) && v.length === 4) return v; }catch(e){} return ['08:00', '12:00', '13:00', '17:00']; }
+// ¿El día cabe en las 4 casillas? (una entrada, a lo sumo un almuerzo, una salida, en orden)
+function diaSimple(marcas){
+  const t = marcas.map(m => m.tipo).join(',');
+  return ['', 'entrada', 'entrada,salida', 'entrada,almuerzo_ini', 'entrada,almuerzo_ini,almuerzo_fin', 'entrada,almuerzo_ini,almuerzo_fin,salida'].includes(t);
+}
+const aMin = x => { if(!x) return null; const [h, m] = x.split(':').map(Number); return h * 60 + m; };
+function abrirPeriodo(usuario){
+  const h = S.hoja; if(!h) return;
+  const lista = h.empleados.map(e => e.usuario);
+  S.ph = { usuario, lista, sucio:false, avisoSalir:false };
+  const e = h.empleados.find(x => x.usuario === usuario);
+  $('phTitulo').textContent = e.nombre;
+  $('phSub').textContent = 'Edit hours · ' + diaS(h.desde) + ' – ' + diaS(h.hasta) + ' · ' + (e.horasDia || 8) + ' h/day';
+  const st = stdDia(); [0,1,2,3].forEach(i => { $('phStd' + i).value = st[i]; });
+  $('phErr').textContent = ''; $('phMotivo').value = '';
+  const i = lista.indexOf(usuario);
+  $('phAnt').disabled = i <= 0; $('phSig').disabled = i >= lista.length - 1;
+  $('phGuardarSig').classList.toggle('hidden', i >= lista.length - 1);
+  let t = '<thead><tr><th>Day</th><th>Clock in</th><th>Lunch start</th><th>Lunch end</th><th>Clock out</th><th style="text-align:right">Hours</th><th></th></tr></thead><tbody>';
+  h.fechas.forEach(f => {
+    const d = e.dias[f], marcas = d ? d.marcas : [], futuro = f > h.hoy, finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
+    const tags = (d && d.aprobado ? '<span class="tag ok">✓</span>' : '') + (d && d.ausencia ? '<span class="tag">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '');
+    const diaTd = '<td class="phdia' + (finde ? ' fin' : '') + '">' + esc(diaS(f).replace(/,.*$/, '')) + ' ' + diaN(f) + tags + '</td>';
+    if(futuro){ S.ph.futuros = (S.ph.futuros || 0) + 1; return; }
+    if(!diaSimple(marcas)){
+      t += '<tr class="bloq" data-f="' + f + '">' + diaTd + '<td colspan="4" class="nota" style="white-space:normal">' +
+        esc(marcas.map(m => (NOMBRE_TIPO[m.tipo] || m.tipo) + ' ' + hora(m.ms)).join(' · ')) + '</td><td class="hrs num">' + hm(d.min) + '</td>' +
+        '<td><button class="btn-link" type="button" data-dia="' + f + '">Edit day</button></td></tr>';
+      return;
+    }
+    const v = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); });
+    const orig = CAMPOS_PH.map(k => v[k] || '').join('|');
+    t += '<tr data-f="' + f + '" data-orig="' + orig + '">' + diaTd +
+      CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '" aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
+      '<td class="hrs num"></td><td><button class="x" type="button" title="Clear this day" aria-label="Clear ' + esc(diaS(f)) + '">×</button></td></tr>';
+  });
+  if(S.ph.futuros) t += '<tr class="bloq"><td colspan="7" class="nota">' + S.ph.futuros + ' future ' + (S.ph.futuros === 1 ? 'day' : 'days') + ' in this period (not editable yet)</td></tr>';
+  $('phTabla').innerHTML = t + '</tbody>';
+  $('phTabla').querySelectorAll('tr[data-orig]').forEach(tr => {
+    tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => revisarFilaPH(tr)));
+    tr.querySelector('.x').addEventListener('click', () => { tr.querySelectorAll('input').forEach(x => { x.value = ''; }); revisarFilaPH(tr); });
+    revisarFilaPH(tr);
+  });
+  $('phTabla').querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
+    if(S.ph.sucio){ $('phErr').textContent = 'Save or undo your changes first.'; return; }
+    cerrar('ovHoras'); abrirDia(usuario, b.dataset.dia, S.hoja); editarDia();
+  }));
+  contarPH();
+  abrir('ovHoras');
+  const prim = $('phTabla').querySelector('tr[data-orig] input'); if(prim) setTimeout(() => prim.focus(), 60);
+}
+// Valida un renglón, calcula sus horas y marca si cambió.
+function revisarFilaPH(tr){
+  const f = tr.dataset.f, val = {}; tr.querySelectorAll('input').forEach(x => { val[x.dataset.k] = x.value; });
+  const [a, b, c, d] = CAMPOS_PH.map(k => aMin(val[k]));
+  const vacio = a == null && b == null && c == null && d == null;
+  let err = '';
+  if(!vacio){
+    if(a == null) err = 'Clock in is missing.';
+    else if((b == null) !== (c == null) && !(f === S.hoja.hoy && b != null && c == null && d == null)) err = 'Fill in both lunch times.';
+    else if(d == null && f !== S.hoja.hoy) err = 'Clock out is missing.';
+    else if(b != null && b <= a) err = 'Lunch must be after clock in.';
+    else if(c != null && b != null && c <= b) err = 'Lunch end must be after lunch start.';
+    else if(d != null && d <= Math.max(a, c == null ? a : c)) err = 'Clock out must be after the other times.';
+    else if(d != null && b != null && c == null) err = 'Fill in both lunch times.';
+  }
+  const mins = vacio || err || d == null ? null : (d - a) - (b != null ? c - b : 0);
+  tr.querySelector('.hrs').textContent = mins == null ? (vacio ? '—' : '') : hm(mins);
+  const ahora = CAMPOS_PH.map(k => val[k] || '').join('|');
+  tr.classList.toggle('cambio', ahora !== tr.dataset.orig && !err);
+  tr.classList.toggle('malo', !!err);
+  let msg = tr.querySelector('.msg');
+  if(err){ if(!msg){ msg = document.createElement('div'); msg.className = 'msg'; tr.querySelector('.hrs').appendChild(msg); } msg.textContent = err; }
+  else if(msg) msg.remove();
+  tr.title = err;
+  contarPH();
+}
+function contarPH(){
+  const n = $('phTabla').querySelectorAll('tr.cambio').length, m = $('phTabla').querySelectorAll('tr.malo').length;
+  S.ph.sucio = n > 0 || m > 0;
+  $('phCambios').textContent = (n ? n + (n === 1 ? ' day changed' : ' days changed') : 'No changes') + (m ? ' · ' + m + ' with errors' : '') + (n ? ' · edited days lose their approval' : '');
+  $('phGuardar').disabled = !n || m > 0; $('phGuardarSig').disabled = m > 0;
+  if(n || m) S.ph.avisoSalir = false;
+}
+$('phLlenar').addEventListener('click', () => {
+  const st = [0,1,2,3].map(i => $('phStd' + i).value);
+  if(!st[0] || !st[3]){ $('phErr').textContent = 'Set the standard clock in and clock out first.'; return; }
+  try{ localStorage.setItem(STD_CLAVE, JSON.stringify(st)); }catch(e){}
+  let n = 0;
+  $('phTabla').querySelectorAll('tr[data-orig]').forEach(tr => {
+    const f = tr.dataset.f, dw = new Date(f + 'T12:00:00Z').getUTCDay(), ins = tr.querySelectorAll('input');
+    if(dw === 0 || dw === 6 || f >= S.hoja.hoy || tr.querySelector('.tag:not(.ok)')) return;
+    if(Array.from(ins).some(x => x.value)) return;
+    ins.forEach((x, i) => { x.value = st[i] || ''; }); revisarFilaPH(tr); n++;
+  });
+  $('phErr').textContent = n ? '' : 'There are no empty past weekdays to fill.';
+});
+function cambiosPH(){
+  return Array.from($('phTabla').querySelectorAll('tr.cambio')).map(tr => {
+    const val = {}; tr.querySelectorAll('input').forEach(x => { val[x.dataset.k] = x.value; });
+    return { fecha:tr.dataset.f, marcas:CAMPOS_PH.filter(k => val[k]).map(k => ({ tipo:k, hora:val[k] })) };
+  });
+}
+async function guardarPH(siguiente){
+  const dias = cambiosPH();
+  if($('phTabla').querySelector('tr.malo')){ $('phErr').textContent = 'Fix the days marked in red first.'; return; }
+  const btns = [$('phGuardar'), $('phGuardarSig')]; btns.forEach(b => { b.disabled = true; });
+  $('phErr').textContent = '';
+  try{
+    if(dias.length){
+      await api('corregirLote', { usuario:S.ph.usuario, dias, motivo:$('phMotivo').value.trim() });
+      toast(dias.length + (dias.length === 1 ? ' day saved.' : ' days saved.'));
+      S.hojaHoy = null; S.yoEn = 0;
+      S.hoja = await api('hoja', S.periodo); pintarHoja();
+    }
+    const i = S.ph.lista.indexOf(S.ph.usuario);
+    abrirPeriodo(siguiente && i < S.ph.lista.length - 1 ? S.ph.lista[i + 1] : S.ph.usuario);
+  }catch(e){ $('phErr').textContent = e.message; contarPH(); }
+}
+$('phGuardar').addEventListener('click', () => guardarPH(false));
+$('phGuardarSig').addEventListener('click', () => guardarPH(true));
+function moverPH(d){
+  if(S.ph.sucio && !S.ph.avisoSalir){ S.ph.avisoSalir = true; $('phErr').textContent = 'You have unsaved changes. Click again to discard them.'; return; }
+  const i = S.ph.lista.indexOf(S.ph.usuario) + d;
+  if(i >= 0 && i < S.ph.lista.length) abrirPeriodo(S.ph.lista[i]);
+}
+$('phAnt').addEventListener('click', () => moverPH(-1));
+$('phSig').addEventListener('click', () => moverPH(1));
+$('phCerrar').addEventListener('click', () => {
+  if(S.ph.sucio && !S.ph.avisoSalir){ S.ph.avisoSalir = true; $('phErr').textContent = 'You have unsaved changes. Click Close again to discard them.'; return; }
+  cerrar('ovHoras');
 });
 
 /* ══════════════════ MODO DE EJEMPLO (?demo=1) ══════════════════
@@ -1906,6 +2190,24 @@ async function demoApi(action, p){
     if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? ['vacaciones','enfermedad'].includes(s.clase) : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? 8 : p.horas) : 0; }
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
+  }
+  if(action === 'corregirLote'){
+    p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
+      DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
+    return { ok:true, dias:p.dias.length };
+  }
+  if(action === 'revertir' || action === 'modificarSolicitud'){
+    const s = DM.sols.find(x => x.id === p.id); if(!s || s.estado !== 'aprobada') throw new Error('Only an approved request can be ' + (action === 'revertir' ? 'undone.' : 'edited.'));
+    if(s.tipo !== 'ausencia'){
+      const k = s.usuario + '|' + s.fecha, quitar = s.tipo === 'turno' ? [['entrada', s.horaIni], ['salida', s.horaFin]].concat(s.almIni ? [['almuerzo_ini', s.almIni], ['almuerzo_fin', s.almFin]] : [])
+        : [['almuerzo_ini', s.horaIni], ['almuerzo_fin', s.horaFin]];
+      DM.marcas[k] = (DM.marcas[k] || []).filter(m => { const i = quitar.findIndex(q => q[0] === m.tipo && q[1] === hhmm(m.ms)); if(i >= 0){ quitar.splice(i, 1); return false; } return true; });
+      delete DM.aprob[k];
+    }
+    if(action === 'revertir'){ s.estado = 'pendiente'; s.decididaPor = null; s.decidida = null; s.pagada = null; s.horasDia = null; s.respuesta = p.respuesta || ''; return { ok:true }; }
+    Object.assign(s, p.sol); if(s.tipo !== 'ausencia') s.fechaFin = s.fecha; if(s.almIni === '') s.almIni = s.almFin = null;
+    s.estado = 'pendiente';
+    return demoApi('decidir', { id:s.id, aprobar:true, respuesta:p.respuesta, pagada:p.pagada, horas:p.horas });
   }
   if(action === 'guardarEmpleado'){ const i = DM.emps.findIndex(e => e.usuario === p.empleado.usuario); if(i >= 0) DM.emps[i] = p.empleado; else DM.emps.push(p.empleado); return { empleados:DM.emps }; }
   throw new Error('Action not available in demo mode.');
