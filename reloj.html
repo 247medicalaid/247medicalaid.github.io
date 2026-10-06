@@ -311,6 +311,14 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 .ficha-grid .ancho{grid-column:1/-1}
 @media (max-width:640px){ .ficha-grid{grid-template-columns:1fr} }
+.listas{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:14px}
+.lista h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px}
+.lista .op{display:flex;gap:4px;margin-bottom:5px}
+.lista input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--paper)}
+.lista .op button{border:1px solid var(--line);background:var(--paper);border-radius:8px;width:34px;cursor:pointer;color:var(--text-muted);font-size:16px}
+.lista .op button:hover{color:var(--accent-600);border-color:var(--accent-500)}
+.lista .nueva{display:flex;gap:4px;margin-top:2px}
+.lista .nueva button{border:1px solid var(--brand-500);background:var(--brand-50);color:var(--brand-700);border-radius:8px;padding:0 10px;cursor:pointer;font-weight:700;font-size:13px}
 .users-barra{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .users-barra input,.users-barra select{padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);font-size:14px}
 .users-barra input{min-width:220px}
@@ -584,6 +592,13 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <button class="btn btn-ink btn-sm" id="ajGuardar" type="button">Save</button>
       <span class="nota" id="ajEstado" style="margin-left:8px"></span>
     </div>
+    <div class="ajuste">
+      <h2>Lists</h2>
+      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it.</p>
+      <div class="listas" id="ajListas"></div>
+      <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
+      <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
+    </div>
   </section>
 
   <!-- ADMIN: EMPLEADOS -->
@@ -638,8 +653,8 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     </div>
     <div class="ficha-sec"><h3>Work</h3>
       <div class="ficha-grid">
-        <label class="campo"><span>Account</span><input id="eCuenta" list="eCuentas" autocomplete="off" placeholder="e.g. GASTRO, CARDIO, 24/7 Medical"><datalist id="eCuentas"></datalist></label>
-        <label class="campo"><span>Department</span><input id="eDepto" list="eDeptos" autocomplete="off" placeholder="e.g. Call Center"><datalist id="eDeptos"><option>Call Center</option><option>Human Resources</option></datalist></label>
+        <label class="campo"><span>Account</span><select id="eCuenta"></select></label>
+        <label class="campo"><span>Department</span><select id="eDepto"></select></label>
         <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select></label>
         <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
         <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
@@ -654,19 +669,19 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <div class="ficha-grid">
         <label class="campo"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
         <label class="campo"><span>Email</span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
-        <label class="campo"><span>ID type</span><input id="eTipoId" list="eTiposId" autocomplete="off" placeholder="e.g. CC, Passport"><datalist id="eTiposId"><option>CC</option><option>CE</option><option>Passport</option><option>SSN</option></datalist></label>
-        <label class="campo"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
         <label class="campo"><span>Birthday</span><input id="eCumple" type="date"></label>
         <label class="campo"><span>City</span><input id="eCiudad" autocomplete="off"></label>
         <label class="campo ancho"><span>Home address</span><input id="eDir" autocomplete="off"></label>
-        <label class="campo ancho"><span>Emergency contact</span><input id="eEmerg" autocomplete="off" placeholder="Name, relationship and phone"></label>
       </div>
     </div>
-    <div class="ficha-sec"><h3>Bank</h3>
+    <div class="ficha-sec"><h3>Bank information</h3>
       <div class="ficha-grid">
-        <label class="campo"><span>Bank name</span><input id="eBanco" autocomplete="off"></label>
+        <label class="campo"><span>ID type</span><select id="eTipoId"></select></label>
+        <label class="campo"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
+        <label class="campo"><span>Bank name</span><select id="eBanco"></select></label>
         <label class="campo"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
       </div>
+      <p class="nota" style="margin:-4px 0 4px">Edit the options of Account, Department, ID type and Bank name in <b>Settings → Lists</b>.</p>
     </div>
     <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
     <div class="err" id="eErr"></div>
@@ -1008,6 +1023,7 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede cambiar los ajustes\.$/, 'Only an administrator can change settings.'],
   [/^Aproximación no válida\.$/, 'Invalid rounding.'],
   [/^Ajuste desconocido\.$/, 'Unknown setting.'],
+  [/^Listas no válidas\.$/, 'Invalid lists.'],
   [/^Correo no válido\.$/, 'Invalid email.'],
   [/^Hora de entrada no válida\.$/, 'Invalid scheduled start.'],
   [/^Pago por hora no válido\.$/, 'Invalid pay rate.'],
@@ -1028,7 +1044,8 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; }); }catch(e){}
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1;
+    if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -1141,7 +1158,7 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 
 async function empleadosSB(){
   await sesionSB();
-  const [emps, perfiles] = await Promise.all([q(sb.from('reloj_empleados').select('*')), q(sb.from('perfiles').select('usuario,nombre,activo'))]);
+  const [emps, perfiles] = await Promise.all([q(sb.from('reloj_empleados').select('*')), q(sb.from('perfiles').select('usuario,nombre,activo')), cargarConfig()]);
   // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
   if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
   return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
@@ -1741,7 +1758,19 @@ function pintarEmps(){
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
-  contactoEmergencia:'eEmerg', banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas' };
+  banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas' };
+// Listas de Settings → Lists para los campos que se eligen.
+const LISTA_DE = { cuenta:'cuentas', departamento:'departamentos', tipoId:'tiposId', banco:'bancos' };
+const LISTAS_BASE = { cuentas:['24/7 Medical','CARDIO','GASTRO','MAB Pulmonary','Total Sleep'], departamentos:['Call Center','Human Resources'],
+  tiposId:['CC','CE','Passport','SSN'], bancos:['Bancolombia','Banco de Bogotá','BBVA','Davivienda','Nequi'] };
+const listas = () => S.listas || LISTAS_BASE;
+// Llena un select con las opciones de la lista; si el usuario tiene un valor que ya no está, se conserva marcado.
+function llenarSelect(id, opciones, actual){
+  const ops = opciones.slice(); let extra = '';
+  if(actual && ops.indexOf(actual) < 0) extra = '<option value="' + esc(actual) + '">' + esc(actual) + ' (not in list)</option>';
+  $(id).innerHTML = '<option value="">—</option>' + extra + ops.map(o => '<option value="' + esc(o) + '">' + esc(o) + '</option>').join('');
+  $(id).value = actual || '';
+}
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
   $('eTitulo').textContent = e ? 'Edit user' : 'Add user';
@@ -1752,15 +1781,16 @@ function abrirEmp(usuario){
   const mon = S.emps.monitor.map(m => m.agente);
   if(e && e.agenteMonitor && mon.indexOf(e.agenteMonitor) < 0) mon.push(e.agenteMonitor);
   $('eMonitor').innerHTML = '<option value="">Not linked</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
-  const cuentas = Array.from(new Set((S.emps.cuentas || []).concat(S.emps.monitor.map(m => m.cuenta), S.emps.empleados.map(x => x.cuenta)).filter(Boolean))).sort();
-  $('eCuentas').innerHTML = cuentas.map(c => '<option>' + esc(c) + '</option>').join('');
   $('eUsuario').value = e ? e.usuario : '';
   $('eNombre').value = e ? e.nombre : '';
   $('eMonitor').value = e ? e.agenteMonitor : '';
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
   $('eActivo').value = !e || e.activo ? 'si' : 'no';
-  Object.keys(CAMPOS_FICHA).forEach(k => { $(CAMPOS_FICHA[k]).value = e ? (e[k] || '') : (k === 'departamento' ? 'Call Center' : ''); });
+  Object.keys(CAMPOS_FICHA).forEach(k => {
+    const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
+    if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
+  });
   $('eErr').textContent = '';
   abrir('ovEmp');
 }
@@ -1771,11 +1801,12 @@ $('eUsuario').addEventListener('change', () => {
   if(!$('eNombre').value) $('eNombre').value = pp.nombre;
   const n = pp.nombre.toLowerCase();
   const m = S.emps.monitor.find(x => x.agente.toLowerCase() === n);
-  if(m && !$('eMonitor').value){ $('eMonitor').value = m.agente; if(!$('eCuenta').value && m.cuenta) $('eCuenta').value = m.cuenta; }
+  if(m && !$('eMonitor').value){ $('eMonitor').value = m.agente; proponerCuenta(m.cuenta); }
   if(!$('eNomina').value) $('eNomina').value = pp.nombre.toUpperCase();
 });
 // Al elegir el agente del Monitor, se propone su cuenta.
-$('eMonitor').addEventListener('change', () => { const m = S.emps.monitor.find(x => x.agente === $('eMonitor').value); if(m && m.cuenta && !$('eCuenta').value) $('eCuenta').value = m.cuenta; });
+function proponerCuenta(c){ if(!c || $('eCuenta').value) return; const l = listas().cuentas || [], i = l.map(x => x.toLowerCase()).indexOf(c.toLowerCase()); if(i >= 0) $('eCuenta').value = l[i]; }
+$('eMonitor').addEventListener('change', () => { const m = S.emps.monitor.find(x => x.agente === $('eMonitor').value); if(m) proponerCuenta(m.cuenta); });
 $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:$('eUsuario').value.trim().toLowerCase(), nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:$('eActivo').value === 'si' };
@@ -1799,7 +1830,42 @@ function ejemploRedondeo(r){
   if(r === 1) return 'Hours are counted to the exact minute: clock in <b>8:07 AM</b>, clock out <b>5:08 PM</b> → 9 h 1 min.';
   return 'Example: clock in 8:07 AM counts as <b>' + ron(487) + '</b> · clock out 5:08 PM counts as <b>' + ron(1028) + '</b> · lunch 12:04–12:56 PM counts as <b>' + ron(724) + '–' + ron(776) + '</b>.';
 }
+const NOMBRE_LISTA = { cuentas:'Account', departamentos:'Department', tiposId:'ID type', bancos:'Bank name' };
+function pintarListas(){
+  const L = listas();
+  $('ajListas').innerHTML = Object.keys(NOMBRE_LISTA).map(k => '<div class="lista" data-l="' + k + '"><h3>' + NOMBRE_LISTA[k] + '</h3>' +
+    '<div class="ops">' + (L[k] || []).map(o => filaOp(o)).join('') + '</div>' +
+    '<div class="nueva"><input placeholder="New option" maxlength="80" aria-label="New ' + NOMBRE_LISTA[k] + ' option"><button type="button">Add</button></div></div>').join('');
+  $('ajListas').querySelectorAll('.lista').forEach(enlazarLista);
+  $('ajListasEstado').textContent = '';
+}
+const filaOp = o => '<div class="op"><input value="' + esc(o) + '" maxlength="80" aria-label="Option"><button type="button" title="Remove" aria-label="Remove ' + esc(o) + '">×</button></div>';
+function enlazarLista(div){
+  const ops = div.querySelector('.ops'), nueva = div.querySelector('.nueva input');
+  const quitar = () => ops.querySelectorAll('.op button').forEach(b => { b.onclick = () => { b.parentNode.remove(); $('ajListasEstado').textContent = 'Unsaved changes'; }; });
+  quitar();
+  ops.addEventListener('input', () => { $('ajListasEstado').textContent = 'Unsaved changes'; });
+  const agregar = () => { const v = nueva.value.trim(); if(!v) return; ops.insertAdjacentHTML('beforeend', filaOp(v)); nueva.value = ''; quitar(); nueva.focus(); $('ajListasEstado').textContent = 'Unsaved changes'; };
+  div.querySelector('.nueva button').onclick = agregar;
+  nueva.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
+}
+$('ajListasGuardar').addEventListener('click', async () => {
+  const val = {};
+  $('ajListas').querySelectorAll('.lista').forEach(div => {
+    const vistos = new Set(), l = [];
+    div.querySelectorAll('.op input').forEach(i => { const v = i.value.trim(); if(v && !vistos.has(v.toLowerCase())){ vistos.add(v.toLowerCase()); l.push(v); } });
+    const pend = div.querySelector('.nueva input').value.trim(); if(pend && !vistos.has(pend.toLowerCase())) l.push(pend);
+    val[div.dataset.l] = l.sort((a, b) => a.localeCompare(b, 'en', { sensitivity:'base' }));
+  });
+  const b = $('ajListasGuardar'); b.disabled = true;
+  try{
+    await api('guardarConfig', { clave:'listas', valor:val });
+    S.listas = val; pintarListas(); $('ajListasEstado').textContent = 'Saved.'; toast('Lists saved.');
+  }catch(e){ $('ajListasEstado').textContent = e.message; }
+  b.disabled = false;
+});
 function pintarAjustes(){
+  pintarListas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -2371,7 +2437,7 @@ async function demoApi(action, p){
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
   }
-  if(action === 'guardarConfig'){ S.redondeo = p.valor; return { ok:true }; }
+  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
       DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
