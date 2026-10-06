@@ -482,6 +482,11 @@ table.hoja{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .hoja tr.grupo td.tot{background:#E3EDF2}
 .celda .ot{font-size:10.5px;font-weight:700;color:#9A5B00;line-height:14px}
 .orden-hoja{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hoja tr.grupo.color td{background:color-mix(in srgb, var(--c) 16%, var(--paper))}
+.hoja tr.grupo.color td.nombre{background:var(--c);color:var(--tinta)}
+.hoja tr.grupo.color td.nombre .n{color:var(--tinta);opacity:.8}
+.hoja tr.grupo.color td.tot{background:color-mix(in srgb, var(--c) 24%, var(--paper))}
+.punto-cta{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:baseline;border:1px solid rgba(0,0,0,.12)}
 .orden-hoja label{display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--text-muted)}
 .orden-hoja input[type=checkbox]{width:16px;height:16px}
 .celda{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;min-width:46px;height:46px;
@@ -774,6 +779,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
       <span class="nota" id="hAprobarNota"></span>
       <span class="esp"></span>
+      <button class="btn btn-ink btn-sm" id="hExpNomina" title="Same columns as the Connecteam payroll export: approved hours and paid time off">Export payroll (Excel)</button>
       <button class="btn btn-ghost btn-sm" id="hExpResumen">Export summary for Payroll</button>
       <button class="btn btn-ghost btn-sm" id="hExpDetalle">Export daily detail</button>
     </div>
@@ -881,6 +887,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <div class="ficha-grid">
       <label class="campo"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
       <label class="campo"><span>Full name</span><input id="eNombre" autocomplete="off"></label>
+      <label class="campo"><span>Last name(s) <i class="opc" style="font-style:normal;font-weight:400">(for the payroll export)</i></span><input id="eApellidos" autocomplete="off" placeholder="Leave empty to take it from the full name"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
@@ -1143,6 +1150,47 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' PC absence' : ' PC absences') + ' during the clocked shift: ' + mins + ' min total.', min:mins });
   return f;
 }
+
+/* ── Colores de las cuentas: los de la Nómina (Settings de cada cuenta allá) ──
+   Se leen de nomina_docs (config) cada vez que se abre la Timesheet: si Carlos cambia
+   un color en la Nómina, aquí se ve al volver a cargar. Los nombres se emparejan como
+   en la Nómina (normalizeAccountName) y, si no, por prefijo («CARDIO» ↔ «CARDIOVASCULAR»). */
+function normCuenta(n){
+  const x = String(n || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  for(const k of ['WHITE WILSON', 'ACCESS', 'ADVANTAGE', 'TOTAL SLEEP', 'MAB', 'ALONSO']) if(x.indexOf(k) >= 0) return k;
+  return x.replace(/[^A-Z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function tintaDe(hex){   // la misma regla de la Nómina (ivTintaTexto)
+  const h = String(hex || '').replace('#', ''), c = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+  if(c.length !== 6) return '#FFFFFF';
+  const v = [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
+  const L = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  return ((L + 0.05) / 0.06454) > (1.05 / (L + 0.05)) ? '#0B2233' : '#FFFFFF';
+}
+const DEMO_COLORES = [{ nombre:'CARDIOVASCULAR', color:'#F2A93B' }, { nombre:'GASTROENTEROLOGY', color:'#fb7185' }, { nombre:'TOTAL SLEEP MANAGEMENT', color:'#34d399' },
+  { nombre:'MAB PULMONARY', color:'#818cf8' }, { nombre:'24/7 MEDICAL', color:'#38bdf8' }];
+async function cargarColores(){
+  if(S.coloresCargando) return S.coloresCargando;
+  S.coloresCargando = (async () => {
+    await null;   // que la asignación de arriba ocurra antes de soltar el candado
+    let l = [];
+    if(DEMO) l = DEMO_COLORES;
+    else try{ const r = await q(sb.from('nomina_docs').select('datos').eq('tipo', 'config').eq('clave', '_').maybeSingle());
+      let d = r && r.datos; if(typeof d === 'string') d = JSON.parse(d); l = (d && d.cuentas) || []; }catch(x){ l = []; }
+    S.coloresN = l.filter(c => c && c.nombre && /^#[0-9a-f]{3,6}$/i.test(String(c.color || ''))).map(c => ({ k:normCuenta(c.nombre), color:c.color }));
+    S.coloresCargando = null;
+    return S.coloresN;
+  })();
+  return S.coloresCargando;
+}
+function colorCuenta(nombre){
+  if(!nombre || !S.coloresN) return null;
+  const k = normCuenta(nombre); if(!k) return null;
+  const x = S.coloresN.find(c => c.k === k) || S.coloresN.find(c => k.length >= 4 && c.k.length >= 4 && (c.k.indexOf(k) === 0 || k.indexOf(c.k) === 0));
+  return x ? x.color : null;
+}
+// Si los colores no han llegado, se piden y se vuelve a pintar la vista.
+function asegurarColores(repintar){ if(!S.coloresN && !S.coloresCargando) cargarColores().then(() => { try{ repintar(); }catch(x){} }); }
 
 /* ── Ubicación (v16) ──
    Cada marca del agente trae lat, lng y precisión (metros). Una marca está LEJOS si,
@@ -1452,7 +1500,7 @@ const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.pars
 const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
-  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '',
+  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '',
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
@@ -2418,6 +2466,7 @@ $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
 
 async function cargarHoja(){
+  S.coloresN = null;   // los colores se vuelven a leer de la Nómina
   $('hojaTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading and checking against the Monitor…</div>';
   try{
     S.hoja = await api('hoja', S.periodo);
@@ -2438,6 +2487,7 @@ function pintarHoja(){
   }
   const finde = f => [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
   const o = ordenHoja();
+  asegurarColores(() => { if(S.vista === 'hoja' && S.hoja === h) pintarHoja(); });
   $('hGrupo').checked = !!o.grupo; $('hOrden').value = o.por;
   const ord = (por, txt, tit) => '<button class="ord' + (o.por === por ? ' on' : '') + '" type="button" data-ord="' + por + '" title="' + tit + '">' + txt +
     (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
@@ -2455,7 +2505,8 @@ function pintarHoja(){
         grupoAct = g;
         const del = lista.filter(x => (x.cuenta || SIN_CUENTA) === g);
         const sum = k => del.reduce((s, x) => s + (x.totales[k] || 0), 0), ot = del.reduce((s, x) => s + otEmp(x), 0);
-        t += '<tr class="grupo"><td class="nombre">' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
+        const col = g === SIN_CUENTA ? null : colorCuenta(g);
+        t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '"><td class="nombre">' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
           '<td class="tot num">' + hm(sum('min')) + '</td><td class="tot ot num' + (ot ? '' : ' cero') + '">' + (ot ? hm(ot) : '—') + '</td>' +
           '<td class="tot num">' + hm(sum('minAprob')) + '</td><td class="tot num">' + (sum('minPto') ? hm(sum('minPto')) : '—') + '</td><td class="tot"></td></tr>';
       }
@@ -2715,6 +2766,105 @@ function descargarCSV(nombre, filas){
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 const horasDec = min => (min / 60).toFixed(2);
+
+/* ── Payroll con el formato de Connecteam (hoja «All Employees») ──
+   First name · Last name · Start Date · End Date · Branch · Job · Hourly rate (USD) ·
+   Total paid hours · Overtime · Total pay. Horas pagadas = horas APROBADAS + tiempo libre
+   pagado; overtime = lo aprobado de cada día por encima de las horas por día; pago =
+   tarifa × horas pagadas (redondeo bancario a centavos, como Connecteam). */
+const sinTildes = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+function partesNombre(e){
+  const full = sinTildes(e.nombreNomina || e.nombre), ap = sinTildes(e.apellidos);
+  if(ap){
+    if(full.endsWith(' ' + ap)) return [full.slice(0, full.length - ap.length).trim(), ap];
+    const quita = ap.split(' '), resto = full.split(' ').filter(w => quita.indexOf(w) < 0);
+    return [resto.join(' '), ap];
+  }
+  const w = full.split(' ').filter(Boolean);
+  if(w.length <= 1) return [w[0] || '', ''];
+  if(w.length === 2) return [w[0], w[1]];
+  if(w.length === 3) return [w[0], w[1] + ' ' + w[2]];
+  return [w.slice(0, 2).join(' '), w.slice(2).join(' ')];
+}
+const hhmm2 = min => { min = Math.round(min); return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); };
+function centavos(x){ const v = Math.round(x * 1e6) / 1e4, f = Math.floor(v), d = v - f; const r = Math.abs(d - .5) < 1e-6 ? (f % 2 === 0 ? f : f + 1) : Math.round(v); return r / 100; }
+function filasPayroll(h){
+  return empsVisibles().map(e => {
+    let aprob = 0, ot = 0;
+    Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(!d || !d.aprobado) return;
+      const m = Math.round(d.aprobado.horas * 60); aprob += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60)); });
+    const pagadas = aprob + (e.totales.minPto || 0), tarifa = e.pagoHora === '' ? null : Number(e.pagoHora), [nom, ape] = partesNombre(e);
+    const tiene = pagadas > 0;
+    return { nom, ape, cuenta:e.cuenta || '', job: tiene ? (e.cuenta || '') : '', tarifa: tiene && tarifa != null ? tarifa : '',
+             horas: tiene ? hhmm2(pagadas) : '', ot: tiene && ot ? hhmm2(ot) : '', pago: tiene && tarifa != null ? centavos(tarifa * pagadas / 60) : 0 };
+  });
+}
+// .xlsx mínimo (sin librerías): zip sin compresión con las 6 partes de un libro.
+const CRC_T = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b){ let c = 0xFFFFFFFF; for(let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipBlob(archivos){
+  const enc = new TextEncoder(), partes = [], central = []; let off = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255], u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  archivos.forEach(([nombre, texto]) => {
+    const nb = enc.encode(nombre), data = enc.encode(texto), crc = crc32(data);
+    const loc = new Uint8Array([0x50,0x4B,3,4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nb.length), ...u16(0)]);
+    partes.push(loc, nb, data);
+    central.push(new Uint8Array([0x50,0x4B,1,2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length),
+      ...u16(nb.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nb);
+    off += loc.length + nb.length + data.length;
+  });
+  const tam = central.reduce((s, x) => s + x.length, 0);
+  const fin = new Uint8Array([0x50,0x4B,5,6, ...u16(0), ...u16(0), ...u16(archivos.length), ...u16(archivos.length), ...u32(tam), ...u32(off), ...u16(0)]);
+  return new Blob([...partes, ...central, fin], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const xmlEsc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function xlsxPayroll(filas, desde, hasta){
+  const col = i => String.fromCharCode(65 + i), serie = f => (Date.parse(f + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000;
+  // estilos: 0 normal · 1 encabezado (negrita, fondo CFE2F3) · 2 fecha mm/dd/yyyy · 3 negrita · 4 negrita #,#00.00
+  const celda = (r, i, v, st) => {
+    const ref = col(i) + r, s = st ? ' s="' + st + '"' : '';
+    if(v === null || v === undefined) return '';
+    if(typeof v === 'number') return '<c r="' + ref + '"' + s + '><v>' + v + '</v></c>';
+    return '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>';
+  };
+  const enc = ['First name','Last name','Start Date','End Date','Branch','Job','Hourly rate (USD)','Total paid hours','Overtime','Total pay'];
+  let rows = '<row r="1">' + enc.map((t, i) => celda(1, i, t, 1)).join('') + '</row>';
+  filas.forEach((x, k) => { const r = k + 2;
+    rows += '<row r="' + r + '">' + [celda(r, 0, x.nom), celda(r, 1, x.ape), celda(r, 2, serie(desde), 2), celda(r, 3, serie(hasta), 2), celda(r, 4, x.cuenta),
+      celda(r, 5, x.job), celda(r, 6, x.tarifa), celda(r, 7, x.horas, 4), celda(r, 8, x.ot, 3), celda(r, 9, x.pago, 3)].join('') + '</row>'; });
+  const anchos = [16.7, 18.7, 10.7, 10.7, 16.7, 22.7, 17.7, 16.7, 8.7, 9.7];
+  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<dimension ref="A1:J' + (filas.length + 1) + '"/><sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>' +
+    anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols><sheetData>' + rows + '</sheetData>' +
+    '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';
+  const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="2"><numFmt numFmtId="164" formatCode="mm/dd/yyyy"/><numFmt numFmtId="166" formatCode="#,#00.00"/></numFmts>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFCFE2F3"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '<xf numFmtId="166" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  return zipBlob([
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="All Employees" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', estilos],
+    ['xl/worksheets/sheet1.xml', hoja]]);
+}
+$('hExpNomina').addEventListener('click', async () => {
+  const h = S.hoja; if(!h) return;
+  const sinAprobar = empsVisibles().reduce((s, e) => s + Object.keys(e.dias).filter(f => { const d = e.dias[f]; return d && d.marcas.length && !d.aprobado && f < h.hoy; }).length, 0);
+  if(sinAprobar && !(await confirmar('Export payroll?', '<b>' + sinAprobar + (sinAprobar === 1 ? ' day isn\'t' : ' days aren\'t') + ' approved yet.</b> Like Connecteam, the payroll only counts approved hours and paid time off, so those days won\'t be paid. You can approve them first in this Timesheet.', 'Export anyway'))) return;
+  const filas = filasPayroll(h);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(xlsxPayroll(filas, h.desde, h.hasta));
+  a.download = 'PAYROLL_247 - CONSOLIDATED_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/[^\w]+/g, '-') + '_' : '') + h.desde + '_' + h.hasta + '.xlsx';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Payroll exported: ' + filas.length + ' employees.');
+});
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
   const filas = [['Employee','Account','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
@@ -2754,6 +2904,7 @@ function botonInvitar(e){
     : k === 'sin' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Email them the link to create their password">Send invite</button>' : '';
 }
 function pintarEmps(){
+  asegurarColores(() => { if(S.vista === 'emps' && S.emps) pintarEmps(); });
   const todos = S.emps.empleados;
   const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
   const fc = $('uCuenta').value; $('uCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === fc ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
@@ -2765,7 +2916,7 @@ function pintarEmps(){
   if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users match</h2><p>Try another search or filter.</p></div>'; return; }
   $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Monitor</th><th></th></tr></thead><tbody>' +
     l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') + '<small>' + esc(e.email || e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
-      '<td>' + (e.cuenta ? esc(e.cuenta) : '<span class="pill no">No account</span>') + '</td>' +
+      '<td>' + (e.cuenta ? (colorCuenta(e.cuenta) ? '<i class="punto-cta" style="background:' + colorCuenta(e.cuenta) + '"></i>' : '') + esc(e.cuenta) : '<span class="pill no">No account</span>') + '</td>' +
       '<td>' + esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') + '</td>' +
       '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
       '<td class="num">' + (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h</td>' +
@@ -2777,7 +2928,7 @@ function pintarEmps(){
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
-  banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas' };
+  banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
 // Listas de Settings → Lists para los campos que se eligen.
 const LISTA_DE = { cuenta:'cuentas', departamento:'departamentos', tipoId:'tiposId', banco:'bancos' };
 const LISTAS_BASE = { cuentas:['24/7 Medical','CARDIO','GASTRO','MAB Pulmonary','Total Sleep'], departamentos:['Call Center','Human Resources'],
