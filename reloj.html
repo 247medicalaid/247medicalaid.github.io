@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
-<title>Reloj · 24/7 Medical Aid</title>
+<title>Time Clock · 24/7 Medical Aid</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304141F'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%2317A9DE' stroke-width='2.6'/%3E%3Cpath d='M16 11v5l3.5 2.5' stroke='%23ED3237' stroke-width='2.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./sb.js?v=3"></script>
@@ -45,7 +45,7 @@ button,input,select{font:inherit;color:inherit}
   display:flex;align-items:center;gap:14px}
 .marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .marca img{height:30px;width:auto}
-.marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700)}
+.marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700);white-space:nowrap}
 .top .esp{flex:1}
 @media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px} }
 .esfera .yo{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;margin-bottom:2px}
@@ -66,13 +66,45 @@ button,input,select{font:inherit;color:inherit}
 .btn-sm{padding:7px 13px;font-size:13px}
 .btn-link{border:0;background:none;color:var(--brand-700);font-weight:700;cursor:pointer;padding:4px 2px;font-size:14px}
 
-/* ── pestañas del administrador ── */
-.tabs{display:flex;gap:4px;padding:10px clamp(14px,4vw,32px) 0;background:var(--paper);
-  border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
-.tab{border:0;background:none;padding:10px 14px 12px;font-family:var(--font-display);font-weight:700;font-size:14.5px;
-  color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
-.tab[aria-selected="true"]{color:var(--ink-900);border-bottom-color:var(--accent-500)}
+/* ── menú lateral del administrador ──
+   ≥1000 px: barra completa con texto · 700–999 px (p. ej. el Fold abierto): riel de
+   íconos con su nombre debajo · <700 px: se abre con el botón ☰ y se cierra solo. */
+.marco{display:flex;align-items:flex-start}
+.marco > main{flex:1;min-width:0}
+.lateral{position:sticky;top:var(--top-h,57px);height:calc(100vh - var(--top-h,57px));width:236px;flex:none;
+  background:var(--ink-900);color:#B7CDD8;padding:18px 12px 16px;display:flex;flex-direction:column;gap:2px;
+  overflow-y:auto;z-index:15}
+.lateral .grupo{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6F8D9C;
+  padding:14px 14px 6px}
+.lateral .grupo:first-child{padding-top:2px}
+.tab{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;border-radius:12px;
+  padding:11px 14px;font-family:var(--font-display);font-weight:700;font-size:14.5px;color:#B7CDD8;cursor:pointer;
+  text-align:left;white-space:nowrap;transition:background .15s,color .15s}
+.tab svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tab:hover{background:rgba(255,255,255,.07);color:#fff}
+.tab[aria-selected="true"]{background:rgba(23,169,222,.18);color:#fff;box-shadow:inset 3px 0 0 var(--accent-500)}
+.lateral .pie-lat{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.lateral .pie-lat a{text-decoration:none}
+.btn-menu{display:none;border:1px solid var(--line);background:var(--paper);border-radius:12px;width:42px;height:42px;
+  align-items:center;justify-content:center;cursor:pointer;flex:none}
+.btn-menu svg{width:22px;height:22px;stroke:var(--ink-900);fill:none;stroke-width:2;stroke-linecap:round}
+.cortina{display:none}
 main{max-width:1240px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,32px) 80px}
+@media (min-width:700px) and (max-width:999px){
+  .lateral{width:88px;padding:14px 8px;align-items:stretch}
+  .lateral .grupo{display:none}
+  .lateral .grupo + .tab, .lateral .sep-riel{margin-top:10px}
+  .tab{flex-direction:column;gap:5px;padding:10px 4px;font-size:11.5px;text-align:center;white-space:normal;line-height:1.15}
+  .tab[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--accent-500)}
+}
+@media (max-width:699px){
+  .btn-menu.activo{display:inline-flex}
+  .lateral{position:fixed;top:0;left:0;bottom:0;height:auto;width:min(212px,62vw);z-index:60;
+    padding-top:calc(20px + env(safe-area-inset-top,0px));transform:translateX(-105%);transition:transform .2s ease;
+    box-shadow:var(--shadow)}
+  .lateral.abierto{transform:none}
+  .cortina.abierta{display:block;position:fixed;inset:0;background:rgba(4,20,31,.45);z-index:55}
+}
 
 /* ── estado (forma + color) ── */
 .st{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:14px}
@@ -261,24 +293,33 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 </head>
 <body>
 
-<div class="velo" id="velo"><div class="spin"></div><span>Abriendo el reloj…</span></div>
+<div class="velo" id="velo"><div class="spin"></div><span>Opening the time clock…</span></div>
 
 <header class="top">
-  <a class="marca" href="https://247medicalaid.github.io/" title="Volver al portal">
+  <button class="btn-menu" id="btnMenu" type="button" aria-label="Open the menu" aria-controls="tabs" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <a class="marca" href="https://247medicalaid.github.io/" title="Back to the portal">
     <img src="https://247medical-aid.com/logo-247-dark.svg" alt="24/7 Medical Aid" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'txt',textContent:'24/7 Medical Aid'}))">
-    <span class="txt">Reloj</span>
+    <span class="txt">Time Clock</span>
   </a>
-  <span class="demo-tag hidden" id="demoTag">Modo de ejemplo</span>
+  <span class="demo-tag hidden" id="demoTag">Demo mode</span>
   <span class="esp"></span>
   <div class="quien"><b id="quienNom"></b><span id="quienRol"></span></div>
   <a class="btn btn-ghost btn-sm" href="https://247medicalaid.github.io/">Portal</a>
 </header>
 
-<nav class="tabs hidden" id="tabs" role="tablist">
-  <button class="tab" role="tab" data-v="reloj" id="tabReloj">Mi reloj</button>
-  <button class="tab" role="tab" data-v="hoy">Hoy</button>
-  <button class="tab" role="tab" data-v="hoja">Hoja de horas</button>
-  <button class="tab" role="tab" data-v="emps">Empleados</button>
+<div class="cortina" id="cortina"></div>
+<div class="marco">
+<nav class="lateral hidden" id="tabs" role="tablist" aria-orientation="vertical" aria-label="Time Clock menu">
+  <div class="grupo" id="grpMio">My day</div>
+  <button class="tab" role="tab" data-v="reloj" id="tabReloj"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg><span>My clock</span></button>
+  <div class="grupo">Admin</div>
+  <span class="sep-riel" aria-hidden="true"></span>
+  <button class="tab" role="tab" data-v="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Today</span></button>
+  <button class="tab" role="tab" data-v="hoja"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg><span>Timesheet</span></button>
+  <button class="tab" role="tab" data-v="emps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Employees</span></button>
+  <div class="pie-lat"><a class="tab" href="https://247medicalaid.github.io/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Portal</span></a></div>
 </nav>
 
 <main>
@@ -299,15 +340,15 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       </div>
       <div class="acciones" id="rAcciones"></div>
       <div class="cinta-box">
-        <h2>Tu día</h2>
+        <h2>Your day</h2>
         <div class="cinta" id="rCinta"></div>
         <div class="eje" id="rEje"></div>
         <ul class="marcas" id="rMarcas"></ul>
       </div>
       <div class="cinta-box">
-        <h2>Esta semana</h2>
+        <h2>This week</h2>
         <div class="semana" id="rSemana"></div>
-        <div class="total-sem"><span class="muted">Total de la semana</span><b class="num" id="rTotSem"></b></div>
+        <div class="total-sem"><span class="muted">Week total</span><b class="num" id="rTotSem"></b></div>
       </div>
     </div>
   </section>
@@ -315,19 +356,19 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <!-- SIN RELOJ -->
   <section id="vSin" class="hidden">
     <div class="vacio">
-      <h2>Tu usuario aún no tiene reloj</h2>
-      <p>Pídele al administrador que te agregue en la lista de empleados del Reloj.</p>
+      <h2>Your user doesn't have a time clock yet</h2>
+      <p>Ask the administrator to add you to the Time Clock employee list.</p>
     </div>
   </section>
 
   <!-- ADMIN: HOY -->
   <section id="vHoy" class="hidden">
     <div class="cabecera">
-      <h1>Hoy</h1>
+      <h1>Today</h1>
       <span class="muted cap" id="hoyFecha" style="display:inline-block"></span>
       <span class="esp"></span>
       <span class="nota" id="hoyAct"></span>
-      <button class="btn btn-ghost btn-sm" id="hoyRefrescar">Actualizar</button>
+      <button class="btn btn-ghost btn-sm" id="hoyRefrescar">Refresh</button>
     </div>
     <div class="resumen" id="hoyResumen"></div>
     <div id="hoyAvisos"></div>
@@ -337,28 +378,28 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <!-- ADMIN: HOJA DE HORAS -->
   <section id="vHoja" class="hidden">
     <div class="cabecera">
-      <h1>Hoja de horas</h1>
+      <h1>Timesheet</h1>
       <span class="esp"></span>
       <div class="periodo">
-        <select id="hPreset" aria-label="Periodo">
-          <option value="q0">Quincena actual</option>
-          <option value="q1">Quincena anterior</option>
-          <option value="s0">Esta semana</option>
-          <option value="s1">Semana pasada</option>
-          <option value="c">Otras fechas…</option>
+        <select id="hPreset" aria-label="Period">
+          <option value="q0">Current pay period</option>
+          <option value="q1">Previous pay period</option>
+          <option value="s0">This week</option>
+          <option value="s1">Last week</option>
+          <option value="c">Custom dates…</option>
         </select>
-        <input type="date" id="hDesde" class="hidden" aria-label="Desde">
-        <input type="date" id="hHasta" class="hidden" aria-label="Hasta">
+        <input type="date" id="hDesde" class="hidden" aria-label="From">
+        <input type="date" id="hHasta" class="hidden" aria-label="To">
       </div>
     </div>
     <div id="hojaAvisos"></div>
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
-      <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Aprobar días sin novedades</button>
+      <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
       <span class="nota" id="hAprobarNota"></span>
       <span class="esp"></span>
-      <button class="btn btn-ghost btn-sm" id="hExpResumen">Exportar resumen para Nómina</button>
-      <button class="btn btn-ghost btn-sm" id="hExpDetalle">Exportar detalle por día</button>
+      <button class="btn btn-ghost btn-sm" id="hExpResumen">Export summary for Payroll</button>
+      <button class="btn btn-ghost btn-sm" id="hExpDetalle">Export daily detail</button>
     </div>
     <div class="leyenda" id="hojaLeyenda"></div>
   </section>
@@ -366,14 +407,15 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <!-- ADMIN: EMPLEADOS -->
   <section id="vEmps" class="hidden">
     <div class="cabecera">
-      <h1>Empleados</h1>
+      <h1>Employees</h1>
       <span class="esp"></span>
-      <button class="btn btn-ink btn-sm" id="eNuevo">Agregar empleado</button>
+      <button class="btn btn-ink btn-sm" id="eNuevo">Add employee</button>
     </div>
-    <p class="nota" style="margin:-6px 0 14px;max-width:70ch">Cada empleado entra al Reloj con su usuario del portal. Créalo primero en el portal como Operador; no hace falta marcarle ninguna aplicación.</p>
+    <p class="nota" style="margin:-6px 0 14px;max-width:70ch">Each employee signs in to the Time Clock with their portal user. Create the user in the portal first as an Operator; you don't need to give them any app.</p>
     <div class="tabla-wrap" id="empsTabla"></div>
   </section>
 </main>
+</div>
 
 <!-- detalle de un día -->
 <div class="overlay hidden" id="ovDia" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
@@ -392,7 +434,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <h2 id="cTitulo"></h2>
     <p class="muted" id="cTexto" style="margin-top:6px"></p>
     <div class="pie">
-      <button class="btn btn-ghost" id="cNo">Cancelar</button>
+      <button class="btn btn-ghost" id="cNo">Cancel</button>
       <button class="btn btn-ink" id="cSi"></button>
     </div>
   </div>
@@ -401,21 +443,21 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 <!-- empleado -->
 <div class="overlay hidden" id="ovEmp" role="dialog" aria-modal="true" aria-labelledby="eTitulo">
   <div class="ventana" style="max-width:520px">
-    <h2 id="eTitulo">Agregar empleado</h2>
-    <div class="sub">Vincula su usuario del portal con su nombre en el Monitor y en Nómina.</div>
-    <label class="campo"><span>Usuario del portal</span><input id="eUsuario" list="eUsuarios" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ej.: laura.a"><datalist id="eUsuarios"></datalist><small>El mismo con el que entra al portal.</small></label>
-    <label class="campo"><span>Nombre</span><input id="eNombre" autocomplete="off"></label>
-    <label class="campo"><span>Agente en el Monitor</span><select id="eMonitor"></select>
-      <small>Con esto se comparan sus marcas con la actividad de su PC.</small></label>
-    <label class="campo"><span>Nombre en Nómina</span><input id="eNomina" autocomplete="off" placeholder="Como aparece en la Calculadora de Nómina"></label>
+    <h2 id="eTitulo">Add employee</h2>
+    <div class="sub">Links their portal user to their name in the Monitor and in Payroll.</div>
+    <label class="campo"><span>Portal user</span><input id="eUsuario" list="eUsuarios" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. laura.a"><datalist id="eUsuarios"></datalist><small>The same one they use to sign in to the portal.</small></label>
+    <label class="campo"><span>Name</span><input id="eNombre" autocomplete="off"></label>
+    <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select>
+      <small>Used to compare their punches with their PC activity.</small></label>
+    <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <label class="campo"><span>Horas por día</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
-      <label class="campo"><span>Estado</span><select id="eActivo"><option value="si">Activo</option><option value="no">Inactivo</option></select></label>
+      <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
+      <label class="campo"><span>Status</span><select id="eActivo"><option value="si">Active</option><option value="no">Inactive</option></select></label>
     </div>
     <div class="err" id="eErr"></div>
     <div class="pie">
-      <button class="btn btn-ghost" data-cerrar>Cancelar</button>
-      <button class="btn btn-ink" id="eGuardar">Guardar</button>
+      <button class="btn btn-ghost" data-cerrar>Cancel</button>
+      <button class="btn btn-ink" id="eGuardar">Save</button>
     </div>
   </div>
 </div>
@@ -436,7 +478,7 @@ const CLAVE  = 'portal247.sesion';
 // servidor: se abre directamente el modo de ejemplo.
 const DEMO   = new URLSearchParams(location.search).has('demo') || location.hostname !== '247medicalaid.github.io';
 
-const NOMBRE_TIPO = { entrada:'Entrada', almuerzo_ini:'Salida a almorzar', almuerzo_fin:'Regreso del almuerzo', salida:'Salida' };
+const NOMBRE_TIPO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
 const S = { token:null, yo:null, offset:0, zona:'America/New_York', vista:null, hoja:null, emps:null,
             periodo:null, timerReloj:null, timerHoy:null, ocupado:false, dia:null };
 
@@ -445,11 +487,11 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 
 /* ── tiempo ── */
 const ahora = () => Date.now() + S.offset;
-function fmt(ms, op){ return new Intl.DateTimeFormat('es-US', Object.assign({ timeZone:S.zona }, op)).format(new Date(ms)); }
+function fmt(ms, op){ return new Intl.DateTimeFormat('en-US', Object.assign({ timeZone:S.zona }, op)).format(new Date(ms)); }
 const hora   = ms => ms == null ? '—' : fmt(ms, { hour:'numeric', minute:'2-digit' });
 const hhmm   = ms => fmt(ms, { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
-const fechaL = f => new Intl.DateTimeFormat('es-US', { timeZone:'UTC', weekday:'long', day:'numeric', month:'long' }).format(new Date(f + 'T12:00:00Z'));
-const diaC   = f => new Intl.DateTimeFormat('es-US', { timeZone:'UTC', weekday:'short' }).format(new Date(f + 'T12:00:00Z')).replace('.', '');
+const fechaL = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'long', day:'numeric', month:'long' }).format(new Date(f + 'T12:00:00Z'));
+const diaC   = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'short' }).format(new Date(f + 'T12:00:00Z'));
 const diaN   = f => Number(f.slice(8));
 function hm(min){ if(min == null) return '—'; const h = Math.floor(min/60), m = Math.round(min%60); return h + ':' + String(m).padStart(2,'0'); }
 function dur(min){ const h = Math.floor(min/60), m = Math.round(min%60); return h ? (m ? h + ' h ' + m + ' min' : h + ' h') : m + ' min'; }
@@ -474,9 +516,9 @@ const IC = {
   info:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.2v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="4.9" r="1" fill="currentColor"/></svg>',
   ok:'<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
-const icono = n => '<span class="fl fl-' + n + '" title="' + ({alerta:'Alerta',aviso:'Aviso',info:'Nota',ok:'Aprobado'})[n] + '">' + IC[n] + '</span>';
+const icono = n => '<span class="fl fl-' + n + '" title="' + ({alerta:'Alert',aviso:'Warning',info:'Note',ok:'Approved'})[n] + '">' + IC[n] + '</span>';
 const nivelMax = fl => fl.some(b => b.n === 'alerta') ? 'alerta' : fl.some(b => b.n === 'aviso') ? 'aviso' : fl.length ? 'info' : null;
-const ESTADO_TXT = { trabajando:'Trabajando', almuerzo:'En almuerzo', fuera:'Fuera de turno', sin:'Sin marcar' };
+const ESTADO_TXT = { trabajando:'Working', almuerzo:'On lunch', fuera:'Off shift', sin:'Not clocked in' };
 const estadoHTML = (e, txt) => '<span class="st st-' + e + '"><i></i>' + esc(txt || ESTADO_TXT[e]) + '</span>';
 
 function toast(msg, tipo){
@@ -505,7 +547,8 @@ function alPortal(motivo){
    cuando responde. */
 const CFG = { TOLERANCIA_MIN: 15, AUSENCIA_MIN: 5, ALMUERZO_MAX_MIN: 60, SIN_ALMUERZO_MIN: 360, MAX_DIAS: 31 };
 const DOMINIO_SB = '@usuarios.247medical-aid.com';
-const EPISODIOS_AUSENCIA = { 'Inactivo': 1, 'Sin señal': 1, 'Sin internet': 1 };
+const EPISODIOS_AUSENCIA = { 'Inactivo': 1, 'Sin señal': 1, 'Sin internet': 1 };   // así los nombra el Monitor (datos, no texto)
+const EPISODIO_EN = { 'Inactivo':'Idle', 'Sin señal':'No signal', 'Sin internet':'No internet' };
 const MON_CLAVE = 'reloj_mon_v1';
 const TIEMPOS = [];
 
@@ -536,30 +579,30 @@ function armarDia(marcas, ahora, esHoy){
    undefined = todavía llegando, false = sin configurar, null = no respondió. */
 function banderas(dia, marcas, emp, mon, ahora){
   const f = [], tol = CFG.TOLERANCIA_MIN * 60000;
-  if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Falta marcar la salida. Las horas de este día no cuentan hasta corregirla.' });
-  if(dia.alm > CFG.ALMUERZO_MAX_MIN) f.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Almuerzo de ' + dia.alm + ' min: ' + (dia.alm - CFG.ALMUERZO_MAX_MIN) + ' min por encima de la hora.' });
-  if(!dia.almuerzos.length && !dia.enCurso && dia.min >= CFG.SIN_ALMUERZO_MIN) f.push({ c:'SIN_ALMUERZO', n:'info', t:'No marcó almuerzo.' });
+  if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' });
+  if(dia.alm > CFG.ALMUERZO_MAX_MIN) f.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + dia.alm + ' min: ' + (dia.alm - CFG.ALMUERZO_MAX_MIN) + ' min over the one-hour limit.' });
+  if(!dia.almuerzos.length && !dia.enCurso && dia.min >= CFG.SIN_ALMUERZO_MIN) f.push({ c:'SIN_ALMUERZO', n:'info', t:'No lunch was recorded.' });
   const corr = marcas.find(m => m.origen === 'admin');
-  if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corregido por ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
-  if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + ' marca(s) fuera de orden no se tuvieron en cuenta.' });
+  if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corrected by ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
+  if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + (dia.invalidas === 1 ? ' punch was' : ' punches were') + ' out of order and ignored.' });
   if(!marcas.length) return f;
-  if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'No está vinculado a un agente del Monitor: no se pudo verificar.' }); return f; }
-  if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Comparando con el Monitor…' }); return f; }
-  if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'La verificación con el Monitor no está configurada en este navegador.' }); return f; }
-  if(mon === null){ f.push({ c:'MONITOR_NO', n:'info', t:'El Monitor no respondió: no se pudo verificar.' }); return f; }
+  if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' }); return f; }
+  if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Checking against the Monitor…' }); return f; }
+  if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'Monitor verification isn\'t set up in this browser.' }); return f; }
+  if(mon === null){ f.push({ c:'MONITOR_NO', n:'info', t:'The Monitor didn\'t respond: could not be verified.' }); return f; }
   const a = mon[normal(emp.agenteMonitor)];
-  if(!a || a.p == null){ f.push({ c:'PC_SIN_SENAL', n:'alerta', t:'Marcó turno, pero su PC no reportó al Monitor en todo el día.' }); return f; }
+  if(!a || a.p == null){ f.push({ c:'PC_SIN_SENAL', n:'alerta', t:'Clocked a shift, but their PC never reported to the Monitor that day.' }); return f; }
   const ent = marcas.find(m => m.tipo === 'entrada');
-  if(ent && a.p - ent.ms > tol) f.push({ c:'PC_TARDE', n:'alerta', t:'Marcó entrada a las ' + hora(ent.ms) + '; su PC empezó a reportar a las ' + hora(a.p) + ' (' + Math.round((a.p - ent.ms) / 60000) + ' min después).' });
+  if(ent && a.p - ent.ms > tol) f.push({ c:'PC_TARDE', n:'alerta', t:'Clocked in at ' + hora(ent.ms) + '; their PC started reporting at ' + hora(a.p) + ' (' + Math.round((a.p - ent.ms) / 60000) + ' min later).' });
   const sal = marcas.filter(m => m.tipo === 'salida').pop();
-  if(sal && !dia.abierto && sal.ms - a.u > tol) f.push({ c:'PC_ANTES', n:'alerta', t:'Marcó salida a las ' + hora(sal.ms) + '; su PC dejó de reportar a las ' + hora(a.u) + ' (' + Math.round((sal.ms - a.u) / 60000) + ' min antes).' });
-  if(dia.enCurso && dia.estado === 'trabajando' && ahora - a.u > tol) f.push({ c:'PC_CALLADO', n:'alerta', t:'Está marcado como trabajando, pero su PC no reporta desde las ' + hora(a.u) + '.' });
+  if(sal && !dia.abierto && sal.ms - a.u > tol) f.push({ c:'PC_ANTES', n:'alerta', t:'Clocked out at ' + hora(sal.ms) + '; their PC stopped reporting at ' + hora(a.u) + ' (' + Math.round((sal.ms - a.u) / 60000) + ' min earlier).' });
+  if(dia.enCurso && dia.estado === 'trabajando' && ahora - a.u > tol) f.push({ c:'PC_CALLADO', n:'alerta', t:'Clocked in as working, but their PC hasn\'t reported since ' + hora(a.u) + '.' });
   let n = 0, mins = 0;
   (a.e || []).forEach(ep => {
     let s = 0; dia.bloques.forEach(b => { s += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); });
     s = Math.round(s / 60000); if(s >= CFG.AUSENCIA_MIN){ n++; mins += s; }
   });
-  if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' ausencia' : ' ausencias') + ' del PC durante el turno marcado: ' + mins + ' min en total.', min:mins });
+  if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' PC absence' : ' PC absences') + ' during the clocked shift: ' + mins + ' min total.', min:mins });
   return f;
 }
 
@@ -603,7 +646,7 @@ function construirHoja(raw, monDias, ahora){
       if(fl.some(b => b.n === 'alerta')) tot.alertas++;
     });
     return Object.assign({}, emp, { dias, totales:tot });
-  }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
   const pasadas = raw.fechas.filter(f => f <= hoy);
   return { desde:raw.desde, hasta:raw.hasta, hoy, ahora, zona:S.zona, fechas:raw.fechas, empleados,
            monitor: !pasadas.some(f => monDias[f] === false),
@@ -625,8 +668,36 @@ function reducirMonitor(j){
 
 /* ── conexión: leer, marcar y medir ── */
 function tiempo(nombre, t0){ const ms = Math.round(performance.now() - t0); TIEMPOS.push({ nombre, ms, en: Date.now() }); if(TIEMPOS.length > 60) TIEMPOS.shift(); window.__tiempos = TIEMPOS; return ms; }
-const seg = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
-async function q(p){ const { data, error } = await p; if(error){ const e = new Error(error.message || 'Error de la base de datos.'); e.codigo = error.code; throw e; } return data; }
+const seg = ms => (ms / 1000).toFixed(1) + ' s';
+async function q(p){ const { data, error } = await p; if(error){ const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
+/* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
+const SERVIDOR_EN = [
+  [/^Tu sesión no es válida.*/, 'Your session is not valid. Sign in to the portal again.'],
+  [/^Tu usuario aún no tiene reloj.*/, 'Your user doesn\'t have a time clock yet. Ask the administrator to add you.'],
+  [/^Tipo de marca no válido\.$/, 'Invalid punch type.'],
+  [/^Ya hiciste esa marca hace un momento\.$/, 'You already made that punch a moment ago.'],
+  [/^No tienes un turno abierto.*/, 'You don\'t have an open shift. Clock in first.'],
+  [/^Ya marcaste tu entrada\.$/, 'You already clocked in.'],
+  [/^Estás en almuerzo.*/, 'You\'re on lunch: end your lunch first.'],
+  [/^Solo un administrador puede corregir marcas\.$/, 'Only an administrator can correct punches.'],
+  [/^Solo un administrador puede aprobar\.$/, 'Only an administrator can approve.'],
+  [/^Solo un administrador puede editar empleados\.$/, 'Only an administrator can edit employees.'],
+  [/^Escribe el motivo de la corrección\.$/, 'Enter the reason for the correction.'],
+  [/^Ese empleado no existe en el Reloj\.$/, 'That employee doesn\'t exist in the Time Clock.'],
+  [/^No se pueden poner marcas en un día futuro\.$/, 'You can\'t add punches on a future day.'],
+  [/^Formato de marcas no válido\.$/, 'Invalid punch format.'],
+  [/^Hora no válida: (.*)$/, 'Invalid time: $1'],
+  [/^Las horas deben ir en orden: (.*) no puede ir antes de la marca anterior\.$/, 'Times must be in order: $1 can\'t come before the previous punch.'],
+  [/^Hay una marca en el futuro \((.*)\)\.$/, 'There\'s a punch in the future ($1).'],
+  [/^El orden de las marcas no es válido.*/, 'The punch order isn\'t valid: it must be clock in, lunch start, lunch end and clock out.'],
+  [/^Un día pasado debe terminar con una salida\.$/, 'A past day must end with a clock-out.'],
+  [/^Escribe el usuario del portal\.$/, 'Enter the portal user.'],
+  [/^Escribe el nombre\.$/, 'Enter the name.'],
+  [/^El día aún no termina\.$/, 'The day isn\'t over yet.'],
+  [/^No tiene marcas\.$/, 'It has no punches.'],
+  [/^Falta la salida\.$/, 'Clock-out is missing.']
+];
+function enIngles(m){ m = String(m || ''); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
@@ -634,9 +705,9 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function sesionSB(){
-  if(!window.sb) throw Object.assign(new Error('No se pudo cargar la conexión con la base de datos. Revisa tu internet y recarga la página.'), { codigo:'SIN_LIB' });
+  if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
   const { data } = await window.sb.auth.getSession();
-  if(!data.session) throw Object.assign(new Error('Para activar el Reloj, sal del portal y vuelve a entrar una vez con tu usuario y contraseña.'), { codigo:'SIN_SB' });
+  if(!data.session) throw Object.assign(new Error('To turn on the Time Clock, sign out of the portal and sign back in once with your username and password.'), { codigo:'SIN_SB' });
   return data.session;
 }
 
@@ -657,7 +728,7 @@ async function api(action, p){
   if(action === 'aprobar' || action === 'desaprobar') return q(sb.rpc('reloj_aprobar', { p_items:p.items, p_aprobar: action === 'aprobar' }));
   if(action === 'empleados') return empleadosSB();
   if(action === 'guardarEmpleado'){ await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return { empleados:(await q(sb.from('reloj_empleados').select('*'))).map(empJS) }; }
-  throw new Error('Acción desconocida: ' + action);
+  throw new Error('Unknown action: ' + action);
 }
 
 async function yoSB(){
@@ -672,7 +743,7 @@ async function yoSB(){
     q(sb.from('reloj_aprobaciones').select('fecha').eq('usuario', usuario).gte('fecha', desde))
   ]);
   S.offset = Date.parse(ahoraSrv) - Date.now();
-  if(!perfil || !perfil.activo) throw Object.assign(new Error('Tu usuario no está activo. Habla con el administrador.'), { codigo:'INACTIVO' });
+  if(!perfil || !perfil.activo) throw Object.assign(new Error('Your user is not active. Talk to the administrator.'), { codigo:'INACTIVO' });
   const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia) } : null;
   const ahoraMs = ahora(), hoy = fechaHoy(), ap = {};
   aprob.forEach(a => { ap[a.fecha] = true; });
@@ -690,7 +761,7 @@ async function hojaSB(desde, hasta){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) hasta = desde;
   if(hasta < desde){ const t = desde; desde = hasta; hasta = t; }
   const fechas = rango(desde, hasta);
-  if(fechas.length > CFG.MAX_DIAS) throw new Error('Elige un periodo de 31 días como máximo.');
+  if(fechas.length > CFG.MAX_DIAS) throw new Error('Choose a period of 31 days at most.');
   hasta = fechas[fechas.length - 1];
   const [emps, marcas, aprob] = await Promise.all([
     q(sb.from('reloj_empleados').select('*').eq('activo', true)),
@@ -769,10 +840,12 @@ async function inicio(){
     const yo = await api('yo');
     aplicarYo(yo);
     $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
-    $('quienRol').textContent = yo.esAdmin ? 'Administrador' : (yo.empleado ? 'Agente' : '');
+    $('quienRol').textContent = yo.esAdmin ? 'Administrator' : (yo.empleado ? 'Agent' : '');
     if(yo.esAdmin){
       $('tabs').classList.remove('hidden');
+      $('btnMenu').classList.add('activo');
       $('tabReloj').classList.toggle('hidden', !yo.empleado);
+      $('grpMio').classList.toggle('hidden', !yo.empleado);
       const pedida = location.hash.slice(1);
       irA(['reloj','hoy','hoja','emps'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
     } else if(yo.empleado) irA('reloj');
@@ -780,11 +853,11 @@ async function inicio(){
   }catch(e){
     if(e.codigo === 'SIN_SB'){
       $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px;line-height:1.6">' + esc(e.message) +
-        '<br><br><a class="btn" href="' + PORTAL + '" style="color:#fff;border-color:rgba(255,255,255,.4)">Ir al portal</a></div>';
+        '<br><br><a class="btn" href="' + PORTAL + '" style="color:#fff;border-color:rgba(255,255,255,.4)">Go to the portal</a></div>';
       return;
     }
     $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px">' + esc(e.message) +
-      '<br><br><button class="btn" onclick="location.reload()" style="color:#fff;border-color:rgba(255,255,255,.4)">Reintentar</button></div>';
+      '<br><br><button class="btn" onclick="location.reload()" style="color:#fff;border-color:rgba(255,255,255,.4)">Try again</button></div>';
     return;
   }
   $('velo').remove();
@@ -803,20 +876,34 @@ function irA(v){
   if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else cargarHoja(); }
   if(v === 'emps') cargarEmps();
 }
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => irA(t.dataset.v)));
+document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
+
+/* Menú lateral: en celular se abre con ☰ y se cierra al elegir, al tocar fuera o con Esc. */
+function menuLateral(abrir){
+  $('tabs').classList.toggle('abierto', abrir);
+  $('cortina').classList.toggle('abierta', abrir);
+  $('btnMenu').setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+$('btnMenu').addEventListener('click', () => menuLateral(!$('tabs').classList.contains('abierto')));
+$('cortina').addEventListener('click', () => menuLateral(false));
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('tabs').classList.contains('abierto')) menuLateral(false); });
+// El menú queda pegado debajo de la barra de arriba, que cambia de alto según la pantalla.
+function altoBarra(){ const h = document.querySelector('.top'); if(h) document.documentElement.style.setProperty('--top-h', h.offsetHeight + 'px'); }
+altoBarra(); window.addEventListener('resize', altoBarra);
 
 /* ══════════════════ RELOJ DEL AGENTE ══════════════════ */
 function tic(){
   const r = S.yo.reloj, t = ahora();
-  const partes = fmt(t, { hour:'numeric', minute:'2-digit', hour12:true }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m').split(' ');
-  $('rHora').innerHTML = esc(partes[0]) + '<small>' + esc((partes[1] || '').replace('am','a. m.').replace('pm','p. m.')) + '</small>';
+  const partes = new Intl.DateTimeFormat('en-US', { timeZone:S.zona, hour:'numeric', minute:'2-digit', hour12:true }).formatToParts(new Date(t));
+  const hNum = partes.filter(x => x.type === 'hour' || x.type === 'minute' || x.type === 'literal' && x.value === ':').map(x => x.value).join('');
+  $('rHora').innerHTML = esc(hNum) + '<small>' + esc((partes.find(x => x.type === 'dayPeriod') || {}).value || '') + '</small>';
   $('rFecha').textContent = fmt(t, { weekday:'long', day:'numeric', month:'long' });
   if(r.estado !== 'fuera'){
     // minutos que van, contados aquí desde la última marca
     const extra = (t - r.desde) / 60000;
     const min = r.estado === 'trabajando' ? r.minBase + extra : r.minBase;
-    $('rAcum').innerHTML = 'Llevas <b class="num">' + dur(Math.floor(min)) + '</b> trabajadas' +
-      (r.estado === 'almuerzo' ? ' · almuerzo de <b class="num">' + dur(Math.floor(r.almBase + extra)) + '</b>' : '');
+    $('rAcum').innerHTML = '<b class="num">' + dur(Math.floor(min)) + '</b> worked so far' +
+      (r.estado === 'almuerzo' ? ' · lunch <b class="num">' + dur(Math.floor(r.almBase + extra)) + '</b>' : '');
   }
   if(t % 60000 < 1000) pintarCinta();
 }
@@ -827,36 +914,36 @@ function pintarReloj(){
   const abierto = r.estado !== 'fuera' ? (yo.ahora - r.desde) / 60000 : 0;
   r.minBase = r.estado === 'trabajando' ? r.min - abierto : r.min;
   r.almBase = r.estado === 'almuerzo' ? r.alm - abierto : r.alm;
-  $('rZona').textContent = 'Hora de Orlando (' + S.zona.replace('_',' ') + ')';
+  $('rZona').textContent = 'Orlando time (' + S.zona.replace('_',' ') + ')';
   $('rYo').textContent = yo.empleado.nombre;
   $('rEstado').outerHTML = '<span class="st st-' + r.estado + '" id="rEstado"><i></i>' +
-    (r.estado === 'trabajando' ? 'Trabajando · entraste a las ' + hora((r.marcas.find(m => m.tipo === 'entrada') || { ms:r.desde }).ms) :
-     r.estado === 'almuerzo' ? 'En almuerzo desde las ' + hora(r.desde) : 'Fuera de turno') + '</span>';
-  if(r.estado === 'fuera') $('rAcum').innerHTML = r.min ? 'Hoy: <b class="num">' + dur(r.min) + '</b> trabajadas' : '';
+    (r.estado === 'trabajando' ? 'Working · clocked in at ' + hora((r.marcas.find(m => m.tipo === 'entrada') || { ms:r.desde }).ms) :
+     r.estado === 'almuerzo' ? 'On lunch since ' + hora(r.desde) : 'Off shift') + '</span>';
+  if(r.estado === 'fuera') $('rAcum').innerHTML = r.min ? 'Today: <b class="num">' + dur(r.min) + '</b> worked' : '';
 
   const a = $('rAcciones');
-  if(r.estado === 'fuera') a.innerHTML = '<button class="marcar" data-t="entrada">Marcar entrada</button>';
-  if(r.estado === 'trabajando') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_ini">Salir a almorzar</button>' +
-    '<button class="btn btn-ink marcar-2" data-t="salida">Marcar salida</button>';
-  if(r.estado === 'almuerzo') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_fin">Regresar del almuerzo</button>';
+  if(r.estado === 'fuera') a.innerHTML = '<button class="marcar" data-t="entrada">Clock in</button>';
+  if(r.estado === 'trabajando') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_ini">Start lunch</button>' +
+    '<button class="btn btn-ink marcar-2" data-t="salida">Clock out</button>';
+  if(r.estado === 'almuerzo') a.innerHTML = '<button class="marcar alm" data-t="almuerzo_fin">End lunch</button>';
   a.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => pedirMarca(b.dataset.t)));
 
   const av = [];
-  if(r.turnoDeAyer) av.push(['info', 'Tu turno empezó ayer y sigue abierto. La salida se anotará a ese día.']);
-  r.pendientes.forEach(f => av.push(['alerta', 'Falta tu salida del ' + fechaL(f) + '. Avísale al administrador para que la corrija.']));
+  if(r.turnoDeAyer) av.push(['info', 'Your shift started yesterday and is still open. Your clock-out will be recorded on that day.']);
+  r.pendientes.forEach(f => av.push(['alerta', 'Your clock-out for ' + fechaL(f) + ' is missing. Let the administrator know so they can fix it.']));
   if(r.estado === 'almuerzo' && r.almBase + (ahora() - r.desde) / 60000 > yo.config.almuerzoMax)
-    av.push(['warn', 'Llevas más de una hora de almuerzo.']);
+    av.push(['warn', 'You\'ve been on lunch for more than an hour.']);
   $('avisosAgente').innerHTML = av.map(([n, t]) => '<div class="aviso ' + n + '">' + IC[n === 'warn' ? 'aviso' : n] + '<span>' + esc(t) + '</span></div>').join('');
 
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] +
-      (m.origen === 'admin' ? '<span class="corr">corregida</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
-    : '<li class="muted">Todavía no hay marcas hoy.</li>';
+      (m.origen === 'admin' ? '<span class="corr">corrected</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
+    : '<li class="muted">No punches yet today.</li>';
   pintarCinta();
 
   const hoy = yo.hoy;
   $('rSemana').innerHTML = r.semana.map(d => {
-    const ico = d.incompleto ? '<span class="fl fl-alerta" title="Falta la salida">' + IC.alerta + '</span>'
-              : d.aprobado ? '<span class="fl fl-ok" title="Aprobado">' + IC.ok + '</span>' : '';
+    const ico = d.incompleto ? '<span class="fl fl-alerta" title="Clock-out missing">' + IC.alerta + '</span>'
+              : d.aprobado ? '<span class="fl fl-ok" title="Approved">' + IC.ok + '</span>' : '';
     return '<div class="dia' + (d.fecha === hoy ? ' hoy' : '') + '">' + esc(diaC(d.fecha)) + '<br>' + diaN(d.fecha) +
       '<b class="num">' + (d.marcas ? hm(d.min) : '—') + '</b><span class="ico">' + ico + '</span></div>';
   }).join('');
@@ -887,15 +974,15 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
   const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
   let h = tramos.map(x => '<div class="seg ' + x[0] + '" style="left:' + pct(x[1]) + '%;width:' + (pct(x[2]) - pct(x[1])) + '%"></div>').join('');
   if(monitor && monitor.p != null){
-    h += '<div class="seg pcon" title="PC con señal ' + hora(monitor.p) + ' – ' + hora(monitor.u) + '" style="left:' + pct(monitor.p) + '%;width:' + (pct(monitor.u) - pct(monitor.p)) + '%"></div>';
+    h += '<div class="seg pcon" title="PC online ' + hora(monitor.p) + ' – ' + hora(monitor.u) + '" style="left:' + pct(monitor.p) + '%;width:' + (pct(monitor.u) - pct(monitor.p)) + '%"></div>';
   }
-  if(monitor && monitor.e) h += monitor.e.map(ep => '<div class="seg pc" title="' + esc(ep[0]) + ' ' + hora(ep[1]) + ' – ' + hora(ep[2]) +
+  if(monitor && monitor.e) h += monitor.e.map(ep => '<div class="seg pc" title="' + esc(EPISODIO_EN[ep[0]] || ep[0]) + ' ' + hora(ep[1]) + ' – ' + hora(ep[2]) +
     '" style="left:' + pct(ep[1]) + '%;width:' + Math.max(.5, pct(ep[2]) - pct(ep[1])) + '%"></div>').join('');
   if(esHoy && t > ini && t < fin) h += '<div class="ahora" style="left:' + pct(t) + '%"></div>';
   el.innerHTML = h;
   el.classList.toggle('doble', !!(monitor && monitor.p != null));
   el.setAttribute('role', 'img');
-  el.setAttribute('aria-label', tramos.length ? 'Tramos del día: ' + tramos.map(x => (x[0].startsWith('alm') ? 'almuerzo ' : 'trabajo ') + hora(x[1]) + ' a ' + hora(x[2])).join(', ') : 'Sin marcas');
+  el.setAttribute('aria-label', tramos.length ? 'Day segments: ' + tramos.map(x => (x[0].startsWith('alm') ? 'lunch ' : 'work ') + hora(x[1]) + ' to ' + hora(x[2])).join(', ') : 'No punches');
   const marcasEje = [];
   for(let k = 0; k <= 4; k++) marcasEje.push(hora(ini + (fin - ini) * k / 4));
   eje.innerHTML = marcasEje.map(x => '<span>' + esc(x) + '</span>').join('');
@@ -904,9 +991,9 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
 function pedirMarca(tipo){
   if(S.ocupado) return;
   if(tipo === 'salida'){
-    $('cTitulo').textContent = '¿Marcar tu salida?';
-    $('cTexto').textContent = 'Se anota con la hora del servidor: ' + hora(ahora()) + '. Si te equivocas, solo el administrador puede corregirla.';
-    $('cSi').textContent = 'Marcar salida';
+    $('cTitulo').textContent = 'Clock out?';
+    $('cTexto').textContent = 'It\'s recorded with the server time: ' + hora(ahora()) + '. If it\'s a mistake, only the administrator can correct it.';
+    $('cSi').textContent = 'Clock out';
     $('cSi').onclick = () => { cerrar('ovConf'); marcar(tipo); };
     $('cNo').onclick = () => cerrar('ovConf');
     return abrir('ovConf');
@@ -920,11 +1007,10 @@ async function marcar(tipo){
     const yo = await api('marcar', { tipo });
     aplicarYo(yo); pintarReloj();
     const m = yo.marcada;
-    // «p. m.» ya termina en punto: no se le agrega otro
-    const h = hora(m.ms), conPunto = /\.$/.test(h) ? h : h + '.';
+    const h = hora(m.ms), conPunto = h + '.';
     const t = (S.yo.esAdmin && m.seg) ? ' (' + seg(m.seg) + ')' : '';
-    toast((tipo === 'salida' ? 'Salida marcada a las ' + conPunto + ' Turno de ' + dur(m.minTurno) + '.'
-                             : m.nombre + ' marcada a las ' + conPunto) + t);
+    toast((tipo === 'salida' ? 'Clocked out at ' + conPunto + ' Shift: ' + dur(m.minTurno) + '.'
+                             : m.nombre + ' recorded at ' + conPunto) + t);
   }catch(e){
     toast(e.message, 'err');
     document.querySelectorAll('#rAcciones button').forEach(b => { b.disabled = false; });
@@ -934,7 +1020,7 @@ async function marcar(tipo){
 
 /* ══════════════════ ADMIN: HOY ══════════════════ */
 async function cargarHoy(silencioso){
-  if(!silencioso && !S.hojaHoy) $('hoyLista').innerHTML = '<div class="vacio"><span class="spin dark"></span> Cargando…</div>';
+  if(!silencioso && !S.hojaHoy) $('hoyLista').innerHTML = '<div class="vacio"><span class="spin dark"></span> Loading…</div>';
   try{
     const hoy = fechaHoy();
     S.hojaHoy = await api('hoja', { desde:hoy, hasta:hoy });
@@ -945,7 +1031,7 @@ async function cargarHoy(silencioso){
 function pintarHoy(){
   const h = S.hojaHoy, f = h.hoy;
   $('hoyFecha').textContent = fechaL(f);
-  $('hoyAct').textContent = 'Actualizado ' + hora(h.ahora) + (h.seg ? ' · ' + seg(h.seg) : '');
+  $('hoyAct').textContent = 'Updated ' + hora(h.ahora) + (h.seg ? ' · ' + seg(h.seg) : '');
   const filas = h.empleados.map(e => {
     const d = e.dias[f];
     return { e, d, estado: d ? d.estado : 'sin', fl: d ? d.banderas : [] };
@@ -953,21 +1039,21 @@ function pintarHoy(){
   const cuenta = k => filas.filter(x => x.estado === k).length;
   $('hoyResumen').innerHTML = [['trabajando'],['almuerzo'],['fuera'],['sin']].map(([k]) =>
     '<div class="cifra"><b class="num">' + cuenta(k) + '</b>' + estadoHTML(k) + '</div>').join('') +
-    '<div class="cifra"><b class="num">' + filas.filter(x => nivelMax(x.fl) === 'alerta').length + '</b><span class="st">' + icono('alerta') + 'Con alertas</span></div>';
+    '<div class="cifra"><b class="num">' + filas.filter(x => nivelMax(x.fl) === 'alerta').length + '</b><span class="st">' + icono('alerta') + 'With alerts</span></div>';
   $('hoyAvisos').innerHTML = avisosMonitor(h);
   const peso = x => (nivelMax(x.fl) === 'alerta' ? 0 : nivelMax(x.fl) === 'aviso' ? 1 : 2) * 10 +
     ({ trabajando:0, almuerzo:1, sin:2, fuera:3 })[x.estado];
-  filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'es'));
+  filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'en'));
   if(!filas.length){
-    $('hoyLista').innerHTML = '<div class="vacio"><h2>Aún no hay empleados en el Reloj</h2><p>Agrégalos en la pestaña Empleados.</p></div>';
+    $('hoyLista').innerHTML = '<div class="vacio"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
   }
   $('hoyLista').innerHTML = filas.map(x => {
     const d = x.d;
     const ent = d && d.marcas.find(m => m.tipo === 'entrada');
     const sal = d && d.marcas.filter(m => m.tipo === 'salida').pop();
-    const txt = !d ? 'Sin marcar' : d.estado === 'trabajando' ? 'Trabajando · entró ' + hora(ent && ent.ms)
-              : d.estado === 'almuerzo' ? 'Almuerzo desde ' + hora(d.desde) : 'Salió ' + hora(sal && sal.ms);
+    const txt = !d ? 'Not clocked in' : d.estado === 'trabajando' ? 'Working · in at ' + hora(ent && ent.ms)
+              : d.estado === 'almuerzo' ? 'Lunch since ' + hora(d.desde) : 'Out at ' + hora(sal && sal.ms);
     return '<button class="fila-hoy" data-u="' + esc(x.e.usuario) + '">' +
       '<span class="nom">' + esc(x.e.nombre) + '</span>' + estadoHTML(x.estado, txt) +
       '<span class="min num">' + (d ? hm(d.min) : '') + '</span>' +
@@ -978,10 +1064,10 @@ function pintarHoy(){
 $('hoyRefrescar').addEventListener('click', () => cargarHoy());
 
 function avisosMonitor(h){
-  if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Comparando con el Monitor… Las horas ya están; las alertas del PC aparecen en unos segundos (el Monitor todavía corre en el sistema anterior).</span></div>';
-  if(!h.monitor) return '<div class="aviso info">' + IC.info + '<span>La verificación con el Monitor no está configurada en este navegador. Abre una vez el Monitor de Agentes aquí, con su URL y token, y el Reloj la usará.</span></div>';
-  if(h.monitorFalla) return '<div class="aviso warn">' + IC.aviso + '<span>El Monitor no respondió para ' + h.monitorFalla +
-    (h.monitorFalla === 1 ? ' día' : ' días') + '. Esas marcas no se pudieron verificar; vuelve a cargar en un momento.</span></div>';
+  if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Checking against the Monitor… Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).</span></div>';
+  if(!h.monitor) return '<div class="aviso info">' + IC.info + '<span>Monitor verification isn\'t set up in this browser. Open the Agent Monitor here once, with its URL and token, and the Time Clock will use it.</span></div>';
+  if(h.monitorFalla) return '<div class="aviso warn">' + IC.aviso + '<span>The Monitor didn\'t respond for ' + h.monitorFalla +
+    (h.monitorFalla === 1 ? ' day' : ' days') + '. Those punches couldn\'t be verified; reload in a moment.</span></div>';
   return '';
 }
 
@@ -1008,7 +1094,7 @@ $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
 
 async function cargarHoja(){
-  $('hojaTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Cargando y comparando con el Monitor…</div>';
+  $('hojaTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading and checking against the Monitor…</div>';
   try{
     S.hoja = await api('hoja', S.periodo);
     pintarHoja();
@@ -1019,29 +1105,29 @@ function pintarHoja(){
   const h = S.hoja;
   $('hojaAvisos').innerHTML = avisosMonitor(h);
   if(!h.empleados.length){
-    $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>Aún no hay empleados en el Reloj</h2><p>Agrégalos en la pestaña Empleados.</p></div>';
+    $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
   }
   const finde = f => [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
-  let t = '<table class="hoja"><thead><tr><th class="nombre">Empleado</th>' +
+  let t = '<table class="hoja"><thead><tr><th class="nombre">Employee</th>' +
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
-    '<th class="tot">Horas</th><th class="tot">Aprobadas</th><th class="tot">Días eq.</th></tr></thead><tbody>';
+    '<th class="tot">Hours</th><th class="tot">Approved</th><th class="tot">Equiv. days</th></tr></thead><tbody>';
   h.empleados.forEach(e => {
     t += '<tr><td class="nombre" title="' + esc(e.nombre) + '">' + esc(e.nombre) + '</td>';
     h.fechas.forEach(f => {
       const d = e.dias[f], futuro = f > h.hoy;
       if(!d){
         t += '<td><button class="celda vacia' + (futuro ? ' futuro' : '') + (f === h.hoy ? ' hoy' : '') + '" ' +
-          (futuro ? 'disabled aria-label="Día futuro"' : 'data-u="' + esc(e.usuario) + '" data-f="' + f + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', sin marcas"') + '>·</button></td>';
+          (futuro ? 'disabled aria-label="Future day"' : 'data-u="' + esc(e.usuario) + '" data-f="' + f + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', no punches"') + '>·</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const ics = (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
-      const etiqueta = d.incompleto ? 'falta' : hm(d.min);
+      const etiqueta = d.incompleto ? 'missing' : hm(d.min);
       t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
-        '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'falta la salida' : dur(d.min)) +
-        (d.aprobado ? ', aprobado' : '') + (n === 'alerta' ? ', con alertas' : n === 'aviso' ? ', con avisos' : '') + '">' +
+        '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'clock-out missing' : dur(d.min)) +
+        (d.aprobado ? ', approved' : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '">' +
         '<span class="num">' + etiqueta + '</span><span class="ics">' + ics + '</span></button></td>';
     });
     const tot = e.totales;
@@ -1053,12 +1139,12 @@ function pintarHoja(){
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
-  $('hAprobarLimpios').textContent = limpios.length ? 'Aprobar ' + limpios.length + (limpios.length === 1 ? ' día' : ' días') + ' sin novedades' : 'Aprobar días sin novedades';
-  $('hAprobarNota').textContent = limpios.length ? 'Días cerrados, sin alertas ni avisos, aún sin aprobar.' : '';
-  $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Aprobado</span>' +
-    '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alerta: revisar antes de aprobar</span></span>' +
-    '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Aviso</span></span>' +
-    '<span>«falta» = no marcó la salida</span><span>Días eq. = horas aprobadas ÷ horas por día</span>';
+  $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
+  $('hAprobarNota').textContent = limpios.length ? 'Closed days with no alerts or warnings, not yet approved.' : '';
+  $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
+    '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
+    '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
+    '<span>“missing” = didn\'t clock out</span><span>Equiv. days = approved hours ÷ hours per day</span>';
 }
 function diasLimpios(){
   const out = [];
@@ -1074,7 +1160,7 @@ $('hAprobarLimpios').addEventListener('click', async () => {
   const b = $('hAprobarLimpios'); b.disabled = true;
   try{
     const r = await api('aprobar', { items });
-    toast(r.hechos + (r.hechos === 1 ? ' día aprobado.' : ' días aprobados.'));
+    toast(r.hechos + (r.hechos === 1 ? ' day approved.' : ' days approved.'));
     await cargarHoja();
   }catch(e){ toast(e.message, 'err'); b.disabled = false; }
 });
@@ -1095,29 +1181,29 @@ function vistaDia(){
   let h = '';
   if(d.marcas.length){
     h += '<div class="cinta" id="dCinta"></div><div class="eje" id="dEje"></div>' +
-      '<div class="leyenda"><span><i style="background:var(--st-trab)"></i>Trabajo marcado</span>' +
-      '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Almuerzo</span>' +
-      (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC con señal (carril de abajo)</span><span><i style="background:var(--accent-500);height:6px"></i>PC sin actividad</span>' : '') + '</div>';
-    h += '<ul class="marcas">' + d.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr">corregida</span>' : '') +
+      '<div class="leyenda"><span><i style="background:var(--st-trab)"></i>Clocked work</span>' +
+      '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Lunch</span>' +
+      (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
+    h += '<ul class="marcas">' + d.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr">corrected</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
-      '<span>Trabajadas <b class="num">' + (d.incompleto ? 'sin calcular' : dur(d.min)) + '</b></span>' +
-      '<span>Almuerzo <b class="num">' + dur(d.alm) + '</b></span>' +
-      (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Aprobado: ' + hm(d.aprobado.horas * 60) + ' h por ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div>';
-  } else h += '<p class="muted">No hay marcas este día.</p>';
-  if(d.monitor) h += '<div class="bloque"><h3>Su PC según el Monitor</h3><p class="pcdato">Primera señal <b>' + hora(d.monitor.p) +
-    '</b> · última <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' periodo' : ' periodos') + ' sin actividad' : 'sin ausencias') + '</p></div>';
-  if(d.banderas.length) h += '<div class="bloque"><h3>Novedades</h3><ul class="banderas">' +
+      '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
+      '<span>Lunch <b class="num">' + dur(d.alm) + '</b></span>' +
+      (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Approved: ' + hm(d.aprobado.horas * 60) + ' h by ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div>';
+  } else h += '<p class="muted">No punches on this day.</p>';
+  if(d.monitor) h += '<div class="bloque"><h3>Their PC per the Monitor</h3><p class="pcdato">First signal <b>' + hora(d.monitor.p) +
+    '</b> · last <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' period' : ' periods') + ' with no activity' : 'no absences') + '</p></div>';
+  if(d.banderas.length) h += '<div class="bloque"><h3>Issues</h3><ul class="banderas">' +
     d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
   $('dCuerpo').innerHTML = h;
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
 
   const pie = [];
-  pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Corregir marcas' : 'Agregar marcas') + '</button>');
+  pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Correct punches' : 'Add punches') + '</button>');
   pie.push('<span class="esp"></span>');
-  if(d.aprobado) pie.push('<button class="btn btn-ghost" id="dQuitar">Quitar aprobación</button>');
-  else if(fecha < hoy && d.marcas.length && !d.incompleto) pie.push('<button class="btn btn-brand" id="dAprobar">Aprobar ' + dur(d.min) + '</button>');
-  pie.push('<button class="btn btn-ink" data-cerrar>Cerrar</button>');
+  if(d.aprobado) pie.push('<button class="btn btn-ghost" id="dQuitar">Remove approval</button>');
+  else if(fecha < hoy && d.marcas.length && !d.incompleto) pie.push('<button class="btn btn-brand" id="dAprobar">Approve ' + dur(d.min) + '</button>');
+  pie.push('<button class="btn btn-ink" data-cerrar>Close</button>');
   $('dPie').innerHTML = pie.join('');
   $('dCorregir').onclick = editarDia;
   if($('dAprobar')) $('dAprobar').onclick = () => aprobarDia(true);
@@ -1127,8 +1213,8 @@ async function aprobarDia(si){
   const { e, fecha } = S.dia;
   try{
     const r = await api(si ? 'aprobar' : 'desaprobar', { items:[{ usuario:e.usuario, fecha }] });
-    if(si && r.saltados && r.saltados.length) throw new Error(r.saltados[0].por);
-    toast(si ? 'Día aprobado.' : 'Aprobación quitada.');
+    if(si && r.saltados && r.saltados.length) throw new Error(enIngles(r.saltados[0].por));
+    toast(si ? 'Day approved.' : 'Approval removed.');
     cerrar('ovDia'); refrescarTrasCambio();
   }catch(x){ $('dErr').textContent = x.message; }
 }
@@ -1139,18 +1225,18 @@ function editarDia(){
   const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) }))
     : [{ tipo:'entrada', hora:'08:00' }, { tipo:'almuerzo_ini', hora:'12:00' }, { tipo:'almuerzo_fin', hora:'13:00' }, { tipo:'salida', hora:'17:00' }];
   if(d.incompleto) filas.push({ tipo:'salida', hora:'17:00' });
-  const CORTO = { entrada:'Entrada', almuerzo_ini:'Inicio almuerzo', almuerzo_fin:'Fin almuerzo', salida:'Salida' };
+  const CORTO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
   const opts = t => Object.keys(CORTO).map(k => '<option value="' + k + '"' + (k === t ? ' selected' : '') + '>' + CORTO[k] + '</option>').join('');
-  const fila = f => '<div class="edit-fila"><select aria-label="Tipo">' + opts(f.tipo) + '</select><input type="time" value="' + f.hora + '" aria-label="Hora">' +
-    '<button type="button" aria-label="Quitar esta marca">×</button></div>';
-  $('dCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:12px">Horas de Orlando. Las marcas actuales quedan guardadas como anuladas, con tu nombre y el motivo.</p>' +
+  const fila = f => '<div class="edit-fila"><select aria-label="Type">' + opts(f.tipo) + '</select><input type="time" value="' + f.hora + '" aria-label="Time">' +
+    '<button type="button" aria-label="Remove this punch">×</button></div>';
+  $('dCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:12px">Orlando times. The current punches are kept as voided, with your name and the reason.</p>' +
     '<div id="dFilas">' + filas.map(fila).join('') + '</div>' +
-    '<button class="btn-link" id="dMas" type="button">+ Agregar marca</button>' +
-    '<label class="campo" style="margin-top:12px"><span>Motivo</span><input id="dMotivo" placeholder="Ej.: olvidó marcar la salida, confirmado por WhatsApp" autocomplete="off"></label>';
+    '<button class="btn-link" id="dMas" type="button">+ Add punch</button>' +
+    '<label class="campo" style="margin-top:12px"><span>Reason</span><input id="dMotivo" placeholder="E.g. forgot to clock out, confirmed on WhatsApp" autocomplete="off"></label>';
   const enlazar = () => $('dFilas').querySelectorAll('.edit-fila button').forEach(b => b.onclick = () => b.parentNode.remove());
   enlazar();
   $('dMas').onclick = () => { $('dFilas').insertAdjacentHTML('beforeend', fila({ tipo:'salida', hora:'17:00' })); enlazar(); };
-  $('dPie').innerHTML = '<button class="btn btn-ghost" id="dVolver">Volver</button><span class="esp"></span><button class="btn btn-ink" id="dGuardar">Guardar corrección</button>';
+  $('dPie').innerHTML = '<button class="btn btn-ghost" id="dVolver">Back</button><span class="esp"></span><button class="btn btn-ink" id="dGuardar">Save correction</button>';
   $('dVolver').onclick = vistaDia;
   $('dGuardar').onclick = guardarCorreccion;
   setTimeout(() => $('dMotivo').focus(), 50);
@@ -1160,12 +1246,12 @@ async function guardarCorreccion(){
   const marcas = Array.from($('dFilas').querySelectorAll('.edit-fila')).map(f => ({ tipo:f.querySelector('select').value, hora:f.querySelector('input').value }));
   const motivo = $('dMotivo').value.trim();
   $('dErr').textContent = '';
-  if(motivo.length < 3) return $('dErr').textContent = 'Escribe el motivo de la corrección.';
-  if(marcas.some(m => !m.hora)) return $('dErr').textContent = 'Completa todas las horas.';
+  if(motivo.length < 3) return $('dErr').textContent = 'Enter the reason for the correction.';
+  if(marcas.some(m => !m.hora)) return $('dErr').textContent = 'Fill in all the times.';
   const b = $('dGuardar'); b.disabled = true;
   try{
     await api('corregir', { usuario:e.usuario, fecha, marcas, motivo });
-    toast('Corrección guardada.');
+    toast('Correction saved.');
     cerrar('ovDia'); refrescarTrasCambio();
   }catch(x){ $('dErr').textContent = x.message; b.disabled = false; }
 }
@@ -1181,54 +1267,54 @@ function descargarCSV(nombre, filas){
 const horasDec = min => (min / 60).toFixed(2);
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Empleado','Nombre en Nómina','Usuario','Horas por día','Días con marcas','Horas marcadas','Horas aprobadas','Días aprobados','Días equivalentes','Días con alertas','Días sin aprobar']];
+  const filas = [['Employee','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Approved hours','Approved days','Equivalent days','Days with alerts','Days not approved']];
   h.empleados.forEach(e => {
     const t = e.totales;
     filas.push([e.nombre, e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(t.minAprob), t.diasAprob,
       (t.minAprob / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]);
   });
-  descargarCSV('reloj_resumen_' + h.desde + '_a_' + h.hasta + '.csv', filas);
+  descargarCSV('timeclock_summary_' + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 $('hExpDetalle').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Empleado','Nombre en Nómina','Fecha','Entrada','Salida a almorzar','Regreso','Salida','Horas trabajadas','Minutos de almuerzo','Aprobado','Horas aprobadas','Novedades']];
+  const filas = [['Employee','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Lunch minutes','Approved','Approved hours','Issues']];
   h.empleados.forEach(e => h.fechas.forEach(f => {
     const d = e.dias[f]; if(!d || !d.marcas.length) return;
     const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
     const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
     filas.push([e.nombre, e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
-      d.incompleto ? '' : horasDec(d.min), d.alm, d.aprobado ? 'Sí' : 'No', d.aprobado ? d.aprobado.horas : '',
+      d.incompleto ? '' : horasDec(d.min), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
       d.banderas.map(b => b.t).join(' | ')]);
   }));
-  descargarCSV('reloj_detalle_' + h.desde + '_a_' + h.hasta + '.csv', filas);
+  descargarCSV('timeclock_detail_' + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 
 /* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
 async function cargarEmps(){
-  $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Cargando…</div>';
+  $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Loading…</div>';
   try{ S.emps = await api('empleados'); pintarEmps(); }
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
 function pintarEmps(){
-  const l = S.emps.empleados.slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'es'));
-  if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>Todavía no hay empleados</h2><p>Agrega el primero con su usuario del portal.</p></div>'; return; }
-  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Nombre</th><th>Usuario del portal</th><th>Agente en el Monitor</th><th>Nombre en Nómina</th><th>Horas/día</th><th></th></tr></thead><tbody>' +
-    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactivo</span>') + '</td>' +
-      '<td>' + esc(e.usuario) + '</td><td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Sin vincular</span>') + '</td>' +
+  const l = S.emps.empleados.slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'en'));
+  if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees yet</h2><p>Add the first one with their portal user.</p></div>'; return; }
+  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Portal user</th><th>Agent in the Monitor</th><th>Name in Payroll</th><th>Hours/day</th><th></th></tr></thead><tbody>' +
+    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '</td>' +
+      '<td>' + esc(e.usuario) + '</td><td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
       '<td>' + esc(e.nombreNomina || '—') + '</td><td class="num">' + e.horasDia + '</td>' +
-      '<td style="text-align:right"><button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Editar</button></td></tr>').join('') + '</tbody></table>';
+      '<td style="text-align:right"><button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></td></tr>').join('') + '</tbody></table>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
 }
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
-  $('eTitulo').textContent = e ? 'Editar empleado' : 'Agregar empleado';
+  $('eTitulo').textContent = e ? 'Edit employee' : 'Add employee';
   const usados = S.emps.empleados.map(x => x.usuario);
   const portal = S.emps.portal.filter(p => p.activo && (p.username === usuario || usados.indexOf(p.username) < 0));
   $('eUsuarios').innerHTML = portal.map(p => '<option value="' + esc(p.username) + '">' + esc(p.nombre) + '</option>').join('');
   $('eUsuario').disabled = !!e;
   const mon = S.emps.monitor.map(m => m.agente);
   if(e && e.agenteMonitor && mon.indexOf(e.agenteMonitor) < 0) mon.push(e.agenteMonitor);
-  $('eMonitor').innerHTML = '<option value="">Sin vincular</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
+  $('eMonitor').innerHTML = '<option value="">Not linked</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
   $('eUsuario').value = e ? e.usuario : '';
   $('eNombre').value = e ? e.nombre : '';
   $('eMonitor').value = e ? e.agenteMonitor : '';
@@ -1252,12 +1338,12 @@ $('eUsuario').addEventListener('change', () => {
 $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:$('eUsuario').value.trim().toLowerCase(), nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:$('eActivo').value === 'si' };
-  if(!datos.usuario) return $('eErr').textContent = 'Elige el usuario del portal.';
-  if(!datos.nombre) return $('eErr').textContent = 'Escribe el nombre.';
+  if(!datos.usuario) return $('eErr').textContent = 'Choose the portal user.';
+  if(!datos.nombre) return $('eErr').textContent = 'Enter the name.';
   const b = $('eGuardar'); b.disabled = true;
   try{
     const r = await api('guardarEmpleado', { empleado:datos });
-    S.emps.empleados = r.empleados; pintarEmps(); cerrar('ovEmp'); toast('Empleado guardado.');
+    S.emps.empleados = r.empleados; pintarEmps(); cerrar('ovEmp'); toast('Employee saved.');
     S.hoja = null; S.hojaHoy = null;
   }catch(e){ $('eErr').textContent = e.message; }
   b.disabled = false;
@@ -1322,16 +1408,16 @@ function demoDia(e, f){
               min:Math.round(mn / 60000), alm:Math.round(al / 60000), marcas:m, banderas:[],
               aprobado: DM.aprob[e.usuario + '|' + f] ? { horas:Math.round(mn / 36000) / 100, por:'carloshtl75' } : null,
               monitor: e.agenteMonitor ? DM.mon[e.usuario + '|' + f] || null : null };
-  if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Falta marcar la salida. Las horas de este día no cuentan hasta corregirla.' }); }
-  if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Almuerzo de ' + d.alm + ' min: ' + (d.alm - 60) + ' min por encima de la hora.' });
-  if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corregido por carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
-  if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'No está vinculado a un agente del Monitor: no se pudo verificar.' });
+  if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' }); }
+  if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + d.alm + ' min: ' + (d.alm - 60) + ' min over the one-hour limit.' });
+  if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
+  if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
   const mo = d.monitor;
   if(mo && m.length){
-    if(mo.p - m[0].ms > 15 * 60000) d.banderas.push({ c:'PC_TARDE', n:'alerta', t:'Marcó entrada a las ' + hora(m[0].ms) + '; su PC empezó a reportar a las ' + hora(mo.p) + ' (' + Math.round((mo.p - m[0].ms) / 60000) + ' min después).' });
+    if(mo.p - m[0].ms > 15 * 60000) d.banderas.push({ c:'PC_TARDE', n:'alerta', t:'Clocked in at ' + hora(m[0].ms) + '; their PC started reporting at ' + hora(mo.p) + ' (' + Math.round((mo.p - m[0].ms) / 60000) + ' min later).' });
     let mins = 0; mo.e.forEach(ep => bloques.forEach(b => { mins += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); }));
     mins = Math.round(mins / 60000);
-    if(mins >= 5) d.banderas.push({ c:'PC_AUSENCIAS', n:'aviso', t:'1 ausencia del PC durante el turno marcado: ' + mins + ' min en total.', min:mins });
+    if(mins >= 5) d.banderas.push({ c:'PC_AUSENCIAS', n:'aviso', t:'1 PC absence during the clocked shift: ' + mins + ' min total.', min:mins });
   }
   return d;
 }
@@ -1348,13 +1434,13 @@ async function demoApi(action, p){
           tot.min += d.min; tot.dias++; if(d.aprobado){ tot.minAprob += Math.round(d.aprobado.horas * 60); tot.diasAprob++; }
           if(d.banderas.some(b => b.n === 'alerta')) tot.alertas++; });
         return Object.assign({}, e, { dias, totales:tot });
-      }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) };
+      }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en')) };
   };
   const yo = () => {
     const e = DM.emps[0], d = demoDia(e, hoy);
     const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7, lun = sumarDias(hoy, -dow), semana = [];
     for(let i = 0; i < 7; i++){ const f = sumarDias(lun, i), x = demoDia(e, f); semana.push({ fecha:f, min:x.min, alm:x.alm, incompleto:x.incompleto, enCurso:x.enCurso, aprobado:!!x.aprobado, marcas:x.marcas.length }); }
-    return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'carloshtl75', nombre:'Carlos Tobon (ejemplo)', rol:'admin' }, esAdmin:true,
+    return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'carloshtl75', nombre:'Carlos Tobon (demo)', rol:'admin' }, esAdmin:true,
       empleado:{ nombre:e.nombre, horasDia:8 }, config:{ almuerzoMax:60, monitor:true },
       reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
   };
@@ -1372,7 +1458,7 @@ async function demoApi(action, p){
   if(action === 'empleados') return { empleados:DM.emps, monitor:DM.emps.filter(e => e.agenteMonitor).map(e => ({ agente:e.agenteMonitor })).concat([{ agente:'Juan Sebastian Urrea' }, { agente:'Maria Jose Vasquez' }]),
     portal:DM.emps.map(e => ({ username:e.usuario, nombre:e.nombre, activo:true })).concat([{ username:'jsurrea', nombre:'Juan Sebastian Urrea', activo:true }]) };
   if(action === 'guardarEmpleado'){ const i = DM.emps.findIndex(e => e.usuario === p.empleado.usuario); if(i >= 0) DM.emps[i] = p.empleado; else DM.emps.push(p.empleado); return { empleados:DM.emps }; }
-  throw new Error('Acción no disponible en el ejemplo.');
+  throw new Error('Action not available in demo mode.');
 }
 
 inicio();
