@@ -85,6 +85,18 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 #kResumen .banner{margin:0}
 /* Ubicaciones de los equipos (agente 2.8) */
 #btnUbic[hidden]{display:none!important}
+#modalClaves .modal,#modalUbic .modal{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+#kLista,#uLista{overflow:auto;min-height:0;flex:1 1 auto;max-height:none}
+#modalClaves .acc,#modalUbic .acc{flex:none}
+.mi-link{text-decoration:none;color:inherit;display:inline-flex;border-radius:9px}
+.mi-link:hover .mi,.mi-link:focus-visible .mi{border-color:var(--accent)}
+.mi-link .mi b::after{content:' ↗';font-weight:400;opacity:.6}
+.aj-op{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:8px;background:var(--surface);color:var(--text);font:inherit;cursor:pointer}
+.aj-op:hover{border-color:var(--text-2)}
+.aj-op .t{flex:1}
+.aj-op .t b{display:block;font-size:14px}
+.aj-op .t span{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.aj-op .cnt{font-size:12px;font-weight:700;border:1px solid var(--warning);background:var(--warning-bg);border-radius:6px;padding:2px 7px}
 header .btn.alerta{color:var(--text)}
 .modal.ubic{max-width:620px}
 #uLista{max-height:58vh;overflow:auto;padding-right:2px}
@@ -340,9 +352,8 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
     <button class="btn" id="btnRef" type="button">Actualizar</button>
     <button class="btn" id="btnCuentas" type="button" title="Cuentas que ofrece el instalador">Cuentas</button>
     <button class="btn" id="btnEquipos" type="button" title="Inventario: qué portátil tiene asignado cada agente">Equipos</button>
-    <button class="btn" id="btnClaves" type="button" title="Clave de cada equipo: aprobar los nuevos o anular uno perdido">Claves</button>
     <button class="btn" id="btnUbic" type="button" title="Dónde está cada equipo; marcar uno como perdido" hidden>Ubicaciones</button>
-    <button class="btn" id="btnCfg" type="button" title="Cambiar URL o token">Ajustes</button>
+    <button class="btn" id="btnCfg" type="button" title="Claves de los equipos y conexión del panel">Ajustes</button>
     <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
   </div>
 </header>
@@ -534,6 +545,15 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
       <button class="btn" id="cCancelar" type="button">Cancelar</button>
       <button class="btn primary" id="cGuardar" type="button">Guardar cambios</button>
     </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalAjustes">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ajTitulo">
+    <h3 id="ajTitulo">Ajustes</h3>
+    <p class="sub">Opciones que se usan pocas veces.</p>
+    <button class="aj-op" id="ajClaves" type="button"><span class="t"><b>Claves de los equipos</b><span>Aprobar equipos nuevos o anular uno perdido</span></span><span class="cnt" id="ajClavesN" hidden></span></button>
+    <button class="aj-op" id="ajConexion" type="button"><span class="t"><b>Conexión del panel</b><span>URL y token del Apps Script en este navegador</span></span></button>
+    <div class="acc"><button class="btn primary" id="ajCerrar" type="button">Cerrar</button></div>
   </div>
 </div>
 <div class="modal-bg" id="modalClaves">
@@ -1574,7 +1594,7 @@ $('soloAlertas').addEventListener('click', ev => { S.solo = !S.solo; ev.currentT
 $('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.demo) return; cargar(); });
 $('hoy').addEventListener('click', () => { S.fecha = ''; cargar(); });
 $('btnRef').addEventListener('click', cargar);
-$('btnCfg').addEventListener('click', mostrarSetup);
+$('btnCfg').addEventListener('click', () => $('modalAjustes').classList.add('show'));
 // ================================================================ REPORTES
 // Reporte de conexiones por agente (día, semana, quincena, mes o rango) en Excel.
 const DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -2224,11 +2244,14 @@ async function pedirClaves(){
   if (r.error) throw new Error(r.error.message);
   return r.data;
 }
+// Las claves viven en Ajustes (lejos de la mano para no anular por error). Si hay
+// equipos esperando aprobación, el botón Ajustes lo avisa.
 function pintarBotonClaves(){
   const n = KL.datos ? KL.datos.equipos.filter(e => e.estado === 'pendiente').length : 0;
-  const b = $('btnClaves');
-  b.textContent = n ? 'Claves (' + n + ' por aprobar)' : 'Claves';
+  const b = $('btnCfg');
+  b.textContent = n ? 'Ajustes (' + n + ' por aprobar)' : 'Ajustes';
   b.classList.toggle('alerta', n > 0);
+  $('ajClavesN').hidden = !n; $('ajClavesN').textContent = n + ' por aprobar';
 }
 async function refrescarBotonClaves(){
   if (S.demo || document.hidden) return;
@@ -2256,7 +2279,7 @@ function kFila(e, puede){
   if (puede && e.estado === 'pendiente') acc += '<button class="btn primary" type="button" data-kaprobar="' + e.id + '">Aprobar</button>';
   if (puede && e.estado !== 'anulado') acc += '<button class="btn peligro" type="button" data-kanular="' + e.id + '">' + (e.estado === 'pendiente' ? 'Rechazar' : 'Anular') + '</button>';
   let motivo = '';
-  if (KL.anulando === e.id) motivo = '<div class="kmotivo"><input id="kMotivo" maxlength="200" placeholder="Motivo (ej. portátil perdido)" aria-label="Motivo">' +
+  if (KL.anulando === e.id) motivo = '<div class="kmotivo"><input id="kMotivo" maxlength="200" placeholder="Motivo (obligatorio, ej. portátil perdido)" aria-label="Motivo">' +
     '<button class="btn peligro" type="button" data-kconfirmar="' + e.id + '">Confirmar: este PC deja de reportar</button>' +
     '<button class="btn" type="button" data-kcancelar="1">Cancelar</button></div>';
   return '<div class="krow"><div><div class="kq">' + esc(e.agente || '(sin nombre)') + (e.cuenta ? ' <span class="kd">· ' + esc(e.cuenta) + '</span>' : '') + '</div>' +
@@ -2310,9 +2333,16 @@ $('kLista').addEventListener('click', ev => {
   if (b.dataset.kaprobar) decidirClave(b.dataset.kaprobar, 'aprobar', '', b);
   else if (b.dataset.kanular) { KL.anulando = b.dataset.kanular; pintarClaves(); }
   else if (b.dataset.kcancelar) { KL.anulando = null; pintarClaves(); }
-  else if (b.dataset.kconfirmar) decidirClave(b.dataset.kconfirmar, 'anular', ($('kMotivo') || {}).value || '', b);
+  else if (b.dataset.kconfirmar) {
+    const m = (($('kMotivo') || {}).value || '').trim();
+    if (!m) { toast('Escriba el motivo antes de anular el equipo.', 'err'); if ($('kMotivo')) $('kMotivo').focus(); return; }
+    decidirClave(b.dataset.kconfirmar, 'anular', m, b);
+  }
 });
-$('btnClaves').addEventListener('click', abrirClaves);
+$('ajClaves').addEventListener('click', () => { $('modalAjustes').classList.remove('show'); abrirClaves(); });
+$('ajConexion').addEventListener('click', () => { $('modalAjustes').classList.remove('show'); mostrarSetup(); });
+$('ajCerrar').addEventListener('click', () => $('modalAjustes').classList.remove('show'));
+$('modalAjustes').addEventListener('click', ev => { if (ev.target.id === 'modalAjustes') $('modalAjustes').classList.remove('show'); });
 $('kRecargar').addEventListener('click', recargarClaves);
 $('kCerrar').addEventListener('click', () => $('modalClaves').classList.remove('show'));
 $('modalClaves').addEventListener('click', ev => { if (ev.target.id === 'modalClaves') $('modalClaves').classList.remove('show'); });
@@ -2355,7 +2385,10 @@ function ubicHtml(a){
   const recien = t => t && Date.now() - Date.parse(t) < 12 * 3600000;   // solo lo de hoy
   if (!x.perdido && !recien(x.ultimo && x.ultimo.ts)) return '';
   const e = ubEstado(x); if (!e) return '';
-  return mi('Ubicación', esc(e.txt), e.nivel, e.tit);
+  const b = x.buena;
+  if (!b) return mi('Ubicación', esc(e.txt), e.nivel, e.tit);
+  return '<a class="mi-link" href="' + ubMapa(b.lat, b.lng) + '" target="_blank" rel="noopener" aria-label="Ver en el mapa la ubicación de ' + esc(a.agente) + '">' +
+    mi('Ubicación', esc(e.txt), e.nivel, e.tit + ' Clic para verla en el mapa.') + '</a>';
 }
 function indexarUbic(){
   UB.porAgente = {};
