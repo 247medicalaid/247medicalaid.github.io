@@ -251,6 +251,29 @@ main{max-width:1240px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .sol-item .t3{font-size:13px;color:var(--text-muted);margin-top:2px}
 .sol-item .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:620px){ .sol-item{grid-template-columns:32px minmax(0,1fr)} .sol-item .acc{grid-column:2;justify-content:flex-start} }
+/* Requests: empleados a la izquierda, sus solicitudes a la derecha */
+.sols-dos{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}
+.sols-users{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:6px;display:grid;gap:2px;
+  position:sticky;top:calc(var(--top-h,57px) + 12px);max-height:calc(100vh - var(--top-h,57px) - 40px);overflow:auto}
+.sols-users h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:8px 10px 4px;font-family:var(--font-body);font-weight:700}
+.su{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:0 10px;align-items:center;text-align:left;border:0;background:none;
+  border-radius:10px;padding:8px 10px;cursor:pointer;font:inherit;color:var(--text);width:100%}
+.su:hover{background:var(--sand)}
+.su[aria-current="true"]{background:var(--brand-50);box-shadow:inset 3px 0 0 var(--brand-600)}
+.su .av{width:34px;height:34px;border-radius:50%;background:var(--ink-700);color:#fff;font-weight:700;font-size:12.5px;display:flex;
+  align-items:center;justify-content:center;grid-row:1 / 3;letter-spacing:.02em}
+.su .n{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.su .s{font-size:12px;color:var(--text-muted);grid-column:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.su .p{grid-row:1 / 3;grid-column:3;background:var(--warn-50);color:var(--warn);font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.sols-det-cab{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.sols-det-cab h2{font-size:20px}
+.sols-det-cab .s{font-size:13px;color:var(--text-muted)}
+.sols-volver{display:none}
+.sol-dia{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin:10px 2px 0}
+.sol-dia:first-child{margin-top:0}
+.sol-item.pendiente{border-color:#F0C27A;box-shadow:inset 3px 0 0 #D98200}
+@media (max-width:899px){ .sols-dos{grid-template-columns:1fr} .sols-users{position:static;max-height:none}
+  .sols-dos.con-u .sols-users{display:none} .sols-dos:not(.con-u) .sols-det{display:none} .sols-volver{display:inline-flex} }
 .est{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:999px;margin-left:6px;vertical-align:1px}
 .est-pendiente{background:var(--warn-50);color:var(--warn)}
 .est-aprobada{background:var(--brand-50);color:var(--brand-700)}
@@ -2425,26 +2448,58 @@ async function cargarSols(){
   try{ S.sols = await api('solicitudes'); pintarSols(); actualizarBadge(); }
   catch(e){ $('solsLista').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
-function pintarSols(){
-  const r = S.sols; if(!r) return;
-  const nombre = u => (r.emps.find(e => e.usuario === u) || {}).nombre || u;
-  let l = r.sols.slice();
-  if($('solFiltro').value === 'pend') l = l.filter(s => s.estado === 'pendiente');
-  l.sort((a, b) => (a.estado === 'pendiente' ? 0 : 1) - (b.estado === 'pendiente' ? 0 : 1) || (a.estado === 'pendiente' ? a.creada - b.creada : b.creada - a.creada));
-  if(!l.length){ $('solsLista').innerHTML = '<div class="vacio"><h2>No pending requests</h2><p>New requests from your team will show up here.</p></div>'; return; }
-  $('solsLista').innerHTML = l.map(s => '<div class="sol-item">' + SOL_IC[s.tipo] +
-    '<div><div class="t1">' + esc(nombre(s.usuario)) + ' · ' + SOL_TIPO[s.tipo] + '<span class="est est-' + s.estado + '">' + SOL_ESTADO[s.estado] + '</span></div>' +
+const anchoSols = () => matchMedia('(min-width:900px)').matches;
+const iniciales = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+function solItemHTML(s, r){
+  const cuando = t => esc(fmt(t, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }));
+  return '<div class="sol-item ' + s.estado + '">' + SOL_IC[s.tipo] +
+    '<div><div class="t1">' + SOL_TIPO[s.tipo] + '<span class="est est-' + s.estado + '">' + SOL_ESTADO[s.estado] + '</span></div>' +
     '<div class="t2">' + esc(solCuando(s)) + '</div>' + (s.tipo === 'correccion' ? '<div class="t3 antes">Before: ' + esc(marcasTxt(s.marcasAntes)) + '</div>' : '') +
     '<div class="t3">“' + esc(s.motivo) + '”</div>' +
-    '<div class="t3">Sent ' + esc(fmt(s.creada, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })) +
+    '<div class="t3">Sent ' + cuando(s.creada) +
     (s.tipo === 'ausencia' ? ' · Days off approved this year: ' + (r.usados[s.usuario] || 0) : '') + '</div>' +
-    (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor || '') +
+    (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor || '') + (s.decidida ? ' · ' + cuando(s.decidida) : '') +
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? (s.pagada ? ' · paid ' + s.horasDia + ' h/day' : ' · unpaid') : '') +
-      (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') + '</div>' +
+      (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') +
+    (s.estado === 'cancelada' ? '<div class="t3">' + (s.respuesta === 'Replaced by a newer request' ? 'Replaced by a newer request' : 'Canceled by the employee') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + '</div>' : '') + '</div>' +
     '<div class="acc">' + (s.estado === 'pendiente' ? '<button class="btn btn-ghost btn-sm" data-dec="no" data-id="' + s.id + '">Deny</button>' +
       '<button class="btn btn-brand btn-sm" data-dec="si" data-id="' + s.id + '">Approve</button>'
       : s.estado === 'aprobada' ? '<button class="btn btn-ghost btn-sm" data-dec="deshacer" data-id="' + s.id + '">Undo approval</button>' +
-      (s.tipo === 'correccion' ? '' : '<button class="btn btn-ghost btn-sm" data-dec="editar" data-id="' + s.id + '">Edit</button>') : '') + '</div></div>').join('');
+      (s.tipo === 'correccion' ? '' : '<button class="btn btn-ghost btn-sm" data-dec="editar" data-id="' + s.id + '">Edit</button>') : '') + '</div></div>';
+}
+function pintarSols(){
+  const r = S.sols; if(!r) return;
+  const nombre = u => (r.emps.find(e => e.usuario === u) || {}).nombre || u;
+  const pend = $('solFiltro').value === 'pend';
+  const l = r.sols.filter(s => !pend || s.estado === 'pendiente');
+  if(!l.length){ S.solU = null;
+    $('solsLista').innerHTML = '<div class="vacio"><h2>' + (pend ? 'No pending requests' : 'No requests in the last 45 days') + '</h2><p>New requests from your team will show up here.</p></div>'; return; }
+  // empleados: primero los que tienen pendientes (el que lleva más tiempo esperando arriba), luego por la más reciente
+  const g = {};
+  l.forEach(s => { const x = g[s.usuario] = g[s.usuario] || { u:s.usuario, n:0, p:0, ult:0, pIni:Infinity };
+    x.n++; x.ult = Math.max(x.ult, s.creada); if(s.estado === 'pendiente'){ x.p++; x.pIni = Math.min(x.pIni, s.creada); } });
+  const us = Object.values(g).sort((a, b) => (b.p > 0) - (a.p > 0) || (a.p ? a.pIni - b.pIni : 0) || b.ult - a.ult || nombre(a.u).localeCompare(nombre(b.u)));
+  if(S.solU && !g[S.solU]) S.solU = null;
+  if(!S.solU && anchoSols()) S.solU = us[0].u;
+  const dia = t => fmt(t, { weekday:'long', month:'long', day:'numeric' });
+  let det = '';
+  if(S.solU){
+    const x = g[S.solU], mias = l.filter(s => s.usuario === S.solU).sort((a, b) => a.creada - b.creada);
+    let ult = '';
+    det = '<div class="sols-det-cab"><button class="btn btn-ghost btn-sm sols-volver" id="solVolver" type="button">‹ All employees</button>' +
+      '<div><h2>' + esc(nombre(S.solU)) + '</h2><div class="s">' + x.n + (x.n === 1 ? ' request' : ' requests') + (x.p ? ' · ' + x.p + ' pending' : '') +
+      (pend ? '' : ' · last 45 days') + ' · oldest first</div></div></div><div class="sol-lista">' +
+      mias.map(s => { const d = dia(s.creada), sep = d !== ult ? '<div class="sol-dia">' + esc(d) + '</div>' : ''; ult = d; return sep + solItemHTML(s, r); }).join('') + '</div>';
+  }
+  $('solsLista').innerHTML = '<div class="sols-dos' + (S.solU ? ' con-u' : '') + '">' +
+    '<nav class="sols-users" aria-label="Employees with requests"><h2>Employees</h2>' + us.map(x => '<button class="su" type="button" data-u="' + esc(x.u) + '"' +
+      (x.u === S.solU ? ' aria-current="true"' : '') + '><span class="av">' + esc(iniciales(nombre(x.u))) + '</span><span class="n">' + esc(nombre(x.u)) + '</span>' +
+      '<span class="s">' + x.n + (x.n === 1 ? ' request' : ' requests') + ' · last ' + esc(fmt(x.ult, { month:'short', day:'numeric' })) + '</span>' +
+      (x.p ? '<span class="p">' + x.p + ' pending</span>' : '') + '</button>').join('') + '</nav>' +
+    '<div class="sols-det">' + det + '</div></div>';
+  $('solsLista').querySelectorAll('.su').forEach(b => b.addEventListener('click', () => {
+    S.solU = b.dataset.u; pintarSols(); if(!anchoSols()) window.scrollTo({ top:0 }); }));
+  if($('solVolver')) $('solVolver').addEventListener('click', () => { S.solU = null; pintarSols(); window.scrollTo({ top:0 }); });
   $('solsLista').querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => abrirDecision(Number(b.dataset.id), b.dataset.dec)));
 }
 function abrirDecision(id, modo){
