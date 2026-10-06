@@ -583,6 +583,27 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .vacio h2{color:var(--text);font-size:19px;margin-bottom:6px}
 .demo-tag{background:var(--warn-50);color:var(--warn);font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+/* ── ubicación (v16) ── */
+.nota-ubic{display:flex;gap:6px;align-items:flex-start;justify-content:center;font-size:12.5px;color:var(--text-muted);margin:0 0 6px;line-height:1.4;text-align:left}
+.nota-ubic svg{width:14px;height:14px;flex:none;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2}
+.ubics{list-style:none;display:grid;gap:6px;margin:6px 0 0;padding:0}
+.ubics li{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;font-size:14px;padding:7px 10px;border-radius:var(--radius-sm);background:var(--sand)}
+.ubics li.lejos{background:#FFF4DE}
+.ubics li.anul{opacity:.65}
+.ubics .q{font-weight:600;min-width:120px}
+.ubics .dd{flex:1;min-width:150px;color:var(--text-muted)}
+.ubics .dd b{color:var(--text);font-weight:600}
+.ubics a{font-size:13.5px}
+.ubics .btn{padding:4px 10px;font-size:13px}
+.lugar-emp{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;background:var(--sand);border-radius:var(--radius-sm);padding:10px 12px;margin:-6px 0 14px;font-size:14px}
+.lugar-emp .t{flex:1;min-width:200px}
+.lugar-emp select{font:inherit;padding:4px 6px;border-radius:6px;border:1px solid var(--line)}
+.lugar-emp b{font-weight:600}
+.chk-linea{display:flex;gap:9px;align-items:center;font-size:14.5px;margin:4px 0 12px}
+.chk-linea input{width:18px;height:18px}
+.ayuda-ubic{font-size:14.5px;line-height:1.5}
+.ayuda-ubic ol{margin:8px 0 0 18px;padding:0}
+.ayuda-ubic li{margin:3px 0}
 </style>
 </head>
 <body>
@@ -639,6 +660,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
         </div>
       </div>
       <div class="acciones" id="rAcciones"></div>
+      <p class="nota-ubic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg><span>Your location is saved only when you clock in, start or end lunch, and clock out.</span></p>
       <div class="cinta-box">
         <h2>Your day</h2>
         <div class="cinta" id="rCinta"></div>
@@ -756,6 +778,13 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <span class="nota" id="ajEstado" style="margin-left:8px"></span>
     </div>
     <div class="ajuste">
+      <h2>Location</h2>
+      <p class="nota">Each clock in, lunch and clock out saves where it was made (from the browser: GPS on phones, Wi‑Fi on computers). When it's required, the Time Clock won't record a punch until the agent shares their location.</p>
+      <label class="chk-linea"><input type="checkbox" id="ajUbic"> Require location to clock in and out</label>
+      <button class="btn btn-ink btn-sm" id="ajUbicGuardar" type="button">Save</button>
+      <span class="nota" id="ajUbicEstado" style="margin-left:8px"></span>
+    </div>
+    <div class="ajuste">
       <h2>Lists</h2>
       <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it.</p>
       <div class="listas" id="ajListas"></div>
@@ -780,6 +809,15 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <div class="tabla-wrap" id="empsTabla"></div>
   </section>
 </main>
+</div>
+
+<!-- sin ubicación: cómo activarla -->
+<div class="overlay hidden" id="ovUbic" role="dialog" aria-modal="true" aria-labelledby="uTitulo">
+  <div class="ventana">
+    <h2 id="uTitulo">Location needed</h2>
+    <div class="ayuda-ubic" id="uTexto"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" id="uCerrar" type="button">Close</button><button class="btn btn-ink" id="uOtra" type="button">Try again</button></div>
+  </div>
 </div>
 
 <!-- detalle de un día -->
@@ -825,6 +863,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <label class="campo"><span>Full name</span><input id="eNombre" autocomplete="off"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
+    <div class="lugar-emp hidden" id="eLugar"></div>
     <div class="ficha-sec"><h3>Work</h3>
       <div class="ficha-grid">
         <label class="campo"><span>Account</span><select id="eCuenta"></select></label>
@@ -1055,7 +1094,7 @@ function armarDia(marcas, ahora, esHoy){
 
 /* Banderas del día. mon: datos del Monitor para ese día ({agente: {p,u,e}}),
    undefined = todavía llegando, false = sin configurar, null = no respondió. */
-function banderas(dia, marcas, emp, mon, ahora){
+function banderas(dia, marcas, emp, mon, ahora, ub){
   const f = [], tol = CFG.TOLERANCIA_MIN * 60000;
   if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' });
   if(dia.alm > CFG.ALMUERZO_MAX_MIN) f.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + dia.alm + ' min: ' + (dia.alm - CFG.ALMUERZO_MAX_MIN) + ' min over the one-hour limit.' });
@@ -1063,6 +1102,7 @@ function banderas(dia, marcas, emp, mon, ahora){
   const corr = marcas.find(m => m.origen === 'admin');
   if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corrected by ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
   if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + (dia.invalidas === 1 ? ' punch was' : ' punches were') + ' out of order and ignored.' });
+  if(ub) ub.flags.forEach(x => f.push(x));
   if(!marcas.length) return f;
   if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' }); return f; }
   if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Checking against the Monitor…' }); return f; }
@@ -1082,6 +1122,135 @@ function banderas(dia, marcas, emp, mon, ahora){
   });
   if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' PC absence' : ' PC absences') + ' during the clocked shift: ' + mins + ' min total.', min:mins });
   return f;
+}
+
+/* ── Ubicación (v16) ──
+   Cada marca del agente trae lat, lng y precisión (metros). Una marca está LEJOS si,
+   aun sumando la precisión, queda fuera del radio del lugar de trabajo aprobado.
+   Con precisión de más de una milla se avisa aparte (solo informativo). */
+const IC_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>';
+const RADIOS = [[160, '0.1 mi (500 ft)'], [400, '0.25 mi'], [800, '0.5 mi'], [1609, '1 mi'], [3219, '2 mi']];
+const IMPRECISA_M = 1609;
+function distM(a, b){
+  const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function fmtDist(m){
+  if(m == null || !isFinite(m)) return '';
+  if(m < 160) return Math.max(10, Math.round(m * 3.28084 / 10) * 10) + ' ft';
+  const mi = m / 1609.344; return (mi < 10 ? mi.toFixed(1) : String(Math.round(mi))) + ' mi';
+}
+const mapaUrl = (lat, lng) => 'https://www.google.com/maps/search/?api=1&query=' + lat.toFixed(6) + ',' + lng.toFixed(6);
+function radioTxt(r){ const x = RADIOS.find(z => z[0] === r); return x ? x[1] : fmtDist(r); }
+function ubicDia(lista, emp){
+  const lugar = emp.lugar || null, puntos = [], flags = [];
+  lista.forEach(u => {
+    if(u.lat == null || !isFinite(u.lat) || !isFinite(u.lng)) return;
+    const d = lugar ? distM(lugar, u) : null, prec = u.prec == null ? 0 : u.prec;
+    puntos.push({ tipo:u.tipo, ms:u.ms, lat:u.lat, lng:u.lng, prec:u.prec, dist:d, anulada:!!u.anulada,
+                  lejos: d != null && d > lugar.radio + prec, imprecisa: prec > IMPRECISA_M });
+  });
+  const vivos = puntos.filter(x => !x.anulada);
+  const lejos = vivos.filter(x => x.lejos);
+  if(lejos.length) flags.push({ c:'UBIC_LEJOS', n:'aviso', t:lejos.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.dist)).join('; ') +
+    ' from their work location.' });
+  const imp = vivos.filter(x => !x.lejos && x.imprecisa);
+  if(imp.length) flags.push({ c:'UBIC_IMPRECISA', n:'info', t:'Approximate location (±' + fmtDist(Math.max.apply(null, imp.map(x => x.prec))) + ') for ' +
+    imp.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms)).join(', ') + ': it can\'t confirm where they were.' });
+  return { lugar, puntos, flags };
+}
+/* El navegador da la ubicación (pide permiso la primera vez). Devuelve {lat, lng, prec}
+   o lanza un error con .cod: 'denegada' | 'sin_dato' | 'tarde' | 'sin_soporte'. */
+function pedirUbicacion(){
+  return new Promise((res, rej) => {
+    const err = cod => Object.assign(new Error('location ' + cod), { cod });
+    if(!window.isSecureContext || !navigator.geolocation) return rej(err('sin_soporte'));
+    let listo = false;
+    const tope = setTimeout(() => { if(!listo){ listo = true; rej(err('tarde')); } }, 25000);
+    navigator.geolocation.getCurrentPosition(pos => {
+      if(listo) return; listo = true; clearTimeout(tope);
+      res({ lat:+pos.coords.latitude.toFixed(6), lng:+pos.coords.longitude.toFixed(6), prec:Math.round(pos.coords.accuracy || 0) });
+    }, e => {
+      if(listo) return; listo = true; clearTimeout(tope);
+      rej(err(e && e.code === 1 ? 'denegada' : e && e.code === 3 ? 'tarde' : 'sin_dato'));
+    }, { enableHighAccuracy:true, timeout:20000, maximumAge:60000 });
+  });
+}
+const AYUDA_UBIC = {
+  denegada:'<p>Your browser is blocking location for the Time Clock.</p><ol><li>Click the icon at the left of the address bar (the lock or the ⓘ).</li>' +
+    '<li>Set <b>Location</b> to <b>Allow</b>.</li><li>Reload the page and clock again.</li></ol>' +
+    '<p style="margin-top:8px">On a phone, also allow location for your browser in the phone\'s settings.</p>',
+  sin_dato:'<p>Your device couldn\'t find its location.</p><ol><li><b>Windows:</b> Settings → Privacy &amp; security → Location → turn on <b>Location services</b>.</li>' +
+    '<li><b>Mac:</b> System Settings → Privacy &amp; Security → Location Services → turn it on for your browser.</li><li>Make sure Wi‑Fi is on, then try again.</li></ol>',
+  tarde:'<p>Finding your location took too long. Make sure Wi‑Fi (or GPS on a phone) is on and try again.</p>',
+  sin_soporte:'<p>This browser can\'t share your location. Use an up‑to‑date Chrome, Edge or Safari.</p>'
+};
+function ayudaUbicacion(cod, tipo){
+  $('uTexto').innerHTML = (AYUDA_UBIC[cod] || AYUDA_UBIC.sin_dato) +
+    '<p class="nota" style="margin-top:10px">Nothing was recorded. If it still doesn\'t work, tell your supervisor and send a request with the right time from your pay period.</p>';
+  $('uOtra').onclick = () => { cerrar('ovUbic'); marcar(tipo); };
+  $('uCerrar').onclick = () => cerrar('ovUbic');
+  abrir('ovUbic');
+}
+/* Bloque «Punch locations» del detalle de un día (solo administrador). */
+function ubicBloque(e, d){
+  const ub = d.ubic;
+  if(!ub || !ub.puntos.length) return '';
+  let h = '<div class="bloque"><h3>Punch locations</h3>';
+  h += ub.lugar ? '<p class="nota" style="margin:0 0 4px">Work location set · allowed distance ' + esc(radioTxt(ub.lugar.radio)) + ' · <a href="' + mapaUrl(ub.lugar.lat, ub.lugar.lng) + '" target="_blank" rel="noopener">view on map</a></p>'
+                : '<p class="nota" style="margin:0 0 4px">No work location set for ' + esc(e.nombre) + '. Choose <b>Use as work location</b> on a punch made from where they work.</p>';
+  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
+    '<span class="dd">' + (x.lejos ? '⚠ ' : '') + (x.dist != null ? '<b>' + esc(fmtDist(x.dist)) + '</b> from work location' : 'Location recorded') +
+    (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
+    '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
+    ((!ub.lugar || (x.dist != null && x.dist > 30)) ? '<button class="btn btn-ghost" type="button" data-lugar="' + i + '">' + (ub.lugar ? 'Make this the work location' : 'Use as work location') + '</button>' : '') +
+    '</li>').join('') + '</ul></div>';
+  return h;
+}
+function conectarUbicBloque(){
+  document.querySelectorAll('#dCuerpo [data-lugar]').forEach(b => b.addEventListener('click', async () => {
+    const { e, fecha, d } = S.dia, x = d.ubic.puntos[Number(b.dataset.lugar)];
+    const radio = (d.ubic.lugar && d.ubic.lugar.radio) || 400;
+    const ok = await confirmar((d.ubic.lugar ? 'Change' : 'Set') + ' ' + e.nombre + '\'s work location?',
+      'Their ' + esc(NOMBRE_TIPO[x.tipo].toLowerCase()) + ' at ' + esc(hora(x.ms)) + ' (±' + esc(fmtDist(x.prec || 0)) + ') becomes their work location. Punches farther than ' +
+      esc(radioTxt(radio)) + ' from it will be flagged. You can change the distance in Users.', d.ubic.lugar ? 'Change' : 'Set work location');
+    if(!ok) return;
+    b.disabled = true;
+    try{
+      await api('fijarLugar', { usuario:e.usuario, lat:x.lat, lng:x.lng, radio });
+      toast('Work location set for ' + e.nombre + '.');
+      S.emps = null;
+      const deHoy = S.dia.fuente === S.hojaHoy;
+      if(deHoy){ await cargarHoy(true); if(S.hojaHoy) abrirDia(e.usuario, fecha, S.hojaHoy); }
+      else { await cargarHoja(); if(S.hoja) abrirDia(e.usuario, fecha, S.hoja); }
+    }catch(z){ $('dErr').textContent = z.message; b.disabled = false; }
+  }));
+}
+/* Users: lugar de trabajo del empleado (ver, cambiar la distancia, quitar). */
+function pintarLugarEmp(e){
+  const el = $('eLugar');
+  if(!e){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  const l = e.lugar;
+  if(!l){ el.innerHTML = '<span class="t"><b>Work location:</b> not set. Open a day with their punches in Timesheet and choose <b>Use as work location</b>.</span>'; return; }
+  el.innerHTML = '<span class="t"><b>Work location:</b> set · <a href="' + mapaUrl(l.lat, l.lng) + '" target="_blank" rel="noopener">view on map</a></span>' +
+    '<label style="display:flex;gap:6px;align-items:center">Allowed distance <select id="eRadio">' +
+    RADIOS.concat(RADIOS.some(r => r[0] === l.radio) ? [] : [[l.radio, fmtDist(l.radio)]]).map(r => '<option value="' + r[0] + '"' + (r[0] === l.radio ? ' selected' : '') + '>' + esc(r[1]) + '</option>').join('') +
+    '</select></label><button class="btn btn-ghost btn-sm" type="button" id="eQuitarLugar">Remove</button>';
+  const guardar = async (lat, lng, radio, txt) => {
+    $('eErr').textContent = '';
+    try{
+      await api('fijarLugar', { usuario:e.usuario, lat, lng, radio });
+      e.lugar = lat == null ? null : Object.assign({}, l, { radio }); pintarLugarEmp(e); toast(txt);
+      S.hoja = null; S.hojaHoy = null;
+    }catch(x){ $('eErr').textContent = x.message; pintarLugarEmp(e); }
+  };
+  $('eRadio').addEventListener('change', () => guardar(l.lat, l.lng, Number($('eRadio').value), 'Allowed distance saved.'));
+  $('eQuitarLugar').addEventListener('click', async () => {
+    if(await confirmar('Remove ' + e.nombre + '\'s work location?', 'Their punches won\'t be checked against a location until you set a new one.', 'Remove', true))
+      guardar(null, null, l.radio, 'Work location removed.');
+  });
 }
 
 /* Vista del agente: hoy (o el turno de ayer aún abierto), la semana y los días sin salida. */
@@ -1107,6 +1276,7 @@ function construirHoja(raw, monDias, ahora){
   raw.marcas.forEach(m => { (porUsuario[m.usuario] = porUsuario[m.usuario] || []).push(m); });
   const aprob = {}; raw.aprob.forEach(a => { aprob[a.usuario + '|' + a.fecha] = a; });
   const ausM = {}; (raw.aus || []).forEach(a => { for(let f = a.fecha; f <= a.fechaFin; f = sumarDias(f, 1)) ausM[a.usuario + '|' + f] = a; });
+  const ubicU = {}; (raw.ubic || []).forEach(u => { const k = u.usuario + '|' + u.fecha; (ubicU[k] = ubicU[k] || []).push(u); });
   const empleados = raw.emps.map(emp => {
     const porFecha = agrupar(porUsuario[emp.usuario] || []);
     const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
@@ -1116,8 +1286,9 @@ function construirHoja(raw, monDias, ahora){
       if(!m.length && !ap && !au) return;
       const d = armarDia(m, ahora, f === hoy);
       const mon = f > hoy ? false : monDias[f];
-      const fl = banderas(d, m, emp, mon, ahora);
-      dias[f] = { estado:d.estado, enCurso:d.enCurso, incompleto:d.incompleto, desde:d.desde, min:d.min, alm:d.alm, banderas:fl,
+      const ub = ubicDia(ubicU[emp.usuario + '|' + f] || [], emp);
+      const fl = banderas(d, m, emp, mon, ahora, ub);
+      dias[f] = { estado:d.estado, enCurso:d.enCurso, incompleto:d.incompleto, desde:d.desde, min:d.min, alm:d.alm, banderas:fl, ubic:ub,
         marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, origen:x.origen })),
         aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en) } : null,
         monitor: (mon && emp.agenteMonitor) ? (mon[normal(emp.agenteMonitor)] || null) : null, ausencia:au };
@@ -1224,6 +1395,13 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede invitar\.$/, 'Only an administrator can send invitations.'],
   [/^La contraseña debe tener al menos 8 caracteres, con letras y números\.$/, 'The password must have at least 8 characters, with letters and numbers.'],
   [/^Correo no válido\.$/, 'Invalid email.'],
+  [/^Para marcar hay que compartir la ubicación\..*$/, 'Your location is required to clock in or out. Reload the page and try again.'],
+  [/^Ubicación no válida\.$/, 'Invalid location.'],
+  [/^Solo un administrador puede fijar el lugar de trabajo\.$/, 'Only an administrator can set the work location.'],
+  [/^Radio no válido\.$/, 'Invalid distance.'],
+  [/^Ajuste no válido\.$/, 'Invalid setting.'],
+  [/reloj_fijar_lugar|lugar_lat/, 'The work location needs SQL step 21 in Supabase.'],
+  [/reloj_marcar\(p_tipo => .*p_ubic/, 'Clocking with location needs SQL step 21 in Supabase.'],
   [/^Solo un administrador puede ver el historial\.$/, 'Only an administrator can see the history.'],
   [/reloj_historial_dia/, 'The history needs SQL step 17 in Supabase.'],
   [/^Una corrección de horas no se edita.*/, 'An hours correction can\'t be edited: undo the approval, or fix the day in the timesheet.']
@@ -1236,11 +1414,12 @@ const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.pars
 const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
-  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '' });
+  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '',
+  lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1;
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -1256,7 +1435,7 @@ async function api(action, p){
   if(action === 'yo') return yoSB();
   if(action === 'marcar'){
     const t0 = performance.now();
-    const r = await q(sb.rpc('reloj_marcar', { p_tipo: p.tipo }));
+    const r = await q(sb.rpc('reloj_marcar', { p_tipo: p.tipo, p_ubic: p.ubic || null }));
     const ms = tiempo('marcar', t0);
     const yo = await yoSB();
     yo.marcada = { tipo:r.tipo, nombre:NOMBRE_TIPO[r.tipo], ms:Date.parse(r.ts), fecha:r.fecha, minTurno:r.minTurno, seg:ms };
@@ -1315,6 +1494,7 @@ async function api(action, p){
       aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })),
       sols:pend.map(solJS) };
   }
+  if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
@@ -1364,16 +1544,20 @@ async function hojaSB(desde, hasta){
   const fechas = rango(desde, hasta);
   if(fechas.length > CFG.MAX_DIAS) throw new Error('Choose a period of 31 days at most.');
   hasta = fechas[fechas.length - 1];
-  const [emps, marcas, aprob, aus] = await Promise.all([
+  const [emps, marcas, aprob, aus, ubic] = await Promise.all([
     q(sb.from('reloj_empleados').select('*').eq('activo', true)),
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
     q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
       .eq('estado', 'aprobada').lte('fecha', hasta).gte('fecha_fin', desde)).catch(() => []),
+    // dónde se hizo cada marca del agente (sin el paso 21 de SQL, la hoja sigue sin ubicaciones)
+    todas(() => sb.from('reloj_marcas').select('usuario,fecha,tipo,ts,lat,lng,prec_m,anulada_en').eq('origen', 'agente').not('lat', 'is', null)
+      .gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')).catch(() => []),
     cargarConfig()
   ]);
   const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob,
+                ubic:ubic.map(u => ({ usuario:u.usuario, fecha:u.fecha, tipo:u.tipo, ms:Date.parse(u.ts), lat:Number(u.lat), lng:Number(u.lng), prec:u.prec_m == null ? null : Number(u.prec_m), anulada:!!u.anulada_en })),
                 aus:aus.map(a => ({ usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
   const h = construirHoja(raw, monDisponible(fechas), ahora());
   h._raw = raw; h.seg = tiempo('hoja', t0);
@@ -2037,9 +2221,20 @@ function pedirMarca(tipo){
 }
 async function marcar(tipo){
   S.ocupado = true;
-  document.querySelectorAll('#rAcciones button').forEach(b => { b.disabled = true; });
+  const botones = document.querySelectorAll('#rAcciones button'), boton = document.querySelector('#rAcciones [data-t="' + tipo + '"]'), txt = boton ? boton.textContent : '';
+  botones.forEach(b => { b.disabled = true; });
+  let ubic = null;
   try{
-    const yo = await api('marcar', { tipo });
+    if(boton) boton.innerHTML = '<span class="spin"></span> Getting your location…';
+    try{ ubic = await pedirUbicacion(); }
+    catch(e){
+      if(S.ubicObligatoria !== false){
+        if(boton) boton.textContent = txt; botones.forEach(b => { b.disabled = false; }); S.ocupado = false;
+        return ayudaUbicacion(e.cod, tipo);
+      }
+    }
+    if(boton) boton.innerHTML = '<span class="spin"></span> Saving…';
+    const yo = await api('marcar', { tipo, ubic });
     aplicarYo(yo); pintarReloj();
     const m = yo.marcada;
     const h = hora(m.ms), conPunto = h + '.';
@@ -2048,6 +2243,7 @@ async function marcar(tipo){
                              : m.nombre + ' recorded at ' + conPunto) + t);
   }catch(e){
     toast(e.message, 'err');
+    if(boton && document.body.contains(boton)) boton.textContent = txt;
     document.querySelectorAll('#rAcciones button').forEach(b => { b.disabled = false; });
   }
   S.ocupado = false;
@@ -2272,11 +2468,13 @@ function vistaDia(){
     (d.ausencia.pagada ? 'paid ' + d.ausencia.horas + ' h' : 'unpaid') + (d.ausencia.por ? ' · by ' + esc(d.ausencia.por) : '') + '</span></div>' + h;
   if(d.monitor) h += '<div class="bloque"><h3>Their PC per the Monitor</h3><p class="pcdato">First signal <b>' + hora(d.monitor.p) +
     '</b> · last <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' period' : ' periods') + ' with no activity' : 'no absences') + '</p></div>';
+  h += ubicBloque(e, d);
   if(d.banderas.length) h += '<div class="bloque"><h3>Issues</h3><ul class="banderas">' +
     d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
   h += '<div class="bloque"><h3>History</h3><div id="dHist"><div class="nota"><span class="spin dark"></span> Loading…</div></div></div>';
   $('dCuerpo').innerHTML = h;
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
+  conectarUbicBloque();
   cargarHistDia();
 
   const pie = [];
@@ -2591,6 +2789,7 @@ function abrirEmp(usuario){
   $('eMonitor').value = e ? e.agenteMonitor : '';
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
+  pintarLugarEmp(e);
   // Deactivate / Reactivate y Delete (Delete no aplica a quien entra por el portal)
   $('eActivar').classList.toggle('hidden', !e); $('eBorrar').classList.toggle('hidden', !e || accesoDe(e).k === 'portal');
   if(e) $('eActivar').textContent = e.activo ? 'Deactivate' : 'Reactivate';
@@ -2689,7 +2888,17 @@ function pintarAjustes(){
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
+  $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
 }
+$('ajUbicGuardar').addEventListener('click', async () => {
+  const v = $('ajUbic').checked, b = $('ajUbicGuardar'); b.disabled = true;
+  try{
+    await api('guardarConfig', { clave:'ubicacion', valor:v });
+    S.ubicObligatoria = v;
+    $('ajUbicEstado').textContent = v ? 'Saved. Location is required to clock.' : 'Saved. Agents can clock without sharing their location.'; toast('Settings saved.');
+  }catch(e){ $('ajUbicEstado').textContent = e.message; }
+  b.disabled = false;
+});
 document.querySelectorAll('input[name=redondeo]').forEach(x => x.addEventListener('change', () => { $('ajEjemplo').innerHTML = ejemploRedondeo(Number(x.value)); $('ajEstado').textContent = ''; }));
 $('ajGuardar').addEventListener('click', async () => {
   const sel = document.querySelector('input[name=redondeo]:checked'); if(!sel) return;
@@ -3166,13 +3375,15 @@ function demoInit(){
   S.zona = 'America/New_York';
   const hoy = fechaHoy();
   DM.emps = [
-    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
-    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00' },
-    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' },
+    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
+    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00', lugar:{ lat:28.48114, lng:-81.45973, radio:400, por:'carloshtl75' } },
+    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00', lugar:{ lat:28.60402, lng:-81.20019, radio:400, por:'carloshtl75' } },
     { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
     { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
   ];
-  DM.marcas = {}; DM.aprob = {};
+  DM.marcas = {}; DM.aprob = {}; DM.ubic = {};
+  DM.diaLejos = sumarDias(hoy, -2); while([0, 6].indexOf(new Date(DM.diaLejos + 'T12:00:00Z').getUTCDay()) >= 0) DM.diaLejos = sumarDias(DM.diaLejos, -1);
+  const CASA = { 'laura.a':[28.55291, -81.30612], 'claudia.c':[28.48114, -81.45973], 'farouk.n':[28.60402, -81.20019], 'saori.m':[28.4158, -81.2989], 'hebert.h':[28.6934, -81.3412] };
   const hace = h => Date.now() - h * 3600000;
   DM.solId = 4;
   DM.sols = [
@@ -3204,6 +3415,10 @@ function demoInit(){
         if(f < sumarDias(hoy, -7) && rnd() < .9) DM.aprob[k] = true;
       }
       DM.marcas[k] = m;
+      // dónde marcó: cerca de su casa; Farouk, el último día hábil antes de ayer, desde otra ciudad
+      const c = CASA[e.usuario], lejos = i === 2 && f === DM.diaLejos;
+      DM.ubic[k] = m.map(x => ({ usuario:e.usuario, fecha:f, tipo:x.tipo, ms:x.ms, anulada:false, prec: lejos ? 45 : 20 + Math.round(rnd() * 70),
+        lat: lejos ? 28.0836 + rnd() * .001 : c[0] + (rnd() - .5) * .0012, lng: lejos ? -80.6081 + rnd() * .001 : c[1] + (rnd() - .5) * .0012 }));
       DM.mon = DM.mon || {};
       const ep = rnd() < .18 ? [['Sin señal', t(14 * 60 + 10), t(14 * 60 + 38)]] : [];
       DM.mon[k] = { p: t(ent + (i === 0 && rnd() < .3 ? 35 : -3)), u: f === hoy ? ahora() - 60000 : t(sal + 2), e: ep };
@@ -3237,6 +3452,7 @@ function demoDia(e, f){
     mins = Math.round(mins / 60000);
     if(mins >= 5) d.banderas.push({ c:'PC_AUSENCIAS', n:'aviso', t:'1 PC absence during the clocked shift: ' + mins + ' min total.', min:mins });
   }
+  d.ubic = ubicDia(DM.ubic[e.usuario + '|' + f] || [], e); d.ubic.flags.forEach(x => d.banderas.push(x));
   return d;
 }
 async function demoApi(action, p){
@@ -3274,8 +3490,11 @@ async function demoApi(action, p){
   if(action === 'yo') return yo();
   if(action === 'marcar'){
     const k = yoU + '|' + hoy; (DM.marcas[k] = DM.marcas[k] || []).push({ tipo:p.tipo, ms:ahora(), origen:'agente' });
+    if(p.ubic) (DM.ubic[k] = DM.ubic[k] || []).push({ usuario:yoU, fecha:hoy, tipo:p.tipo, ms:ahora(), lat:p.ubic.lat, lng:p.ubic.lng, prec:p.ubic.prec, anulada:false });
     const r = yo(); r.marcada = { tipo:p.tipo, nombre:NOMBRE_TIPO[p.tipo], ms:ahora(), fecha:hoy, minTurno:r.reloj.min }; return r;
   }
+  if(action === 'fijarLugar'){ const e = DM.emps.find(x => x.usuario === p.usuario);
+    e.lugar = p.lat == null ? null : { lat:p.lat, lng:p.lng, radio:p.radio, por:'carloshtl75' }; return { ok:true }; }
   if(action === 'hoja') return hojaDe(p.desde, p.hasta);
   if(action === 'aprobar' || action === 'desaprobar'){ p.items.forEach(i => { if(action === 'aprobar') DM.aprob[i.usuario + '|' + i.fecha] = true; else delete DM.aprob[i.usuario + '|' + i.fecha]; }); return { hechos:p.items.length, saltados:[] }; }
   if(action === 'corregir'){
@@ -3335,7 +3554,7 @@ async function demoApi(action, p){
     return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
   }
   if(action === 'historialDia') return demoHistorial(p.usuario, p.fecha);
-  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else S.listas = p.valor; return { ok:true }; }
+  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
       DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
