@@ -107,6 +107,13 @@ header .btn.alerta{color:var(--text)}
 .urec{grid-column:1/-1;margin:4px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted);max-height:180px;overflow:auto}
 .urec li{display:flex;gap:10px;padding:2px 0;border-top:1px dashed var(--border)}
 .urec li span:first-child{min-width:110px;color:var(--text-2)}
+.uhist{grid-column:1/-1;margin-top:6px;border-top:1px solid var(--border);padding-top:8px}
+.uhist .uhbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.uhist .uhbar label{display:inline-flex;gap:6px;align-items:center;margin:0;font-weight:600}
+.uhist .uhbar input{border:1px solid var(--border);border-radius:7px;padding:4px 7px;font:inherit;background:var(--surface);color:var(--text)}
+.uhist .urec{max-height:240px}
+.uhist .urec li.lejos span:last-child{color:var(--text);font-weight:600}
+.uhist .nota{font-size:12px;color:var(--muted);margin-top:4px}
 @media (max-width:600px){.krow{grid-template-columns:1fr}.krow .ka{justify-content:flex-start}}
 .crow input{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;min-width:0}
 .crow .cnt{font-size:11.5px;color:var(--text-2);min-width:36px;text-align:right}
@@ -571,7 +578,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 <div class="modal-bg" id="modalUbic">
   <div class="modal ubic" role="dialog" aria-modal="true" aria-labelledby="uTitulo">
     <h3 id="uTitulo">Ubicación de los equipos</h3>
-    <p class="sub">Durante el turno, cada equipo manda su ubicación cada 30 minutos (Windows la calcula con el Wi‑Fi). Se compara con el <b>lugar de trabajo</b> que se aprueba en el Time Clock. Si un portátil se pierde, márquelo como <b>perdido</b>: manda su ubicación cada 5 minutos, a cualquier hora, mientras alguien inicie sesión en él. Solo los administradores ven esta información.</p>
+    <p class="sub">Durante el turno, cada equipo manda su ubicación cada 30 minutos, y también apenas el agente marca en el Time Clock (Windows la calcula con el Wi‑Fi). «Historial» muestra las lecturas de cualquier día de los últimos 90. Se compara con el <b>lugar de trabajo</b> que se aprueba en el Time Clock. Si un portátil se pierde, márquelo como <b>perdido</b>: manda su ubicación cada 5 minutos, a cualquier hora, mientras alguien inicie sesión en él. Solo los administradores ven esta información.</p>
     <div id="uResumen"></div>
     <div id="uLista"><div class="hint">Cargando…</div></div>
     <div class="acc">
@@ -2352,7 +2359,8 @@ setInterval(refrescarBotonClaves, 5 * 60000);
 // ── Ubicación de los equipos (agente 2.8, paso 21 de SQL) ─────────────────
 // monitor_ubicaciones_panel() solo responde a un administrador: si no lo es (o el
 // paso 21 aún no está), el botón no aparece y las tarjetas quedan como antes.
-const UB = { datos: null, firma: '', porAgente: {}, perdiendo: null, recorrido: {} };
+const UB = { datos: null, firma: '', porAgente: {}, perdiendo: null, recorrido: {}, hist: {} };
+const hoyNY = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 function ubDist(a, b){
   const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
@@ -2434,9 +2442,10 @@ function uFila(x){
   if (!emp) det.push('No está vinculado a un empleado del Time Clock (Time Clock > Users > «Agent in the Monitor»): no se puede comparar con su lugar de trabajo.');
   else if (!l) det.push('Sin lugar de trabajo aprobado: en el Time Clock, abra un día con sus marcas y elija «Use as work location».');
   let acc = '';
-  if (x.perdido) acc = '<button class="btn" type="button" data-urec="' + esc(x.equipo) + '">' + (UB.recorrido[x.equipo] ? 'Ocultar recorrido' : 'Ver recorrido') + '</button>' +
+  acc = '<button class="btn" type="button" data-uhist="' + esc(x.equipo) + '">' + (UB.hist[x.equipo] ? 'Ocultar historial' : 'Historial') + '</button>';
+  if (x.perdido) acc += '<button class="btn" type="button" data-urec="' + esc(x.equipo) + '">' + (UB.recorrido[x.equipo] ? 'Ocultar recorrido' : 'Ver recorrido') + '</button>' +
                        '<button class="btn" type="button" data-uapar="' + esc(x.equipo) + '">Ya apareció</button>';
-  else acc = '<button class="btn peligro" type="button" data-uperd="' + esc(x.equipo) + '">Marcar perdido</button>';
+  else acc += '<button class="btn peligro" type="button" data-uperd="' + esc(x.equipo) + '">Marcar perdido</button>';
   let extra = '';
   if (UB.perdiendo === x.equipo) extra = '<div class="kmotivo"><input id="uNota" maxlength="300" placeholder="Nota (ej. se lo robaron del carro el 6/10)" aria-label="Nota">' +
     '<button class="btn peligro" type="button" data-uconf="' + esc(x.equipo) + '">Confirmar: reportar cada 5 min</button><button class="btn" type="button" data-ucanc="1">Cancelar</button></div>';
@@ -2444,8 +2453,41 @@ function uFila(x){
   if (rec) extra += '<ul class="urec">' + (rec.length ? rec.slice(0, 60).map(p => '<li><span>' + esc(kFecha(p.ts)) + '</span><span>' +
       (p.estado === 'ok' ? '±' + esc(ubTxt(p.prec || 0)) + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">mapa</a>' : esc(UB_FALLA[p.estado] || p.estado)) +
       (p.usuario ? ' · usuario ' + esc(p.usuario) : '') + '</span></li>').join('') : '<li>Sin ubicaciones en los últimos 3 días.</li>') + '</ul>';
+  if (UB.hist[x.equipo]) extra += uHistHtml(x);
   return '<div class="krow' + (x.perdido ? ' perdido' : e.nivel === 'warn' ? ' lejos' : '') + '"><div><div class="kq">' + (e.nivel === 'warn' ? '⚠ ' : '') +
     esc(x.agente || '(sin agente)') + '</div><div class="kd">' + det.join('<br>') + '</div></div><div class="ka">' + acc + '</div>' + extra + '</div>';
+}
+// Historial de un día: cada lectura con su hora, distancia al lugar de trabajo y enlace al mapa;
+// además, un enlace con el recorrido del día en Google Maps (hasta 10 puntos).
+function uHistHtml(x){
+  const h = UB.hist[x.equipo], l = x.empleado && x.empleado.lugar;
+  let out = '<div class="uhist"><div class="uhbar"><label>Día <input type="date" data-uhfecha="' + esc(x.equipo) + '" value="' + esc(h.fecha) + '" max="' + hoyNY() + '"></label>';
+  if (h.cargando) return out + '<span>Cargando…</span></div></div>';
+  if (h.error) return out + '</div><div class="nota">' + esc(h.error) + '</div></div>';
+  const lista = h.datos || [], buenas = lista.filter(p => p.estado === 'ok');
+  if (buenas.length > 1) {
+    const paso = Math.max(1, Math.ceil(buenas.length / 10)), pts = buenas.filter((p, i) => i % paso === 0).slice(0, 9).concat([buenas[buenas.length - 1]]);
+    out += '<a href="https://www.google.com/maps/dir/' + pts.map(p => Number(p.lat).toFixed(6) + ',' + Number(p.lng).toFixed(6)).join('/') + '" target="_blank" rel="noopener">Ver el recorrido del día en el mapa</a>';
+  }
+  out += '<span>' + lista.length + ' lectura(s)</span></div>';
+  if (!lista.length) return out + '<div class="nota">Sin ubicaciones ese día (fuera de turno, equipo apagado o todavía sin la versión 2.8).</div></div>';
+  out += '<ul class="urec">' + lista.map(p => {
+    const t = hora(Date.parse(p.ts)), mot = p.motivo === 'perdido' ? ' · perdido' : '';
+    if (p.estado !== 'ok') return '<li><span>' + esc(t) + '</span><span>' + esc(UB_FALLA[p.estado] || p.estado) + mot + '</span></li>';
+    const d = l ? ubDist(l, p) : null, lejos = d != null && d > l.radio + (p.prec || 0);
+    return '<li' + (lejos ? ' class="lejos"' : '') + '><span>' + esc(t) + '</span><span>' + (lejos ? '⚠ a ' + esc(ubTxt(d)) + ' de su lugar' : d != null ? 'en su lugar' : 'ubicación recibida') +
+      ' · ±' + esc(ubTxt(p.prec || 0)) + mot + (p.usuario ? ' · usuario ' + esc(p.usuario) : '') + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">mapa</a></span></li>';
+  }).join('') + '</ul><div class="nota">Las ubicaciones se guardan 90 días.</div></div>';
+  return out;
+}
+async function cargarHist(eq, fecha){
+  UB.hist[eq] = { fecha, cargando: true }; pintarUbic();
+  try {
+    const r = await window.sb.rpc('monitor_ubicaciones_dia', { p_equipo: eq, p_fecha: fecha });
+    if (r.error) throw new Error(/monitor_ubicaciones_dia/.test(r.error.message) ? 'El historial necesita el paso 22 de SQL en Supabase.' : r.error.message);
+    UB.hist[eq] = { fecha, datos: r.data || [] };
+  } catch(e){ UB.hist[eq] = { fecha, error: 'No se pudo cargar: ' + e.message }; }
+  pintarUbic();
 }
 function pintarUbic(){
   const lista = (UB.datos || []).slice();
@@ -2471,6 +2513,7 @@ async function recargarUbic(){
     UB.datos = await pedirUbic(); indexarUbic(); pintarBotonUbic();
     for (const eq of Object.keys(UB.recorrido)) await cargarRecorrido(eq);
     pintarUbic();
+    for (const eq of Object.keys(UB.hist)) if (UB.hist[eq].fecha) cargarHist(eq, UB.hist[eq].fecha);
   } catch(e){ $('uResumen').innerHTML = ''; $('uLista').innerHTML = '<div class="banner err">' + esc(e.message) + '</div>'; }
 }
 async function cargarRecorrido(eq){
@@ -2495,6 +2538,11 @@ $('uLista').addEventListener('click', async ev => {
   else if (b.dataset.ucanc) { UB.perdiendo = null; pintarUbic(); }
   else if (b.dataset.uconf) marcarPerdido(b.dataset.uconf, true, ($('uNota') || {}).value || '', b);
   else if (b.dataset.uapar) marcarPerdido(b.dataset.uapar, false, '', b);
+  else if (b.dataset.uhist) {
+    const eq = b.dataset.uhist;
+    if (UB.hist[eq]) { delete UB.hist[eq]; pintarUbic(); return; }
+    cargarHist(eq, hoyNY());
+  }
   else if (b.dataset.urec) {
     const eq = b.dataset.urec;
     if (UB.recorrido[eq]) { delete UB.recorrido[eq]; pintarUbic(); return; }
@@ -2502,6 +2550,10 @@ $('uLista').addEventListener('click', async ev => {
     try { await cargarRecorrido(eq); } catch(e){ toast('No se pudo cargar: ' + e.message, 'err'); }
     pintarUbic();
   }
+});
+$('uLista').addEventListener('change', ev => {
+  const i = ev.target.closest('[data-uhfecha]'); if (!i || !/^\d{4}-\d{2}-\d{2}$/.test(i.value)) return;
+  cargarHist(i.dataset.uhfecha, i.value);
 });
 $('btnUbic').addEventListener('click', abrirUbic);
 $('uRecargar').addEventListener('click', recargarUbic);

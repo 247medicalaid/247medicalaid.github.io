@@ -593,6 +593,8 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .ubics .q{font-weight:600;min-width:120px}
 .ubics .dd{flex:1;min-width:150px;color:var(--text-muted)}
 .ubics .dd b{color:var(--text);font-weight:600}
+.ubics .pc{flex-basis:100%;font-size:13px;color:var(--text-muted);padding-left:2px}
+.ubics .pc.mal{color:var(--text);font-weight:600}
 .ubics a{font-size:13.5px}
 .ubics .btn{padding:4px 10px;font-size:13px}
 .lugar-emp{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;background:var(--sand);border-radius:var(--radius-sm);padding:10px 12px;margin:-6px 0 14px;font-size:14px}
@@ -1130,7 +1132,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
    Con precisión de más de una milla se avisa aparte (solo informativo). */
 const IC_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>';
 const RADIOS = [[160, '0.1 mi (500 ft)'], [400, '0.25 mi'], [800, '0.5 mi'], [1609, '1 mi'], [3219, '2 mi']];
-const IMPRECISA_M = 1609;
+const IMPRECISA_M = 1609, PC_TOL_M = 400;   // marca vs PC: «mismo lugar» hasta 0.25 mi más las precisiones
 function distM(a, b){
   const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
@@ -1148,13 +1150,20 @@ function ubicDia(lista, emp){
   lista.forEach(u => {
     if(u.lat == null || !isFinite(u.lat) || !isFinite(u.lng)) return;
     const d = lugar ? distM(lugar, u) : null, prec = u.prec == null ? 0 : u.prec;
+    // el PC en ese momento: misma casa si, sumando las dos precisiones, quedan a menos de PC_TOL_M
+    const pc = u.pc || null, pcOk = !!(pc && pc.estado === 'ok' && isFinite(pc.lat) && isFinite(pc.lng));
+    const pcDist = pcOk ? distM(u, pc) : null;
     puntos.push({ tipo:u.tipo, ms:u.ms, lat:u.lat, lng:u.lng, prec:u.prec, dist:d, anulada:!!u.anulada,
-                  lejos: d != null && d > lugar.radio + prec, imprecisa: prec > IMPRECISA_M });
+                  lejos: d != null && d > lugar.radio + prec, imprecisa: prec > IMPRECISA_M,
+                  pc, pcDist, pcLejos: pcOk && pcDist > PC_TOL_M + prec + (pc.prec || 0) });
   });
   const vivos = puntos.filter(x => !x.anulada);
   const lejos = vivos.filter(x => x.lejos);
   if(lejos.length) flags.push({ c:'UBIC_LEJOS', n:'aviso', t:lejos.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.dist)).join('; ') +
     ' from their work location.' });
+  const pcl = vivos.filter(x => x.pcLejos);
+  if(pcl.length) flags.push({ c:'UBIC_PC', n:'aviso', t:pcl.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.pcDist) +
+    ' from their work computer (PC location at ' + hora(x.pc.ts) + ')').join('; ') + '.' });
   const imp = vivos.filter(x => !x.lejos && x.imprecisa);
   if(imp.length) flags.push({ c:'UBIC_IMPRECISA', n:'info', t:'Approximate location (±' + fmtDist(Math.max.apply(null, imp.map(x => x.prec))) + ') for ' +
     imp.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms)).join(', ') + ': it can\'t confirm where they were.' });
@@ -1205,8 +1214,18 @@ function ubicBloque(e, d){
     (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
     '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
     ((!ub.lugar || (x.dist != null && x.dist > 30)) ? '<button class="btn btn-ghost" type="button" data-lugar="' + i + '">' + (ub.lugar ? 'Make this the work location' : 'Use as work location') + '</button>' : '') +
-    '</li>').join('') + '</ul></div>';
+    pcLinea(x, e) + '</li>').join('') + '</ul></div>';
   return h;
+}
+const PC_FALLA = { apagada:'Windows location is off', denegada:'Windows blocks location', sin_dato:'Windows couldn\'t find it', error:'couldn\'t read it' };
+function pcLinea(x, e){
+  if(!e.agenteMonitor) return '';
+  const pc = x.pc;
+  if(!pc) return '<span class="pc">PC: no reading near this punch (computer off, or Monitor older than 2.8)</span>';
+  const t = 'PC at ' + esc(hora(pc.ts)) + ': ';
+  if(pc.estado !== 'ok') return '<span class="pc">' + t + esc(PC_FALLA[pc.estado] || pc.estado) + '</span>';
+  return '<span class="pc' + (x.pcLejos ? ' mal' : '') + '">' + t + (x.pcLejos ? '⚠ ' + esc(fmtDist(x.pcDist)) + ' away' : 'same place (' + esc(fmtDist(x.pcDist)) + ')') +
+    ' · <a href="' + mapaUrl(pc.lat, pc.lng) + '" target="_blank" rel="noopener">PC on map</a></span>';
 }
 function conectarUbicBloque(){
   document.querySelectorAll('#dCuerpo [data-lugar]').forEach(b => b.addEventListener('click', async () => {
@@ -1276,7 +1295,8 @@ function construirHoja(raw, monDias, ahora){
   raw.marcas.forEach(m => { (porUsuario[m.usuario] = porUsuario[m.usuario] || []).push(m); });
   const aprob = {}; raw.aprob.forEach(a => { aprob[a.usuario + '|' + a.fecha] = a; });
   const ausM = {}; (raw.aus || []).forEach(a => { for(let f = a.fecha; f <= a.fechaFin; f = sumarDias(f, 1)) ausM[a.usuario + '|' + f] = a; });
-  const ubicU = {}; (raw.ubic || []).forEach(u => { const k = u.usuario + '|' + u.fecha; (ubicU[k] = ubicU[k] || []).push(u); });
+  const pcK = {}; (raw.pc || []).forEach(x => { pcK[x.k] = x; });
+  const ubicU = {}; (raw.ubic || []).forEach(u => { u.pc = pcK[u.usuario + '|' + u.ms + '|' + u.tipo] || null; const k = u.usuario + '|' + u.fecha; (ubicU[k] = ubicU[k] || []).push(u); });
   const empleados = raw.emps.map(emp => {
     const porFecha = agrupar(porUsuario[emp.usuario] || []);
     const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
@@ -1544,7 +1564,7 @@ async function hojaSB(desde, hasta){
   const fechas = rango(desde, hasta);
   if(fechas.length > CFG.MAX_DIAS) throw new Error('Choose a period of 31 days at most.');
   hasta = fechas[fechas.length - 1];
-  const [emps, marcas, aprob, aus, ubic] = await Promise.all([
+  const [emps, marcas, aprob, aus, ubic, pcs] = await Promise.all([
     q(sb.from('reloj_empleados').select('*').eq('activo', true)),
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
@@ -1554,9 +1574,13 @@ async function hojaSB(desde, hasta){
     // dónde se hizo cada marca del agente (sin el paso 21 de SQL, la hoja sigue sin ubicaciones)
     todas(() => sb.from('reloj_marcas').select('usuario,fecha,tipo,ts,lat,lng,prec_m,anulada_en').eq('origen', 'agente').not('lat', 'is', null)
       .gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')).catch(() => []),
+    // la ubicación del PC cerca de cada marca (sin el paso 22 de SQL, la hoja sigue sin esta comparación)
+    q(sb.rpc('reloj_ubic_pc', { p_desde:desde, p_hasta:hasta })).catch(() => []),
     cargarConfig()
   ]);
   const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob,
+                pc:(pcs || []).map(x => ({ k:x.usuario + '|' + Date.parse(x.ts) + '|' + x.tipo, ts:Date.parse(x.pc.ts), estado:x.pc.estado,
+                  lat:x.pc.lat == null ? null : Number(x.pc.lat), lng:x.pc.lng == null ? null : Number(x.pc.lng), prec:x.pc.prec == null ? null : Number(x.pc.prec) })),
                 ubic:ubic.map(u => ({ usuario:u.usuario, fecha:u.fecha, tipo:u.tipo, ms:Date.parse(u.ts), lat:Number(u.lat), lng:Number(u.lng), prec:u.prec_m == null ? null : Number(u.prec_m), anulada:!!u.anulada_en })),
                 aus:aus.map(a => ({ usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
   const h = construirHoja(raw, monDisponible(fechas), ahora());
@@ -3418,7 +3442,10 @@ function demoInit(){
       // dónde marcó: cerca de su casa; Farouk, el último día hábil antes de ayer, desde otra ciudad
       const c = CASA[e.usuario], lejos = i === 2 && f === DM.diaLejos;
       DM.ubic[k] = m.map(x => ({ usuario:e.usuario, fecha:f, tipo:x.tipo, ms:x.ms, anulada:false, prec: lejos ? 45 : 20 + Math.round(rnd() * 70),
-        lat: lejos ? 28.0836 + rnd() * .001 : c[0] + (rnd() - .5) * .0012, lng: lejos ? -80.6081 + rnd() * .001 : c[1] + (rnd() - .5) * .0012 }));
+        lat: lejos ? 28.0836 + rnd() * .001 : c[0] + (rnd() - .5) * .0012, lng: lejos ? -80.6081 + rnd() * .001 : c[1] + (rnd() - .5) * .0012,
+        // la lectura del PC (si está vinculado al Monitor): en su casa, 1–2 min después de la marca
+        pc: e.agenteMonitor ? (rnd() < .06 ? { ts:x.ms + 90000, estado:'apagada', lat:null, lng:null, prec:null }
+             : { ts:x.ms + 60000 + Math.round(rnd() * 60000), estado:'ok', lat:c[0] + (rnd() - .5) * .0008, lng:c[1] + (rnd() - .5) * .0008, prec:30 + Math.round(rnd() * 60) }) : null }));
       DM.mon = DM.mon || {};
       const ep = rnd() < .18 ? [['Sin señal', t(14 * 60 + 10), t(14 * 60 + 38)]] : [];
       DM.mon[k] = { p: t(ent + (i === 0 && rnd() < .3 ? 35 : -3)), u: f === hoy ? ahora() - 60000 : t(sal + 2), e: ep };
