@@ -553,6 +553,14 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .acceso .listo{background:var(--brand-50);color:var(--ink-700);border-radius:var(--radius-sm);padding:12px 14px;font-size:14.5px;line-height:1.5;margin-bottom:12px}
 .acceso .pie-acc{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-size:12.5px;color:var(--text-muted)}
 .acceso .pie-acc a{color:var(--brand-700);font-weight:600}
+/* My profile (agente) */
+.datos-ro{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:6px}
+.datos-ro div{font-size:14.5px}
+.datos-ro small{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:1px}
+@media (max-width:640px){ .datos-ro{grid-template-columns:1fr} }
+.mp-clave{background:var(--sand);border-radius:var(--radius-sm);padding:12px 12px 4px;margin-top:8px}
+.btn-perfil svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:600px){ .btn-perfil .tx{display:none} }
 /* acceso del empleado en su ficha (Users) */
 .acc-emp{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--sand);border-radius:var(--radius-sm);padding:10px 12px;margin:2px 0 14px;font-size:14px}
 .acc-emp .t{flex:1;min-width:200px}
@@ -588,6 +596,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <span class="esp"></span>
   <div class="quien"><b id="quienNom"></b><span id="quienRol"></span></div>
   <a class="btn btn-ghost btn-sm" href="https://247medicalaid.github.io/" id="btnPortal">Portal</a>
+  <button class="btn btn-ghost btn-sm btn-perfil hidden" id="btnPerfil" type="button" aria-label="My profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span class="tx">My profile</span></button>
   <button class="btn btn-ghost btn-sm hidden" id="btnSalir" type="button">Sign out</button>
 </header>
 
@@ -791,6 +800,16 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 </div>
 
 <!-- usuario (ficha completa) -->
+<div class="overlay hidden" id="ovPerfil" role="dialog" aria-modal="true" aria-labelledby="mpTitulo">
+  <div class="ventana ventana-ficha">
+    <h2 id="mpTitulo">My profile</h2>
+    <div class="sub">Keep your contact and bank details up to date. Your administrator manages your name, email and work details.</div>
+    <div id="mpCuerpo"></div>
+    <div class="err" id="mpErr" role="alert"></div>
+    <div class="pie"><button class="btn btn-ghost" data-cerrar>Cancel</button><span class="esp"></span><button class="btn btn-brand" id="mpGuardar" type="button">Save changes</button></div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="ovEmp" role="dialog" aria-modal="true" aria-labelledby="eTitulo">
   <div class="ventana ventana-ficha">
     <h2 id="eTitulo">Add user</h2>
@@ -1182,6 +1201,7 @@ const SERVIDOR_EN = [
   [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
   [/^La fecha debe ser de hoy o de los últimos 62 días\.$/, 'The date must be today or within the last 62 days.'],
   [/^No hay cambios en ese día\.$/, 'There are no changes for that day.'],
+  [/^Elige una opción de la lista\.$/, 'Choose an option from the list.'],
   [/^Escribe el correo del empleado\.$/, 'Enter the employee\'s email. They\'ll use it to sign in.'],
   [/^Ese correo ya lo tiene otro empleado\.$/, 'Another employee already has that email.'],
   [/^Usuario no válido\.$/, 'Invalid user.'],
@@ -1236,6 +1256,18 @@ async function api(action, p){
   if(action === 'aprobar' || action === 'desaprobar') return q(sb.rpc('reloj_aprobar', { p_items:p.items, p_aprobar: action === 'aprobar' }));
   if(action === 'empleados') return empleadosSB();
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
+  if(action === 'miFicha'){
+    const ses = await sesionSB();
+    const [row] = await Promise.all([q(sb.from('reloj_empleados').select('*').eq('usuario', usuarioDe(ses)).maybeSingle()), cargarConfig()]);
+    if(!row) throw new Error('Your user doesn\'t have a time clock yet. Ask the administrator to add you.');
+    return { ficha:empJS(row), email:esCuentaPortal(ses) ? (row.email || '') : ses.user.email };
+  }
+  if(action === 'guardarMiFicha') return q(sb.rpc('reloj_guardar_mi_ficha', { p:p.ficha }));
+  if(action === 'cambiarClave'){
+    const { error } = await sb.auth.updateUser({ password:p.clave });
+    if(error) throw new Error(/different from the old/i.test(error.message) ? 'Use a password different from your current one.' : error.message);
+    return { ok:true };
+  }
   if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false }, ses.access_token)); }
   if(action === 'solicitar'){ const r = await q(sb.rpc('reloj_solicitar', { p:p.sol })); avisarSolicitud(r.id); return r; }
   if(action === 'misSolicitudes'){
@@ -1398,6 +1430,14 @@ async function monPedir(fechas, alTerminar){
    (Supabase). La invitación y el «Forgot password?» llegan por correo con un
    enlace de un solo uso (?invite=… / ?reset=…) que abre «Create your password». */
 const LOGO = 'https://247medical-aid.com/logo-247-dark.svg';
+// La sesión del agente se guarda aparte de la del portal: si un administrador y un agente usan el
+// mismo navegador, no se pisan.
+function clienteAgente(){
+  if(!S.sbAg && window.supabase && window.supabase.createClient)
+    S.sbAg = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'reloj247.agente' } });
+  return S.sbAg;
+}
+const esCuentaPortal = ses => String(ses.user.email || '').endsWith(DOMINIO_SB);
 function caja(html){
   const v = $('velo'); if(v) v.remove();
   $('acceso').classList.remove('hidden');
@@ -1439,7 +1479,7 @@ function pantallaLogin(aviso, email){
     try{
       if(DEMO){ await new Promise(r => setTimeout(r, 300)); if(clave !== 'Demo1234') throw new Error('Wrong email or password.');
         S.demoAgente = true; $('acceso').classList.add('hidden'); document.body.insertAdjacentHTML('afterbegin', '<div class="velo" id="velo"><div class="spin"></div></div>'); return inicio(); }
-      const { error } = await window.sb.auth.signInWithPassword({ email, password:clave });
+      const { error } = await clienteAgente().auth.signInWithPassword({ email, password:clave });
       if(error) throw new Error(/invalid login|invalid credentials/i.test(error.message) ? 'Wrong email or password.' : error.message);
       location.replace(location.pathname);
     }catch(e){ $('lErr').textContent = e.message; b.disabled = false; b.textContent = 'Sign in'; }
@@ -1506,13 +1546,74 @@ async function pantallaClave(tipo, token){
       const r = cuentasOk(await cuentasFn('activar', { token, clave:c }));
       limpiar();
       if(DEMO){ S.demoAgente = true; $('acceso').classList.add('hidden'); document.body.insertAdjacentHTML('afterbegin', '<div class="velo" id="velo"><div class="spin"></div></div>'); return inicio(); }
-      const { error } = await window.sb.auth.signInWithPassword({ email:r.email, password:c });
+      const { error } = await clienteAgente().auth.signInWithPassword({ email:r.email, password:c });
       if(error) return pantallaLogin('Your password is saved. Sign in with it.', r.email);
       location.replace(location.pathname);
     }catch(e){ $('cErr').textContent = e.message; b.disabled = false; b.textContent = inv ? 'Create password and sign in' : 'Save and sign in'; }
   });
   setTimeout(() => $('cClave') && $('cClave').focus(), 30);
 }
+/* ── My profile: el agente ve sus datos y cambia los personales y bancarios ── */
+$('btnPerfil').addEventListener('click', abrirPerfil);
+async function abrirPerfil(){
+  $('mpErr').textContent = ''; $('mpGuardar').disabled = true;
+  $('mpCuerpo').innerHTML = '<div class="nota" style="padding:14px 0"><span class="spin dark"></span> Loading…</div>';
+  abrir('ovPerfil');
+  try{ S.mp = await api('miFicha'); pintarPerfil(); $('mpGuardar').disabled = false; }
+  catch(e){ $('mpCuerpo').innerHTML = ''; $('mpErr').textContent = e.message; }
+}
+function pintarPerfil(){
+  const f = S.mp.ficha, L = listas(), ro = (t, v) => '<div><small>' + t + '</small>' + (v ? esc(v) : '<span class="muted">—</span>') + '</div>';
+  const fecha = d => d ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(d + 'T12:00:00Z')) : '';
+  $('mpCuerpo').innerHTML =
+    '<div class="ficha-sec" style="border-top:0;padding-top:0"><h3>Account</h3><div class="datos-ro">' + ro('Name', f.nombre) + ro('Sign-in email', S.mp.email) + '</div>' +
+      (S.agente || S.demoAgente ? '<button class="btn-link" type="button" id="mpClaveAbrir">Change password</button><div class="mp-clave hidden" id="mpClaveCaja">' +
+        '<div class="ficha-grid"><label class="campo"><span>New password</span><input id="mpClave" type="password" autocomplete="new-password"></label>' +
+        '<label class="campo"><span>Confirm password</span><input id="mpClave2" type="password" autocomplete="new-password"></label></div>' +
+        '<p class="nota" style="margin:-6px 0 10px">At least 8 characters, with letters and numbers.</p>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Update password</button></div></div>' : '') + '</div>' +
+    '<div class="ficha-sec"><h3>Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
+      ro('Employment start date', fecha(f.fechaIngreso)) + ro('Scheduled start', f.horaEntrada ? h12(f.horaEntrada) : '') + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
+    '<div class="ficha-sec"><h3>Personal</h3><div class="ficha-grid">' +
+      '<label class="campo"><span>Mobile phone</span><input id="mpTel" type="tel" autocomplete="tel" maxlength="40"></label>' +
+      '<label class="campo"><span>Birthday</span><input id="mpCumple" type="date"></label>' +
+      '<label class="campo"><span>City</span><input id="mpCiudad" autocomplete="address-level2" maxlength="80"></label>' +
+      '<label class="campo"><span>Home address</span><input id="mpDir" autocomplete="street-address" maxlength="200"></label></div></div>' +
+    '<div class="ficha-sec"><h3>Bank information</h3><div class="ficha-grid">' +
+      '<label class="campo"><span>ID type</span><select id="mpTipoId"></select></label>' +
+      '<label class="campo"><span>ID number</span><input id="mpNumId" autocomplete="off" maxlength="40"></label>' +
+      '<label class="campo"><span>Bank name</span><select id="mpBanco"></select></label>' +
+      '<label class="campo"><span>Account number</span><input id="mpCta" autocomplete="off" maxlength="60"></label></div>' +
+      '<p class="nota" style="margin:-4px 0 0">Used for your payroll. Double-check the numbers before saving.</p></div>';
+  $('mpTel').value = f.telefono; $('mpCumple').value = f.cumpleanos; $('mpCiudad').value = f.ciudad; $('mpDir').value = f.direccion;
+  $('mpNumId').value = f.numId; $('mpCta').value = f.cuentaBanco;
+  llenarSelect('mpTipoId', L.tiposId || [], f.tipoId); llenarSelect('mpBanco', L.bancos || [], f.banco);
+  $('mpCumple').max = fechaHoy();
+  if($('mpClaveAbrir')){
+    $('mpClaveAbrir').addEventListener('click', () => { $('mpClaveCaja').classList.toggle('hidden'); if(!$('mpClaveCaja').classList.contains('hidden')) $('mpClave').focus(); });
+    $('mpClaveGuardar').addEventListener('click', async () => {
+      const c = $('mpClave').value, c2 = $('mpClave2').value, b = $('mpClaveGuardar');
+      if(!claveBuena(c)) return $('mpErr').textContent = 'Use at least 8 characters, with letters and numbers.';
+      if(c !== c2) return $('mpErr').textContent = 'The two passwords don\'t match.';
+      b.disabled = true; $('mpErr').textContent = '';
+      try{ await api('cambiarClave', { clave:c }); $('mpClave').value = $('mpClave2').value = ''; $('mpClaveCaja').classList.add('hidden'); toast('Password updated.'); }
+      catch(e){ $('mpErr').textContent = e.message; }
+      b.disabled = false;
+    });
+  }
+}
+$('mpGuardar').addEventListener('click', async () => {
+  const ficha = { telefono:$('mpTel').value.trim(), cumpleanos:$('mpCumple').value, ciudad:$('mpCiudad').value.trim(), direccion:$('mpDir').value.trim(),
+                  tipoId:$('mpTipoId').value, numId:$('mpNumId').value.trim(), banco:$('mpBanco').value, cuentaBanco:$('mpCta').value.trim() };
+  if(ficha.cumpleanos && ficha.cumpleanos > fechaHoy()) return $('mpErr').textContent = 'Invalid date.';
+  const b = $('mpGuardar'); b.disabled = true; $('mpErr').textContent = '';
+  try{
+    const r = await api('guardarMiFicha', { ficha });
+    cerrar('ovPerfil'); toast(r.cambios ? 'Your information was saved.' : 'No changes to save.');
+  }catch(e){ $('mpErr').textContent = e.message; }
+  b.disabled = false;
+});
+
 // El agente no ve el portal: el logo no lleva allá y en vez de «Portal» está «Sign out».
 function modoAgente(){
   $('btnPortal').classList.add('hidden'); $('btnSalir').classList.remove('hidden');
@@ -1520,7 +1621,7 @@ function modoAgente(){
 }
 $('btnSalir').addEventListener('click', async () => {
   if(DEMO){ S.demoAgente = false; return pantallaLogin(); }
-  try{ await window.sb.auth.signOut({ scope:'local' }); }catch(e){}
+  try{ await clienteAgente().auth.signOut({ scope:'local' }); }catch(e){}
   location.replace(location.pathname);
 });
 
@@ -1530,13 +1631,20 @@ async function inicio(){
   let s = null;
   try{ s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); }catch(e){}
   if(DEMO){ if(qs.has('agente')) S.demoAgente = true; if(qs.has('login') && !S.demoAgente) return pantallaLogin(); }
-  else if(!s || !s.token){
-    // Sin sesión del portal: ¿es un agente con su propia sesión (email y contraseña)?
+  else {
+    // La sesión de Supabase del portal: si quedó una de agente ahí (la versión 13 la guardaba en el mismo
+    // lugar), se cierra para que el portal vuelva a la suya.
     let ses = null;
     try{ ses = window.sb ? (await window.sb.auth.getSession()).data.session : null; }catch(e){}
-    if(!ses) return pantallaLogin();
-    if(String(ses.user.email || '').endsWith(DOMINIO_SB)) return alPortal('entra');
-    S.agente = true;
+    if(ses && !esCuentaPortal(ses)){ try{ await window.sb.auth.signOut({ scope:'local' }); }catch(e){} ses = null; if(s && s.token) return alPortal('expirada'); }
+    if(!s || !s.token){
+      // Sin sesión del portal: ¿es un agente con su propia sesión (email y contraseña)?
+      let sa = null;
+      try{ const ag = clienteAgente(); sa = ag ? (await ag.auth.getSession()).data.session : null; }catch(e){}
+      if(sa){ window.sb = clienteAgente(); S.agente = true; }
+      else if(ses) return alPortal('entra');
+      else return pantallaLogin();
+    }
   }
   if(S.agente || S.demoAgente) modoAgente();
   S.token = s && s.token;
@@ -1546,6 +1654,7 @@ async function inicio(){
     aplicarYo(yo);
     $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
     $('quienRol').textContent = yo.esAdmin ? 'Administrator' : (yo.empleado ? 'Agent' : '');
+    $('btnPerfil').classList.toggle('hidden', yo.esAdmin || !yo.empleado);
     if(!yo.esAdmin && !yo.empleado && (S.agente || S.demoAgente)) throw new Error('Your account doesn\'t have a time clock yet. Talk to your administrator.');
     if(yo.esAdmin){
       $('tabs').classList.remove('hidden');
@@ -3193,6 +3302,14 @@ async function demoApi(action, p){
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
+  if(action === 'miFicha'){ demoPortal(); return { ficha:Object.assign({ telefono:'', cumpleanos:'', ciudad:'', direccion:'', tipoId:'', numId:'', banco:'', cuentaBanco:'', jefe:'' }, DM.emps[0]), email:DM.emps[0].email }; }
+  if(action === 'guardarMiFicha'){
+    const e = DM.emps[0], f = p.ficha, L = listas();
+    if(f.banco && f.banco !== e.banco && (L.bancos || []).indexOf(f.banco) < 0) throw new Error('Choose an option from the list.');
+    let n = 0; Object.keys(f).forEach(k => { if((e[k] || '') !== f[k]){ e[k] = f[k]; n++; } });
+    return { ok:true, cambios:n };
+  }
+  if(action === 'cambiarClave') return { ok:true };
   throw new Error('Action not available in demo mode.');
 }
 
