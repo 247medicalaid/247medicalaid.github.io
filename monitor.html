@@ -1419,13 +1419,23 @@ $('aGuardar').addEventListener('click', async () => {
       '&nuevo=' + encodeURIComponent(nombre) + '&cuenta=' + encodeURIComponent(cuenta);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); olvidarDias(); cargar(); }
+    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.agente, j.cuenta); olvidarDias(); cargar(); }
     else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
     else if (/ya hay un agente llamado/i.test(j.error || '')) await ofrecerUnir(nombre, url, tok);
     else toast(j.error || 'No se pudo guardar.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 });
+
+// Time Clock: el empleado vinculado a este agente toma el nombre y la cuenta nuevos al instante.
+// Si no se puede (sin Supabase o sin el paso 24), la copia del Apps Script lo hace en unos minutos.
+async function syncReloj(agente, nuevo, cuenta) {
+  try {
+    if (!window.sb || S.demo) return;
+    const r = await window.sb.rpc('reloj_sync_desde_monitor', { p_agente: agente, p_nuevo: nuevo || '', p_cuenta: cuenta || '' });
+    if (r.error) console.warn('Time Clock no se actualizó al instante:', r.error.message);
+  } catch (e) { console.warn('Time Clock no se actualizó al instante:', e); }
+}
 
 // Dos tarjetas del mismo agente: pasa cuando en la instalación se escribe el
 // nombre distinto (una letra basta). En vez de dejar el error, se ofrece unir:
@@ -1444,7 +1454,7 @@ async function ofrecerUnir(existente, url, tok) {
       '&accion=fusionar&agente=' + encodeURIComponent(edAgente) + '&nuevo=' + encodeURIComponent(existente);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); olvidarDias(); cargar(); }
+    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.nuevo, ''); olvidarDias(); cargar(); }
     else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
     else toast(j.error || 'No se pudieron unir.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
