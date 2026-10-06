@@ -847,7 +847,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
       <span class="nota" id="hAprobarNota"></span>
       <span class="esp"></span>
-      <button class="btn btn-ink btn-sm" id="hExpNomina" title="Same columns as the Connecteam payroll export: approved hours and paid time off">Export payroll (Excel)</button>
+      <button class="btn btn-ink btn-sm" id="hExpNomina" title="Hours worked (the approved hours on approved days) plus paid time off, by employee">Export payroll (Excel)</button>
       <button class="btn btn-ghost btn-sm" id="hExpResumen">Export summary for Payroll</button>
       <button class="btn btn-ghost btn-sm" id="hExpDetalle">Export daily detail</button>
     </div>
@@ -2947,15 +2947,20 @@ function partesNombre(e){
 }
 const hhmm2 = min => { min = Math.round(min); return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); };
 function centavos(x){ const v = Math.round(x * 1e6) / 1e4, f = Math.floor(v), d = v - f; const r = Math.abs(d - .5) < 1e-6 ? (f % 2 === 0 ? f : f + 1) : Math.round(v); return r / 100; }
+// Minutos que se pagan de un día: lo aprobado si está aprobado; si no, lo trabajado (un día sin salida no se puede contar).
+function minPagoDia(d){
+  if(!d) return 0;
+  if(d.aprobado) return Math.round(d.aprobado.horas * 60);
+  return d.incompleto || !d.marcas || !d.marcas.length ? 0 : Math.round(d.min);
+}
 function filasPayroll(h){
   return empsVisibles().map(e => {
-    let aprob = 0, ot = 0;
-    Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(!d || !d.aprobado) return;
-      const m = Math.round(d.aprobado.horas * 60); aprob += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60)); });
-    const pagadas = aprob + (e.totales.minPto || 0), tarifa = e.pagoHora === '' ? null : Number(e.pagoHora), [nom, ape] = partesNombre(e);
-    const tiene = pagadas > 0;
-    return { nom, ape, cuenta:e.cuenta || '', job: tiene ? (e.cuenta || '') : '', tarifa: tiene && tarifa != null ? tarifa : '',
-             horas: tiene ? hhmm2(pagadas) : '', ot: tiene && ot ? hhmm2(ot) : '', pago: tiene && tarifa != null ? centavos(tarifa * pagadas / 60) : 0 };
+    let trab = 0, ot = 0;
+    Object.keys(e.dias).forEach(f => { const m = minPagoDia(e.dias[f]); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60)); });
+    const pagadas = trab + (e.totales.minPto || 0), tarifa = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora);
+    const [nom, ape] = partesNombre(e);
+    return { nom, ape, cuenta:e.cuenta || '', job:e.cuenta || '', tarifa: tarifa != null ? tarifa : '',
+             horas:hhmm2(pagadas), ot: ot ? hhmm2(ot) : '', pago: tarifa != null ? centavos(tarifa * pagadas / 60) : 0 };
   });
 }
 // .xlsx mínimo (sin librerías): zip sin compresión con las 6 partes de un libro.
@@ -3015,8 +3020,12 @@ function xlsxPayroll(filas, desde, hasta){
 }
 $('hExpNomina').addEventListener('click', async () => {
   const h = S.hoja; if(!h) return;
-  const sinAprobar = empsVisibles().reduce((s, e) => s + Object.keys(e.dias).filter(f => { const d = e.dias[f]; return d && d.marcas.length && !d.aprobado && f < h.hoy; }).length, 0);
-  if(sinAprobar && !(await confirmar('Export payroll?', '<b>' + sinAprobar + (sinAprobar === 1 ? ' day isn\'t' : ' days aren\'t') + ' approved yet.</b> Like Connecteam, the payroll only counts approved hours and paid time off, so those days won\'t be paid. You can approve them first in this Timesheet.', 'Export anyway'))) return;
+  // Solo los días sin salida (pasados y sin aprobar) no se pueden contar: se avisa con los nombres.
+  const sinSalida = [];
+  empsVisibles().forEach(e => Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(d && d.incompleto && !d.aprobado && f < h.hoy) sinSalida.push(e.nombre + ' · ' + diaS(f)); }));
+  if(sinSalida.length && !(await confirmar('Export payroll?', '<b>' + sinSalida.length + (sinSalida.length === 1 ? ' day has' : ' days have') + ' no clock-out</b>, so ' +
+      (sinSalida.length === 1 ? 'its hours aren\'t' : 'their hours aren\'t') + ' counted:<br>' + sinSalida.slice(0, 8).map(esc).join('<br>') + (sinSalida.length > 8 ? '<br>…' : '') +
+      '<br><br>You can fix them in this Timesheet first.', 'Export anyway'))) return;
   const filas = filasPayroll(h);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(xlsxPayroll(filas, h.desde, h.hasta));
@@ -3077,12 +3086,13 @@ function pintarEmps(){
     .sort((a, b) => (b.activo - a.activo) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
   if(!todos.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users yet</h2><p>Add the first one with their email.</p></div>'; return; }
   if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users match</h2><p>Try another search or filter.</p></div>'; return; }
-  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Monitor</th><th></th></tr></thead><tbody>' +
+  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Pay rate</th><th>Monitor</th><th></th></tr></thead><tbody>' +
     l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') + '<small>' + esc(e.email || e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
       '<td>' + (e.cuenta ? (colorCuenta(e.cuenta) ? '<i class="punto-cta" style="background:' + colorCuenta(e.cuenta) + '"></i>' : '') + esc(e.cuenta) : '<span class="pill no">No account</span>') + difMonitor(e) + '</td>' +
       '<td>' + esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') + '</td>' +
       '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
       '<td class="num">' + (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h</td>' +
+      '<td class="num">' + (e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>') + '</td>' +
       '<td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
       '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>').join('') + '</tbody></table>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
