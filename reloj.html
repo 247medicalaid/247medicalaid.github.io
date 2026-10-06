@@ -1142,7 +1142,8 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 async function empleadosSB(){
   await sesionSB();
   const [emps, perfiles] = await Promise.all([q(sb.from('reloj_empleados').select('*')), q(sb.from('perfiles').select('usuario,nombre,activo'))]);
-  if(!MON.agentes && monCfg()) await Promise.race([monPedir([fechaHoy()]), new Promise(r => setTimeout(r, 12000))]);
+  // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
+  if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
   return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
 
