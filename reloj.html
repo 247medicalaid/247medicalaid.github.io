@@ -381,6 +381,22 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .ped-nota .btn-link{font-size:12.5px;padding:0 2px}
 .per-ayuda{font-size:12px;color:var(--text-muted);margin-top:8px}
 .per-ayuda .lapiz{opacity:1}
+/* estado de las solicitudes del día: pendiente (reloj ámbar) o rechazada (✕ rojo), con letrero al pasar el mouse */
+.est-dia{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+  margin-left:6px;vertical-align:-3px;cursor:help;flex:none}
+.est-dia svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.est-dia.pend{background:#D98200}
+.est-dia.neg{background:var(--accent-600)}
+.est-dia .tip{display:none;position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);z-index:40;background:var(--ink-900);
+  color:#fff;font-size:12.5px;font-weight:500;line-height:1.4;padding:8px 11px;border-radius:9px;white-space:normal;width:max-content;
+  max-width:280px;box-shadow:var(--shadow);text-align:left;pointer-events:none}
+.est-dia .tip b{display:block;font-weight:700;margin-bottom:2px}
+.est-dia .tip::before{content:"";position:absolute;right:100%;top:50%;margin-top:-5px;border:5px solid transparent;border-right-color:var(--ink-900)}
+.est-dia:hover .tip,.est-dia:focus-visible .tip,tr:focus-visible .est-dia .tip{display:block}
+.per-ayuda .leyenda-est{display:inline-flex;align-items:center;gap:4px;margin-left:10px;white-space:nowrap}
+.per-ayuda .est-dia{cursor:default;margin-left:0;width:15px;height:15px}
+.per-ayuda .est-dia svg{width:10px;height:10px}
+.ped-nota.neg{color:#7A1418;background:var(--accent-50);border-radius:8px;padding:6px 9px}
 @media (max-width:560px){ .ped{grid-template-columns:1fr} .ped-campos{grid-template-columns:1fr 1fr} .ped-der{grid-row:auto;grid-column:1;flex-direction:row;align-items:center;order:3} .ped-err{order:4} .ped-der .btn{flex:1} .ped-hrs{text-align:left;flex:none} }
 .ic-correccion{background:linear-gradient(135deg,#F08A00,#F7B733)}
 .sol-item .antes{color:var(--text-muted)}
@@ -1167,12 +1183,12 @@ async function api(action, p){
       q(sb.from('reloj_aprobaciones').select('fecha,horas').eq('usuario', u).gte('fecha', p.desde).lte('fecha', p.hasta)),
       q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', u).eq('tipo', 'ausencia').eq('estado', 'aprobada')
         .lte('fecha', p.hasta).gte('fecha_fin', p.desde)).catch(() => []),
-      q(sb.from('reloj_solicitudes').select('id,fecha,marcas,motivo').eq('usuario', u).eq('tipo', 'correccion').eq('estado', 'pendiente')
-        .gte('fecha', p.desde).lte('fecha', p.hasta)).catch(() => [])
+      q(sb.from('reloj_solicitudes').select('*').eq('usuario', u).neq('estado', 'cancelada')
+        .lte('fecha', p.hasta).gte('fecha_fin', p.desde).order('creada_en', { ascending:false }).limit(200)).catch(() => [])
     ]);
     return { desde:p.desde, hasta:p.hasta, marcas:marcas.map(mapM), aprob,
       aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })),
-      pend:pend.map(x => ({ id:x.id, fecha:x.fecha, marcas:x.marcas || [], motivo:x.motivo || '' })) };
+      sols:pend.map(solJS) };
   }
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
@@ -1443,6 +1459,23 @@ async function cargarPeriodoAg(p){
     S.perAgDatos = r; pintarPeriodoAg();
   }catch(e){ $('pTabla').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
+const IC_RELOJ = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>';
+const IC_NEG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8"/></svg>';
+// Lo que pidió, en corto (para el letrero): «Hours correction · In 7:30 AM · Out 5:45 PM»
+function solCorta(x){
+  if(x.tipo === 'correccion') return 'Hours correction · ' + marcasTxt(x.marcas);
+  if(x.tipo === 'ausencia') return (CLASE_TXT[x.clase] || 'Absence') + (x.fecha === x.fechaFin ? '' : ' · ' + diaS(x.fecha) + ' – ' + diaS(x.fechaFin));
+  return SOL_TIPO[x.tipo] + ' · ' + h12(x.horaIni) + ' – ' + h12(x.horaFin);
+}
+function estDiaHTML(st){
+  const pend = st.e === 'pend', x = st.l[0];
+  const titulo = pend ? 'Pending request approval' : 'Request denied';
+  const det = pend ? st.l.map(solCorta).join('<br>')
+    : esc(solCorta(x)) + (x.respuesta ? '<br>Answer: “' + esc(x.respuesta) + '”' : '') + (x.decididaPor ? '<br>By ' + esc(x.decididaPor) : '');
+  const txt = titulo + ': ' + st.l.map(solCorta).join('; ') + (!pend && x.respuesta ? ' — ' + x.respuesta : '');
+  return '<span class="est-dia ' + st.e + '" role="img" aria-label="' + esc(txt) + '">' + (pend ? IC_RELOJ : IC_NEG) +
+    '<span class="tip"><b>' + titulo + '</b>' + (pend ? st.l.map(z => esc(solCorta(z))).join('<br>') : det) + '</span></span>';
+}
 const LAPIZ = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // Las 4 casillas de un día a partir de sus marcas (si tiene dos turnos: la primera entrada y la última salida).
 function cuatroDe(marcas){
@@ -1475,7 +1508,17 @@ function pintarPeriodoAg(){
   const r = S.perAgDatos, hoy = fechaHoy(), porFecha = agrupar(r.marcas), ap = {}, ausM = {}, pend = {};
   r.aprob.forEach(a => { ap[a.fecha] = Number(a.horas); });
   r.aus.forEach(a => { for(let f = a.fecha; f <= a.fechaFin; f = sumarDias(f, 1)) ausM[f] = a; });
-  (r.pend || []).forEach(x => { pend[x.fecha] = x; });
+  // solicitudes por día (la más nueva primero); de ahí salen el reloj ámbar y la ✕ roja
+  const solDia = {};
+  (r.sols || []).forEach(x => { for(let f = x.fecha; f <= (x.fechaFin || x.fecha) && f <= r.hasta; f = sumarDias(f, 1)) if(f >= r.desde) (solDia[f] = solDia[f] || []).push(x); });
+  r.pend = (r.sols || []).filter(x => x.tipo === 'correccion' && x.estado === 'pendiente');
+  r.pend.forEach(x => { pend[x.fecha] = x; });
+  r.estDia = {};
+  Object.keys(solDia).forEach(f => {
+    const l = solDia[f].slice().sort((a, b) => b.creada - a.creada), p = l.filter(x => x.estado === 'pendiente');
+    if(p.length) r.estDia[f] = { e:'pend', l:p };
+    else if(l[0].estado === 'rechazada') r.estDia[f] = { e:'neg', l:[l[0]] };
+  });
   // si el agente estaba corrigiendo un día, se conserva lo que escribió
   const ab = S.perEd && $('pedF') && $('pedF').dataset.f === S.perEd ? { f:S.perEd, v:leerPed(), mot:$('pedMotivo').value } : null;
   let tot = 0, totAp = 0, pto = 0, dias = 0, faltan = 0;
@@ -1496,13 +1539,14 @@ function pintarPeriodoAg(){
       '<td class="num" title="' + esc(d.almuerzos.length ? d.almuerzos.length + ' lunch' + (d.almuerzos.length > 1 ? 'es' : '') : 'No lunch') + '">' + (d.alm ? d.alm + ' min' : '—') + '</td>' +
       '<td class="num">' + (sal && !d.abierto ? hora(sal.ms) : d.incompleto ? '<span class="falta">missing</span>' : d.enCurso ? 'working…' : '—') + '</td>';
     const horas = !m.length ? '' : d.incompleto ? '—' : hm(d.min);
-    const lapiz = pend[f] ? '<span class="lapiz pend" title="Change requested · waiting for approval">' + LAPIZ + '</span>'
-      : edit ? '<span class="lapiz" title="Request a change">' + LAPIZ + '</span>' : '';
+    const lapiz = r.estDia[f] ? estDiaHTML(r.estDia[f]) : edit ? '<span class="lapiz" title="Request a change">' + LAPIZ + '</span>' : '';
     return '<tr class="' + cls.trim() + '" data-f="' + f + '"' + (edit ? ' tabindex="0" aria-label="' + esc(diaS(f)) + ': request a change"' : '') + '><td class="d">' + esc(diaC(f)) + ' ' + diaN(f) + lapiz + '</td>' + cel +
       '<td class="h num">' + (ap[f] != null ? '<span class="ok" title="Approved">' + IC.ok + '</span>' : '') + horas + '</td></tr>';
   }).join('');
   $('pTabla').innerHTML = '<table class="per"><thead><tr><th>Day</th><th>Clock in</th><th>Lunch</th><th>Clock out</th><th>Hours</th></tr></thead><tbody>' + filas + '</tbody></table>' +
-    '<p class="per-ayuda">Wrong or missing time? Click the day <span class="lapiz">' + LAPIZ + '</span>, fix it and send the request.</p>';
+    '<p class="per-ayuda">Wrong or missing time? Click the day <span class="lapiz">' + LAPIZ + '</span>, fix it and send the request.' +
+    '<span class="leyenda-est"><span class="est-dia pend">' + IC_RELOJ + '</span> Pending approval</span>' +
+    '<span class="leyenda-est"><span class="est-dia neg">' + IC_NEG + '</span> Denied</span></p>';
   $('pTot').innerHTML = '<div class="grande">Total worked<b class="num">' + dur(tot) + '</b></div>' +
     '<div>Days worked<b class="num">' + dias + '</b></div>' +
     '<div>Approved<b class="num">' + hm(totAp) + '</b></div>' +
@@ -1534,6 +1578,8 @@ function abrirPed(f, silencio){
   let nota = '';
   if(p) nota = '<div class="ped-nota pend">You already asked to change this day (waiting for approval). Sending again replaces that request. ' +
     '<button class="btn-link" type="button" id="pedCancelarSol" data-id="' + p.id + '">Cancel that request</button></div>';
+  else if(r.estDia && r.estDia[f] && r.estDia[f].e === 'neg'){ const x = r.estDia[f].l[0];
+    nota = '<div class="ped-nota neg">Your last request for this day was denied' + (x.respuesta ? ': “' + esc(x.respuesta) + '”' : '.') + ' You can send a new one.</div>'; }
   else if(!diaSimple(marcas)) nota = '<div class="ped-nota">This day has more than one shift. Your request will replace it with the times below.</div>';
   const ed = document.createElement('tr'); ed.className = 'per-ed';
   ed.innerHTML = '<td colspan="5" id="pedF" data-f="' + f + '">' + nota + '<div class="ped">' +
@@ -2721,9 +2767,9 @@ async function demoApi(action, p){
     marcas.sort((a, b) => a.ms - b.ms);
     const aus = DM.sols.filter(s => s.usuario === yoU && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= p.hasta && s.fechaFin >= p.desde)
       .map(s => ({ fecha:s.fecha, fechaFin:s.fechaFin, clase:s.clase, pagada:!!s.pagada, horas:s.horasDia || 0 }));
-    const pend = DM.sols.filter(s => s.usuario === yoU && s.tipo === 'correccion' && s.estado === 'pendiente' && s.fecha >= p.desde && s.fecha <= p.hasta)
-      .map(s => ({ id:s.id, fecha:s.fecha, marcas:s.marcas, motivo:s.motivo }));
-    return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, pend };
+    const sols = DM.sols.filter(s => s.usuario === yoU && s.estado !== 'cancelada' && s.fecha <= p.hasta && (s.fechaFin || s.fecha) >= p.desde)
+      .map(s => Object.assign({}, s)).sort((a, b) => b.creada - a.creada);
+    return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
   }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
