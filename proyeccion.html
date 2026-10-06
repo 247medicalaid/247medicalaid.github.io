@@ -282,6 +282,100 @@ select.inp{font-family:'Inter',sans-serif;text-align:left;width:auto}
   .catch(function(){});   // sin red: se trabaja con la sesion local
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sb.js?v=5"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   PROYECCIÓN SOBRE SUPABASE (oct 2026) — desvío de las llamadas a Google.
+   · Lo que lee de Nómina (historial, config, invoices, borradores) sale de
+     Supabase, con el mismo texto que da Google (es donde Nómina ya guarda).
+   · La proyección guardada se lee y se guarda en Supabase (con confirmación)
+     y se sigue copiando a Google (flujo-proyeccion.json en Drive) como
+     respaldo. La primera vez, si Supabase está vacío, se trae la de Google.
+   · Si Supabase falla, se usa Google como antes. El resto de la app no se entera.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  var GS = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
+  var FL = 'https://script.google.com/macros/s/AKfycbwogMZeGETHjyh6wtshDQvR9v05gqiEGfO3PMmyXWJzon41FFOWypRYnD4WrdA0Q9RS/exec';
+  var LECTURAS = { historial: 1, config: 1, invoiceOv: 1, borradores: 1 };
+  var previo = window.fetch;                 // el del guard (agrega el token para Google)
+  var P = window.__proySB = { fuente: '', ms: null, fallos: [] };
+
+  function respuesta(t) { return new Response(t, { status: 200, headers: { 'Content-Type': 'application/json' } }); }
+  async function rpc(fn, args) {
+    if (!window.sb) throw new Error('sin librería');
+    var s = await window.sb.auth.getSession();
+    if (!s.data.session) throw new Error('sin sesión de Supabase');
+    var r = await window.sb.rpc(fn, args || {});
+    if (r.error) throw new Error(r.error.message);
+    return r.data;
+  }
+  function anotar(fuente, t0, fallo) {
+    if (fallo) { P.fallos.push(String(fallo).slice(0, 160)); console.warn('Proyección → Google:', fallo); }
+    if (fuente === 'Google' || P.fuente !== 'Google') P.fuente = fuente;
+    if (t0 != null) P.ms = Math.round(performance.now() - t0);
+    insignia();
+  }
+  function insignia() {
+    var el = document.getElementById('proy-sb-fuente');
+    if (!el) {
+      if (!document.body) return;
+      el = document.createElement('div'); el.id = 'proy-sb-fuente';
+      el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:50;font:11px/1.4 system-ui,sans-serif;padding:4px 9px;border-radius:999px;background:rgba(4,20,31,.78);color:#fff;pointer-events:none';
+      document.body.appendChild(el);
+    }
+    var sinSesion = P.fallos.some(function (f) { return /^sin (sesión|librería)/.test(f); });
+    el.textContent = 'Datos: ' + (P.fuente || 'Supabase') +
+      (P.fuente === 'Google' ? (sinSesion ? ' · sal del portal y vuelve a entrar para usar Supabase' : ' · Supabase no respondió') :
+       (P.ms != null ? ' · ' + (P.ms / 1000).toFixed(1).replace('.', ',') + ' s' : ''));
+  }
+  document.addEventListener('DOMContentLoaded', insignia);
+
+  window.fetch = function (entrada, opciones) {
+    var url = typeof entrada === 'string' ? entrada : (entrada && entrada.url) || '';
+    var self = this, args = arguments, metodo = String((opciones && opciones.method) || 'GET').toUpperCase();
+    var t0 = performance.now();
+
+    // Lo que viene de Nómina: solo lectura.
+    if (url.indexOf(GS) === 0 && metodo === 'GET') {
+      var tipo = new URL(url).searchParams.get('tipo');
+      if (!LECTURAS[tipo]) return previo.apply(self, args);
+      return rpc('nomina_leer', { p_tipo: tipo }).then(function (t) { anotar('Supabase', t0); return respuesta(t); },
+        function (e) { anotar('Google', null, e && e.message); return previo.apply(self, args); });
+    }
+
+    // La proyección guardada.
+    if (url.indexOf(FL) === 0) {
+      if (metodo === 'GET') {
+        return rpc('proy_flujo_leer').then(async function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          if (j && j.vacio) {
+            // Primera vez en Supabase: se trae la de Google y se pasa tal cual.
+            var g = await previo.apply(self, args).then(function (r) { return r.text(); }).catch(function () { return null; });
+            var gj = null; try { gj = JSON.parse(g); } catch (e) {}
+            if (gj && typeof gj === 'object' && !Array.isArray(gj) && Array.isArray(gj.gastos)) {
+              try { await rpc('proy_flujo_guardar', { p_datos: gj }); } catch (e) { anotar('Supabase', null, 'no se pudo copiar la de Google: ' + (e && e.message)); }
+              anotar('Supabase', t0);
+              return respuesta(g);
+            }
+          }
+          anotar('Supabase', t0);
+          return respuesta(t);
+        }, function (e) { anotar('Google', null, e && e.message); return previo.apply(self, args); });
+      }
+      if (metodo === 'POST') {
+        var c = null; try { c = JSON.parse(opciones.body); } catch (e) {}
+        if (!c || c.action !== 'saveFlujo' || !c.datos) return previo.apply(self, args);
+        var aGoogle = previo.apply(self, args);     // la copia en Drive sigue, como respaldo
+        aGoogle.catch(function () {});
+        return rpc('proy_flujo_guardar', { p_datos: c.datos }).then(function () { anotar('Supabase', t0); return respuesta('{"ok":true}'); },
+          function (e) { anotar('Google', null, e && e.message); return aGoogle; });  // lo de Google decide
+      }
+    }
+    return previo.apply(self, args);
+  };
+})();
+</script>
 <div class="wrap">
   <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px">
     <div>

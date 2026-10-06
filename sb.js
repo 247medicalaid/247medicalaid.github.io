@@ -89,6 +89,9 @@
   };
 
   window.sbSalir = function () {
-    try { if (window.sb) window.sb.auth.signOut(); } catch (e) {}
+    // Solo este navegador: 'global' (lo que hace signOut sin opciones) cierra la
+    // sesión de Supabase en TODOS los equipos del usuario, y las apps de esos
+    // equipos se quedaban sin Supabase hasta volver a entrar.
+    try { if (window.sb) window.sb.auth.signOut({ scope: 'local' }); } catch (e) {}
   };
 })();
