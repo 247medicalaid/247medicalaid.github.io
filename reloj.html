@@ -2699,7 +2699,7 @@ function pintarHoja(){
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
     '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
-    '<th class="tot" title="Paid time off">PTO</th><th class="tot" title="(Hours + PTO) ÷ hours per day">Equiv. days</th></tr></thead><tbody>';
+    '</tr></thead><tbody>';
   const lista = empsVisibles();
   let grupoAct = null;
   lista.forEach(e => {
@@ -2711,8 +2711,7 @@ function pintarHoja(){
         const sum = k => del.reduce((s, x) => s + (x.totales[k] || 0), 0), ot = del.reduce((s, x) => s + otEmp(x), 0);
         const col = g === SIN_CUENTA ? null : colorCuenta(g);
         t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '"><td class="nombre"><label class="selq" title="Select everyone in ' + esc(g) + '"><input type="checkbox" data-selg="' + esc(g) + '" aria-label="Select everyone in ' + esc(g) + '"></label>' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
-          '<td class="tot num">' + hm(sum('min')) + '</td><td class="tot ot num' + (ot ? '' : ' cero') + '">' + (ot ? hm(ot) : '—') + '</td>' +
-          '<td class="tot num">' + (sum('minPto') ? hm(sum('minPto')) : '—') + '</td><td class="tot"></td></tr>';
+          '<td class="tot num">' + hm(sum('min')) + '</td><td class="tot ot num' + (ot ? '' : ' cero') + '">' + (ot ? hm(ot) : '—') + '</td></tr>';
       }
     }
     const estN = estadoPeriodo(e, h);
@@ -2746,9 +2745,7 @@ function pintarHoja(){
     });
     const tot = e.totales, ote = otEmp(e);
     const est = estadoPeriodo(e, h);
-    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot ot num' + (ote ? '' : ' cero') + '">' + (ote ? hm(ote) : '—') + '</td>' +
-      '<td class="tot num">' + (tot.minPto ? hm(tot.minPto) : '—') + '</td>' +
-      '<td class="tot sub num">' + ((Object.keys(e.dias).reduce((x, f) => x + minPagoDia(e.dias[f]), 0) + tot.minPto) / 60 / (e.horasDia || 8)).toFixed(2) + '</td></tr>';
+    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot ot num' + (ote ? '' : ' cero') + '">' + (ote ? hm(ote) : '—') + '</td></tr>';
   });
   t += '</tbody></table>';
   $('hojaTabla').innerHTML = t;
@@ -2763,7 +2760,7 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span>PTO = paid time off</span><span>Equiv. days = (hours + PTO) ÷ hours per day</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 function diasLimpios(){
