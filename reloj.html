@@ -46,6 +46,9 @@ button,input,select{font:inherit;color:inherit}
 .marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .marca img{height:30px;width:auto}
 .marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700);white-space:nowrap}
+.marca{gap:0;cursor:default}
+.marca .txt.app{font-size:23px;letter-spacing:-.01em;line-height:1;margin-left:20px;padding-left:20px;border-left:2px solid var(--line)}
+@media (max-width:700px){ .marca .txt.app{font-size:18px;margin-left:10px;padding-left:10px;flex:none;overflow:visible} div.marca img{height:24px;min-width:0;flex:0 1 auto;object-fit:contain;object-position:left} }
 .top .esp{flex:1}
 @media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px}
   .marca{min-width:0;flex:1 1 auto;overflow:hidden} .marca .txt{overflow:hidden;text-overflow:ellipsis} .top .esp{display:none} .marca img{flex:none} }
@@ -720,10 +723,10 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <button class="btn-menu" id="btnMenu" type="button" aria-label="Open the menu" aria-controls="tabs" aria-expanded="false">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
-  <a class="marca" href="https://247medicalaid.github.io/" title="Back to the portal">
+  <div class="marca">
     <img src="https://247medical-aid.com/logo-247-dark.svg" alt="24/7 Medical Aid" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'txt',textContent:'24/7 Medical Aid'}))">
-    <span class="txt">Time Clock</span>
-  </a>
+    <span class="txt app">Time Clock</span>
+  </div>
   <span class="demo-tag hidden" id="demoTag">Demo mode</span>
   <span class="esp"></span>
   <div class="quien"><b id="quienNom"></b><span id="quienRol"></span></div>
@@ -2018,7 +2021,7 @@ $('mpGuardar').addEventListener('click', async () => {
 // El agente no ve el portal: el logo no lleva allá y en vez de «Portal» está «Sign out».
 function modoAgente(){
   $('btnPortal').classList.add('hidden'); $('btnSalir').classList.remove('hidden');
-  const m = document.querySelector('.marca'); if(m){ m.href = location.pathname; m.title = 'Time Clock'; }
+  /* la marca ya no es un enlace (v25) */
 }
 $('btnSalir').addEventListener('click', async () => {
   if(DEMO){ S.demoAgente = false; return pantallaLogin(); }
