@@ -437,6 +437,8 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .lapiz svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .per tr.ed:hover .lapiz,.per tr.abierta .lapiz{opacity:1;color:var(--brand-700)}
 .per .lapiz.pend{opacity:1;color:var(--warn)}
+.per .lapiz.cerrado{opacity:.8;color:var(--brand-700)}
+.ped-nota.cerrado{background:var(--brand-50);color:var(--ink-700);border-radius:8px;padding:8px 10px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .per tr.abierta td{background:var(--brand-50) !important;border-bottom-color:transparent}
 .per tr.per-ed td{background:var(--brand-50);padding:4px 8px 12px;white-space:normal;text-align:left;border-bottom:1px solid var(--line)}
 .ped{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:end}
@@ -1527,6 +1529,7 @@ const SERVIDOR_EN = [
   [/^Hay una marca en el futuro \((.*)\)\.$/, 'There\'s a punch in the future ($1).'],
   [/^El orden de las marcas no es válido.*/, 'The punch order isn\'t valid: it must be clock in, lunch start, lunch end and clock out.'],
   [/^Un día pasado debe terminar con una salida\.$/, 'A past day must end with a clock-out.'],
+  [/^El día (\d{4}-\d{2}-\d{2}) ya está aprobado\. .*$/, (x, f) => diaS(f) + ' is already approved, so it can\'t be changed. If something is wrong, ask your supervisor to remove the approval first.'],
   [/^Escribe el usuario del portal\.$/, 'Enter the portal user.'],
   [/^Escribe el nombre\.$/, 'Enter the name.'],
   [/^El día aún no termina\.$/, 'The day isn\'t over yet.'],
@@ -2192,6 +2195,7 @@ async function cargarPeriodoAg(p){
   }catch(e){ $('pTabla').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
 const IC_RELOJ = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg>';
+const IC_CANDADO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const IC_NEG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8"/></svg>';
 // Lo que pidió, en corto (para el letrero): «Hours correction · In 7:30 AM · Out 5:45 PM»
 function solCorta(x){
@@ -2271,14 +2275,17 @@ function pintarPeriodoAg(){
       '<td class="num" title="' + esc(d.almuerzos.length ? d.almuerzos.length + ' lunch' + (d.almuerzos.length > 1 ? 'es' : '') : 'No lunch') + '">' + (d.alm ? d.alm + ' min' : '—') + '</td>' +
       '<td class="num">' + (sal && !d.abierto ? hora(sal.ms) : d.incompleto ? '<span class="falta">missing</span>' : d.enCurso ? 'working…' : '—') + '</td>';
     const horas = !m.length ? '' : d.incompleto ? '—' : hm(d.min);
-    const lapiz = r.estDia[f] ? estDiaHTML(r.estDia[f]) : edit ? '<span class="lapiz" title="Request a change">' + LAPIZ + '</span>' : '';
+    const lapiz = r.estDia[f] && r.estDia[f].e === 'pend' ? estDiaHTML(r.estDia[f])
+      : ap[f] != null && edit ? '<span class="lapiz cerrado" title="Approved: ask your supervisor if something needs to change">' + IC_CANDADO + '</span>'
+      : r.estDia[f] ? estDiaHTML(r.estDia[f]) : edit ? '<span class="lapiz" title="Request a change">' + LAPIZ + '</span>' : '';
     return '<tr class="' + cls.trim() + '" data-f="' + f + '"' + (edit ? ' tabindex="0" aria-label="' + esc(diaS(f)) + ': request a change"' : '') + '><td class="d">' + esc(diaC(f)) + ' ' + diaN(f) + lapiz + '</td>' + cel +
       '<td class="h num">' + (ap[f] != null ? '<span class="ok" title="Approved">' + IC.ok + '</span>' : '') + horas + '</td></tr>';
   }).join('');
   $('pTabla').innerHTML = '<table class="per"><thead><tr><th>Day</th><th>Clock in</th><th>Lunch</th><th>Clock out</th><th>Hours</th></tr></thead><tbody>' + filas + '</tbody></table>' +
     '<p class="per-ayuda">Wrong or missing time? Click the day <span class="lapiz">' + LAPIZ + '</span>, fix it and send the request.' +
     '<span class="leyenda-est"><span class="est-dia pend">' + IC_RELOJ + '</span> Pending approval</span>' +
-    '<span class="leyenda-est"><span class="est-dia neg">' + IC_NEG + '</span> Denied</span></p>';
+    '<span class="leyenda-est"><span class="est-dia neg">' + IC_NEG + '</span> Denied</span>' +
+    '<span class="leyenda-est"><span class="lapiz cerrado" style="margin:0">' + IC_CANDADO + '</span> Approved (locked)</span></p>';
   $('pTot').innerHTML = '<div class="grande">Total worked<b class="num">' + dur(tot) + '</b></div>' +
     '<div>Days worked<b class="num">' + dias + '</b></div>' +
     '<div>Approved<b class="num">' + hm(totAp) + '</b></div>' +
@@ -2303,6 +2310,16 @@ function abrirPed(f, silencio){
     if(igual && !silencio) return;
   }
   const r = S.perAgDatos, tr = tabla.querySelector('tr[data-f="' + f + '"]'); if(!tr) return;
+  if((r.aprob || []).some(a => a.fecha === f)){
+    S.perEd = null;
+    const ed = document.createElement('tr'); ed.className = 'per-ed';
+    ed.innerHTML = '<td colspan="5" id="pedF" data-f="' + f + '"><div class="ped-nota cerrado"><span><b>' + esc(diaS(f)) + ' is approved</b>, so it can\'t be changed from here. ' +
+      'If something is wrong, ask your supervisor to remove the approval; then you can send the change.</span>' +
+      '<button class="btn btn-ghost btn-sm" type="button" id="pedCerrar">Close</button></div><span class="hidden" id="pedEnviar"></span></td>';
+    tr.after(ed); tr.classList.add('abierta');
+    $('pedCerrar').addEventListener('click', cerrarPed);
+    return;
+  }
   const marcas = r.marcas.filter(m => m.fecha === f), p = (r.pend || []).find(x => x.fecha === f);
   const actual = cuatroDe(marcas), base = p ? cuatroDe(p.marcas) : actual;
   S.perEd = f; S.perBase = base; S.perActual = actual;
@@ -4164,6 +4181,8 @@ async function demoApi(action, p){
     delete DM.aprob[p.usuario + '|' + p.fecha]; return { corregido:true };
   }
   if(action === 'empleados'){ const m = await monitorSB(); S.cuentasMon = m.cuentas; return { empleados:DM.emps, cuentas:m.cuentas, monitor:m.agentes, portal:demoPortal() }; }
+  if(action === 'solicitar'){ const f0 = p.sol.fecha, f1 = p.sol.tipo === 'ausencia' ? (p.sol.fechaFin || f0) : f0;
+    for(let f = f0; f && f <= f1; f = sumarDias(f, 1)) if(DM.aprob[yoU + '|' + f]) throw new Error(enIngles('El día ' + f + ' ya está aprobado. Pídele a tu supervisor que quite la aprobación si hay que cambiar algo.')); }
   if(action === 'solicitar' && p.sol.tipo === 'correccion'){
     const k = yoU + '|' + p.sol.fecha, antes = (DM.marcas[k] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) }));
     if(JSON.stringify(antes) === JSON.stringify(p.sol.marcas)) throw new Error('There are no changes for that day.');
