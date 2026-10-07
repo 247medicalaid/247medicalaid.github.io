@@ -347,6 +347,20 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph .msg{font-size:12px;color:var(--accent-600);white-space:normal;min-width:120px}
 .ph .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:#EAF9F5;color:#0F7F70;margin-left:4px}
 .ph .tag.ok{background:var(--brand-50);color:var(--brand-700)}
+.selq{display:inline-flex;align-items:center;margin-right:8px;vertical-align:middle;cursor:pointer}
+.selq input{width:17px;height:17px;accent-color:var(--brand-600);cursor:pointer;margin:0}
+.hoja th.nombre .selq{margin-right:6px}
+.hoja tr.sel td{background:var(--brand-50)}
+.hoja tr.sel td.nombre{box-shadow:inset 3px 0 0 var(--brand-600)}
+.hoja td.tot.todo-ok{color:var(--brand-700)}
+.hoja td.tot.todo-ok .chk{font-weight:700;margin-right:4px}
+.sel-bar{position:sticky;top:8px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ink-800);color:#fff;
+  border-radius:14px;padding:10px 12px 10px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.sel-bar .n{font-weight:700;margin-right:auto;font-size:14.5px}
+.sel-bar .n small{font-weight:400;opacity:.8;margin-left:6px}
+.sel-bar .btn{min-height:36px}
+.sel-bar .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+.sel-bar .btn-ghost:hover{background:rgba(255,255,255,.1)}
 .nom-btn{border:0;background:none;font:inherit;font-weight:600;color:inherit;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:6px;max-width:100%;text-align:left}
 .nom-btn svg{width:13px;height:13px;flex:none;stroke:var(--brand-600);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.55}
 .nom-btn:hover{color:var(--brand-700)} .nom-btn:hover svg{opacity:1}
@@ -842,6 +856,12 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       </div>
     </div>
     <div id="hojaAvisos"></div>
+    <div class="sel-bar hidden" id="hSelBar" role="region" aria-label="Selected employees">
+      <span class="n" id="hSelN"></span>
+      <button class="btn btn-brand btn-sm" id="hSelAprobar" type="button">Approve pay period</button>
+      <button class="btn btn-ghost btn-sm" id="hSelQuitar" type="button">Remove approval</button>
+      <button class="btn btn-ghost btn-sm" id="hSelLimpiar" type="button">Clear</button>
+    </div>
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
@@ -2556,6 +2576,76 @@ const empsVisibles = () => ordenarEmps((S.hoja ? S.hoja.empleados : []).filter(e
 $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
 
+/* ── Aprobar por quincena: casillas por empleado / cuenta / todos ── */
+// Días cerrados del periodo (pasados, con marcas) y cuántos están aprobados.
+function estadoPeriodo(e, h){
+  let cerrados = 0, aprobados = 0;
+  h.fechas.forEach(f => { const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length || f >= h.hoy) return; cerrados++; if(d.aprobado) aprobados++; });
+  return { cerrados, aprobados, todo:cerrados > 0 && aprobados === cerrados };
+}
+function enlazarSeleccion(){
+  const vis = empsVisibles().map(e => e.usuario);
+  const pintarCasillas = () => {
+    $('hojaTabla').querySelectorAll('[data-sel]').forEach(c => { c.checked = S.selHoja.has(c.dataset.sel); c.closest('tr').classList.toggle('sel', c.checked); });
+    $('hojaTabla').querySelectorAll('[data-selg]').forEach(c => {
+      const us = empsVisibles().filter(e => (e.cuenta || SIN_CUENTA) === c.dataset.selg).map(e => e.usuario), n = us.filter(u => S.selHoja.has(u)).length;
+      c.checked = n > 0 && n === us.length; c.indeterminate = n > 0 && n < us.length; });
+    const n = vis.filter(u => S.selHoja.has(u)).length, todos = $('hSelTodos');
+    if(todos){ todos.checked = n > 0 && n === vis.length; todos.indeterminate = n > 0 && n < vis.length; }
+    pintarBarraSel();
+  };
+  $('hojaTabla').querySelectorAll('[data-sel]').forEach(c => c.addEventListener('change', () => { if(c.checked) S.selHoja.add(c.dataset.sel); else S.selHoja.delete(c.dataset.sel); pintarCasillas(); }));
+  $('hojaTabla').querySelectorAll('[data-selg]').forEach(c => c.addEventListener('change', () => {
+    empsVisibles().filter(e => (e.cuenta || SIN_CUENTA) === c.dataset.selg).forEach(e => { if(c.checked) S.selHoja.add(e.usuario); else S.selHoja.delete(e.usuario); });
+    pintarCasillas(); }));
+  if($('hSelTodos')) $('hSelTodos').addEventListener('change', () => { vis.forEach(u => { if($('hSelTodos').checked) S.selHoja.add(u); else S.selHoja.delete(u); }); pintarCasillas(); });
+  pintarCasillas();
+}
+const selVisibles = () => empsVisibles().filter(e => S.selHoja && S.selHoja.has(e.usuario));
+function pintarBarraSel(){
+  const l = selVisibles(), h = S.hoja;
+  $('hSelBar').classList.toggle('hidden', !l.length);
+  if(!l.length) return;
+  const min = l.reduce((s, e) => s + h.fechas.reduce((x, f) => { const d = e.dias[f]; return x + (d && d.marcas.length && !d.incompleto && f < h.hoy ? d.min : 0); }, 0), 0);
+  const ap = l.some(e => estadoPeriodo(e, h).aprobados > 0), pend = l.some(e => { const x = estadoPeriodo(e, h); return x.cerrados > x.aprobados; });
+  $('hSelN').innerHTML = l.length + (l.length === 1 ? ' employee selected' : ' employees selected') + '<small>' + esc(diaS(h.desde) + ' – ' + diaS(h.hasta)) + ' · ' + hm(min) + ' h</small>';
+  $('hSelAprobar').disabled = !pend && !l.some(e => estadoPeriodo(e, h).cerrados);
+  $('hSelAprobar').textContent = pend ? 'Approve pay period' : 'Approve again';
+  $('hSelQuitar').disabled = !ap;
+}
+async function aprobarPeriodo(si){
+  const h = S.hoja, l = selVisibles(); if(!l.length) return;
+  const items = [], sinSalida = [], conHoy = [];
+  let min = 0;
+  l.forEach(e => h.fechas.forEach(f => {
+    const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length) return;
+    if(f >= h.hoy){ if(si && f === h.hoy) conHoy.push(e.nombre); return; }
+    if(si){ if(d.incompleto && !d.aprobado){ sinSalida.push(e.nombre + ' · ' + diaS(f)); return; } items.push({ usuario:e.usuario, fecha:f }); min += d.min; }
+    else if(d.aprobado){ items.push({ usuario:e.usuario, fecha:f }); min += Math.round(d.aprobado.horas * 60); }
+  }));
+  const quien = l.length === 1 ? esc(l[0].nombre) : l.length + ' employees', per = esc(diaS(h.desde) + ' – ' + diaS(h.hasta));
+  if(!items.length){ toast(si ? 'There are no closed days to approve for ' + (l.length === 1 ? l[0].nombre : 'them') + ' in this period.' : 'Nothing is approved for ' + (l.length === 1 ? l[0].nombre : 'them') + ' in this period.', 'err'); return; }
+  const lista = x => x.slice(0, 8).map(esc).join('<br>') + (x.length > 8 ? '<br>…' : '');
+  const txt = si
+    ? '<b>' + items.length + (items.length === 1 ? ' day' : ' days') + ' · ' + hm(min) + ' h</b> for ' + quien + ' (' + per + ').' +
+      (sinSalida.length ? '<br><br>These days have no clock-out and stay unapproved — fix them first:<br>' + lista(sinSalida) : '') +
+      (conHoy.length ? '<br><br>Today isn\'t included: the day isn\'t over yet.' : '')
+    : 'The approval of <b>' + items.length + (items.length === 1 ? ' day' : ' days') + ' · ' + hm(min) + ' h</b> for ' + quien + ' (' + per + ') will be removed. The hours stay as they are.';
+  if(!(await confirmar(si ? 'Approve pay period?' : 'Remove approval?', txt, si ? 'Approve ' + items.length + (items.length === 1 ? ' day' : ' days') : 'Remove approval', !si))) return;
+  const bA = $('hSelAprobar'), bQ = $('hSelQuitar'); bA.disabled = bQ.disabled = true;
+  try{
+    const r = await api(si ? 'aprobar' : 'desaprobar', { items });
+    const salt = (r && r.saltados) || [];
+    toast(si ? 'Approved ' + (r.hechos != null ? r.hechos : items.length) + (items.length === 1 ? ' day' : ' days') + ' for ' + (l.length === 1 ? l[0].nombre : l.length + ' employees') + '.' +
+        (salt.length ? ' ' + salt.length + ' skipped: ' + enIngles(salt[0].por) : '')
+      : 'Approval removed for ' + (l.length === 1 ? l[0].nombre : l.length + ' employees') + '.', salt.length ? 'err' : undefined);
+    S.selHoja = new Set(); S.yoEn = 0;
+    await cargarHoja();
+  }catch(x){ toast(x.message, 'err'); pintarBarraSel(); }
+}
+$('hSelAprobar').addEventListener('click', () => aprobarPeriodo(true));
+$('hSelQuitar').addEventListener('click', () => aprobarPeriodo(false));
+$('hSelLimpiar').addEventListener('click', () => { S.selHoja = new Set(); if(S.hoja) pintarHoja(); });
 async function cargarHoja(){
   S.coloresN = null;   // los colores se vuelven a leer de la Nómina
   $('hojaTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading and checking against the Monitor…</div>';
@@ -2582,7 +2672,8 @@ function pintarHoja(){
   $('hGrupo').checked = !!o.grupo; $('hOrden').value = o.por;
   const ord = (por, txt, tit) => '<button class="ord' + (o.por === por ? ' on' : '') + '" type="button" data-ord="' + por + '" title="' + tit + '">' + txt +
     (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
-  let t = '<table class="hoja"><thead><tr><th class="nombre">' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
+  if(S.selPeriodo !== h.desde + '|' + h.hasta){ S.selHoja = new Set(); S.selPeriodo = h.desde + '|' + h.hasta; }
+  let t = '<table class="hoja"><thead><tr><th class="nombre"><label class="selq" title="Select everyone shown"><input type="checkbox" id="hSelTodos" aria-label="Select everyone shown"></label>' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
     h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
     '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
@@ -2597,12 +2688,13 @@ function pintarHoja(){
         const del = lista.filter(x => (x.cuenta || SIN_CUENTA) === g);
         const sum = k => del.reduce((s, x) => s + (x.totales[k] || 0), 0), ot = del.reduce((s, x) => s + otEmp(x), 0);
         const col = g === SIN_CUENTA ? null : colorCuenta(g);
-        t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '"><td class="nombre">' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
+        t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '"><td class="nombre"><label class="selq" title="Select everyone in ' + esc(g) + '"><input type="checkbox" data-selg="' + esc(g) + '" aria-label="Select everyone in ' + esc(g) + '"></label>' + esc(g) + '<span class="n">' + del.length + '</span></td><td colspan="' + h.fechas.length + '"></td>' +
           '<td class="tot num">' + hm(sum('min')) + '</td><td class="tot ot num' + (ot ? '' : ' cero') + '">' + (ot ? hm(ot) : '—') + '</td>' +
           '<td class="tot num">' + hm(sum('minAprob')) + '</td><td class="tot num">' + (sum('minPto') ? hm(sum('minPto')) : '—') + '</td><td class="tot"></td></tr>';
       }
     }
-    t += '<tr><td class="nombre" title="Edit ' + esc(e.nombre) + '\'s hours"><button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '"><span>' + esc(e.nombre) + '</span>' +
+    t += '<tr' + (S.selHoja.has(e.usuario) ? ' class="sel"' : '') + ' data-fila="' + esc(e.usuario) + '"><td class="nombre"><label class="selq"><input type="checkbox" data-sel="' + esc(e.usuario) + '"' + (S.selHoja.has(e.usuario) ? ' checked' : '') + ' aria-label="Select ' + esc(e.nombre) + '"></label>' +
+      '<button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '" title="Edit ' + esc(e.nombre) + '\'s hours"><span>' + esc(e.nombre) + '</span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
     h.fechas.forEach(f => {
       const d = e.dias[f], futuro = f > h.hoy;
@@ -2629,7 +2721,9 @@ function pintarHoja(){
         '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot num">+' + hm(otd) + '</span>' : '') + ics + '</span></button></td>';
     });
     const tot = e.totales, ote = otEmp(e);
-    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot ot num' + (ote ? '' : ' cero') + '">' + (ote ? hm(ote) : '—') + '</td><td class="tot num">' + hm(tot.minAprob) + '</td>' +
+    const est = estadoPeriodo(e, h);
+    t += '<td class="tot num">' + hm(tot.min) + '</td><td class="tot ot num' + (ote ? '' : ' cero') + '">' + (ote ? hm(ote) : '—') + '</td>' +
+      '<td class="tot num' + (est.todo ? ' todo-ok' : '') + '"' + (est.cerrados ? ' title="' + est.aprobados + ' of ' + est.cerrados + ' closed days approved"' : '') + '>' + (est.todo ? '<span class="chk">✓</span>' : '') + hm(tot.minAprob) + '</td>' +
       '<td class="tot num">' + (tot.minPto ? hm(tot.minPto) : '—') + '</td>' +
       '<td class="tot sub num">' + ((tot.minAprob + tot.minPto) / 60 / (e.horasDia || 8)).toFixed(2) + '</td></tr>';
   });
@@ -2637,6 +2731,7 @@ function pintarHoja(){
   $('hojaTabla').innerHTML = t;
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
   $('hojaTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrirPeriodo(b.dataset.editar)));
+  enlazarSeleccion();
   $('hojaTabla').querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => { ordenHoja().por = b.dataset.ord; guardarOrden(); pintarHoja(); }));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
