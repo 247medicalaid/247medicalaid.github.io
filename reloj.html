@@ -349,6 +349,15 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph tr.bloq input{background:var(--sand)}
 .ph .x{border:0;background:none;color:var(--text-muted);cursor:pointer;font-size:17px;padding:2px 6px;border-radius:6px}
 .ph .x:hover{background:var(--sand-2);color:var(--text)}
+.tl-modo{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--sand);margin:2px 0 12px}
+.tl-modo button{border:0;background:none;font:600 13.5px/1 var(--font-body);color:var(--text-muted);padding:8px 14px;border-radius:999px;cursor:pointer}
+.tl-modo button[aria-pressed="true"]{background:var(--paper);color:var(--ink-800,#082436);box-shadow:var(--shadow-sm)}
+.tl-anio{font-size:12.5px;color:var(--text-muted);margin:2px 0 10px;line-height:1.4}
+.tl-anio b{color:var(--text);font-weight:600}
+.ph-aus-f .tl-modo{margin:0;align-self:flex-end}
+.ph-aus-f .tl-anio{flex-basis:100%;margin:0}
+.aus-mini{display:inline-block;font-size:9.5px;font-weight:700;padding:0 4px;border-radius:999px;background:#EAF9F5;color:#0F7F70;line-height:14px}
+.celda.aus small{display:block;font-size:10px;font-weight:600;opacity:.8}
 .ph tr.futuro td.phdia{color:var(--text-muted)}
 .ph tr.futuro td.sinhoras{color:#B8C4CC;text-align:center}
 .ph td.aus{white-space:nowrap}
@@ -365,6 +374,21 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph-aus-f input[type=number]{width:70px}
 .ph-aus-f input[type=text]{min-width:180px;flex:1}
 .ph-aus-f .err{flex-basis:100%;margin:0;font-size:13px}
+.ph-tl{display:block}
+.ph-tl .tl{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-end}
+.ph-tl .tl .campo{margin:0}
+.ph-tl .tl .dos-col{display:flex;gap:10px;margin:0}
+.ph-tl .tl-horas:not(.hidden){display:flex;gap:10px;align-items:flex-end}
+.ph-tl .tl-pago{display:flex;gap:10px;align-items:flex-end}
+.ph-tl .tl-pago .chk{padding-bottom:9px;margin:0}
+.ph-tl .tl-pago input[type=number]{width:80px}
+.ph-tl .pa-motivo{margin:8px 0 0}
+.ph-tl .pa-acc{display:flex;gap:8px;margin-top:8px}
+.ph-tl .campo select,.ph-tl .campo input{height:40px;padding:0 10px;font-size:14px;line-height:normal}
+.ph-tl .campo select{min-width:130px}
+.ph-tl input[type=time]{min-width:128px}
+.ph td.aus{white-space:normal;min-width:140px;line-height:1.35}
+.ph td.aus .nota{display:inline}
 .ph .msg{font-size:12px;color:var(--accent-600);white-space:normal;min-width:120px}
 .ph .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:#EAF9F5;color:#0F7F70;margin-left:4px}
 .ph .tag.ok{background:var(--brand-50);color:var(--brand-700)}
@@ -1562,6 +1586,8 @@ const SERVIDOR_EN = [
   [/^La fecha debe ser de hoy o de los últimos 31 días\.$/, 'The date must be today or within the last 31 days.'],
   [/^Completa las dos horas\.$/, 'Fill in both times.'],
   [/^La hora de fin debe ser después de la de inicio\.$/, 'The end time must be after the start time.'],
+  [/^Completa las dos horas o marca el día completo\.$/, 'Fill in both times, or choose All day.'],
+  [/^El tiempo libre por horas es de un solo día\.$/, 'Part-of-the-day time off is for one day only.'],
   [/^Esa hora todavía no ha pasado\.$/, 'That time hasn\'t happened yet.'],
   [/^Elige el tipo de ausencia\.$/, 'Choose the absence type.'],
   [/^Ya hay una ausencia (pendiente|aprobada) del (\d{4}-\d{2}-\d{2}) al (\d{4}-\d{2}-\d{2}) que se cruza con esas fechas\.$/,
@@ -1691,7 +1717,8 @@ async function api(action, p){
       q(sb.from('reloj_empleados').select('*'))]);
     // días libres aprobados este año, por empleado (para decidir con el dato a mano)
     const anio = fechaHoy().slice(0,4) + '-01-01';
-    const usados = await q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin').eq('tipo', 'ausencia').eq('estado', 'aprobada').gte('fecha_fin', anio));
+    const usados = await q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin,hora_ini,hora_fin,clase').eq('tipo', 'ausencia').eq('estado', 'aprobada').gte('fecha_fin', anio));
+    const ausAnio = {}; usados.forEach(x => { (ausAnio[x.usuario] = ausAnio[x.usuario] || []).push({ clase:x.clase, fecha:x.fecha, fechaFin:x.fecha_fin, horaIni:x.hora_ini, horaFin:x.hora_fin }); });
     // Lo que tiene hoy cada día con una solicitud de turno o almuerzo pendiente (la «Original» de la tarjeta).
     const pd = rows.filter(r => r.estado === 'pendiente' && (r.tipo === 'turno' || r.tipo === 'almuerzo')), dias = {};
     if(pd.length) try{
@@ -1699,9 +1726,12 @@ async function api(action, p){
         .is('anulada_en', null).order('ts').order('id'));
       ms.forEach(m => { (dias[m.usuario + '|' + m.fecha] = dias[m.usuario + '|' + m.fecha] || []).push({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)) }); });
     }catch(e){}
-    return { sols:rows.map(solJS), emps:emps.map(empJS), usados:usadosPorUsuario(usados.map(x => ({ usuario:x.usuario, fecha:x.fecha, fechaFin:x.fecha_fin })), anio), dias };
+    return { sols:rows.map(solJS), emps:emps.map(empJS), usados:usadosPorUsuario(usados.map(x => ({ usuario:x.usuario, fecha:x.fecha, fechaFin:x.fecha_fin })), anio), dias, ausAnio };
   }
   if(action === 'ausenciaAdmin') return q(sb.rpc('reloj_ausencia_admin', { p:p.aus }));
+  if(action === 'ausAnio'){ const a = fechaHoy().slice(0, 4);
+    return (await q(sb.from('reloj_solicitudes').select('clase,fecha,fecha_fin,hora_ini,hora_fin').eq('usuario', p.usuario).eq('tipo', 'ausencia').eq('estado', 'aprobada')
+      .lte('fecha', a + '-12-31').gte('fecha_fin', a + '-01-01'))).map(x => ({ clase:x.clase, fecha:x.fecha, fechaFin:x.fecha_fin, horaIni:x.hora_ini, horaFin:x.hora_fin })); }
   if(action === 'quitarAusencia') return q(sb.rpc('reloj_quitar_ausencia', { p_id:p.id, p_nota:p.nota || '' }));
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
@@ -1710,13 +1740,13 @@ async function api(action, p){
     const [marcas, aprob, aus, pend] = await Promise.all([
       todas(() => sb.from('reloj_marcas').select(COLS_M).eq('usuario', u).is('anulada_en', null).gte('fecha', p.desde).lte('fecha', p.hasta).order('ts').order('id')),
       q(sb.from('reloj_aprobaciones').select('fecha,horas').eq('usuario', u).gte('fecha', p.desde).lte('fecha', p.hasta)),
-      q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', u).eq('tipo', 'ausencia').eq('estado', 'aprobada')
+      q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,hora_ini,hora_fin,clase,pagada,horas_dia').eq('usuario', u).eq('tipo', 'ausencia').eq('estado', 'aprobada')
         .lte('fecha', p.hasta).gte('fecha_fin', p.desde)).catch(() => []),
       q(sb.from('reloj_solicitudes').select('*').eq('usuario', u).neq('estado', 'cancelada')
         .lte('fecha', p.hasta).gte('fecha_fin', p.desde).order('creada_en', { ascending:false }).limit(200)).catch(() => [])
     ]);
     return { desde:p.desde, hasta:p.hasta, marcas:marcas.map(mapM), aprob,
-      aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })),
+      aus:aus.map(a => ({ fecha:a.fecha, fechaFin:a.fecha_fin, horaIni:a.hora_ini || null, horaFin:a.hora_fin || null, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0) })),
       sols:pend.map(solJS) };
   }
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
@@ -1774,7 +1804,7 @@ async function hojaSB(desde, hasta){
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
-    q(sb.from('reloj_solicitudes').select('id,usuario,fecha,fecha_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
+    q(sb.from('reloj_solicitudes').select('id,usuario,fecha,fecha_fin,hora_ini,hora_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
       .eq('estado', 'aprobada').lte('fecha', hasta).gte('fecha_fin', desde)).catch(() => []),
     // dónde se hizo cada marca del agente (sin el paso 21 de SQL, la hoja sigue sin ubicaciones)
     todas(() => sb.from('reloj_marcas').select('usuario,fecha,tipo,ts,lat,lng,prec_m,anulada_en').eq('origen', 'agente').not('lat', 'is', null)
@@ -1787,7 +1817,7 @@ async function hojaSB(desde, hasta){
                 pc:(pcs || []).map(x => ({ k:x.usuario + '|' + Date.parse(x.ts) + '|' + x.tipo, ts:Date.parse(x.pc.ts), estado:x.pc.estado,
                   lat:x.pc.lat == null ? null : Number(x.pc.lat), lng:x.pc.lng == null ? null : Number(x.pc.lng), prec:x.pc.prec == null ? null : Number(x.pc.prec) })),
                 ubic:ubic.map(u => ({ usuario:u.usuario, fecha:u.fecha, tipo:u.tipo, ms:Date.parse(u.ts), lat:Number(u.lat), lng:Number(u.lng), prec:u.prec_m == null ? null : Number(u.prec_m), anulada:!!u.anulada_en })),
-                aus:aus.map(a => ({ id:a.id, usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
+                aus:aus.map(a => ({ id:a.id, usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, horaIni:a.hora_ini || null, horaFin:a.hora_fin || null, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
   const h = construirHoja(raw, monDisponible(fechas), ahora());
   h._raw = raw; h.seg = tiempo('hoja', t0);
   return h;
@@ -2300,7 +2330,7 @@ function pintarPeriodoAg(){
     const ent = m.find(x => x.tipo === 'entrada'), sal = m.filter(x => x.tipo === 'salida').pop();
     const cls = (finde ? 'fin ' : '') + (f === hoy ? 'hoy ' : '') + (fut ? 'fut ' : '') + (edit ? 'ed' : '');
     let cel;
-    if(!m.length && au) cel = '<td colspan="3" style="text-align:center"><span class="tag' + (au.pagada ? '' : ' np') + '">' + esc(CLASE_TXT[au.clase] || '') + (au.pagada ? ' · paid ' + au.horas + ' h' : ' · unpaid') + '</span></td>';
+    if(!m.length && au) cel = '<td colspan="3" style="text-align:center"><span class="tag' + (au.pagada ? '' : ' np') + '">' + esc(CLASE_TXT[au.clase] || '') + (esParcial(au) ? ' ' + franjaTxt(au) : '') + ' · ' + pagoTxt(au) + '</span></td>';
     else if(!m.length) cel = '<td>—</td><td>—</td><td>—</td>';
     else cel = '<td class="num">' + hora(ent ? ent.ms : m[0].ms) + '</td>' +
       '<td class="num" title="' + esc(d.almuerzos.length ? d.almuerzos.length + ' lunch' + (d.almuerzos.length > 1 ? 'es' : '') : 'No lunch') + '">' + (d.alm ? d.alm + ' min' : '—') + '</td>' +
@@ -2755,12 +2785,13 @@ function pintarHoja(){
       if(!d.marcas.length && d.ausencia){
         const a = d.ausencia;
         t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
-          '" title="' + esc(CLASE_TXT[a.clase] + (a.pagada ? ' · paid ' + a.horas + ' h' : ' · unpaid')) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(CLASE_TXT[a.clase]) + (a.pagada ? ', paid' : ', unpaid') + '">' + CLASE_CORTA[a.clase] + '</button></td>';
+          '" title="' + esc(CLASE_TXT[a.clase] + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a)) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
+          esc(CLASE_TXT[a.clase]) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + '">' + CLASE_CORTA[a.clase] + (esParcial(a) ? '<small>' + hm(minParcial(a)) + ' h</small>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
-      const ics = (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
+      const ics = (d.ausencia ? '<span class="aus-mini" title="' + esc(CLASE_TXT[d.ausencia.clase] + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '') +
+        (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
       const etiqueta = d.incompleto ? 'missing' : hm(d.min), otd = otDia(e, d);
       t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
@@ -2835,8 +2866,8 @@ function vistaDia(){
       '<span>Lunch <b class="num">' + dur(d.alm) + '</b></span>' +
       (d.aprobado ? '<span class="fl-ok" style="display:inline-flex;gap:5px;align-items:center">' + IC.ok + '<span style="color:var(--text)">Approved: ' + hm(d.aprobado.horas * 60) + ' h by ' + esc(d.aprobado.por) + '</span></span>' : '') + '</div></div>';
   } else h += '<div id="dZona"><p class="muted">No punches on this day.</p></div>';
-  if(d.ausencia) h = '<div class="aviso info">' + IC.info + '<span>Approved absence: <b>' + esc(CLASE_TXT[d.ausencia.clase]) + '</b> · ' +
-    (d.ausencia.pagada ? 'paid ' + d.ausencia.horas + ' h' : 'unpaid') + (d.ausencia.por ? ' · by ' + esc(d.ausencia.por) : '') + '</span></div>' + h;
+  if(d.ausencia) h = '<div class="aviso info">' + IC.info + '<span>Approved time off: <b>' + esc(CLASE_TXT[d.ausencia.clase]) + '</b> · ' +
+    (esParcial(d.ausencia) ? esc(franjaTxt(d.ausencia)) + ' · ' : 'all day · ') + pagoTxt(d.ausencia) + (d.ausencia.por ? ' · by ' + esc(d.ausencia.por) : '') + '</span></div>' + h;
   if(d.monitor) h += '<div class="bloque"><h3>Their PC per the Monitor</h3><p class="pcdato">First signal <b>' + hora(d.monitor.p) +
     '</b> · last <b>' + hora(d.monitor.u) + '</b> · ' + (d.monitor.e.length ? d.monitor.e.length + (d.monitor.e.length === 1 ? ' period' : ' periods') + ' with no activity' : 'no absences') + '</p></div>';
   h += ubicBloque(e, d);
@@ -3571,8 +3602,86 @@ function marcasTxt(ms){
   return [v.entrada ? 'In ' + h12(v.entrada) : '', v.almuerzo_ini ? 'Lunch ' + h12(v.almuerzo_ini) + (v.almuerzo_fin ? ' – ' + h12(v.almuerzo_fin) : ' (open)') : '',
     v.salida ? 'Out ' + h12(v.salida) : 'no clock-out'].filter(Boolean).join(' · ');
 }
+/* ── Tiempo libre: día completo o parte del día (paso 28) ── */
+const esParcial = a => !!(a && a.horaIni && a.horaFin);
+const minParcial = a => esParcial(a) ? aMin(a.horaFin) - aMin(a.horaIni) : 0;
+const franjaTxt = a => esParcial(a) ? h12(a.horaIni) + ' – ' + h12(a.horaFin) : '';
+const pagoTxt = a => a.pagada ? 'paid ' + (esParcial(a) ? hm(Math.round(Number(a.horas != null ? a.horas : a.horasDia) * 60)) + ' h' : (a.horas != null ? a.horas : a.horasDia) + ' h/day') : 'unpaid';
+// «Vacation 3 days · Personal 2:30 h» con lo aprobado en el año (días completos y horas por separado).
+function resumenAnio(lista, anio){
+  const ini = anio + '-01-01', fin = anio + '-12-31', por = {};
+  (lista || []).forEach(a => {
+    if(a.estado && a.estado !== 'aprobada') return;
+    const x = por[a.clase] = por[a.clase] || { d:0, m:0 }, ff = a.fechaFin || a.fecha;
+    if(esParcial(a)){ if(a.fecha >= ini && a.fecha <= fin) x.m += minParcial(a); }
+    else { const i = a.fecha < ini ? ini : a.fecha, f = ff > fin ? fin : ff; if(f >= i) x.d += diasEntre(i, f); }
+  });
+  const l = Object.keys(CLASE_TXT).filter(k => por[k] && (por[k].d || por[k].m))
+    .map(k => '<b>' + CLASE_TXT[k] + '</b> ' + [por[k].d ? por[k].d + (por[k].d === 1 ? ' day' : ' days') : '', por[k].m ? hm(por[k].m) + ' h' : ''].filter(Boolean).join(' + '));
+  return l.length ? l.join(' · ') : 'none yet';
+}
+// Campos del formulario (agente: pre 's'; administrador: pre 'pa').
+function tlCampos(pre, fecha, op){
+  op = op || {};
+  const tipo = '<label class="campo"><span>Type</span><select id="' + pre + 'Clase">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
+    Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>';
+  const min = op.min ? ' min="' + op.min + '"' : '', max = op.max ? ' max="' + op.max + '"' : '';
+  return '<div class="tl" id="' + pre + 'Tl" data-modo="dia">' + tipo +
+    '<div class="tl-modo" role="group" aria-label="Time off length"><button type="button" data-modo="dia" aria-pressed="true">All day</button><button type="button" data-modo="horas" aria-pressed="false">Part of the day</button></div>' +
+    '<div class="tl-dia dos-col"><label class="campo"><span>From</span><input type="date" id="' + pre + 'Desde" value="' + fecha + '"' + min + max + '></label>' +
+      '<label class="campo"><span>To</span><input type="date" id="' + pre + 'Hasta" value="' + fecha + '"' + min + max + '></label></div>' +
+    '<div class="tl-horas hidden"><label class="campo"><span>Date</span><input type="date" id="' + pre + 'Dia" value="' + fecha + '"' + min + max + '></label>' +
+      '<div class="dos-col"><label class="campo"><span>From</span><input type="time" id="' + pre + 'HIni"></label><label class="campo"><span>To</span><input type="time" id="' + pre + 'HFin"></label></div></div>' +
+    (op.pago ? '<div class="tl-pago"><label class="chk"><input type="checkbox" id="' + pre + 'Pagada" checked> Paid</label>' +
+      '<label class="campo" id="' + pre + 'HorasL"><span id="' + pre + 'HorasT">Paid hours per day</span><input type="number" id="' + pre + 'Horas" min="0.25" max="12" step="0.25" value="' + (op.horasDia || 8) + '"></label></div>' : '') +
+    '<p class="tl-anio" id="' + pre + 'Anio">Time off this year: …</p></div>';
+}
+function tlEnlazar(pre, op){
+  op = op || {};
+  const caja = $(pre + 'Tl'), pago = () => $(pre + 'Pagada');
+  const horasAuto = () => {   // por horas: lo pagado por defecto es la duración
+    if(!pago()) return;
+    const parcial = caja.dataset.modo === 'horas', a = aMin($(pre + 'HIni').value), b = aMin($(pre + 'HFin').value);
+    $(pre + 'HorasT').textContent = parcial ? 'Paid hours' : 'Paid hours per day';
+    if(parcial && a != null && b != null && b > a) $(pre + 'Horas').value = Math.round((b - a) / 60 * 100) / 100;
+    else if(!parcial) $(pre + 'Horas').value = op.horasDia || 8;
+  };
+  caja.querySelectorAll('.tl-modo button').forEach(b => b.addEventListener('click', () => {
+    caja.dataset.modo = b.dataset.modo;
+    caja.querySelectorAll('.tl-modo button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    caja.querySelector('.tl-dia').classList.toggle('hidden', b.dataset.modo !== 'dia');
+    caja.querySelector('.tl-horas').classList.toggle('hidden', b.dataset.modo !== 'horas');
+    if(b.dataset.modo === 'horas') $(pre + 'Dia').value = $(pre + 'Desde').value; else { $(pre + 'Desde').value = $(pre + 'Dia').value; if($(pre + 'Hasta').value < $(pre + 'Desde').value) $(pre + 'Hasta').value = $(pre + 'Desde').value; }
+    horasAuto();
+  }));
+  $(pre + 'Desde').addEventListener('change', () => { if($(pre + 'Hasta').value < $(pre + 'Desde').value) $(pre + 'Hasta').value = $(pre + 'Desde').value; });
+  [pre + 'HIni', pre + 'HFin'].forEach(id => $(id).addEventListener('change', horasAuto));
+  if(pago()){
+    const porTipo = () => { pago().checked = ['vacaciones', 'enfermedad'].includes($(pre + 'Clase').value); $(pre + 'HorasL').style.visibility = pago().checked ? '' : 'hidden'; };
+    $(pre + 'Clase').addEventListener('change', porTipo);
+    pago().addEventListener('change', () => { $(pre + 'HorasL').style.visibility = pago().checked ? '' : 'hidden'; });
+    porTipo();
+  }
+}
+// Lee el formulario: { clase, fecha, fechaFin, horaIni?, horaFin? } o { err }.
+function tlLeer(pre){
+  const parcial = $(pre + 'Tl').dataset.modo === 'horas', clase = $(pre + 'Clase').value;
+  if(!clase) return { err:'Choose the absence type.' };
+  if(parcial){
+    const fecha = $(pre + 'Dia').value, hi = $(pre + 'HIni').value, hf = $(pre + 'HFin').value;
+    if(!fecha) return { err:'Choose the date.' };
+    if(!hi || !hf) return { err:'Fill in both times, or choose All day.' };
+    if(hf <= hi) return { err:'The end time must be after the start time.' };
+    return { clase, fecha, fechaFin:fecha, horaIni:hi, horaFin:hf };
+  }
+  const fecha = $(pre + 'Desde').value, fechaFin = $(pre + 'Hasta').value || fecha;
+  if(!fecha) return { err:'Choose the date.' };
+  if(fechaFin < fecha) return { err:'The end date can\'t be before the start date.' };
+  return { clase, fecha, fechaFin };
+}
 function solCuando(s){
   if(s.tipo === 'correccion') return diaS(s.fecha) + ' · ' + marcasTxt(s.marcas);
+  if(s.tipo === 'ausencia' && esParcial(s)) return diaS(s.fecha) + ' · ' + franjaTxt(s) + ' (' + hm(minParcial(s)) + ' h) · ' + (CLASE_TXT[s.clase] || '');
   if(s.tipo === 'ausencia'){ const n = diasEntre(s.fecha, s.fechaFin);
     return (n === 1 ? diaS(s.fecha) : diaS(s.fecha) + ' – ' + diaS(s.fechaFin)) + ' · ' + n + (n === 1 ? ' day' : ' days') + ' · ' + (CLASE_TXT[s.clase] || ''); }
   return diaS(s.fecha) + ' · ' + h12(s.horaIni) + ' – ' + h12(s.horaFin) + (s.almIni ? ' · lunch ' + h12(s.almIni) + ' – ' + h12(s.almFin) : '');
@@ -3604,10 +3713,7 @@ function abrirSolicitud(tipo){
   $('sErr').textContent = '';
   let h = '';
   if(tipo === 'ausencia'){
-    h += '<label class="campo"><span>Type</span><select id="sClase"><option value="">Choose…</option>' +
-      Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>' +
-      '<div class="dos-col"><label class="campo"><span>From</span><input type="date" id="sDesde" value="' + hoy + '" min="' + sumarDias(hoy, -31) + '"></label>' +
-      '<label class="campo"><span>To</span><input type="date" id="sHasta" value="' + hoy + '" min="' + sumarDias(hoy, -31) + '"></label></div>';
+    h += tlCampos('s', hoy, { elegir:true, min:sumarDias(hoy, -31) });
   } else {
     const [a, b] = tipo === 'turno' ? ['Clock in', 'Clock out'] : ['Lunch start', 'Lunch end'];
     h += '<label class="campo"><span>Date</span><input type="date" id="sFecha" value="' + hoy + '" min="' + sumarDias(hoy, -31) + '" max="' + hoy + '"></label>' +
@@ -3619,13 +3725,18 @@ function abrirSolicitud(tipo){
   h += '<label class="campo"><span>Reason</span><textarea id="sMotivo" maxlength="500" placeholder="' +
     (tipo === 'ausencia' ? 'E.g. medical appointment, family trip' : 'E.g. I forgot to clock it') + '"></textarea></label>';
   $('sCuerpo').innerHTML = h;
-  if($('sDesde')) $('sDesde').addEventListener('change', () => { if($('sHasta').value < $('sDesde').value) $('sHasta').value = $('sDesde').value; });
+  if(tipo === 'ausencia'){
+    tlEnlazar('s');
+    const anio = fechaHoy().slice(0, 4), pintarAnio = l => { if($('sAnio')) $('sAnio').innerHTML = 'Your time off in ' + anio + ': ' + resumenAnio((l || []).filter(x => x.tipo === 'ausencia'), anio); };
+    if(S.mias) pintarAnio(S.mias); api('misSolicitudes').then(l => { S.mias = l; pintarAnio(l); }).catch(() => { if($('sAnio')) $('sAnio').textContent = ''; });
+  }
   $('sEnviar').disabled = false;
   abrir('ovSol');
 }
 $('sEnviar').addEventListener('click', async () => {
   const t = S.solTipo, sol = { tipo:t, motivo:$('sMotivo').value.trim() };
-  if(t === 'ausencia'){ sol.clase = $('sClase').value; sol.fecha = $('sDesde').value; sol.fechaFin = $('sHasta').value || sol.fecha; }
+  if(t === 'ausencia'){ const x = tlLeer('s'); if(x.err && x.err !== 'Choose the absence type.'){ $('sErr').textContent = x.err; return; }
+    sol.clase = $('sClase').value; sol.fecha = x.fecha || $('sDesde').value; sol.fechaFin = x.fechaFin || sol.fecha; if(x.horaIni){ sol.horaIni = x.horaIni; sol.horaFin = x.horaFin; } }
   else { sol.fecha = $('sFecha').value; sol.horaIni = $('sIni').value; sol.horaFin = $('sFin').value; }
   if(t === 'turno'){ sol.almIni = $('sAlmIni').value; sol.almFin = $('sAlmFin').value; }
   const almMal = t === 'turno' && (!!sol.almIni !== !!sol.almFin) ? 'Fill in both lunch times or leave both empty.'
@@ -3657,7 +3768,7 @@ function pintarMias(){
   const l = S.mias || [], anio = fechaHoy().slice(0,4);
   const usados = usadosPorUsuario(l.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio + '-01-01');
   const u = Object.values(usados)[0] || 0;
-  $('mSub').textContent = 'Days off approved in ' + anio + ': ' + u;
+  $('mSub').innerHTML = 'Your time off in ' + anio + ': ' + resumenAnio(l.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio);
   $('miasLista').innerHTML = l.length ? l.map(s => '<div class="sol-item">' + SOL_IC[s.tipo] +
       '<div><div class="t1">' + SOL_TIPO[s.tipo] + '<span class="est est-' + s.estado + '">' + SOL_ESTADO[s.estado] + '</span></div>' +
       '<div class="t2">' + esc(solCuando(s)) + '</div>' + (s.tipo === 'correccion' ? '<div class="t3 antes">Before: ' + esc(marcasTxt(s.marcasAntes)) + '</div>' : '') +
@@ -3694,15 +3805,15 @@ function solItemHTML(s, r){
     '<div class="t2">' + esc(solCuando(s)) + '</div>' + (s.tipo === 'correccion' ? '<div class="t3 antes">Before: ' + esc(marcasTxt(s.marcasAntes)) + '</div>' : '') +
     '<div class="t3">“' + esc(s.motivo) + '”</div>' +
     '<div class="t3">Sent ' + cuando(s.creada) +
-    (s.tipo === 'ausencia' ? ' · Days off approved this year: ' + (r.usados[s.usuario] || 0) : '') + '</div>' +
+    (s.tipo === 'ausencia' ? ' · Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) : '') + '</div>' +
     (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor || '') + (s.decidida ? ' · ' + cuando(s.decidida) : '') +
-      (s.estado === 'aprobada' && s.tipo === 'ausencia' ? (s.pagada ? ' · paid ' + s.horasDia + ' h/day' : ' · unpaid') : '') +
+      (s.estado === 'aprobada' && s.tipo === 'ausencia' ? ' · ' + pagoTxt(s) : '') +
       (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') +
     (s.estado === 'cancelada' ? '<div class="t3">' + (s.respuesta === 'Replaced by a newer request' ? 'Replaced by a newer request' : 'Canceled by the employee') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + '</div>' : '') + '</div>' +
     '<div class="acc">' + (s.estado === 'pendiente' ? '<button class="btn btn-ghost btn-sm" data-dec="no" data-id="' + s.id + '">Deny</button>' +
       '<button class="btn btn-brand btn-sm" data-dec="si" data-id="' + s.id + '">Approve</button>'
       : s.estado === 'aprobada' ? '<button class="btn btn-ghost btn-sm" data-dec="deshacer" data-id="' + s.id + '">Undo approval</button>' +
-      (s.tipo === 'correccion' ? '' : '<button class="btn btn-ghost btn-sm" data-dec="editar" data-id="' + s.id + '">Edit</button>') : '') + '</div></div>';
+      (s.tipo === 'correccion' || esParcial(s) ? '' : '<button class="btn btn-ghost btn-sm" data-dec="editar" data-id="' + s.id + '">Edit</button>') : '') + '</div></div>';
 }
 /* ── Tarjeta de una solicitud pendiente: Original vs Requested ── */
 const IC_NOTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 10h11M4 14h6"/><path d="M13 20l1-3.5 5.5-5.5 2.5 2.5-5.5 5.5z"/></svg>';
@@ -3752,13 +3863,15 @@ function rqHTML(s, r){
     '</div></div>' +
     '<div class="rq-motivo"><b>Reason</b>' + esc(s.motivo) + '</div>';
   if(s.tipo === 'ausencia'){
-    const n = diasEntre(s.fecha, s.fechaFin), pag = ['vacaciones', 'enfermedad'].includes(s.clase);
+    const n = diasEntre(s.fecha, s.fechaFin), pag = ['vacaciones', 'enfermedad'].includes(s.clase), parc = esParcial(s);
     h += '<div class="rq-comp"><section class="rq-lado nuevo" style="grid-column:1 / -1"><h4>' + IC_CAL + 'Requested time off</h4>' +
       '<div class="rq-fila"><span>Account</span>' + cuentaV(emp) + '</div>' +
       '<div class="rq-fila"><span>Type</span><div class="rq-v">' + esc(CLASE_TXT[s.clase] || '') + '</div></div>' +
-      '<div class="rq-fila"><span>Dates</span><div class="rq-v cambio">' + esc(n === 1 ? diaS(s.fecha) : diaS(s.fecha) + ' – ' + diaS(s.fechaFin)) + '</div></div>' +
-      '<div class="rq-tot"><span>' + n + (n === 1 ? ' day' : ' days') + '</span><span>' + (pag ? 'Paid · ' + (emp.horasDia || 8) + ' h/day' : 'Unpaid') + '</span></div>' +
-      '<div class="rq-nota">Days off approved this year: ' + (r.usados[s.usuario] || 0) + '. Approve uses ' + (pag ? 'paid' : 'unpaid') + ' by default; use the note button to change it.</div></section></div>';
+      '<div class="rq-fila"><span>' + (parc ? 'Date' : 'Dates') + '</span><div class="rq-v cambio">' + esc(n === 1 ? diaS(s.fecha) : diaS(s.fecha) + ' – ' + diaS(s.fechaFin)) + '</div></div>' +
+      (parc ? '<div class="rq-fila"><span>Time</span><div class="rq-v cambio">' + esc(franjaTxt(s)) + '</div></div>' : '') +
+      '<div class="rq-tot"><span>' + (parc ? 'Part of the day · ' + hm(minParcial(s)) + ' h' : n + (n === 1 ? ' day' : ' days')) + '</span><span>' +
+        (pag ? 'Paid · ' + (parc ? hm(minParcial(s)) + ' h' : (emp.horasDia || 8) + ' h/day') : 'Unpaid') + '</span></div>' +
+      '<div class="rq-nota">Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) + '. Approve uses ' + (pag ? 'paid' : 'unpaid') + ' by default; use the note button to change it.</div></section></div>';
   } else {
     const { antes, despues } = ladosSol(s, r);
     h += '<div class="rq-comp">' + ladoHTML(s.tipo === 'correccion' ? 'Original' : 'Now', 'orig', antes, despues, emp) +
@@ -3834,8 +3947,9 @@ function abrirDecision(id, modo){
   if(aprobar && s.tipo === 'ausencia'){
     const pag = ['vacaciones','enfermedad'].includes(s.clase);
     h += '<label class="chk"><input type="checkbox" id="xPagada"' + (pag ? ' checked' : '') + '> Paid time off</label>' +
-      '<label class="campo" id="xHorasC"' + (pag ? '' : ' style="display:none"') + '><span>Paid hours per day</span><input type="number" id="xHoras" min="0" max="12" step="0.5" value="' + (emp.horasDia || 8) + '"></label>' +
-      '<p class="nota" style="margin:-4px 0 12px">Days off approved this year: ' + (r.usados[s.usuario] || 0) + '</p>';
+      '<label class="campo" id="xHorasC"' + (pag ? '' : ' style="display:none"') + '><span>' + (esParcial(s) ? 'Paid hours' : 'Paid hours per day') + '</span><input type="number" id="xHoras" min="0" max="12" step="0.25" value="' +
+        (esParcial(s) ? Math.round(minParcial(s) / 60 * 100) / 100 : (emp.horasDia || 8)) + '"></label>' +
+      '<p class="nota" style="margin:-4px 0 12px">Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) + '</p>';
   }
   h += '<label class="campo"><span>Note to the employee (optional)</span><input id="xNota" maxlength="500" autocomplete="off"></label>';
   $('xCuerpo').innerHTML = h;
@@ -3960,8 +4074,8 @@ function abrirPeriodo(usuario){
   // Celda «Time off»: la ausencia del día (con × para quitarla) o «+ Time off» para anotar una.
   const ausTd = (f, d) => {
     const a = d && d.ausencia;
-    if(a) return '<td class="aus"><span class="tag' + (a.pagada ? '' : ' np') + '" title="' + esc(CLASE_TXT[a.clase] + (a.pagada ? ' · paid ' + a.horas + ' h/day' : ' · unpaid')) + '">' + CLASE_CORTA[a.clase] + '</span>' +
-      '<span class="nota" style="margin:0">' + (a.pagada ? a.horas + ' h' : 'unpaid') + '</span>' +
+    if(a) return '<td class="aus"><span class="tag' + (a.pagada ? '' : ' np') + '" title="' + esc(CLASE_TXT[a.clase] + ' · ' + pagoTxt(a)) + '">' + CLASE_CORTA[a.clase] + '</span>' +
+      '<span class="nota" style="margin:0">' + (esParcial(a) ? esc(franjaTxt(a)) + ' · ' : '') + (a.pagada ? (esParcial(a) ? hm(Math.round(a.horas * 60)) : a.horas) + ' h' : 'unpaid') + '</span>' +
       (a.id != null ? '<button class="q" type="button" data-quitar-aus="' + a.id + '" data-f="' + f + '" title="Remove this time off" aria-label="Remove time off ' + esc(diaS(f)) + '">×</button>' : '') + '</td>';
     return '<td class="aus"><button class="btn-link mas" type="button" data-aus="' + f + '">+ Time off</button></td>';
   };
@@ -4006,37 +4120,30 @@ function abrirAusPH(f){
   const viejo = $('phTabla').querySelector('tr.ph-aus'); if(viejo){ const ya = viejo.dataset.f === f; viejo.remove(); if(ya) return; }
   const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario), tr = $('phTabla').querySelector('tr[data-f="' + f + '"], tr[data-fut="' + f + '"]'); if(!tr) return;
   const fila = document.createElement('tr'); fila.className = 'ph-aus'; fila.dataset.f = f;
-  fila.innerHTML = '<td colspan="8"><div class="ph-aus-f">' +
-    '<label>Type<select id="paClase">' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>' +
-    '<label>From<input type="date" id="paDesde" value="' + f + '"></label>' +
-    '<label>To<input type="date" id="paHasta" value="' + f + '" min="' + f + '"></label>' +
-    '<label class="chk"><input type="checkbox" id="paPagada" checked> Paid</label>' +
-    '<label id="paHorasL">Hours/day<input type="number" id="paHoras" min="0.5" max="12" step="0.5" value="' + (e.horasDia || 8) + '"></label>' +
-    '<label style="flex:1">Reason (optional)<input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>' +
-    '<button class="btn btn-brand btn-sm" type="button" id="paGuardar">Add time off</button><button class="btn btn-ghost btn-sm" type="button" id="paCancelar">Cancel</button>' +
+  fila.innerHTML = '<td colspan="8"><div class="ph-aus-f ph-tl">' + tlCampos('pa', f, { pago:true, horasDia:e.horasDia || 8 }) +
+    '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>' +
+    '<div class="pa-acc"><button class="btn btn-brand btn-sm" type="button" id="paGuardar">Add time off</button><button class="btn btn-ghost btn-sm" type="button" id="paCancelar">Cancel</button></div>' +
     '<p class="err" id="paErr" role="alert"></p></div></td>';
   tr.after(fila);
-  const pagoPorTipo = () => { $('paPagada').checked = ['vacaciones', 'enfermedad'].includes($('paClase').value); $('paHorasL').style.visibility = $('paPagada').checked ? '' : 'hidden'; };
-  $('paClase').addEventListener('change', pagoPorTipo);
-  $('paPagada').addEventListener('change', () => { $('paHorasL').style.visibility = $('paPagada').checked ? '' : 'hidden'; });
-  $('paDesde').addEventListener('change', () => { $('paHasta').min = $('paDesde').value; if($('paHasta').value < $('paDesde').value) $('paHasta').value = $('paDesde').value; });
+  tlEnlazar('pa', { horasDia:e.horasDia || 8 });
   $('paCancelar').addEventListener('click', () => fila.remove());
   $('paGuardar').addEventListener('click', guardarAusPH);
-  pagoPorTipo(); $('paClase').focus();
+  $('paClase').focus();
+  const anio = fechaHoy().slice(0, 4);
+  api('ausAnio', { usuario:e.usuario }).then(l => { if($('paAnio')) $('paAnio').innerHTML = e.nombre.split(' ')[0] + '\'s time off in ' + anio + ': ' + resumenAnio(l, anio); })
+    .catch(() => { if($('paAnio')) $('paAnio').textContent = ''; });
 }
 async function guardarAusPH(){
   if(S.ph.sucio){ $('paErr').textContent = 'Save or undo your hour changes first.'; return; }
-  const a = { usuario:S.ph.usuario, clase:$('paClase').value, fecha:$('paDesde').value, fechaFin:$('paHasta').value || $('paDesde').value,
-              pagada:$('paPagada').checked, motivo:$('paMotivo').value.trim() };
+  const x = tlLeer('pa'); if(x.err) return $('paErr').textContent = x.err;
+  const a = Object.assign({ usuario:S.ph.usuario, pagada:$('paPagada').checked, motivo:$('paMotivo').value.trim() }, x);
   if(a.pagada) a.horas = Number($('paHoras').value);
-  if(!a.fecha) return $('paErr').textContent = 'Choose the start date.';
-  if(a.fechaFin < a.fecha) return $('paErr').textContent = 'The end date can\'t be before the start date.';
-  if(a.pagada && !(a.horas > 0 && a.horas <= 12)) return $('paErr').textContent = 'Paid hours per day must be between 0 and 12.';
+  if(a.pagada && !(a.horas > 0 && a.horas <= 12)) return $('paErr').textContent = 'Paid hours must be between 0 and 12.';
   const b = $('paGuardar'); b.disabled = true; $('paErr').textContent = '';
   try{
     await api('ausenciaAdmin', { aus:a });
     const n = diasEntre(a.fecha, a.fechaFin);
-    toast(CLASE_TXT[a.clase] + ' added: ' + (n === 1 ? diaS(a.fecha) : diaS(a.fecha) + ' – ' + diaS(a.fechaFin)) + (a.pagada ? ' · paid ' + a.horas + ' h/day' : ' · unpaid') + '.');
+    toast(CLASE_TXT[a.clase] + ' added: ' + (n === 1 ? diaS(a.fecha) : diaS(a.fecha) + ' – ' + diaS(a.fechaFin)) + (a.horaIni ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + '.');
     await recargarPH();
   }catch(x){ $('paErr').textContent = x.message; b.disabled = false; }
 }
@@ -4239,7 +4346,7 @@ async function demoApi(action, p){
         const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
-          const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
+          const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, horaIni:au.horaIni || null, horaFin:au.horaFin || null, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
           if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += Math.round(aus.horas * 60); }
           if(!DM.marcas[e.usuario + '|' + f] && !aus) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
           if(!d.marcas.length) return;
@@ -4287,24 +4394,28 @@ async function demoApi(action, p){
   }
   if(action === 'solicitar'){
     const s = Object.assign({ id:++DM.solId, usuario:yoU, estado:'pendiente', creada:Date.now(), respuesta:'', pagada:null, horasDia:null }, p.sol);
-    if(s.tipo !== 'ausencia') s.fechaFin = s.fecha; else s.fechaFin = s.fechaFin || s.fecha;
+    if(s.tipo !== 'ausencia' || s.horaIni) s.fechaFin = s.fecha; else s.fechaFin = s.fechaFin || s.fecha;
     DM.sols.unshift(s); return { ok:true, id:s.id };
   }
   if(action === 'misSolicitudes') return DM.sols.filter(s => s.usuario === yoU);
+  if(action === 'ausAnio') return DM.sols.filter(s => s.usuario === p.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada');
   if(action === 'cancelarSolicitud'){ const s = DM.sols.find(x => x.id === p.id && x.usuario === yoU && x.estado === 'pendiente'); if(!s) throw new Error('That request can no longer be canceled.'); s.estado = 'cancelada'; s.decidida = Date.now(); return { ok:true }; }
   if(action === 'solicitudes'){ const anio = hoy.slice(0,4) + '-01-01';
     const dias = {}; DM.sols.forEach(s => { if(s.estado === 'pendiente' && (s.tipo === 'turno' || s.tipo === 'almuerzo')) dias[s.usuario + '|' + s.fecha] = (DM.marcas[s.usuario + '|' + s.fecha] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })); });
-    return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias }; }
+    const ausAnio = {}; DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada').forEach(s => { (ausAnio[s.usuario] = ausAnio[s.usuario] || []).push(s); });
+    return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias, ausAnio }; }
   if(action === 'pendientes') return DM.sols.filter(s => s.estado === 'pendiente').length;
   if(action === 'ausenciaAdmin'){
     const a = p.aus, ff = a.fechaFin || a.fecha;
     if(!a.clase) throw new Error('Choose the absence type.');
     if(ff < a.fecha) throw new Error('The end date can\'t be before the start date.');
-    const ch = DM.sols.find(s => s.usuario === a.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= ff && s.fechaFin >= a.fecha);
+    const ch = DM.sols.find(s => s.usuario === a.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= ff && s.fechaFin >= a.fecha &&
+      (!a.horaIni || !s.horaIni || (s.horaIni < a.horaFin && a.horaIni < s.horaFin)));
     if(ch) throw new Error(enIngles('Ya hay una ausencia ' + (ch.estado === 'pendiente' ? 'pendiente' : 'aprobada') + ' del ' + ch.fecha + ' al ' + ch.fechaFin + ' que se cruza con esas fechas.'));
     const pag = a.pagada == null ? ['vacaciones', 'enfermedad'].includes(a.clase) : a.pagada, emp = DM.emps.find(e => e.usuario === a.usuario) || {};
-    const s = { id:++DM.solId, usuario:a.usuario, tipo:'ausencia', clase:a.clase, fecha:a.fecha, fechaFin:ff, motivo:a.motivo || 'Added by the administrator', estado:'aprobada',
-      creada:Date.now(), respuesta:'', pagada:pag, horasDia:pag ? (a.horas == null ? (emp.horasDia || 8) : a.horas) : 0, decididaPor:'carloshtl75', decidida:Date.now() };
+    const s = { id:++DM.solId, usuario:a.usuario, tipo:'ausencia', clase:a.clase, fecha:a.fecha, fechaFin:a.horaIni ? a.fecha : ff, horaIni:a.horaIni || null, horaFin:a.horaFin || null,
+      motivo:a.motivo || 'Added by the administrator', estado:'aprobada', creada:Date.now(), respuesta:'', pagada:pag,
+      horasDia:pag ? (a.horas == null ? (a.horaIni ? minParcial(a) / 60 : (emp.horasDia || 8)) : a.horas) : 0, decididaPor:'carloshtl75', decidida:Date.now() };
     DM.sols.unshift(s); return { ok:true, id:s.id };
   }
   if(action === 'quitarAusencia'){
@@ -4326,7 +4437,7 @@ async function demoApi(action, p){
       DM.marcas[k] = ms.map(m => ({ tipo:m.tipo, ms:m.ms, origen:'admin', motivo:'Request #' + s.id + ' approved: ' + s.motivo }));
       delete DM.aprob[k];
     }
-    if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? ['vacaciones','enfermedad'].includes(s.clase) : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? 8 : p.horas) : 0; }
+    if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? ['vacaciones','enfermedad'].includes(s.clase) : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? (esParcial(s) ? minParcial(s) / 60 : 8) : p.horas) : 0; }
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
   }
@@ -4338,7 +4449,7 @@ async function demoApi(action, p){
     }
     marcas.sort((a, b) => a.ms - b.ms);
     const aus = DM.sols.filter(s => s.usuario === yoU && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= p.hasta && s.fechaFin >= p.desde)
-      .map(s => ({ fecha:s.fecha, fechaFin:s.fechaFin, clase:s.clase, pagada:!!s.pagada, horas:s.horasDia || 0 }));
+      .map(s => ({ fecha:s.fecha, fechaFin:s.fechaFin, horaIni:s.horaIni || null, horaFin:s.horaFin || null, clase:s.clase, pagada:!!s.pagada, horas:s.horasDia || 0 }));
     const sols = DM.sols.filter(s => s.usuario === yoU && s.estado !== 'cancelada' && s.fecha <= p.hasta && (s.fechaFin || s.fecha) >= p.desde)
       .map(s => Object.assign({}, s)).sort((a, b) => b.creada - a.creada);
     return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
