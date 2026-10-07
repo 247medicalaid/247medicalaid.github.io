@@ -418,6 +418,13 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ajuste h2{font-size:17px;margin-bottom:4px}
 .ajuste .nota{margin-bottom:12px}
 .ajuste .imp-h{font-size:15px;margin:18px 0 6px}
+.ajuste.peligro{border-color:#F3B8BA;background:linear-gradient(0deg,var(--accent-50),var(--accent-50)) top/100% 4px no-repeat,var(--paper)}
+.ajuste.peligro h2{color:var(--accent-600)}
+.ajuste.peligro .botones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.borrar-lista{margin:10px 0 4px 18px;font-size:14px;color:var(--text-muted)}
+.borrar-lista li{margin:2px 0}
+#bConfirma{width:100%;font-size:16px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;letter-spacing:.08em}
+#bConfirma:focus{border-color:var(--accent-500);outline:none}
 .imp-res{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
 .imp-res span{background:var(--brand-50);border-radius:10px;padding:7px 12px;font-size:13px;color:var(--text-muted)}
 .imp-res b{display:block;font-size:18px;color:var(--text);font-family:var(--font-display)}
@@ -986,6 +993,15 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <span class="nota" id="impEstado" style="margin-left:8px"></span>
       <div id="impLista"></div>
     </div>
+    <div class="ajuste peligro hidden" id="ajPruebas">
+      <h2>Testing tools</h2>
+      <p class="nota">While the Time Clock is being tested you can erase everything and start over. The portal, Payroll and the Monitor aren't touched. <b>Erasing can't be undone.</b> When testing is over, turn these tools off so nobody can erase the real data.</p>
+      <div class="botones">
+        <button class="btn btn-peligro btn-sm" id="prBorrar" type="button">Erase all Time Clock data…</button>
+        <button class="btn btn-ghost btn-sm" id="prApagar" type="button">Turn off testing tools</button>
+        <span class="nota" id="prEstado"></span>
+      </div>
+    </div>
   </section>
 
   <!-- ADMIN: EMPLEADOS -->
@@ -1027,6 +1043,19 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 </div>
 
 <!-- confirmar salida -->
+<!-- borrar todo (modo de pruebas) -->
+<div class="overlay hidden" id="ovBorrar" role="dialog" aria-modal="true" aria-labelledby="bTitulo">
+  <div class="ventana" style="max-width:480px">
+    <h2 id="bTitulo">Erase all Time Clock data?</h2>
+    <div id="bCuerpo"></div>
+    <div class="err" id="bErr"></div>
+    <div class="pie">
+      <button class="btn btn-ghost" id="bNo" data-cerrar>Cancel</button>
+      <button class="btn btn-peligro" id="bSi" type="button" disabled>Erase everything</button>
+    </div>
+  </div>
+</div>
+
 <!-- importar de Connecteam (administrador) -->
 <div class="overlay hidden" id="ovImp" role="dialog" aria-modal="true" aria-labelledby="iTitulo">
   <div class="ventana ventana-ancha">
@@ -1249,7 +1278,7 @@ function toast(msg, tipo){
 function abrir(id){ $(id).classList.remove('hidden'); }
 function cerrar(id){ $(id).classList.add('hidden'); }
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if(ov.id === 'ovImp' && S.impCorriendo) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+  ov.addEventListener('click', e => { if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
 });
 document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio)) o.classList.add('hidden'); }); });
 
@@ -1665,6 +1694,9 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede cambiar los ajustes\.$/, 'Only an administrator can change settings.'],
   [/^Aproximación no válida\.$/, 'Invalid rounding.'],
   [/^Solo un administrador puede importar\.$/, 'Only an administrator can import.'],
+  [/^Solo un administrador puede borrar el Reloj\.$/, 'Only an administrator can erase the Time Clock.'],
+  [/^El modo de pruebas está apagado: ya no se puede borrar todo\.$/, 'Testing tools are turned off, so the Time Clock can no longer be erased.'],
+  [/^Escribe DELETE para confirmar\.$/, 'Type DELETE to confirm.'],
   [/^Zona horaria no válida\.$/, 'Invalid time zone.'],
   [/^Esa importación no está abierta\.$/, 'That import isn\'t open.'],
   [/^Esa importación ya no está activa\.$/, 'That import was already undone.'],
@@ -1720,7 +1752,7 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false;
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true';
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -1811,6 +1843,8 @@ async function api(action, p){
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
+  if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
+  if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
   if(action === 'impLista') return q(sb.from('reloj_importaciones').select('*').order('id', { ascending:false }).limit(50));
   if(action === 'impInicio') return q(sb.rpc('reloj_importar_inicio', { p:p.datos }));
   if(action === 'impLote') return q(sb.rpc('reloj_importar_lote', { p_id:p.id, p_dias:p.dias }));
@@ -3618,6 +3652,7 @@ $('ajListasGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarListas(); pintarImportaciones();
+  $('ajPruebas').classList.toggle('hidden', !S.modoPruebas); $('prEstado').textContent = '';
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -4043,6 +4078,49 @@ async function pintarImportaciones(){
     }));
   }catch(e){ el.innerHTML = '<p class="nota">' + esc(e.message) + '</p>'; }
 }
+
+// ── Testing tools: borrar todo el Reloj ──
+S.borrando = false;
+$('prBorrar').addEventListener('click', () => {
+  $('bCuerpo').innerHTML = '<p>This permanently erases <b>everything</b> saved or imported in the Time Clock:</p><ul class="borrar-lista">' +
+    '<li>all punches, approvals and hours</li><li>all requests and time off</li><li>all imports from Connecteam</li><li>the Time Clock\'s change history</li>' +
+    '<li>every user, including agents\' sign-in (email and password)</li><li>these settings (back to default)</li></ul>' +
+    '<p style="margin-top:10px">The portal, Payroll and the Monitor aren\'t touched. <b>This can\'t be undone.</b></p>' +
+    '<label style="display:block;margin-top:14px;font-size:14px">Type <b>DELETE</b> to confirm<input id="bConfirma" autocomplete="off" spellcheck="false" aria-label="Type DELETE to confirm"></label>';
+  $('bErr').textContent = ''; $('bSi').disabled = true; $('bSi').classList.remove('hidden'); $('bNo').textContent = 'Cancel'; $('bNo').disabled = false;
+  $('bConfirma').addEventListener('input', ev => { $('bSi').disabled = ev.target.value.trim() !== 'DELETE'; });
+  abrir('ovBorrar'); setTimeout(() => $('bConfirma').focus(), 50);
+});
+$('bSi').addEventListener('click', async () => {
+  if(S.borrando || $('bConfirma').value.trim() !== 'DELETE') return;
+  S.borrando = true; $('bSi').disabled = true; $('bNo').disabled = true; $('bErr').textContent = '';
+  $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Erasing…</p>';
+  let r = null; const fallos = [];
+  try{
+    r = await api('borrarTodo', { conf:'DELETE' });
+    const cc = r.conCuenta || [];
+    for(let i = 0; i < cc.length; i++){
+      $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
+      try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
+    }
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null;
+    if(!DEMO) await cargarConfig().catch(() => {});
+    $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
+      Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
+      (r.importaciones || 0) + ' imports</li><li>' + ((r.empleados || 0) + (r.conCuenta || []).length - fallos.length) + ' users</li></ul>' +
+      (fallos.length ? '<p class="err" style="display:block">These agents\' sign-ins couldn\'t be removed; delete them from Users: ' + esc(fallos.join(' · ')) + '</p>' : '');
+    $('bSi').classList.add('hidden'); $('bNo').textContent = 'Close';
+    toast('The Time Clock was erased.');
+  }catch(e){ $('bCuerpo').innerHTML = ''; $('bErr').textContent = e.message; $('bSi').classList.add('hidden'); $('bNo').textContent = 'Close'; }
+  S.borrando = false; $('bNo').disabled = false;
+  if(S.vista === 'ajustes') pintarAjustes();
+});
+$('prApagar').addEventListener('click', async () => {
+  const si = await confirmar('Turn off testing tools?', 'The <b>Erase all Time Clock data</b> button will disappear, so the real data can\'t be erased by mistake. Turning it back on can only be done in Supabase (SQL).', 'Turn off', true);
+  if(!si) return;
+  try{ await api('apagarPruebas'); S.modoPruebas = false; pintarAjustes(); toast('Testing tools turned off.'); }
+  catch(e){ $('prEstado').textContent = e.message; }
+});
 
 /* ══════════════════ SOLICITUDES (Requests) ══════════════════
    El agente pide un turno o un almuerzo que no marcó, o días libres; el
@@ -4723,7 +4801,7 @@ $('phCerrar').addEventListener('click', () => {
 const DM = { listo:false };
 function demoInit(){
   if(DM.listo) return; DM.listo = true;
-  S.zona = 'America/New_York';
+  S.zona = 'America/New_York'; S.modoPruebas = true;
   const hoy = fechaHoy();
   DM.emps = [
     { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
@@ -4931,6 +5009,17 @@ async function demoApi(action, p){
     return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
   }
   if(action === 'historialDia') return demoHistorial(p.usuario, p.fecha);
+  if(action === 'borrarTodo'){
+    if(!S.modoPruebas) throw new Error('Testing tools are turned off, so the Time Clock can no longer be erased.');
+    if(p.conf !== 'DELETE') throw new Error('Type DELETE to confirm.');
+    const nm = Object.values(DM.marcas).reduce((s, l) => s + (l ? l.length : 0), 0), na = Object.keys(DM.aprob).length, ns = DM.sols.length, ni = (DM.imps || []).length;
+    const conCuenta = DM.emps.filter(e => DM.cuentas && DM.cuentas[e.usuario]).map(e => e.usuario);
+    const ne = DM.emps.length - conCuenta.length;
+    DM.marcas = {}; DM.aprob = {}; DM.aprobH = {}; DM.aprobT = {}; DM.sols = []; DM.imps = []; DM.emps = DM.emps.filter(e => conCuenta.includes(e.usuario));
+    S.redondeo = 1; S.ubicObligatoria = true;
+    return { ok:true, marcas:nm, aprobaciones:na, solicitudes:ns, importaciones:ni, empleados:ne, conCuenta };
+  }
+  if(action === 'apagarPruebas'){ S.modoPruebas = false; return { ok:true }; }
   if(action === 'impLista') return (DM.imps || []).slice().reverse();
   if(action === 'primerLatido') return [];
   if(action === 'impInicio'){
