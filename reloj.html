@@ -417,6 +417,32 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ajuste{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;max-width:680px;margin-bottom:14px}
 .ajuste h2{font-size:17px;margin-bottom:4px}
 .ajuste .nota{margin-bottom:12px}
+.ajuste .imp-h{font-size:15px;margin:18px 0 6px}
+.imp-res{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.imp-res span{background:var(--brand-50);border-radius:10px;padding:7px 12px;font-size:13px;color:var(--text-muted)}
+.imp-res b{display:block;font-size:18px;color:var(--text);font-family:var(--font-display)}
+.imp-zona{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px}
+.imp-zona .opciones{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0}
+.imp-zona .nota{font-size:13px;margin:0}
+.imp-scroll{overflow-x:auto;max-width:100%}
+table.imp-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+table.imp-tab th,table.imp-tab td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.imp-tab th{font-size:12px;color:var(--text-muted);font-weight:600}
+table.imp-tab .num{text-align:right;white-space:nowrap}
+table.imp-tab small{display:block;color:var(--text-muted);font-size:12px}
+table.imp-tab select{max-width:250px;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+table.imp-tab tr.no td{color:#9AAAB5}
+table.imp-tab td.fechas{white-space:nowrap}
+table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;color:var(--text-muted)}
+.imp-av{display:inline-block;min-width:22px;padding:1px 7px;border-radius:999px;background:var(--warn-50);color:var(--warn);font-weight:700;font-size:12px;text-align:center}
+.imp-avisos{margin-top:12px;font-size:13.5px}
+.imp-avisos summary{cursor:pointer;font-weight:600}
+.imp-avisos ul{margin:6px 0 0 18px}
+.imp-avisos ul ul{margin:2px 0 6px 16px;color:var(--text-muted)}
+.imp-barra{height:10px;background:var(--brand-50);border-radius:6px;overflow:hidden;margin:16px 0 6px}
+.imp-barra i{display:block;height:100%;width:0;background:var(--brand-600);transition:width .3s}
+.marcas .corr.imp{color:var(--brand-700)}
+.hoja td.nombre .pill.inact{margin-left:6px;font-size:11px;padding:1px 7px}
 .opciones{display:grid;gap:6px;margin-bottom:12px}
 .opciones label{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
 .opciones label:has(input:checked){border-color:var(--brand-500);background:var(--brand-50)}
@@ -952,6 +978,14 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
       <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
     </div>
+    <div class="ajuste" id="ajImp">
+      <h2>Import from Connecteam</h2>
+      <p class="nota">Bring your hours history from Connecteam so it isn't lost. In Connecteam, export the <b>Timesheet overview</b> as Excel for the dates you want and upload that file here. You'll see a preview before anything is saved. Days that already have punches in the Time Clock are skipped, so importing the same dates twice doesn't duplicate anything.</p>
+      <input type="file" id="impArchivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+      <button class="btn btn-ink btn-sm" id="impElegir" type="button">Choose Connecteam file…</button>
+      <span class="nota" id="impEstado" style="margin-left:8px"></span>
+      <div id="impLista"></div>
+    </div>
   </section>
 
   <!-- ADMIN: EMPLEADOS -->
@@ -993,6 +1027,20 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 </div>
 
 <!-- confirmar salida -->
+<!-- importar de Connecteam (administrador) -->
+<div class="overlay hidden" id="ovImp" role="dialog" aria-modal="true" aria-labelledby="iTitulo">
+  <div class="ventana ventana-ancha">
+    <h2 id="iTitulo">Import from Connecteam</h2>
+    <div class="sub" id="iSub"></div>
+    <div id="iCuerpo"></div>
+    <div class="err" id="iErr"></div>
+    <div class="pie">
+      <button class="btn btn-ghost" id="iCancelar" data-cerrar>Cancel</button>
+      <button class="btn btn-ink" id="iImportar" type="button">Import</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="ovConf" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
   <div class="ventana" style="max-width:420px">
     <h2 id="cTitulo"></h2>
@@ -1201,7 +1249,7 @@ function toast(msg, tipo){
 function abrir(id){ $(id).classList.remove('hidden'); }
 function cerrar(id){ $(id).classList.add('hidden'); }
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+  ov.addEventListener('click', e => { if(ov.id === 'ovImp' && S.impCorriendo) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
 });
 document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio)) o.classList.add('hidden'); }); });
 
@@ -1266,6 +1314,10 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + (dia.invalidas === 1 ? ' punch was' : ' punches were') + ' out of order and ignored.' });
   if(ub) ub.flags.forEach(x => f.push(x));
   if(!marcas.length) return f;
+  if(marcas.every(m => m.origen === 'importado')){
+    const mo = (marcas.find(m => /^Connecteam: /.test(m.motivo || '')) || {}).motivo;
+    f.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam' + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
+  }
   if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' }); return f; }
   if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Checking against the Monitor…' }); return f; }
   if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'Monitor verification isn\'t set up in this browser.' }); return f; }
@@ -1521,7 +1573,7 @@ function construirHoja(raw, monDias, ahora){
       const fl = banderas(d, m, emp, mon, ahora, ub);
       dias[f] = { estado:d.estado, enCurso:d.enCurso, incompleto:d.incompleto, desde:d.desde, min:d.min, alm:d.alm, banderas:fl, ubic:ub,
         marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, origen:x.origen })),
-        aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en) } : null,
+        aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en), tarifa: ap.tarifa == null ? null : Number(ap.tarifa) } : null,
         monitor: (mon && emp.agenteMonitor) ? (mon[normal(emp.agenteMonitor)] || null) : null, ausencia:au };
       tot.min += d.incompleto ? 0 : d.min;
       if(m.length) tot.dias++;
@@ -1612,6 +1664,13 @@ const SERVIDOR_EN = [
   [/^No hay cambios para guardar\.$/, 'There are no changes to save.'],
   [/^Solo un administrador puede cambiar los ajustes\.$/, 'Only an administrator can change settings.'],
   [/^Aproximación no válida\.$/, 'Invalid rounding.'],
+  [/^Solo un administrador puede importar\.$/, 'Only an administrator can import.'],
+  [/^Zona horaria no válida\.$/, 'Invalid time zone.'],
+  [/^Esa importación no está abierta\.$/, 'That import isn\'t open.'],
+  [/^Esa importación ya no está activa\.$/, 'That import was already undone.'],
+  [/^Solo un administrador puede deshacer una importación\.$/, 'Only an administrator can undo an import.'],
+  [/^Lote no válido\.$/, 'Invalid batch.'],
+  [/^Falta el nombre de un empleado nuevo\.$/, 'A new employee is missing their name.'],
   [/^Ajuste desconocido\.$/, 'Unknown setting.'],
   [/^Listas no válidas\.$/, 'Invalid lists.'],
   [/^Correo no válido\.$/, 'Invalid email.'],
@@ -1752,6 +1811,12 @@ async function api(action, p){
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
+  if(action === 'impLista') return q(sb.from('reloj_importaciones').select('*').order('id', { ascending:false }).limit(50));
+  if(action === 'impInicio') return q(sb.rpc('reloj_importar_inicio', { p:p.datos }));
+  if(action === 'impLote') return q(sb.rpc('reloj_importar_lote', { p_id:p.id, p_dias:p.dias }));
+  if(action === 'impFin') return q(sb.rpc('reloj_importar_fin', { p_id:p.id, p_resumen:p.resumen }));
+  if(action === 'impDeshacer') return q(sb.rpc('reloj_deshacer_importacion', { p_id:p.id }));
+  if(action === 'primerLatido') return q(sb.rpc('reloj_primer_latido', { p_dias:p.dias }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
   if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
@@ -1799,8 +1864,8 @@ async function hojaSB(desde, hasta){
   const fechas = rango(desde, hasta);
   if(fechas.length > CFG.MAX_DIAS) throw new Error('Choose a period of 31 days at most.');
   hasta = fechas[fechas.length - 1];
-  const [emps, marcas, aprob, aus, ubic, pcs] = await Promise.all([
-    q(sb.from('reloj_empleados').select('*').eq('activo', true)),
+  const [empsT, marcas, aprob, aus, ubic, pcs] = await Promise.all([
+    q(sb.from('reloj_empleados').select('*')),
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
@@ -1813,6 +1878,9 @@ async function hojaSB(desde, hasta){
     q(sb.rpc('reloj_ubic_pc', { p_desde:desde, p_hasta:hasta })).catch(() => []),
     cargarConfig()
   ]);
+  // los inactivos (p. ej. ex empleados importados) salen solo si tienen algo en el periodo
+  const conDatos = new Set([].concat(marcas.map(m => m.usuario), aprob.map(a => a.usuario), aus.map(a => a.usuario)));
+  const emps = empsT.filter(e => e.activo || conDatos.has(e.usuario));
   const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob,
                 pc:(pcs || []).map(x => ({ k:x.usuario + '|' + Date.parse(x.ts) + '|' + x.tipo, ts:Date.parse(x.pc.ts), estado:x.pc.estado,
                   lat:x.pc.lat == null ? null : Number(x.pc.lat), lng:x.pc.lng == null ? null : Number(x.pc.lng), prec:x.pc.prec == null ? null : Number(x.pc.prec) })),
@@ -2225,7 +2293,7 @@ function pintarReloj(){
   $('avisosAgente').innerHTML = av.map(([n, t]) => '<div class="aviso ' + n + '">' + IC[n === 'warn' ? 'aviso' : n] + '<span>' + esc(t) + '</span></div>').join('');
 
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] +
-      (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
+      (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta();
 
@@ -2774,6 +2842,7 @@ function pintarHoja(){
     t += '<tr' + (S.selHoja.has(e.usuario) ? ' class="sel"' : '') + ' data-fila="' + esc(e.usuario) + '"><td class="nombre"><label class="selq"><input type="checkbox" data-sel="' + esc(e.usuario) + '"' + (S.selHoja.has(e.usuario) ? ' checked' : '') + ' aria-label="Select ' + esc(e.nombre) + '"></label>' +
       '<button class="nom-btn" type="button" data-editar="' + esc(e.usuario) + '" title="Edit ' + esc(e.nombre) + '\'s hours"><span>' + esc(e.nombre) + '</span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
+      (e.activo === false ? '<span class="pill inact" title="Inactive: shown because they have hours in this period">Inactive</span>' : '') +
       (estN.todo ? '<span class="ap-ok" title="Whole pay period approved (' + estN.aprobados + ' days)" aria-label="Whole pay period approved">✓</span>' : '') + '</td>';
     h.fechas.forEach(f => {
       const d = e.dias[f], futuro = f > h.hoy;
@@ -2859,7 +2928,7 @@ function vistaDia(){
       '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Lunch</span>' +
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3><button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button></div>' +
-      '<ul class="marcas editable" id="dMarcas" title="Click a punch to edit the day">' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : '') +
+      '<ul class="marcas editable" id="dMarcas" title="Click a punch to edit the day">' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
@@ -3127,12 +3196,17 @@ function minPagoDia(d){
 }
 function filasPayroll(h){
   return empsVisibles().map(e => {
-    let trab = 0, ot = 0;
-    Object.keys(e.dias).forEach(f => { const m = minPagoDia(e.dias[f]); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60)); });
-    const pagadas = trab + (e.totales.minPto || 0), tarifa = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora);
+    let trab = 0, ot = 0, pagoDias = 0; const tarifaHoy = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora), tarDias = new Set();
+    Object.keys(e.dias).forEach(f => { const d = e.dias[f], m = minPagoDia(d); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60));
+      const td = d && d.aprobado && d.aprobado.tarifa != null ? d.aprobado.tarifa : tarifaHoy;
+      if(m && d && d.aprobado && d.aprobado.tarifa != null) tarDias.add(d.aprobado.tarifa);
+      if(td != null) pagoDias += td * m / 60; });
+    const pagadas = trab + (e.totales.minPto || 0);
+    // la tarifa que se muestra: la de los días importados si es una sola; si no, la actual
+    const tarifa = tarDias.size === 1 && (tarifaHoy == null || !Object.keys(e.dias).some(f => minPagoDia(e.dias[f]) && !(e.dias[f].aprobado && e.dias[f].aprobado.tarifa != null))) ? [...tarDias][0] : tarifaHoy;
     const [nom, ape] = partesNombre(e);
     return { nom, ape, cuenta:e.cuenta || '', job:e.cuenta || '', tarifa: tarifa != null ? tarifa : '',
-             horas:hhmm2(pagadas), ot: ot ? hhmm2(ot) : '', pago: tarifa != null ? centavos(tarifa * pagadas / 60) : 0 };
+             horas:hhmm2(pagadas), ot: ot ? hhmm2(ot) : '', pago: tarifa != null || tarDias.size ? centavos(pagoDias + (tarifaHoy || 0) * (e.totales.minPto || 0) / 60) : 0 };
   });
 }
 // .xlsx mínimo (sin librerías): zip sin compresión con las 6 partes de un libro.
@@ -3543,7 +3617,7 @@ $('ajListasGuardar').addEventListener('click', async () => {
   b.disabled = false;
 });
 function pintarAjustes(){
-  pintarListas();
+  pintarListas(); pintarImportaciones();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -3569,6 +3643,406 @@ $('ajGuardar').addEventListener('click', async () => {
   }catch(e){ $('ajEstado').textContent = e.message; }
   b.disabled = false;
 });
+
+/* ══════════════════ IMPORTAR DE CONNECTEAM ══════════════════
+   Lee en el navegador el Excel «Timesheet overview» de Connecteam (sin librerías),
+   arma los días de cada persona y los manda por lotes al servidor. Del archivo
+   solo se usan nombre, cuenta, horas, tarifa, notas y tiempo libre: los datos
+   personales (documento, banco, dirección, cumpleaños) no salen del navegador. */
+async function ctUnzip(buf){
+  const b = new Uint8Array(buf), dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  let fin = -1;
+  for(let i = b.length - 22; i >= Math.max(0, b.length - 70000); i--) if(dv.getUint32(i, true) === 0x06054b50){ fin = i; break; }
+  if(fin < 0) throw new Error('This file is not an Excel (.xlsx) file.');
+  const n = dv.getUint16(fin + 10, true); let p = dv.getUint32(fin + 16, true);
+  const dec = new TextDecoder(), ent = {};
+  for(let k = 0; k < n; k++){
+    if(dv.getUint32(p, true) !== 0x02014b50) throw new Error('The Excel file looks damaged.');
+    const met = dv.getUint16(p + 10, true), tam = dv.getUint32(p + 20, true), ln = dv.getUint16(p + 28, true),
+          lx = dv.getUint16(p + 30, true), lc = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    ent[dec.decode(b.subarray(p + 46, p + 46 + ln))] = { met, tam, off };
+    p += 46 + ln + lx + lc;
+  }
+  return {
+    tiene: nombre => !!ent[nombre],
+    async texto(nombre){
+      const e = ent[nombre]; if(!e) return null;
+      const ini = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true), datos = b.subarray(ini, ini + e.tam);
+      if(e.met === 0) return dec.decode(datos);
+      if(e.met !== 8) throw new Error('This Excel file uses a format the Time Clock can\'t read.');
+      const s = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return dec.decode(await new Response(s).arrayBuffer());
+    }
+  };
+}
+const ctEnt = s => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (x, c) => c === 'lt' ? '<' : c === 'gt' ? '>' : c === 'amp' ? '&' : c === 'quot' ? '"' : c === 'apos' ? '\''
+  : String.fromCodePoint(c[1] === 'x' || c[1] === 'X' ? parseInt(c.slice(2), 16) : parseInt(c.slice(1), 10)));
+const ctTextos = x => { let t = '', m; const re = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g; while((m = re.exec(x))) t += m[1]; return ctEnt(t); };
+const ctCol = ref => { let n = 0; for(const ch of ref.replace(/\d+$/, '')) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+// Filas de la primera hoja del libro (la de «All Employees»), como arreglos de valores.
+async function ctLeerXlsx(buf){
+  const z = await ctUnzip(buf);
+  const sst = [], ss = await z.texto('xl/sharedStrings.xml');
+  if(ss){ let m; const re = /<si>([\s\S]*?)<\/si>/g; while((m = re.exec(ss))) sst.push(ctTextos(m[1])); }
+  let hoja = 'xl/worksheets/sheet1.xml';
+  const wb = await z.texto('xl/workbook.xml'), rels = await z.texto('xl/_rels/workbook.xml.rels');
+  const id = wb && (wb.match(/<sheet\b[^>]*\br:id="([^"]+)"/) || [])[1];
+  if(id && rels){
+    const rel = (rels.match(new RegExp('<Relationship\\b[^>]*\\bId="' + id + '"[^>]*>')) || [''])[0], tg = (rel.match(/Target="([^"]+)"/) || [])[1];
+    if(tg) hoja = tg.startsWith('/') ? tg.slice(1) : 'xl/' + tg.replace(/^\.\//, '');
+  }
+  const xml = await z.texto(hoja);
+  if(!xml) throw new Error('The Excel file has no sheets.');
+  const filas = []; let m;
+  const reF = /<row\b[^>]*>([\s\S]*?)<\/row>/g, reC = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  while((m = reF.exec(xml))){
+    const fila = []; let c; reC.lastIndex = 0;
+    while((c = reC.exec(m[1]))){
+      const at = c[1], ref = (at.match(/\br="([A-Z]+\d+)"/) || [])[1], t = (at.match(/\bt="(\w+)"/) || [])[1], cuerpo = c[2] || '';
+      if(!ref) continue;
+      const v = (cuerpo.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+      let val = '';
+      if(t === 's') val = sst[Number(v)] ?? '';
+      else if(t === 'inlineStr') val = ctTextos(cuerpo);
+      else if(t === 'str' || t === 'b' || t === 'e') val = v == null ? '' : ctEnt(v);
+      else val = v == null ? '' : Number(v);
+      fila[ctCol(ref)] = val;
+    }
+    filas.push(fila);
+  }
+  return filas;
+}
+
+const ctNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const ctTitulo = s => String(s || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (x, a, l) => a + l.toUpperCase()).trim();
+const ctMin = s => { const m = /^(\d{1,3}):(\d{2})/.exec(String(s || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+const ctHH = min => String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
+function ctFecha(v){
+  if(typeof v === 'number' && v > 20000) return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10);
+  const s = String(v || '').trim(); let m;
+  if((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s))) return m[1] + '-' + m[2] + '-' + m[3];
+  if((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
+  return null;
+}
+const ctMas1 = f => new Date(Date.parse(f + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
+function ctClase(texto){
+  const t = ctNorm(texto);
+  if(/\b(SICK|ENFERM\w*|MEDIC\w*|DOCTOR|CITA MEDICA|INCAPACI\w*|ILLNESS)\b/.test(t)) return 'enfermedad';
+  if(/\b(VACATIONS?|VACACION\w*|HOLY|HOLLY|SEMANA SANTA)\b/.test(t)) return 'vacaciones';
+  return 'personal';
+}
+const CT_AVISO = {
+  cruce:'Overlapping shifts (merged; Connecteam paid them twice)', sinSalida:'Shift without clock-out (day not imported)',
+  almLargo:'Lunch longer than 2 hours or left open', tarifa0:'Worked hours with a $0 rate', largo:'More than 12 paid hours',
+  almSuelto:'Lunch outside the shift (left out)'
+};
+// De las filas del Excel a personas → días → marcas del Reloj.
+function ctArmar(filas){
+  const enc = (filas[0] || []).map(x => String(x || '').trim()), col = {};
+  enc.forEach((h, i) => { if(!(h in col)) col[h] = i; });
+  const falta = ['First name', 'Last name', 'Type', 'Start Date', 'In', 'Out'].filter(h => !(h in col));
+  if(falta.length) throw new Error('This doesn\'t look like a Connecteam timesheet export (missing: ' + falta.join(', ') + ').');
+  const g = (r, h) => h in col ? (r[col[h]] ?? '') : '';
+  const personas = new Map(); let cur = null;
+  for(let i = 1; i < filas.length; i++){
+    const r = filas[i] || [];
+    const fn = String(g(r, 'First name')).trim(), ln = String(g(r, 'Last name')).trim();
+    if(fn || ln){
+      const clave = ctNorm(fn + ' ' + ln);
+      cur = personas.get(clave) || { clave, nombre:fn, apellidos:ln, filas:[] };
+      personas.set(clave, cur);
+    }
+    const tipo = String(g(r, 'Type')).trim(), f = ctFecha(g(r, 'Start Date'));
+    if(!cur || !tipo || !f) continue;
+    const ff = ctFecha(g(r, 'End Date')) || f;
+    const ini = ctMin(g(r, 'In (unrounded)')) ?? ctMin(g(r, 'In')), fin = ctMin(g(r, 'Out (unrounded)')) ?? ctMin(g(r, 'Out'));
+    const notas = [String(g(r, 'Employee notes')).trim(), String(g(r, 'Manager notes')).trim()];
+    cur.filas.push({ tipo, f, ff, ini, fin, inR:ctMin(g(r, 'In')), outR:ctMin(g(r, 'Out')),
+      clase: /time\s*off/i.test(tipo) ? 'aus' : /lunch/i.test(tipo) ? 'alm' : 'trab',
+      horas: ctMin(g(r, 'Shift hours')), tarifa: g(r, 'Hourly rate (USD)') === '' ? null : Number(g(r, 'Hourly rate (USD)')),
+      nota: notas[0] ? notas[0] : '', notaJefe: notas[1] || '' });
+  }
+  const res = [], avisos = []; let desde = null, hasta = null;
+  personas.forEach(p => {
+    if(!p.filas.length) return;
+    const porDia = new Map();
+    p.filas.forEach(x => { (porDia.get(x.f) || porDia.set(x.f, []).get(x.f)).push(x); });
+    const dias = [];
+    [...porDia.keys()].sort().forEach(f => {
+      const rs = porDia.get(f), av = new Set(), abs = (fe, min) => (fe === f ? 0 : 1440) + min;
+      const trab = rs.filter(x => x.clase === 'trab'), alm = rs.filter(x => x.clase === 'alm'), aus = rs.filter(x => x.clase === 'aus');
+      const dia = { fecha:f, marcas:[], horas:null, tarifa:null, cuenta:'', nota:'', ausencias:[], avisos:[] };
+      if(trab.some(x => x.ini == null || x.fin == null)) av.add('sinSalida');
+      else if(trab.length){
+        const tramos = trab.map(x => ({ a:abs(f, x.ini), b:abs(x.ff, x.fin) })).filter(t => t.b > t.a).sort((x, y) => x.a - y.a || x.b - y.b);
+        const unidos = [];
+        tramos.forEach(t => { const u = unidos[unidos.length - 1];
+          if(u && t.a <= u.b){ if(t.a < u.b) av.add('cruce'); u.b = Math.max(u.b, t.b); } else unidos.push({ a:t.a, b:t.b }); });
+        const ls = alm.filter(x => x.ini != null && x.fin != null).map(x => ({ a:abs(f, x.ini), b:abs(x.ff, x.fin) })).filter(l => l.b > l.a);
+        if(alm.some(x => x.fin == null) || ls.some(l => l.b - l.a > 120)) av.add('almLargo');
+        const marca = (tipo, m) => dia.marcas.push({ tipo, f: m >= 1440 ? ctMas1(f) : f, h: ctHH(m % 1440) });
+        const usados = new Set();
+        unidos.forEach((t, k) => {
+          if(k === 0) marca('entrada', t.a);
+          const sig = unidos[k + 1];
+          if(!sig){ marca('salida', t.b); return; }
+          const li = ls.findIndex((l, j) => !usados.has(j) && l.a >= t.b - 5 && l.a < sig.a && l.b <= sig.a + 5);
+          if(li >= 0){ usados.add(li); marca('almuerzo_ini', t.b); marca('almuerzo_fin', sig.a); }
+          else { marca('salida', t.b); marca('entrada', sig.a); }
+        });
+        if(ls.length > usados.size && unidos.length) av.add('almSuelto');
+        const pag = trab.reduce((s, x) => s + (x.horas || 0), 0);
+        dia.horas = Math.round(pag / 60 * 100) / 100;
+        if(dia.horas > 12) av.add('largo');
+        if(trab.some(x => x.tarifa === 0 && (x.horas || 0) > 0)) av.add('tarifa0');
+        const tar = trab.map(x => x.tarifa).filter(x => x != null && !isNaN(x));
+        dia.tarifa = tar.length ? Math.max(...tar) : null;
+        const cuentas = trab.filter(x => !/break/i.test(x.tipo)).sort((x, y) => (y.horas || 0) - (x.horas || 0));
+        dia.cuenta = cuentas.length ? cuentas[0].tipo : '';
+        if(!dia.marcas.length) dia.horas = null;
+      }
+      aus.forEach(x => {
+        const parcial = x.inR != null && x.outR != null && x.outR > x.inR, motivo = [x.nota, x.notaJefe].filter(Boolean).join(' · ');
+        dia.ausencias.push({ hi: parcial ? ctHH(x.inR) : null, hf: parcial ? ctHH(x.outR) : null, horas: x.horas != null ? Math.round(x.horas / 60 * 100) / 100 : null,
+          pagada: !/unpaid/i.test(x.tipo), clase: ctClase(motivo + ' ' + x.tipo), motivo: motivo || x.tipo });
+      });
+      const notas = []; rs.forEach(x => { if(x.clase !== 'aus'){ if(x.nota) notas.push(x.nota); if(x.notaJefe) notas.push('Manager: ' + x.notaJefe); } });
+      dia.nota = [...new Set(notas)].join(' · ');
+      dia.avisos = [...av];
+      if(!dia.marcas.length && !dia.ausencias.length && !dia.avisos.length) return;
+      dias.push(dia);
+      dia.avisos.forEach(a => avisos.push({ clave:p.clave, fecha:f, aviso:a }));
+      if(!desde || f < desde) desde = f; if(!hasta || f > hasta) hasta = f;
+    });
+    if(!dias.length) return;
+    const ult = p.filas.filter(x => x.clase === 'trab' && !/break/i.test(x.tipo)).sort((x, y) => x.f < y.f ? -1 : x.f > y.f ? 1 : 0).pop();
+    const tars = p.filas.filter(x => x.tarifa != null && !isNaN(x.tarifa) && x.tarifa > 0).sort((x, y) => x.f < y.f ? -1 : 1);
+    res.push({ clave:p.clave, nombre:ctTitulo(p.nombre), apellidos:ctTitulo(p.apellidos), cuenta: ult ? ult.tipo : '',
+      tarifa: tars.length ? tars[tars.length - 1].tarifa : null, dias, desde:dias[0].fecha, hasta:dias[dias.length - 1].fecha });
+  });
+  res.sort((x, y) => x.clave < y.clave ? -1 : 1);
+  return { personas:res, avisos, desde, hasta };
+}
+// Empareja cada persona de Connecteam con un usuario del Reloj (por nombre completo, nombre de nómina o del Monitor).
+function ctEmparejar(personas, emps){
+  const llaves = emps.map(e => ({ e, ks:[e.nombre + ' ' + (e.apellidos || ''), e.nombre, e.nombreNomina, e.agenteMonitor].map(ctNorm).filter(k => k.split(' ').length >= 2) }));
+  const usados = new Set(), out = {};
+  personas.forEach(p => {
+    let e = llaves.find(x => !usados.has(x.e.usuario) && x.ks.includes(p.clave));
+    if(!e){
+      const tp = p.clave.split(' ');
+      const cands = llaves.filter(x => !usados.has(x.e.usuario) && x.ks.some(k => { const tk = k.split(' '), [cor, lar] = tk.length <= tp.length ? [tk, tp] : [tp, tk];
+        return cor.length >= 2 && cor.every(w => lar.includes(w)); }));
+      if(cands.length === 1) e = cands[0];
+    }
+    if(e){ usados.add(e.e.usuario); out[p.clave] = e.e.usuario; }
+  });
+  return out;
+}
+// ¿Las horas del archivo son de Colombia o de Florida? Se compara la primera entrada de cada día con
+// la primera conexión del Monitor. Solo hay diferencia con horario de verano (marzo–noviembre).
+function ctZonaOffset(f, zona){
+  const d = new Date(f + 'T12:00:00Z'), p = {};
+  new Intl.DateTimeFormat('en-US', { timeZone:zona, hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+    .formatToParts(d).forEach(x => p[x.type] = x.value);
+  return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - d.getTime()) / 60000;
+}
+const ctMs = (f, h, zona) => Date.parse(f + 'T' + h + ':00Z') - ctZonaOffset(f, zona) * 60000;
+function ctDetectarZona(muestras){
+  // muestras: [{fecha, h (primera entrada), latido (ms)}]
+  const dif = { 'America/Bogota':[], 'America/New_York':[] };
+  muestras.forEach(m => Object.keys(dif).forEach(z => dif[z].push(Math.abs(ctMs(m.fecha, m.h, z) - m.latido) / 60000)));
+  const med = a => { if(!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+  const b = med(dif['America/Bogota']), n = med(dif['America/New_York']);
+  if(b == null) return { zona:null, n:0 };
+  if(Math.abs(b - n) < 20) return { zona:null, n:muestras.length, igual:true };
+  return { zona: b < n ? 'America/Bogota' : 'America/New_York', n:muestras.length, b:Math.round(b), ny:Math.round(n) };
+}
+
+// ── Pantalla de importación (Settings → Import from Connecteam) ──
+const IMP_ZONAS = { 'America/Bogota':'Colombia time', 'America/New_York':'Florida time (Eastern)' };
+const IMP_POR = {
+  'Ya estaba importado.':'Already imported', 'Ya tiene marcas en el Reloj.':'Already has punches in the Time Clock (kept as they were)',
+  'El día aún no termina.':'The day isn\'t over yet', 'Falta la salida.':'Missing clock-out', 'Las marcas no van en orden.':'Punches out of order',
+  'El orden de las marcas no es válido.':'Punches out of order', 'Ya tiene tiempo libre ese día.':'Already has time off that day',
+  'Tiempo libre con horas no válidas.':'Time off with invalid times', 'Empleado o fecha no válidos.':'Unknown employee or date'
+};
+const fechaImp = f => f ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(f + 'T12:00:00Z')) : '—';
+const nImp = n => Number(n || 0).toLocaleString('en-US');
+const hmImp = min => nImp(Math.floor(min / 60)) + ':' + String(Math.round(min % 60)).padStart(2, '0');
+function rangoImp(a, b){
+  if(!a || !b) return '—';
+  if(a.slice(0, 4) !== b.slice(0, 4)) return fechaImp(a) + ' – ' + fechaImp(b);
+  const md = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
+  return md(a) + ' – ' + md(b) + ', ' + a.slice(0, 4);
+}
+S.imp = null; S.impCorriendo = false;
+
+$('impElegir').addEventListener('click', () => $('impArchivo').click());
+$('impArchivo').addEventListener('change', async ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) await prepararImport(f); });
+
+async function prepararImport(file){
+  $('impEstado').textContent = 'Reading ' + file.name + '…'; $('impElegir').disabled = true;
+  try{
+    if(typeof DecompressionStream === 'undefined') throw new Error('This browser can\'t read Excel files. Use an up-to-date Chrome or Edge.');
+    if(!/\.xlsx$/i.test(file.name)) throw new Error('Choose the Excel (.xlsx) file exported from Connecteam.');
+    const [filas, emps] = await Promise.all([file.arrayBuffer().then(ctLeerXlsx), api('empleados')]);
+    S.emps = emps;
+    const datos = ctArmar(filas);
+    if(!datos.personas.length) throw new Error('The file has no shifts to import.');
+    const lista = (emps.empleados || []).slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'en'));
+    const par = ctEmparejar(datos.personas, lista), sel = {};
+    datos.personas.forEach(p => { sel[p.clave] = par[p.clave] || '+'; });
+    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true };
+    pintarImport(); $('iErr').textContent = ''; abrir('ovImp'); $('impEstado').textContent = '';
+    detectarZonaImp();
+  }catch(e){ $('impEstado').textContent = e.message; }
+  $('impElegir').disabled = false;
+}
+
+function totalesImp(){
+  const I = S.imp; let dias = 0, aus = 0, min = 0, gente = 0;
+  I.datos.personas.forEach(p => { if(!I.sel[p.clave]) return; gente++;
+    p.dias.forEach(d => { if(d.marcas.length){ dias++; min += Math.round((d.horas || 0) * 60); } aus += d.ausencias.length; }); });
+  return { dias, aus, min, gente };
+}
+
+function pintarImport(){
+  const I = S.imp, D = I.datos, t = totalesImp();
+  $('iSub').textContent = rangoImp(D.desde, D.hasta) + ' · ' + I.archivo;
+  const opc = sel => '<option value=""' + (sel === '' ? ' selected' : '') + '>Don\'t import</option>' +
+    '<option value="+"' + (sel === '+' ? ' selected' : '') + '>+ New former employee (inactive)</option>' +
+    I.emps.map(e => '<option value="' + esc(e.usuario) + '"' + (sel === e.usuario ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' · inactive') + '</option>').join('');
+  const filas = D.personas.map(p => {
+    const dm = p.dias.filter(d => d.marcas.length), min = dm.reduce((s, d) => s + Math.round((d.horas || 0) * 60), 0), na = p.dias.reduce((s, d) => s + d.avisos.length, 0);
+    return '<tr' + (I.sel[p.clave] ? '' : ' class="no"') + '><td><b>' + esc(p.nombre + ' ' + p.apellidos) + '</b><small>' + esc(p.cuenta || '') + (p.tarifa != null ? ' · $' + p.tarifa + '/h' : '') + '</small></td>' +
+      '<td class="num">' + dm.length + '</td><td class="num">' + hmImp(min) + '</td><td class="fechas">' + esc(rangoImp(p.desde, p.hasta)) + '</td>' +
+      '<td><select data-imp="' + esc(p.clave) + '" aria-label="Time Clock user for ' + esc(p.nombre) + '">' + opc(I.sel[p.clave]) + '</select></td>' +
+      '<td class="num">' + (na ? '<span class="imp-av" title="Things to review">' + na + '</span>' : '') + '</td></tr>';
+  }).join('');
+  const grupos = {};
+  D.avisos.forEach(a => { (grupos[a.aviso] = grupos[a.aviso] || []).push(a); });
+  const nombreDe = c => { const p = D.personas.find(x => x.clave === c); return p ? p.nombre + ' ' + p.apellidos : c; };
+  const avisos = Object.keys(grupos).sort((a, b) => (a === 'almSuelto') - (b === 'almSuelto')).map(k => '<li><b>' + esc(CT_AVISO[k] || k) + '</b> (' + grupos[k].length + ')<ul>' +
+    grupos[k].slice(0, 40).map(a => '<li>' + esc(nombreDe(a.clave)) + ' — ' + esc(fechaImp(a.fecha)) + '</li>').join('') + (grupos[k].length > 40 ? '<li>…and ' + (grupos[k].length - 40) + ' more</li>' : '') + '</ul></li>').join('');
+  $('iCuerpo').innerHTML =
+    '<div class="imp-res"><span><b>' + t.gente + '</b>people</span><span><b>' + nImp(t.dias) + '</b>days with shifts</span><span><b>' + hmImp(t.min) + '</b>paid hours</span><span><b>' + t.aus + '</b>time off</span></div>' +
+    '<div class="imp-zona"><b>The times in the file are in:</b><div class="opciones">' +
+      Object.keys(IMP_ZONAS).map(z => '<label><input type="radio" name="impZona" value="' + z + '"' + (I.zona === z ? ' checked' : '') + '> ' + IMP_ZONAS[z] + '</label>').join('') +
+      '</div><div class="nota" id="iZonaNota">' + zonaNotaImp() + '</div></div>' +
+    '<label class="chk-linea"><input type="checkbox" id="iAprobar"' + (I.aprobar ? ' checked' : '') + '> Approve each day with the hours Connecteam paid (recommended: those days are locked until you remove the approval)</label>' +
+    '<div class="imp-scroll"><table class="imp-tab"><thead><tr><th>In Connecteam</th><th class="num">Days</th><th class="num">Hours</th><th>Dates</th><th>Time Clock user</th><th class="num" title="Things to review">⚠</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+    (avisos ? '<details class="imp-avisos"><summary>' + D.avisos.length + ' things to review (they\'re imported anyway)</summary><ul>' + avisos + '</ul></details>' : '') +
+    '<p class="nota" style="margin-top:12px">Days that already have punches in the Time Clock are skipped. Personal data in the file (ID, bank, address, birthday) is not imported. You can undo the whole import later from Settings.</p>';
+  $('iImportar').textContent = 'Import ' + nImp(t.dias) + ' days'; $('iImportar').disabled = !t.dias && !t.aus; $('iImportar').classList.remove('hidden');
+  $('iCancelar').textContent = 'Cancel';
+  $('iCuerpo').querySelectorAll('select[data-imp]').forEach(s => s.addEventListener('change', () => { I.sel[s.dataset.imp] = s.value; pintarImport(); }));
+  $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; }));
+  $('iAprobar').addEventListener('change', ev => { I.aprobar = ev.target.checked; });
+}
+
+function zonaNotaImp(){
+  const d = S.imp && S.imp.det;
+  if(!d) return 'Checking against the Monitor…';
+  if(d.error) return 'Couldn\'t check against the Monitor. Connecteam usually shows Colombia time; check one known day after importing.';
+  if(d.igual) return 'These dates fall in winter, when Colombia and Florida have the same time, so either choice gives the same result.';
+  if(!d.n) return 'The Monitor has no connections for these dates, so it can\'t be checked. Connecteam usually shows Colombia time.';
+  return 'Checked against the Monitor on ' + d.n + ' days: the clock-ins match <b>' + IMP_ZONAS[d.zona] + '</b> (first PC connection about ' + Math.min(d.b, d.ny) + ' min apart, vs ' + Math.max(d.b, d.ny) + ' min with the other).';
+}
+
+async function detectarZonaImp(){
+  const I = S.imp; if(!I) return;
+  try{
+    const monDe = {}; I.emps.forEach(e => { if(e.agenteMonitor) monDe[e.usuario] = e.agenteMonitor.trim().toLowerCase(); });
+    const cand = [];
+    I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u || !monDe[u]) return;
+      p.dias.forEach(d => { if(d.marcas.length && ctZonaOffset(d.fecha, 'America/New_York') !== ctZonaOffset(d.fecha, 'America/Bogota')) cand.push({ ag:monDe[u], fecha:d.fecha, h:d.marcas[0].h }); }); });
+    if(!cand.length){
+      const verano = I.datos.personas.some(p => p.dias.some(d => ctZonaOffset(d.fecha, 'America/New_York') !== ctZonaOffset(d.fecha, 'America/Bogota')));
+      I.det = verano ? { n:0 } : { igual:true };
+    } else {
+      const fechas = [...new Set(cand.map(c => c.fecha))].sort(), paso = Math.max(1, Math.ceil(fechas.length / 40)), dias = fechas.filter((f, i) => i % paso === 0).slice(0, 40);
+      const lat = await api('primerLatido', { dias }), k = {};
+      (lat || []).forEach(x => { k[x.agente + '|' + x.dia] = Date.parse(x.ts); });
+      const muestras = cand.filter(c => k[c.ag + '|' + c.fecha]).map(c => ({ fecha:c.fecha, h:c.h, latido:k[c.ag + '|' + c.fecha] }));
+      I.det = ctDetectarZona(muestras);
+      if(I.det.zona) I.zona = I.det.zona;
+    }
+  }catch(e){ I.det = { error:true }; }
+  if(S.imp !== I || S.impCorriendo || !$('iZonaNota')) return;
+  $('iZonaNota').innerHTML = zonaNotaImp();
+  document.querySelectorAll('input[name=impZona]').forEach(r => { r.checked = r.value === I.zona; });
+}
+
+$('iImportar').addEventListener('click', async () => {
+  const I = S.imp; if(!I || S.impCorriendo) return;
+  const usados = {};
+  for(const p of I.datos.personas){ const u = I.sel[p.clave]; if(!u || u === '+') continue;
+    if(usados[u]){ $('iErr').textContent = p.nombre + ' ' + p.apellidos + ' and ' + usados[u] + ' are matched to the same Time Clock user. Choose a different one for one of them.'; return; }
+    usados[u] = p.nombre + ' ' + p.apellidos; }
+  $('iErr').textContent = ''; S.impCorriendo = true; $('iImportar').disabled = true; $('iCancelar').disabled = true;
+  const t = totalesImp(), bar = '<div class="imp-barra"><i id="iBarra"></i></div><p class="nota" id="iProg">Starting…</p>';
+  $('iCuerpo').innerHTML = '<p>Importing <b>' + nImp(t.dias) + ' days</b> and <b>' + t.aus + ' time off</b> (' + esc(IMP_ZONAS[I.zona]) + '). Keep this window open.</p>' + bar;
+  const res = { hechos:0, aprobados:0, ausencias:0, saltados:[] };
+  try{
+    const nuevos = I.datos.personas.filter(p => I.sel[p.clave] === '+').map(p => ({ clave:p.clave, nombre:p.nombre, apellidos:p.apellidos, cuenta:p.cuenta, pagoHora:p.tarifa }));
+    const ini = await api('impInicio', { datos:{ archivo:I.archivo, zona:I.zona, desde:I.datos.desde, hasta:I.datos.hasta, nuevos } });
+    const mapa = Object.assign({}, I.sel, ini.usuarios || {}), quien = {};
+    const dias = [];
+    I.datos.personas.forEach(p => { const u = mapa[p.clave]; if(!u || u === '+') return; quien[u] = p.nombre + ' ' + p.apellidos;
+      p.dias.forEach(d => { if(!d.marcas.length && !d.ausencias.length) return;
+        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota, ausencias:d.ausencias }); }); });
+    const L = 150;
+    for(let i = 0; i < dias.length; i += L){
+      const r = await api('impLote', { id:ini.id, dias:dias.slice(i, i + L) });
+      res.hechos += r.hechos; res.aprobados += r.aprobados; res.ausencias += r.ausencias;
+      (r.saltados || []).forEach(s => res.saltados.push(Object.assign({ nombre:quien[s.usuario] || s.usuario }, s)));
+      const hechos = Math.min(dias.length, i + L);
+      $('iBarra').style.width = Math.round(hechos / dias.length * 100) + '%';
+      $('iProg').textContent = nImp(hechos) + ' of ' + nImp(dias.length) + ' days…';
+    }
+    await api('impFin', { id:ini.id, resumen:{ personas:Object.keys(quien).length, nuevos:nuevos.length, avisos:I.datos.avisos.length, aprobar:I.aprobar } });
+    pintarFinImport(res, nuevos.length, null);
+  }catch(e){ pintarFinImport(res, null, e.message); }
+  S.impCorriendo = false; $('iCancelar').disabled = false; S.hoja = null; S.hojaHoy = null; S.emps = null;
+  pintarImportaciones();
+});
+
+function pintarFinImport(res, nuevos, error){
+  const grupos = {};
+  res.saltados.forEach(s => { const k = IMP_POR[s.por] || enIngles(s.por); (grupos[k] = grupos[k] || []).push(s); });
+  const salt = Object.keys(grupos).map(k => '<li><b>' + esc(k) + '</b> (' + grupos[k].length + ')<ul>' +
+    grupos[k].slice(0, 40).map(s => '<li>' + esc(s.nombre) + ' — ' + esc(fechaImp(s.fecha)) + '</li>').join('') + (grupos[k].length > 40 ? '<li>…and ' + (grupos[k].length - 40) + ' more</li>' : '') + '</ul></li>').join('');
+  $('iCuerpo').innerHTML = (error ? '<p class="err" style="display:block">' + esc(error) + '</p><p class="nota">What was saved before the error stays. You can import the same file again: the days already imported are skipped.</p>' : '<p><b>Import finished.</b></p>') +
+    '<div class="imp-res"><span><b>' + nImp(res.hechos) + '</b>days imported</span><span><b>' + nImp(res.aprobados) + '</b>approved</span><span><b>' + res.ausencias + '</b>time off</span>' +
+    (nuevos ? '<span><b>' + nuevos + '</b>former employees added</span>' : '') + '<span><b>' + res.saltados.length + '</b>skipped</span></div>' +
+    (salt ? '<details class="imp-avisos"' + (res.saltados.length <= 20 ? ' open' : '') + '><summary>Skipped</summary><ul>' + salt + '</ul></details>' : '') +
+    (nuevos ? '<p class="nota" style="margin-top:10px">Former employees are added as <b>inactive</b> and can\'t sign in. They show in the Timesheet only for periods where they have hours.</p>' : '');
+  $('iImportar').classList.add('hidden'); $('iCancelar').textContent = 'Close';
+}
+
+async function pintarImportaciones(){
+  const el = $('impLista'); if(!el) return;
+  try{
+    const l = await api('impLista');
+    if(!l || !l.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<h3 class="imp-h">Past imports</h3><div class="imp-scroll"><table class="imp-tab"><thead><tr><th>Imported</th><th>File</th><th>Dates</th><th class="num">Days</th><th class="num">Time off</th><th></th></tr></thead><tbody>' +
+      l.map(x => { const r = x.resumen || {};
+        return '<tr' + (x.deshecha_en ? ' class="no"' : '') + '><td>' + esc(fmt(Date.parse(x.creado_en), { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })) + '<small>' + esc(x.creado_por || '') + ' · ' + esc(IMP_ZONAS[x.zona] || x.zona) + '</small></td>' +
+          '<td class="arch">' + esc(x.archivo || '') + '</td><td class="fechas">' + esc(rangoImp(x.desde, x.hasta)) + '</td><td class="num">' + nImp(r.dias) + '</td><td class="num">' + nImp(r.ausencias) + '</td>' +
+          '<td>' + (x.deshecha_en ? '<span class="pill">Undone</span>' : '<button class="btn btn-ghost btn-sm" type="button" data-deshacer="' + x.id + '">Undo</button>') + '</td></tr>'; }).join('') +
+      '</tbody></table></div>';
+    el.querySelectorAll('[data-deshacer]').forEach(b => b.addEventListener('click', async () => {
+      const x = l.find(y => String(y.id) === b.dataset.deshacer), r = (x && x.resumen) || {};
+      const si = await confirmar('Undo this import?', 'This removes the <b>' + nImp(r.dias) + ' days</b> and <b>' + nImp(r.ausencias) + ' time off</b> that came from <b>' + esc(x.archivo || 'this file') + '</b>, and the former employees it added (if they have nothing else). Days that were edited after the import keep their changes.', 'Undo import', true);
+      if(!si) return;
+      b.disabled = true;
+      try{ const z = await api('impDeshacer', { id:x.id }); S.hoja = null; S.hojaHoy = null; S.emps = null;
+        toast('Import undone: ' + nImp(z.marcas) + ' punches, ' + nImp(z.aprobaciones) + ' approvals and ' + nImp(z.ausencias) + ' time off removed.'); pintarImportaciones(); }
+      catch(e){ toast(e.message, 'err'); b.disabled = false; }
+    }));
+  }catch(e){ el.innerHTML = '<p class="nota">' + esc(e.message) + '</p>'; }
+}
 
 /* ══════════════════ SOLICITUDES (Requests) ══════════════════
    El agente pide un turno o un almuerzo que no marcó, o días libres; el
@@ -4319,11 +4793,13 @@ function demoDia(e, f){
   const incompleto = est !== 'fuera' && !esHoy;
   const d = { estado:est, enCurso:est !== 'fuera' && esHoy, incompleto, desde: est === 'trabajando' ? ini : est === 'almuerzo' ? ia : null,
               min:Math.round(mn / 60000), alm:Math.round(al / 60000), marcas:m, banderas:[],
-              aprobado: DM.aprob[e.usuario + '|' + f] ? { horas:Math.round(mn / 36000) / 100, por:'carloshtl75' } : null,
+              aprobado: DM.aprob[e.usuario + '|' + f] ? { horas: DM.aprobH && DM.aprobH[e.usuario + '|' + f] != null ? DM.aprobH[e.usuario + '|' + f] : Math.round(mn / 36000) / 100, por:'carloshtl75',
+                tarifa: DM.aprobT && DM.aprobT[e.usuario + '|' + f] != null ? DM.aprobT[e.usuario + '|' + f] : null } : null,
               monitor: e.agenteMonitor ? DM.mon[e.usuario + '|' + f] || null : null };
   if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' }); }
   if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + d.alm + ' min: ' + (d.alm - 60) + ' min over the one-hour limit.' });
   if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
+  if(m.length && m.every(x => x.origen === 'importado')){ d.banderas.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam.' }); d.monitor = null; return d; }
   if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
   const mo = d.monitor;
   if(mo && m.length){
@@ -4342,7 +4818,7 @@ async function demoApi(action, p){
   const hojaDe = (desde, hasta) => {
     const fechas = []; for(let f = desde; f <= hasta; f = sumarDias(f, 1)) fechas.push(f);
     return { desde, hasta, hoy, ahora:ahora(), zona:S.zona, fechas, monitor:true, monitorFalla:0,
-      empleados: DM.emps.filter(e => e.activo).map(e => {
+      empleados: DM.emps.filter(e => e.activo || fechas.some(f => DM.marcas[e.usuario + '|' + f])).map(e => {
         const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
@@ -4455,6 +4931,54 @@ async function demoApi(action, p){
     return { desde:p.desde, hasta:p.hasta, marcas, aprob, aus, sols };
   }
   if(action === 'historialDia') return demoHistorial(p.usuario, p.fecha);
+  if(action === 'impLista') return (DM.imps || []).slice().reverse();
+  if(action === 'primerLatido') return [];
+  if(action === 'impInicio'){
+    DM.imps = DM.imps || []; const d = p.datos, id = DM.imps.length + 1, usuarios = {}, creados = [];
+    if(!IMP_ZONAS[d.zona]) throw new Error('Invalid time zone.');
+    (d.nuevos || []).forEach(n => {
+      const base = (ctNorm(n.nombre).split(' ')[0] + '.' + ctNorm(n.apellidos).split(' ')[0]).toLowerCase().replace(/\.$/, '');
+      let u = base, k = 1; while(DM.emps.some(e => e.usuario === u)) u = base + (++k);
+      DM.emps.push({ usuario:u, nombre:(n.nombre + ' ' + n.apellidos).trim(), apellidos:n.apellidos, agenteMonitor:'', nombreNomina:'', horasDia:8, activo:false,
+        cuenta:n.cuenta || '', departamento:'', telefono:'', email:'', pagoHora: n.pagoHora == null ? '' : String(n.pagoHora), notas:'Former employee, imported from Connecteam' });
+      usuarios[n.clave] = u; creados.push(u);
+    });
+    DM.imps.push({ id, archivo:d.archivo, zona:d.zona, desde:d.desde, hasta:d.hasta, creado_por:'carloshtl75', creado_en:new Date(ahora()).toISOString(), resumen:{}, creados, deshecha_en:null });
+    return { id, usuarios };
+  }
+  if(action === 'impLote'){
+    const imp = (DM.imps || []).find(x => x.id === p.id); if(!imp || imp.deshecha_en) throw new Error('That import isn\'t open.');
+    let hechos = 0, aprobados = 0, ausencias = 0; const saltados = [], ny = (f, h) => fmt(ctMs(f, h, imp.zona), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+    DM.aprobH = DM.aprobH || {}; DM.aprobT = DM.aprobT || {};
+    p.dias.forEach(d => { const k = d.usuario + '|' + d.fecha;
+      if(d.fecha >= hoy){ saltados.push({ usuario:d.usuario, fecha:d.fecha, por:'El día aún no termina.' }); return; }
+      if(d.marcas.length){
+        if(DM.marcas[k] && DM.marcas[k].length) saltados.push({ usuario:d.usuario, fecha:d.fecha, por: DM.marcas[k].some(m => m.imp) ? 'Ya estaba importado.' : 'Ya tiene marcas en el Reloj.' });
+        else { DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:ctMs(m.f || d.fecha, m.h, imp.zona), origen:'importado', motivo: d.nota ? 'Connecteam: ' + d.nota : 'Imported from Connecteam', imp:p.id })); hechos++;
+          if(d.horas != null){ DM.aprob[k] = true; DM.aprobH[k] = d.horas; DM.aprobT[k] = d.tarifa; aprobados++; } }
+      }
+      (d.ausencias || []).forEach(a => {
+        const hi = a.hi ? ny(d.fecha, a.hi) : null, hf = a.hf ? ny(d.fecha, a.hf) : null;
+        if(DM.sols.some(s => s.usuario === d.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= d.fecha && s.fechaFin >= d.fecha && (!hi || !s.horaIni || (s.horaIni < hf && hi < s.horaFin)))){
+          saltados.push({ usuario:d.usuario, fecha:d.fecha, por:'Ya tiene tiempo libre ese día.' }); return; }
+        DM.sols.unshift({ id:++DM.solId, usuario:d.usuario, tipo:'ausencia', clase:a.clase, fecha:d.fecha, fechaFin:d.fecha, horaIni:hi, horaFin:hf, motivo:a.motivo || 'Imported from Connecteam',
+          estado:'aprobada', creada:Date.now(), respuesta:'Imported from Connecteam', pagada:!!a.pagada, horasDia: a.pagada ? (a.horas || 8) : 0, decididaPor:'carloshtl75', decidida:Date.now(), imp:p.id });
+        ausencias++;
+      });
+    });
+    const r = imp.resumen; r.dias = (r.dias || 0) + hechos; r.aprobados = (r.aprobados || 0) + aprobados; r.ausencias = (r.ausencias || 0) + ausencias; r.saltados = (r.saltados || 0) + saltados.length;
+    return { hechos, aprobados, ausencias, saltados };
+  }
+  if(action === 'impFin'){ const imp = (DM.imps || []).find(x => x.id === p.id); if(!imp) throw new Error('That import isn\'t open.'); imp.terminado_en = new Date().toISOString(); Object.assign(imp.resumen, p.resumen || {}); return { ok:true }; }
+  if(action === 'impDeshacer'){
+    const imp = (DM.imps || []).find(x => x.id === p.id); if(!imp || imp.deshecha_en) throw new Error('That import was already undone.');
+    let nm = 0, na = 0, ns = 0, ne = 0;
+    Object.keys(DM.marcas).forEach(k => { const l = DM.marcas[k]; if(l && l.length && l.every(m => m.imp === p.id)){ nm += l.length; delete DM.marcas[k]; if(DM.aprob[k] && DM.aprobH && DM.aprobH[k] != null){ delete DM.aprob[k]; delete DM.aprobH[k]; na++; } } });
+    DM.sols.forEach(s => { if(s.imp === p.id && s.estado === 'aprobada'){ s.estado = 'cancelada'; s.respuesta = 'Import undone'; ns++; } });
+    imp.creados.forEach(u => { if(!Object.keys(DM.marcas).some(k => k.startsWith(u + '|') && DM.marcas[k].length)){ const i = DM.emps.findIndex(e => e.usuario === u && !e.activo); if(i >= 0){ DM.emps.splice(i, 1); ne++; } } });
+    imp.deshecha_en = new Date().toISOString();
+    return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne };
+  }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
