@@ -349,6 +349,22 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph tr.bloq input{background:var(--sand)}
 .ph .x{border:0;background:none;color:var(--text-muted);cursor:pointer;font-size:17px;padding:2px 6px;border-radius:6px}
 .ph .x:hover{background:var(--sand-2);color:var(--text)}
+.ph tr.futuro td.phdia{color:var(--text-muted)}
+.ph tr.futuro td.sinhoras{color:#B8C4CC;text-align:center}
+.ph td.aus{white-space:nowrap}
+.ph td.aus .tag{margin-right:4px}
+.ph td.aus .np{opacity:.6}
+.ph td.aus .q{border:0;background:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:0 4px;border-radius:6px}
+.ph td.aus .q:hover{background:var(--accent-50);color:var(--accent-600)}
+.ph td.aus .mas{font-size:12.5px;white-space:nowrap}
+.ph tr.ph-aus td{background:var(--brand-50);padding:10px 12px;white-space:normal}
+.ph-aus-f{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end}
+.ph-aus-f label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.ph-aus-f label.chk{flex-direction:row;align-items:center;gap:6px;color:var(--text);font-size:13px;padding-bottom:8px}
+.ph-aus-f select,.ph-aus-f input[type=date],.ph-aus-f input[type=number],.ph-aus-f input[type=text]{height:36px;border:1px solid var(--line);border-radius:9px;padding:0 8px;font:inherit;font-size:13.5px;background:var(--paper)}
+.ph-aus-f input[type=number]{width:70px}
+.ph-aus-f input[type=text]{min-width:180px;flex:1}
+.ph-aus-f .err{flex-basis:100%;margin:0;font-size:13px}
 .ph .msg{font-size:12px;color:var(--accent-600);white-space:normal;min-width:120px}
 .ph .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:#EAF9F5;color:#0F7F70;margin-left:4px}
 .ph .tag.ok{background:var(--brand-50);color:var(--brand-700)}
@@ -1548,6 +1564,14 @@ const SERVIDOR_EN = [
   [/^La hora de fin debe ser después de la de inicio\.$/, 'The end time must be after the start time.'],
   [/^Esa hora todavía no ha pasado\.$/, 'That time hasn\'t happened yet.'],
   [/^Elige el tipo de ausencia\.$/, 'Choose the absence type.'],
+  [/^Ya hay una ausencia (pendiente|aprobada) del (\d{4}-\d{2}-\d{2}) al (\d{4}-\d{2}-\d{2}) que se cruza con esas fechas\.$/,
+    (x, e, a, b) => 'There\'s already ' + (e === 'pendiente' ? 'a pending' : 'an approved') + ' absence ' + (a === b ? 'on ' + diaS(a) : 'from ' + diaS(a) + ' to ' + diaS(b)) + ' that overlaps those dates.'],
+  [/^Una ausencia puede cubrir 31 días como máximo\.$/, 'An absence can cover 31 days at most.'],
+  [/^Las fechas deben estar entre los últimos dos meses y el próximo año\.$/, 'Dates must be between two months ago and one year from now.'],
+  [/^Las horas pagadas por día deben estar entre 0 y 12\.$/, 'Paid hours per day must be between 0 and 12.'],
+  [/^Horas por día no válidas\.$/, 'Invalid hours per day.'],
+  [/^Esa ausencia ya no está aprobada\.$/, 'That absence isn\'t approved anymore.'],
+  [/^Solo un administrador puede (anotar|quitar) ausencias\.$/, 'Only an administrator can change absences.'],
   [/^La fecha final no puede ser antes de la inicial\.$/, 'The end date can\'t be before the start date.'],
   [/^Una solicitud puede cubrir 31 días como máximo\.$/, 'A request can cover 31 days at most.'],
   [/^Las fechas deben estar entre el último mes y el próximo año\.$/, 'Dates must be between last month and next year.'],
@@ -1677,6 +1701,8 @@ async function api(action, p){
     }catch(e){}
     return { sols:rows.map(solJS), emps:emps.map(empJS), usados:usadosPorUsuario(usados.map(x => ({ usuario:x.usuario, fecha:x.fecha, fechaFin:x.fecha_fin })), anio), dias };
   }
+  if(action === 'ausenciaAdmin') return q(sb.rpc('reloj_ausencia_admin', { p:p.aus }));
+  if(action === 'quitarAusencia') return q(sb.rpc('reloj_quitar_ausencia', { p_id:p.id, p_nota:p.nota || '' }));
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
   if(action === 'miPeriodo'){
@@ -1748,7 +1774,7 @@ async function hojaSB(desde, hasta){
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
-    q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
+    q(sb.from('reloj_solicitudes').select('id,usuario,fecha,fecha_fin,clase,pagada,horas_dia,decidida_por').eq('tipo', 'ausencia')
       .eq('estado', 'aprobada').lte('fecha', hasta).gte('fecha_fin', desde)).catch(() => []),
     // dónde se hizo cada marca del agente (sin el paso 21 de SQL, la hoja sigue sin ubicaciones)
     todas(() => sb.from('reloj_marcas').select('usuario,fecha,tipo,ts,lat,lng,prec_m,anulada_en').eq('origen', 'agente').not('lat', 'is', null)
@@ -1761,7 +1787,7 @@ async function hojaSB(desde, hasta){
                 pc:(pcs || []).map(x => ({ k:x.usuario + '|' + Date.parse(x.ts) + '|' + x.tipo, ts:Date.parse(x.pc.ts), estado:x.pc.estado,
                   lat:x.pc.lat == null ? null : Number(x.pc.lat), lng:x.pc.lng == null ? null : Number(x.pc.lng), prec:x.pc.prec == null ? null : Number(x.pc.prec) })),
                 ubic:ubic.map(u => ({ usuario:u.usuario, fecha:u.fecha, tipo:u.tipo, ms:Date.parse(u.ts), lat:Number(u.lat), lng:Number(u.lng), prec:u.prec_m == null ? null : Number(u.prec_m), anulada:!!u.anulada_en })),
-                aus:aus.map(a => ({ usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
+                aus:aus.map(a => ({ id:a.id, usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por })) };
   const h = construirHoja(raw, monDisponible(fechas), ahora());
   h._raw = raw; h.seg = tiempo('hoja', t0);
   return h;
@@ -3930,25 +3956,35 @@ function abrirPeriodo(usuario){
   const i = lista.indexOf(usuario);
   $('phAnt').disabled = i <= 0; $('phSig').disabled = i >= lista.length - 1;
   $('phGuardarSig').classList.toggle('hidden', i >= lista.length - 1);
-  let t = '<thead><tr><th>Day</th><th>Clock in</th><th>Lunch start</th><th>Lunch end</th><th>Clock out</th><th style="text-align:right">Hours</th><th></th></tr></thead><tbody>';
+  let t = '<thead><tr><th>Day</th><th>Clock in</th><th>Lunch start</th><th>Lunch end</th><th>Clock out</th><th style="text-align:right">Hours</th><th></th><th>Time off</th></tr></thead><tbody>';
+  // Celda «Time off»: la ausencia del día (con × para quitarla) o «+ Time off» para anotar una.
+  const ausTd = (f, d) => {
+    const a = d && d.ausencia;
+    if(a) return '<td class="aus"><span class="tag' + (a.pagada ? '' : ' np') + '" title="' + esc(CLASE_TXT[a.clase] + (a.pagada ? ' · paid ' + a.horas + ' h/day' : ' · unpaid')) + '">' + CLASE_CORTA[a.clase] + '</span>' +
+      '<span class="nota" style="margin:0">' + (a.pagada ? a.horas + ' h' : 'unpaid') + '</span>' +
+      (a.id != null ? '<button class="q" type="button" data-quitar-aus="' + a.id + '" data-f="' + f + '" title="Remove this time off" aria-label="Remove time off ' + esc(diaS(f)) + '">×</button>' : '') + '</td>';
+    return '<td class="aus"><button class="btn-link mas" type="button" data-aus="' + f + '">+ Time off</button></td>';
+  };
   h.fechas.forEach(f => {
     const d = e.dias[f], marcas = d ? d.marcas : [], futuro = f > h.hoy, finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
     const tags = (d && d.aprobado ? '<span class="tag ok">✓</span>' : '') + (d && d.ausencia ? '<span class="tag">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '');
     const diaTd = '<td class="phdia' + (finde ? ' fin' : '') + '">' + esc(diaS(f).replace(/,.*$/, '')) + ' ' + diaN(f) + tags + '</td>';
-    if(futuro){ S.ph.futuros = (S.ph.futuros || 0) + 1; return; }
+    if(futuro){
+      t += '<tr class="futuro" data-fut="' + f + '">' + diaTd + '<td class="sinhoras" colspan="4" title="Future day: only time off can be added">—</td><td class="hrs num"></td><td></td>' + ausTd(f, d) + '</tr>';
+      return;
+    }
     if(!diaSimple(marcas)){
       t += '<tr class="bloq" data-f="' + f + '">' + diaTd + '<td colspan="4" class="nota" style="white-space:normal">' +
         esc(marcas.map(m => (NOMBRE_TIPO[m.tipo] || m.tipo) + ' ' + hora(m.ms)).join(' · ')) + '</td><td class="hrs num">' + hm(d.min) + '</td>' +
-        '<td><button class="btn-link" type="button" data-dia="' + f + '">Edit day</button></td></tr>';
+        '<td><button class="btn-link" type="button" data-dia="' + f + '">Edit day</button></td>' + ausTd(f, d) + '</tr>';
       return;
     }
     const v = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); });
     const orig = CAMPOS_PH.map(k => v[k] || '').join('|');
     t += '<tr data-f="' + f + '" data-orig="' + orig + '">' + diaTd +
       CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '" aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
-      '<td class="hrs num"></td><td><button class="x" type="button" title="Clear this day" aria-label="Clear ' + esc(diaS(f)) + '">×</button></td></tr>';
+      '<td class="hrs num"></td><td><button class="x" type="button" title="Clear this day" aria-label="Clear ' + esc(diaS(f)) + '">×</button></td>' + ausTd(f, d) + '</tr>';
   });
-  if(S.ph.futuros) t += '<tr class="bloq"><td colspan="7" class="nota">' + S.ph.futuros + ' future ' + (S.ph.futuros === 1 ? 'day' : 'days') + ' in this period (not editable yet)</td></tr>';
   $('phTabla').innerHTML = t + '</tbody>';
   $('phTabla').querySelectorAll('tr[data-orig]').forEach(tr => {
     tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => revisarFilaPH(tr)));
@@ -3959,9 +3995,64 @@ function abrirPeriodo(usuario){
     if(S.ph.sucio){ $('phErr').textContent = 'Save or undo your changes first.'; return; }
     cerrar('ovHoras'); abrirDia(usuario, b.dataset.dia, S.hoja); editarDia();
   }));
+  $('phTabla').querySelectorAll('[data-aus]').forEach(b => b.addEventListener('click', () => abrirAusPH(b.dataset.aus)));
+  $('phTabla').querySelectorAll('[data-quitar-aus]').forEach(b => b.addEventListener('click', () => quitarAusPH(Number(b.dataset.quitarAus), b.dataset.f)));
   contarPH();
   abrir('ovHoras');
   const prim = $('phTabla').querySelector('tr[data-orig] input'); if(prim) setTimeout(() => prim.focus(), 60);
+}
+/* ── Anotar / quitar una ausencia desde «Edit hours» (paso 27) ── */
+function abrirAusPH(f){
+  const viejo = $('phTabla').querySelector('tr.ph-aus'); if(viejo){ const ya = viejo.dataset.f === f; viejo.remove(); if(ya) return; }
+  const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario), tr = $('phTabla').querySelector('tr[data-f="' + f + '"], tr[data-fut="' + f + '"]'); if(!tr) return;
+  const fila = document.createElement('tr'); fila.className = 'ph-aus'; fila.dataset.f = f;
+  fila.innerHTML = '<td colspan="8"><div class="ph-aus-f">' +
+    '<label>Type<select id="paClase">' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>' +
+    '<label>From<input type="date" id="paDesde" value="' + f + '"></label>' +
+    '<label>To<input type="date" id="paHasta" value="' + f + '" min="' + f + '"></label>' +
+    '<label class="chk"><input type="checkbox" id="paPagada" checked> Paid</label>' +
+    '<label id="paHorasL">Hours/day<input type="number" id="paHoras" min="0.5" max="12" step="0.5" value="' + (e.horasDia || 8) + '"></label>' +
+    '<label style="flex:1">Reason (optional)<input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>' +
+    '<button class="btn btn-brand btn-sm" type="button" id="paGuardar">Add time off</button><button class="btn btn-ghost btn-sm" type="button" id="paCancelar">Cancel</button>' +
+    '<p class="err" id="paErr" role="alert"></p></div></td>';
+  tr.after(fila);
+  const pagoPorTipo = () => { $('paPagada').checked = ['vacaciones', 'enfermedad'].includes($('paClase').value); $('paHorasL').style.visibility = $('paPagada').checked ? '' : 'hidden'; };
+  $('paClase').addEventListener('change', pagoPorTipo);
+  $('paPagada').addEventListener('change', () => { $('paHorasL').style.visibility = $('paPagada').checked ? '' : 'hidden'; });
+  $('paDesde').addEventListener('change', () => { $('paHasta').min = $('paDesde').value; if($('paHasta').value < $('paDesde').value) $('paHasta').value = $('paDesde').value; });
+  $('paCancelar').addEventListener('click', () => fila.remove());
+  $('paGuardar').addEventListener('click', guardarAusPH);
+  pagoPorTipo(); $('paClase').focus();
+}
+async function guardarAusPH(){
+  if(S.ph.sucio){ $('paErr').textContent = 'Save or undo your hour changes first.'; return; }
+  const a = { usuario:S.ph.usuario, clase:$('paClase').value, fecha:$('paDesde').value, fechaFin:$('paHasta').value || $('paDesde').value,
+              pagada:$('paPagada').checked, motivo:$('paMotivo').value.trim() };
+  if(a.pagada) a.horas = Number($('paHoras').value);
+  if(!a.fecha) return $('paErr').textContent = 'Choose the start date.';
+  if(a.fechaFin < a.fecha) return $('paErr').textContent = 'The end date can\'t be before the start date.';
+  if(a.pagada && !(a.horas > 0 && a.horas <= 12)) return $('paErr').textContent = 'Paid hours per day must be between 0 and 12.';
+  const b = $('paGuardar'); b.disabled = true; $('paErr').textContent = '';
+  try{
+    await api('ausenciaAdmin', { aus:a });
+    const n = diasEntre(a.fecha, a.fechaFin);
+    toast(CLASE_TXT[a.clase] + ' added: ' + (n === 1 ? diaS(a.fecha) : diaS(a.fecha) + ' – ' + diaS(a.fechaFin)) + (a.pagada ? ' · paid ' + a.horas + ' h/day' : ' · unpaid') + '.');
+    await recargarPH();
+  }catch(x){ $('paErr').textContent = x.message; b.disabled = false; }
+}
+async function quitarAusPH(id, f){
+  if(S.ph.sucio){ $('phErr').textContent = 'Save or undo your hour changes first.'; return; }
+  const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario), a = e && e.dias[f] && e.dias[f].ausencia; if(!a) return;
+  const rango = a.fecha && a.fechaFin && a.fecha !== a.fechaFin ? diaS(a.fecha) + ' – ' + diaS(a.fechaFin) : diaS(f);
+  if(!(await confirmar('Remove this time off?', esc(e.nombre) + ' · <b>' + esc(CLASE_TXT[a.clase]) + '</b> · ' + esc(rango) + '<br><br>All the days of this time off are removed. It stays in the history as removed.', 'Remove', true))) return;
+  try{ await api('quitarAusencia', { id }); toast('Time off removed.'); await recargarPH(); }
+  catch(x){ $('phErr').textContent = x.message; }
+}
+// Vuelve a leer la hoja y abre otra vez el editor del mismo empleado.
+async function recargarPH(){
+  const u = S.ph.usuario; S.yoEn = 0;
+  await cargarHoja();
+  if(S.hoja && S.hoja.empleados.some(x => x.usuario === u)) abrirPeriodo(u);
 }
 // Valida un renglón, calcula sus horas y marca si cambió.
 function revisarFilaPH(tr){
@@ -4148,7 +4239,7 @@ async function demoApi(action, p){
         const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
-          const aus = au ? { clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
+          const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
           if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += Math.round(aus.horas * 60); }
           if(!DM.marcas[e.usuario + '|' + f] && !aus) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
           if(!d.marcas.length) return;
@@ -4205,6 +4296,21 @@ async function demoApi(action, p){
     const dias = {}; DM.sols.forEach(s => { if(s.estado === 'pendiente' && (s.tipo === 'turno' || s.tipo === 'almuerzo')) dias[s.usuario + '|' + s.fecha] = (DM.marcas[s.usuario + '|' + s.fecha] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })); });
     return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias }; }
   if(action === 'pendientes') return DM.sols.filter(s => s.estado === 'pendiente').length;
+  if(action === 'ausenciaAdmin'){
+    const a = p.aus, ff = a.fechaFin || a.fecha;
+    if(!a.clase) throw new Error('Choose the absence type.');
+    if(ff < a.fecha) throw new Error('The end date can\'t be before the start date.');
+    const ch = DM.sols.find(s => s.usuario === a.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= ff && s.fechaFin >= a.fecha);
+    if(ch) throw new Error(enIngles('Ya hay una ausencia ' + (ch.estado === 'pendiente' ? 'pendiente' : 'aprobada') + ' del ' + ch.fecha + ' al ' + ch.fechaFin + ' que se cruza con esas fechas.'));
+    const pag = a.pagada == null ? ['vacaciones', 'enfermedad'].includes(a.clase) : a.pagada, emp = DM.emps.find(e => e.usuario === a.usuario) || {};
+    const s = { id:++DM.solId, usuario:a.usuario, tipo:'ausencia', clase:a.clase, fecha:a.fecha, fechaFin:ff, motivo:a.motivo || 'Added by the administrator', estado:'aprobada',
+      creada:Date.now(), respuesta:'', pagada:pag, horasDia:pag ? (a.horas == null ? (emp.horasDia || 8) : a.horas) : 0, decididaPor:'carloshtl75', decidida:Date.now() };
+    DM.sols.unshift(s); return { ok:true, id:s.id };
+  }
+  if(action === 'quitarAusencia'){
+    const s = DM.sols.find(x => x.id === p.id); if(!s || s.estado !== 'aprobada') throw new Error('That absence isn\'t approved anymore.');
+    s.estado = 'cancelada'; s.respuesta = 'Removed by the administrator' + (p.nota ? ': ' + p.nota : ''); s.decidida = Date.now(); return { ok:true };
+  }
   if(action === 'decidir'){
     const s = DM.sols.find(x => x.id === p.id); if(!s || s.estado !== 'pendiente') throw new Error('That request was already decided.');
     if(p.aprobar && s.tipo === 'correccion'){
