@@ -443,6 +443,9 @@ table.imp-tab td.fechas{white-space:nowrap}
 table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;color:var(--text-muted)}
 .imp-av{display:inline-block;min-width:22px;padding:1px 7px;border-radius:999px;background:var(--warn-50);color:var(--warn);font-weight:700;font-size:12px;text-align:center}
 .imp-avisos{margin-top:12px;font-size:13.5px}
+.imp-cambios{border:1px solid #F0D9A8;background:var(--warn-50);border-radius:12px;padding:10px 14px 12px;margin:4px 0 14px}
+.imp-cambios .chk-linea{margin:2px 0 0}
+.imp-cambios .imp-avisos{margin-top:6px}
 .imp-avisos summary{cursor:pointer;font-weight:600}
 .imp-avisos ul{margin:6px 0 0 18px}
 .imp-avisos ul ul{margin:2px 0 6px 16px;color:var(--text-muted)}
@@ -1845,6 +1848,7 @@ async function api(action, p){
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
+  if(action === 'impExistentes') return q(sb.rpc('reloj_importados', { p_desde:p.desde, p_hasta:p.hasta }));
   if(action === 'impLista') return q(sb.from('reloj_importaciones').select('*').order('id', { ascending:false }).limit(50));
   if(action === 'impInicio') return q(sb.rpc('reloj_importar_inicio', { p:p.datos }));
   if(action === 'impLote') return q(sb.rpc('reloj_importar_lote', { p_id:p.id, p_dias:p.dias }));
@@ -3900,7 +3904,8 @@ const IMP_POR = {
   'Ya estaba importado.':'Already imported', 'Ya tiene marcas en el Reloj.':'Already has punches in the Time Clock (kept as they were)',
   'El día aún no termina.':'The day isn\'t over yet', 'Falta la salida.':'Missing clock-out', 'Las marcas no van en orden.':'Punches out of order',
   'El orden de las marcas no es válido.':'Punches out of order', 'Ya tiene tiempo libre ese día.':'Already has time off that day',
-  'Tiempo libre con horas no válidas.':'Time off with invalid times', 'Empleado o fecha no válidos.':'Unknown employee or date'
+  'Tiempo libre con horas no válidas.':'Time off with invalid times', 'Empleado o fecha no válidos.':'Unknown employee or date',
+  'Se corrigió en el Reloj después de importar; no se actualizó.':'Edited in the Time Clock after importing (kept as it was)'
 };
 const fechaImp = f => f ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(f + 'T12:00:00Z')) : '—';
 const nImp = n => Number(n || 0).toLocaleString('en-US');
@@ -3928,7 +3933,13 @@ async function prepararImport(file){
     const lista = (emps.empleados || []).slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'en'));
     const par = ctEmparejar(datos.personas, lista), sel = {};
     datos.personas.forEach(p => { sel[p.clave] = par[p.clave] || '+'; });
-    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true };
+    // lo que ya está importado en esas fechas, para ver qué días cambiaron en Connecteam
+    let exist = null;
+    try{
+      const ex = await api('impExistentes', { desde:datos.desde, hasta:datos.hasta }); exist = {};
+      (ex || []).forEach(x => { exist[x.u + '|' + x.f] = { m:(x.m || []).map(y => [y[0], Date.parse(y[1])]), h: x.h == null ? null : Number(x.h), prot:!!x.prot, aus:x.aus || [] }; });
+    }catch(e){ exist = null; }
+    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true, exist, actualizar:true };
     pintarImport(); $('iErr').textContent = ''; abrir('ovImp'); $('impEstado').textContent = '';
     detectarZonaImp();
   }catch(e){ $('impEstado').textContent = e.message; }
@@ -3936,14 +3947,46 @@ async function prepararImport(file){
 }
 
 function totalesImp(){
-  const I = S.imp; let dias = 0, aus = 0, min = 0, gente = 0;
-  I.datos.personas.forEach(p => { if(!I.sel[p.clave]) return; gente++;
-    p.dias.forEach(d => { if(d.marcas.length){ dias++; min += Math.round((d.horas || 0) * 60); } aus += d.ausencias.length; }); });
-  return { dias, aus, min, gente };
+  const I = S.imp; let dias = 0, aus = 0, min = 0, gente = 0, nuevos = 0;
+  I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u) return; gente++;
+    p.dias.forEach(d => { if(d.marcas.length){ dias++; min += Math.round((d.horas || 0) * 60); if(!(I.exist && I.exist[u + '|' + d.fecha])) nuevos++; } aus += d.ausencias.length; }); });
+  return { dias, aus, min, gente, nuevos };
+}
+// Días ya importados que en este archivo vienen diferentes (marcas, horas pagadas o tiempo libre).
+const horaImp = ms => fmt(ms, { hour:'numeric', minute:'2-digit' });
+function cambiosImp(){
+  const I = S.imp, out = { cambiados:[], protegidos:[], set:new Set() }; if(!I.exist) return out;
+  const nyHH = (f, h) => fmt(ctMs(f, h, I.zona), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+  const ausK = l => l.map(a => [a.hi || '', a.hf || '', a.clase, !!a.pagada].join('|')).sort().join(',');
+  const rango = l => l.length ? horaImp(l[0][1]) + '–' + horaImp(l[l.length - 1][1]) : 'no punches';
+  I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u || u === '+') return;
+    p.dias.forEach(d => { const e = I.exist[u + '|' + d.fecha]; if(!e || (!d.marcas.length && !d.ausencias.length)) return;
+      const fm = d.marcas.map(m => [m.tipo, ctMs(m.f || d.fecha, m.h, I.zona)]);
+      const difM = fm.length !== e.m.length || fm.some((m, i) => m[0] !== e.m[i][0] || Math.abs(m[1] - e.m[i][1]) >= 60000);
+      const hd = e.h != null && d.horas != null && Math.abs(e.h - d.horas) > 0.005, difH = I.aprobar && hd;
+      const difA = ausK(d.ausencias.map(a => ({ hi: a.hi ? nyHH(d.fecha, a.hi) : null, hf: a.hf ? nyHH(d.fecha, a.hf) : null, clase:a.clase, pagada:a.pagada }))) !== ausK(e.aus);
+      if(!difM && !difH && !difA) return;
+      const txt = [];
+      if(difM) txt.push('punches ' + rango(e.m) + ' → ' + rango(fm));
+      if(hd) txt.push('paid ' + hm(Math.round(e.h * 60)) + ' h → ' + hm(Math.round(d.horas * 60)) + ' h');
+      if(difA) txt.push('time off changed');
+      (e.prot ? out.protegidos : out.cambiados).push({ nombre:p.nombre + ' ' + p.apellidos, fecha:d.fecha, txt:txt.join(' · ') });
+      out.set.add(u + '|' + d.fecha);
+    }); });
+  return out;
 }
 
 function pintarImport(){
-  const I = S.imp, D = I.datos, t = totalesImp();
+  const I = S.imp, D = I.datos, t = totalesImp(), C = cambiosImp(); I.cambios = C;
+  const listaC = l => '<ul>' + l.slice(0, 60).map(x => '<li>' + esc(x.nombre) + ' — ' + esc(fechaImp(x.fecha)) + ': ' + esc(x.txt) + '</li>').join('') +
+    (l.length > 60 ? '<li>…and ' + (l.length - 60) + ' more</li>' : '') + '</ul>';
+  const bloqueC = (C.cambiados.length || C.protegidos.length) ? '<div class="imp-cambios">' +
+    (C.cambiados.length ? '<label class="chk-linea"><input type="checkbox" id="iActualizar"' + (I.actualizar ? ' checked' : '') + '> Update the <b>' + C.cambiados.length +
+      (C.cambiados.length === 1 ? ' day</b> already imported that is' : ' days</b> already imported that are') + ' different in this file</label>' +
+      '<details class="imp-avisos"><summary>See what changed</summary>' + listaC(C.cambiados) + '</details>' : '') +
+    (C.protegidos.length ? '<details class="imp-avisos"><summary>' + C.protegidos.length + (C.protegidos.length === 1 ? ' changed day was' : ' changed days were') +
+      ' edited in the Time Clock after importing, so ' + (C.protegidos.length === 1 ? 'it\'s' : 'they\'re') + ' kept as ' + (C.protegidos.length === 1 ? 'it is' : 'they are') + '</summary>' + listaC(C.protegidos) + '</details>' : '') +
+    '</div>' : '';
   $('iSub').textContent = rangoImp(D.desde, D.hasta) + ' · ' + I.archivo;
   const opc = sel => '<option value=""' + (sel === '' ? ' selected' : '') + '>Don\'t import</option>' +
     '<option value="+"' + (sel === '+' ? ' selected' : '') + '>+ New former employee (inactive)</option>' +
@@ -3966,14 +4009,19 @@ function pintarImport(){
       Object.keys(IMP_ZONAS).map(z => '<label><input type="radio" name="impZona" value="' + z + '"' + (I.zona === z ? ' checked' : '') + '> ' + IMP_ZONAS[z] + '</label>').join('') +
       '</div><div class="nota" id="iZonaNota">' + zonaNotaImp() + '</div></div>' +
     '<label class="chk-linea"><input type="checkbox" id="iAprobar"' + (I.aprobar ? ' checked' : '') + '> Approve each day with the hours Connecteam paid (recommended: those days are locked until you remove the approval)</label>' +
+    bloqueC +
     '<div class="imp-scroll"><table class="imp-tab"><thead><tr><th>In Connecteam</th><th class="num">Days</th><th class="num">Hours</th><th>Dates</th><th>Time Clock user</th><th class="num" title="Things to review">⚠</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
     (avisos ? '<details class="imp-avisos"><summary>' + D.avisos.length + ' things to review (they\'re imported anyway)</summary><ul>' + avisos + '</ul></details>' : '') +
     '<p class="nota" style="margin-top:12px">Days that already have punches in the Time Clock are skipped. Personal data in the file (ID, bank, address, birthday) is not imported. You can undo the whole import later from Settings.</p>';
-  $('iImportar').textContent = 'Import ' + nImp(t.dias) + ' days'; $('iImportar').disabled = !t.dias && !t.aus; $('iImportar').classList.remove('hidden');
+  const nAct = I.actualizar ? C.cambiados.length : 0;
+  $('iImportar').textContent = !t.nuevos && nAct ? 'Update ' + nAct + (nAct === 1 ? ' day' : ' days')
+    : 'Import ' + nImp(t.nuevos) + (t.nuevos === 1 ? ' day' : ' days') + (nAct ? ' and update ' + nAct : '');
+  $('iImportar').disabled = !t.dias && !t.aus; $('iImportar').classList.remove('hidden');
   $('iCancelar').textContent = 'Cancel';
   $('iCuerpo').querySelectorAll('select[data-imp]').forEach(s => s.addEventListener('change', () => { I.sel[s.dataset.imp] = s.value; pintarImport(); }));
-  $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; }));
-  $('iAprobar').addEventListener('change', ev => { I.aprobar = ev.target.checked; });
+  $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; pintarImport(); }));
+  $('iAprobar').addEventListener('change', ev => { I.aprobar = ev.target.checked; pintarImport(); });
+  if($('iActualizar')) $('iActualizar').addEventListener('change', ev => { I.actualizar = ev.target.checked; pintarImport(); });
 }
 
 function zonaNotaImp(){
@@ -4005,8 +4053,7 @@ async function detectarZonaImp(){
     }
   }catch(e){ I.det = { error:true }; }
   if(S.imp !== I || S.impCorriendo || !$('iZonaNota')) return;
-  $('iZonaNota').innerHTML = zonaNotaImp();
-  document.querySelectorAll('input[name=impZona]').forEach(r => { r.checked = r.value === I.zona; });
+  pintarImport();
 }
 
 $('iImportar').addEventListener('click', async () => {
@@ -4018,7 +4065,7 @@ $('iImportar').addEventListener('click', async () => {
   $('iErr').textContent = ''; S.impCorriendo = true; $('iImportar').disabled = true; $('iCancelar').disabled = true;
   const t = totalesImp(), bar = '<div class="imp-barra"><i id="iBarra"></i></div><p class="nota" id="iProg">Starting…</p>';
   $('iCuerpo').innerHTML = '<p>Importing <b>' + nImp(t.dias) + ' days</b> and <b>' + t.aus + ' time off</b> (' + esc(IMP_ZONAS[I.zona]) + '). Keep this window open.</p>' + bar;
-  const res = { hechos:0, aprobados:0, ausencias:0, saltados:[] };
+  const res = { hechos:0, aprobados:0, ausencias:0, actualizados:0, saltados:[] };
   try{
     const nuevos = I.datos.personas.filter(p => I.sel[p.clave] === '+').map(p => ({ clave:p.clave, nombre:p.nombre, apellidos:p.apellidos, cuenta:p.cuenta, pagoHora:p.tarifa }));
     const ini = await api('impInicio', { datos:{ archivo:I.archivo, zona:I.zona, desde:I.datos.desde, hasta:I.datos.hasta, nuevos } });
@@ -4026,11 +4073,12 @@ $('iImportar').addEventListener('click', async () => {
     const dias = [];
     I.datos.personas.forEach(p => { const u = mapa[p.clave]; if(!u || u === '+') return; quien[u] = p.nombre + ' ' + p.apellidos;
       p.dias.forEach(d => { if(!d.marcas.length && !d.ausencias.length) return;
-        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota, ausencias:d.ausencias }); }); });
+        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota, ausencias:d.ausencias,
+          actualizar: !!(I.actualizar && I.cambios && I.cambios.set.has(u + '|' + d.fecha)) }); }); });
     const L = 150;
     for(let i = 0; i < dias.length; i += L){
       const r = await api('impLote', { id:ini.id, dias:dias.slice(i, i + L) });
-      res.hechos += r.hechos; res.aprobados += r.aprobados; res.ausencias += r.ausencias;
+      res.hechos += r.hechos; res.aprobados += r.aprobados; res.ausencias += r.ausencias; res.actualizados += r.actualizados || 0;
       (r.saltados || []).forEach(s => res.saltados.push(Object.assign({ nombre:quien[s.usuario] || s.usuario }, s)));
       const hechos = Math.min(dias.length, i + L);
       $('iBarra').style.width = Math.round(hechos / dias.length * 100) + '%';
@@ -4049,7 +4097,7 @@ function pintarFinImport(res, nuevos, error){
   const salt = Object.keys(grupos).map(k => '<li><b>' + esc(k) + '</b> (' + grupos[k].length + ')<ul>' +
     grupos[k].slice(0, 40).map(s => '<li>' + esc(s.nombre) + ' — ' + esc(fechaImp(s.fecha)) + '</li>').join('') + (grupos[k].length > 40 ? '<li>…and ' + (grupos[k].length - 40) + ' more</li>' : '') + '</ul></li>').join('');
   $('iCuerpo').innerHTML = (error ? '<p class="err" style="display:block">' + esc(error) + '</p><p class="nota">What was saved before the error stays. You can import the same file again: the days already imported are skipped.</p>' : '<p><b>Import finished.</b></p>') +
-    '<div class="imp-res"><span><b>' + nImp(res.hechos) + '</b>days imported</span><span><b>' + nImp(res.aprobados) + '</b>approved</span><span><b>' + res.ausencias + '</b>time off</span>' +
+    '<div class="imp-res"><span><b>' + nImp(res.hechos) + '</b>days imported</span>' + (res.actualizados ? '<span><b>' + nImp(res.actualizados) + '</b>updated</span>' : '') + '<span><b>' + nImp(res.aprobados) + '</b>approved</span><span><b>' + res.ausencias + '</b>time off</span>' +
     (nuevos ? '<span><b>' + nuevos + '</b>former employees added</span>' : '') + '<span><b>' + res.saltados.length + '</b>skipped</span></div>' +
     (salt ? '<details class="imp-avisos"' + (res.saltados.length <= 20 ? ' open' : '') + '><summary>Skipped</summary><ul>' + salt + '</ul></details>' : '') +
     (nuevos ? '<p class="nota" style="margin-top:10px">Former employees are added as <b>inactive</b> and can\'t sign in. They show in the Timesheet only for periods where they have hours.</p>' : '');
@@ -4064,16 +4112,17 @@ async function pintarImportaciones(){
     el.innerHTML = '<h3 class="imp-h">Past imports</h3><div class="imp-scroll"><table class="imp-tab"><thead><tr><th>Imported</th><th>File</th><th>Dates</th><th class="num">Days</th><th class="num">Time off</th><th></th></tr></thead><tbody>' +
       l.map(x => { const r = x.resumen || {};
         return '<tr' + (x.deshecha_en ? ' class="no"' : '') + '><td>' + esc(fmt(Date.parse(x.creado_en), { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })) + '<small>' + esc(x.creado_por || '') + ' · ' + esc(IMP_ZONAS[x.zona] || x.zona) + '</small></td>' +
-          '<td class="arch">' + esc(x.archivo || '') + '</td><td class="fechas">' + esc(rangoImp(x.desde, x.hasta)) + '</td><td class="num">' + nImp(r.dias) + '</td><td class="num">' + nImp(r.ausencias) + '</td>' +
+          '<td class="arch">' + esc(x.archivo || '') + '</td><td class="fechas">' + esc(rangoImp(x.desde, x.hasta)) + '</td><td class="num">' + nImp(r.dias) + (r.actualizados ? '<small>' + nImp(r.actualizados) + ' updated</small>' : '') + '</td><td class="num">' + nImp(r.ausencias) + '</td>' +
           '<td>' + (x.deshecha_en ? '<span class="pill">Undone</span>' : '<button class="btn btn-ghost btn-sm" type="button" data-deshacer="' + x.id + '">Undo</button>') + '</td></tr>'; }).join('') +
       '</tbody></table></div>';
     el.querySelectorAll('[data-deshacer]').forEach(b => b.addEventListener('click', async () => {
       const x = l.find(y => String(y.id) === b.dataset.deshacer), r = (x && x.resumen) || {};
-      const si = await confirmar('Undo this import?', 'This removes the <b>' + nImp(r.dias) + ' days</b> and <b>' + nImp(r.ausencias) + ' time off</b> that came from <b>' + esc(x.archivo || 'this file') + '</b>, and the former employees it added (if they have nothing else). Days that were edited after the import keep their changes.', 'Undo import', true);
+      const si = await confirmar('Undo this import?', 'This removes the <b>' + nImp(r.dias) + ' days</b> and <b>' + nImp(r.ausencias) + ' time off</b> that came from <b>' + esc(x.archivo || 'this file') + '</b>, and the former employees it added (if they have nothing else). Days that were edited after the import keep their changes, and days this import had updated go back to how they were.', 'Undo import', true);
       if(!si) return;
       b.disabled = true;
       try{ const z = await api('impDeshacer', { id:x.id }); S.hoja = null; S.hojaHoy = null; S.emps = null;
-        toast('Import undone: ' + nImp(z.marcas) + ' punches, ' + nImp(z.aprobaciones) + ' approvals and ' + nImp(z.ausencias) + ' time off removed.'); pintarImportaciones(); }
+        toast('Import undone: ' + nImp(z.marcas) + ' punches, ' + nImp(z.aprobaciones) + ' approvals and ' + nImp(z.ausencias) + ' time off removed' +
+          (z.restauradas ? '; the days it had updated are back as they were' : '') + '.'); pintarImportaciones(); }
       catch(e){ toast(e.message, 'err'); b.disabled = false; }
     }));
   }catch(e){ el.innerHTML = '<p class="nota">' + esc(e.message) + '</p>'; }
@@ -5020,6 +5069,13 @@ async function demoApi(action, p){
     return { ok:true, marcas:nm, aprobaciones:na, solicitudes:ns, importaciones:ni, empleados:ne, conCuenta };
   }
   if(action === 'apagarPruebas'){ S.modoPruebas = false; return { ok:true }; }
+  if(action === 'impExistentes'){
+    const out = [];
+    Object.keys(DM.marcas).forEach(k => { const l = DM.marcas[k] || [], [u, f] = k.split('|'); if(f < p.desde || f > p.hasta || !l.some(m => m.imp)) return;
+      out.push({ u, f, m:l.filter(m => m.imp).map(m => [m.tipo, new Date(m.ms).toISOString()]), h: DM.aprobH && DM.aprobH[k] != null ? DM.aprobH[k] : null, prot:l.some(m => !m.imp),
+        aus:DM.sols.filter(x => x.imp && x.usuario === u && x.fecha === f && x.estado === 'aprobada').map(x => ({ hi:x.horaIni, hf:x.horaFin, clase:x.clase, pagada:x.pagada })) }); });
+    return out;
+  }
   if(action === 'impLista') return (DM.imps || []).slice().reverse();
   if(action === 'primerLatido') return [];
   if(action === 'impInicio'){
@@ -5037,10 +5093,18 @@ async function demoApi(action, p){
   }
   if(action === 'impLote'){
     const imp = (DM.imps || []).find(x => x.id === p.id); if(!imp || imp.deshecha_en) throw new Error('That import isn\'t open.');
-    let hechos = 0, aprobados = 0, ausencias = 0; const saltados = [], ny = (f, h) => fmt(ctMs(f, h, imp.zona), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+    let hechos = 0, aprobados = 0, ausencias = 0, actualizados = 0; const saltados = [], ny = (f, h) => fmt(ctMs(f, h, imp.zona), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+    DM.reemp = DM.reemp || {}; DM.reemp[p.id] = DM.reemp[p.id] || [];
     DM.aprobH = DM.aprobH || {}; DM.aprobT = DM.aprobT || {};
     p.dias.forEach(d => { const k = d.usuario + '|' + d.fecha;
       if(d.fecha >= hoy){ saltados.push({ usuario:d.usuario, fecha:d.fecha, por:'El día aún no termina.' }); return; }
+      if(d.actualizar){
+        if((DM.marcas[k] || []).some(m => !m.imp)){ saltados.push({ usuario:d.usuario, fecha:d.fecha, por:'Se corrigió en el Reloj después de importar; no se actualizó.' }); return; }
+        DM.reemp[p.id].push({ k, marcas:DM.marcas[k], aprob:DM.aprob[k], h:DM.aprobH[k], t:DM.aprobT[k] });
+        delete DM.marcas[k]; delete DM.aprob[k]; delete DM.aprobH[k]; delete DM.aprobT[k];
+        DM.sols.forEach(x => { if(x.imp && x.usuario === d.usuario && x.fecha === d.fecha && x.estado === 'aprobada'){ x.estado = 'cancelada'; x.reemplazada = p.id; } });
+        actualizados++;
+      }
       if(d.marcas.length){
         if(DM.marcas[k] && DM.marcas[k].length) saltados.push({ usuario:d.usuario, fecha:d.fecha, por: DM.marcas[k].some(m => m.imp) ? 'Ya estaba importado.' : 'Ya tiene marcas en el Reloj.' });
         else { DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:ctMs(m.f || d.fecha, m.h, imp.zona), origen:'importado', motivo: d.nota ? 'Connecteam: ' + d.nota : 'Imported from Connecteam', imp:p.id })); hechos++;
@@ -5056,7 +5120,8 @@ async function demoApi(action, p){
       });
     });
     const r = imp.resumen; r.dias = (r.dias || 0) + hechos; r.aprobados = (r.aprobados || 0) + aprobados; r.ausencias = (r.ausencias || 0) + ausencias; r.saltados = (r.saltados || 0) + saltados.length;
-    return { hechos, aprobados, ausencias, saltados };
+    r.actualizados = (r.actualizados || 0) + actualizados;
+    return { hechos, aprobados, ausencias, actualizados, saltados };
   }
   if(action === 'impFin'){ const imp = (DM.imps || []).find(x => x.id === p.id); if(!imp) throw new Error('That import isn\'t open.'); imp.terminado_en = new Date().toISOString(); Object.assign(imp.resumen, p.resumen || {}); return { ok:true }; }
   if(action === 'impDeshacer'){
@@ -5064,9 +5129,12 @@ async function demoApi(action, p){
     let nm = 0, na = 0, ns = 0, ne = 0;
     Object.keys(DM.marcas).forEach(k => { const l = DM.marcas[k]; if(l && l.length && l.every(m => m.imp === p.id)){ nm += l.length; delete DM.marcas[k]; if(DM.aprob[k] && DM.aprobH && DM.aprobH[k] != null){ delete DM.aprob[k]; delete DM.aprobH[k]; na++; } } });
     DM.sols.forEach(s => { if(s.imp === p.id && s.estado === 'aprobada'){ s.estado = 'cancelada'; s.respuesta = 'Import undone'; ns++; } });
+    let nr = 0;
+    ((DM.reemp || {})[p.id] || []).forEach(x => { if(!(DM.marcas[x.k] || []).length && x.marcas){ DM.marcas[x.k] = x.marcas; if(x.aprob){ DM.aprob[x.k] = x.aprob; DM.aprobH[x.k] = x.h; DM.aprobT[x.k] = x.t; } nr++; } });
+    DM.sols.forEach(x => { if(x.reemplazada === p.id && x.estado === 'cancelada'){ x.estado = 'aprobada'; delete x.reemplazada; } });
     imp.creados.forEach(u => { if(!Object.keys(DM.marcas).some(k => k.startsWith(u + '|') && DM.marcas[k].length)){ const i = DM.emps.findIndex(e => e.usuario === u && !e.activo); if(i >= 0){ DM.emps.splice(i, 1); ne++; } } });
     imp.deshecha_en = new Date().toISOString();
-    return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne };
+    return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne, restauradas:nr };
   }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
