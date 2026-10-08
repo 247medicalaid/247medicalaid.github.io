@@ -4293,12 +4293,20 @@ async function prepararImport(file){
     const par = ctEmparejar(datos.personas, lista), sel = {};
     datos.personas.forEach(p => { sel[p.clave] = par[p.clave] || '+'; });
     // lo que ya está importado en esas fechas, para ver qué días cambiaron en Connecteam
-    let exist = null;
+    // (por meses: un año entero de una vez pasa el tiempo límite del servidor)
+    let exist = null, existFalla = false;
     try{
-      const ex = await api('impExistentes', { desde:datos.desde, hasta:datos.hasta }); exist = {};
-      (ex || []).forEach(x => { exist[x.u + '|' + x.f] = { m:(x.m || []).map(y => [y[0], Date.parse(y[1])]), h: x.h == null ? null : Number(x.h), prot:!!x.prot, aus:x.aus || [] }; });
-    }catch(e){ exist = null; }
-    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true, exist, actualizar:true };
+      exist = {};
+      const mesSig = f => { const y = Number(f.slice(0, 4)), m = Number(f.slice(5, 7)); return m === 12 ? (y + 1) + '-01-01' : y + '-' + String(m + 1).padStart(2, '0') + '-01'; };
+      const tramos = []; for(let a = datos.desde; a <= datos.hasta; a = mesSig(a)){ const fin = sumarDias(mesSig(a), -1); tramos.push([a, fin < datos.hasta ? fin : datos.hasta]); }
+      for(let i = 0; i < tramos.length; i++){
+        $('impEstado').textContent = 'Comparing with what\'s already imported… ' + (i + 1) + ' of ' + tramos.length;
+        let ex; try{ ex = await api('impExistentes', { desde:tramos[i][0], hasta:tramos[i][1] }); }
+        catch(e){ ex = await api('impExistentes', { desde:tramos[i][0], hasta:tramos[i][1] }); }
+        (ex || []).forEach(x => { exist[x.u + '|' + x.f] = { m:(x.m || []).map(y => [y[0], Date.parse(y[1])]), h: x.h == null ? null : Number(x.h), prot:!!x.prot, aus:x.aus || [] }; });
+      }
+    }catch(e){ exist = null; existFalla = true; }
+    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true, exist, existFalla, actualizar:true };
     pintarImport(); $('iErr').textContent = ''; abrir('ovImp'); $('impEstado').textContent = '';
     detectarZonaImp();
   }catch(e){ $('impEstado').textContent = e.message; }
@@ -4375,7 +4383,8 @@ function pintarImport(){
   const nAct = I.actualizar ? C.cambiados.length : 0;
   $('iImportar').textContent = !t.nuevos && nAct ? 'Update ' + nAct + (nAct === 1 ? ' day' : ' days')
     : 'Import ' + nImp(t.nuevos) + (t.nuevos === 1 ? ' day' : ' days') + (nAct ? ' and update ' + nAct : '');
-  $('iImportar').disabled = !t.dias && !t.aus; $('iImportar').classList.remove('hidden');
+  $('iImportar').disabled = (!t.dias && !t.aus) || !!I.existFalla; $('iImportar').classList.remove('hidden');
+  if(I.existFalla) $('iCuerpo').insertAdjacentHTML('afterbegin', '<p class="err" style="display:block">Couldn\'t compare this file with the days already imported (the server took too long). Close this window and choose the file again.</p>');
   $('iCancelar').textContent = 'Cancel';
   $('iCuerpo').querySelectorAll('select[data-imp]').forEach(s => s.addEventListener('change', () => { I.sel[s.dataset.imp] = s.value; pintarImport(); }));
   $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; pintarImport(); }));
@@ -4431,8 +4440,11 @@ $('iImportar').addEventListener('click', async () => {
     const dias = [];
     I.datos.personas.forEach(p => { const u = mapa[p.clave]; if(!u || u === '+') return; quien[u] = p.nombre + ' ' + p.apellidos;
       p.dias.forEach(d => { if(!d.marcas.length && !d.ausencias.length) return;
-        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota, ausencias:d.ausencias,
-          actualizar: !!(I.actualizar && I.cambios && I.cambios.set.has(u + '|' + d.fecha)) }); }); });
+        const act = !!(I.actualizar && I.cambios && I.cambios.set.has(u + '|' + d.fecha));
+        // un día ya importado que no se actualiza conserva su tiempo libre (no se manda otra vez, para no duplicarlo)
+        const ya = !!(I.exist && I.exist[u + '|' + d.fecha]);
+        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota,
+          ausencias: ya && !act ? [] : d.ausencias, actualizar: act }); }); });
     const L = 150;
     for(let i = 0; i < dias.length; i += L){
       const r = await api('impLote', { id:ini.id, dias:dias.slice(i, i + L) });
@@ -6532,6 +6544,10 @@ async function demoApi(action, p){
     Object.keys(DM.marcas).forEach(k => { const l = DM.marcas[k] || [], [u, f] = k.split('|'); if(f < p.desde || f > p.hasta || !l.some(m => m.imp)) return;
       out.push({ u, f, m:l.filter(m => m.imp).map(m => [m.tipo, new Date(m.ms).toISOString()]), h: DM.aprobH && DM.aprobH[k] != null ? DM.aprobH[k] : null, prot:l.some(m => !m.imp),
         aus:DM.sols.filter(x => x.imp && x.usuario === u && x.fecha === f && x.estado === 'aprobada').map(x => ({ hi:x.horaIni, hf:x.horaFin, clase:x.clase, pagada:x.pagada })) }); });
+    const ya = new Set(out.map(x => x.u + '|' + x.f));
+    DM.sols.filter(x => x.imp && x.tipo === 'ausencia' && x.estado === 'aprobada' && x.fecha >= p.desde && x.fecha <= p.hasta && !ya.has(x.usuario + '|' + x.fecha)).forEach(x => {
+      ya.add(x.usuario + '|' + x.fecha);
+      out.push({ u:x.usuario, f:x.fecha, m:[], h:null, prot:false, aus:DM.sols.filter(y => y.imp && y.usuario === x.usuario && y.fecha === x.fecha && y.estado === 'aprobada').map(y => ({ hi:y.horaIni, hf:y.horaFin, clase:y.clase, pagada:y.pagada })) }); });
     return out;
   }
   if(action === 'impLista') return (DM.imps || []).slice().reverse();
