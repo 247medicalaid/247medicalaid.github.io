@@ -3824,6 +3824,12 @@ function abrirEmp(usuario){
   pintarCuentaMon();
   abrir('ovEmp');
   if(!e) setTimeout(() => $('eEmail').focus(), 60);
+  // una cuenta recién creada en el Monitor aparece sin recargar la página
+  const quien = S.empEdit;
+  refrescarCuentasMon().then(cambio => {
+    if(!cambio || S.empEdit !== quien || $('ovEmp').classList.contains('hidden')) return;
+    llenarSelect('eCuenta', listas().cuentas || [], $('eCuenta').value); pintarCuentaMon();
+  });
 }
 $('eNuevo').addEventListener('click', () => abrirEmp(null));
 // Al escribir el nombre de alguien nuevo se proponen su agente del Monitor y su nombre en la nómina.
@@ -3902,9 +3908,24 @@ function ejemploRedondeo(r){
   return 'Example: clock in 8:07 AM counts as <b>' + ron(487) + '</b> · clock out 5:08 PM counts as <b>' + ron(1028) + '</b> · lunch 12:04–12:56 PM counts as <b>' + ron(724) + '–' + ron(776) + '</b>.';
 }
 const NOMBRE_LISTA = { cuentas:'Account', departamentos:'Department', tiposId:'ID type', bancos:'Bank name' };
+// Vuelve a leer las cuentas (y agentes) del Monitor; responde true si la lista de cuentas cambió.
+// Como mucho una vez cada 4 s; si ya hay un pedido en curso se reutiliza.
+function refrescarCuentasMon(){
+  if(S.cuentasMonVuelo) return S.cuentasMonVuelo;
+  if(S.cuentasMonEn && Date.now() - S.cuentasMonEn < 4000) return Promise.resolve(false);
+  S.cuentasMonVuelo = monitorSB().then(m => {
+    S.cuentasMonEn = Date.now();
+    if(S.emps && m.agentes && m.agentes.length) S.emps.monitor = m.agentes;
+    if(!m.cuentas.length) return false;
+    const antes = JSON.stringify(S.cuentasMon || []); S.cuentasMon = m.cuentas;
+    if(S.emps) S.emps.cuentas = m.cuentas;
+    return JSON.stringify(m.cuentas) !== antes;
+  }).catch(() => false).finally(() => { S.cuentasMonVuelo = null; });
+  return S.cuentasMonVuelo;
+}
 function pintarListas(){
   const L = listas();
-  if(!S.cuentasMon && !S.cuentasMonPedidas){ S.cuentasMonPedidas = true; monitorSB().then(m => { if(m.cuentas.length){ S.cuentasMon = m.cuentas; if(S.vista === 'ajustes') pintarListas(); } }).catch(() => {}); }
+  refrescarCuentasMon().then(cambio => { if(cambio && S.vista === 'ajustes') pintarListas(); });
   $('ajListas').innerHTML = Object.keys(NOMBRE_LISTA).map(k => k === 'cuentas' && S.cuentasMon && S.cuentasMon.length
     ? '<div class="lista fija" data-l="cuentas"><h3>Account</h3><div class="ops">' + S.cuentasMon.map(o => '<div class="op fija">' + esc(o) + '</div>').join('') + '</div>' +
       '<p class="fija-nota">The same list as the Monitor. Add, rename or remove accounts in the <b>Monitor panel → Cuentas</b>; the installer uses it too.</p></div>'
