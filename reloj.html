@@ -94,6 +94,15 @@ button,input,select{font:inherit;color:inherit}
 .btn-menu svg{width:22px;height:22px;stroke:var(--ink-900);fill:none;stroke-width:2;stroke-linecap:round}
 .cortina{display:none}
 body[data-vista="hoja"] main,body[data-vista="pago"] main{max-width:1680px}
+/* Timesheet: resumen y encabezado de días fijos al bajar */
+body[data-vista="hoja"] #hojaTabla{overflow:auto;max-height:max(340px, calc(100vh - var(--top-h,57px) - var(--res-h,0px) - var(--abajo-h,0px) - 20px))}
+body[data-vista="hoja"] #hojaTabla .hoja thead th{z-index:3}
+body[data-vista="hoja"] #hojaTabla .hoja thead .nombre{z-index:4}
+@media (min-width:700px){
+  body[data-vista="hoja"] #hojaResumen{position:sticky;top:var(--top-h,57px);z-index:12;box-shadow:0 8px 14px -12px rgba(4,20,31,.45)}
+  body[data-vista="hoja"] .sel-bar{top:calc(var(--top-h,57px) + var(--res-h,0px) + 6px);z-index:11}
+}
+@media (max-width:699px){ body[data-vista="hoja"] #hojaTabla{max-height:78vh} }
 .pr-estado{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
 .pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
 .pill.pr-borr{background:var(--warn-50);color:var(--warn)}
@@ -2458,6 +2467,14 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('tabs').c
 // El menú queda pegado debajo de la barra de arriba, que cambia de alto según la pantalla.
 function altoBarra(){ const h = document.querySelector('.top'); if(h) document.documentElement.style.setProperty('--top-h', h.offsetHeight + 'px'); }
 altoBarra(); window.addEventListener('resize', altoBarra);
+// alto del resumen de la Timesheet (para que la tabla quepa debajo de él)
+// y de lo que va debajo de la tabla (botones y leyenda): así, bajando hasta el final, la tabla queda justo debajo del resumen.
+function altoResumen(){
+  const r = $('hojaResumen'), t = $('hojaTabla'), ancho = innerWidth >= 700, raiz = document.documentElement;
+  raiz.style.setProperty('--res-h', (r && !r.classList.contains('hidden') && ancho ? r.offsetHeight + 12 : 0) + 'px');
+  raiz.style.setProperty('--abajo-h', (ancho && S.vista === 'hoja' ? Math.max(0, raiz.scrollHeight - (t.getBoundingClientRect().bottom + scrollY)) : 0) + 'px');
+}
+window.addEventListener('resize', () => { if(S.vista === 'hoja') altoResumen(); });
 
 /* ══════════════════ RELOJ DEL AGENTE ══════════════════ */
 function tic(){
@@ -3064,6 +3081,7 @@ function pintarHoja(){
   $('hCuenta').classList.toggle('hidden', !cuentas.length);
   $('hojaResumen').classList.toggle('hidden', !h.empleados.length);
   if(h.empleados.length) $('hojaResumen').innerHTML = resumenHoja(h);
+  requestAnimationFrame(altoResumen);
   if(!h.empleados.length){
     $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
