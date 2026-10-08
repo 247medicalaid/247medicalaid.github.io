@@ -103,6 +103,16 @@ body[data-vista="hoja"] #hojaTabla .hoja thead .nombre{z-index:4}
   body[data-vista="hoja"] .sel-bar{top:calc(var(--top-h,57px) + var(--res-h,0px) + 6px);z-index:11}
 }
 @media (max-width:699px){ body[data-vista="hoja"] #hojaTabla{max-height:78vh} }
+/* Pay run: resumen, encabezados y totales fijos */
+body[data-vista="pago"] #pyTabla{overflow:auto;max-height:max(340px, calc(100vh - var(--top-h,57px) - var(--pres-h,0px) - var(--pabajo-h,0px) - 20px))}
+body[data-vista="pago"] #pyTabla .hoja thead th{z-index:3}
+body[data-vista="pago"] #pyTabla .hoja thead .nombre{z-index:4}
+body[data-vista="pago"] #pyTabla .hoja tfoot td{position:sticky;bottom:0;z-index:2;box-shadow:0 -1px 0 var(--line)}
+body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
+@media (min-width:700px){
+  body[data-vista="pago"] #pyResumen{position:sticky;top:var(--top-h,57px);z-index:12;box-shadow:0 8px 14px -12px rgba(4,20,31,.45)}
+}
+@media (max-width:699px){ body[data-vista="pago"] #pyTabla{max-height:78vh} }
 .pr-estado{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
 .pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
 .pill.pr-borr{background:var(--warn-50);color:var(--warn)}
@@ -2474,7 +2484,13 @@ function altoResumen(){
   raiz.style.setProperty('--res-h', (r && !r.classList.contains('hidden') && ancho ? r.offsetHeight + 12 : 0) + 'px');
   raiz.style.setProperty('--abajo-h', (ancho && S.vista === 'hoja' ? Math.max(0, raiz.scrollHeight - (t.getBoundingClientRect().bottom + scrollY)) : 0) + 'px');
 }
-window.addEventListener('resize', () => { if(S.vista === 'hoja') altoResumen(); });
+window.addEventListener('resize', () => { if(S.vista === 'hoja') altoResumen(); if(S.vista === 'pago') altoPago(); });
+// Pay run: alto del resumen y de lo que va entre la tabla y «Saved pay runs» (botones y nota).
+function altoPago(){
+  const r = $('pyResumen'), t = $('pyTabla'), h = document.querySelector('#vPago .pr-hist-cab'), ancho = innerWidth >= 700, raiz = document.documentElement;
+  raiz.style.setProperty('--pres-h', (r && !r.classList.contains('hidden') && ancho ? r.offsetHeight + 12 : 0) + 'px');
+  raiz.style.setProperty('--pabajo-h', (ancho && h && S.vista === 'pago' ? Math.max(0, h.getBoundingClientRect().top - t.getBoundingClientRect().bottom) : 0) + 'px');
+}
 
 /* ══════════════════ RELOJ DEL AGENTE ══════════════════ */
 function tic(){
@@ -5335,6 +5351,7 @@ function pintarPago(){
   $('pyExportar').disabled = !pr.filas.length;
 }
 function pintarResumenPago(){
+  requestAnimationFrame(altoPago);
   const pr = S.pr, t = totalesPago(pr.filas);
   const c = (v, txt, cls) => '<span' + (cls ? ' class="' + cls + '"' : '') + '><b>' + v + '</b><small>' + txt + '</small></span>';
   $('pyResumen').innerHTML = c(t.personas, t.personas === 1 ? 'person' : 'people') + c(usd(t.usd), 'Total USD') + '<span class="rh-sep"></span>' +
@@ -5379,7 +5396,7 @@ function pintarTablaPago(){
   t += '</tbody><tfoot><tr><td class="nombre" data-t="personas"></td><td colspan="3"></td><td class="num" data-t="j"></td><td class="num" data-t="dias"></td>' +
     '<td class="num" data-t="k"></td><td class="num" data-t="bono"></td><td class="num" data-t="aj"></td>' +
     '<td class="tot num" data-t="usd"></td><td></td><td class="tot num" data-t="cop"></td><td></td><td class="num" data-t="ica"></td><td class="num" data-t="aportes"></td><td class="tot num" data-t="neto"></td></tr></tfoot></table>';
-  $('pyTabla').innerHTML = t;
+  $('pyTabla').innerHTML = t; requestAnimationFrame(altoPago);
   totalesTablaPago();
 }
 // Totales de cada cuenta y del pie (se actualizan mientras se escribe, sin volver a pintar la tabla).
@@ -5941,7 +5958,7 @@ function pintarTablaImp(){
   });
   t += '</tbody><tfoot><tr><td class="nombre" data-t="personas"></td><td colspan="3"></td><td class="num" data-t="j"></td><td class="num" data-t="k"></td><td class="num" data-t="bono"></td>' +
     '<td class="tot num" data-t="usd"></td><td></td><td class="tot num" data-t="cop"></td><td></td><td class="num" data-t="ica"></td><td class="num" data-t="aportes"></td><td class="tot num" data-t="neto"></td></tr></tfoot></table>';
-  $('pyTabla').innerHTML = t;
+  $('pyTabla').innerHTML = t; requestAnimationFrame(altoPago);
   totalesTablaImp();
 }
 function totalesTablaImp(){
