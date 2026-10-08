@@ -1054,7 +1054,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <span class="esp"></span>
       <button class="btn btn-ink btn-sm" id="pyExportar" type="button" title="Same format as the CALL CENTER PAY ROLL workbook (Paystubs reads it)">Export pay run (Excel)</button>
     </div>
-    <p class="nota" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
+    <p class="nota" id="pyLeyenda" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
     <div class="pr-hist-cab"><h2>Saved pay runs</h2><span id="pyAnios"></span>
       <input type="file" id="pyImpArchivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
       <button class="btn btn-ghost btn-sm" id="pyImpElegir" type="button" title="Bring the pay periods already paid from the CALL CENTER PAY ROLL workbook">Import past pay runs…</button>
@@ -5274,6 +5274,7 @@ function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~')
 
 function pintarPago(){
   if(S.pr && S.pr.imp) return pintarPagoImp();
+  $('pyLeyenda').classList.remove('hidden');
   $('pyReabrir').textContent = 'Reopen'; $('pyCerrar').textContent = 'Close pay run';
   const pr = S.pr, P = pr.P, cerr = cerradaPago(), run = pr.run;
   $('pyEstado').innerHTML = '<span class="pill ' + (cerr ? 'pr-cerr' : run ? 'pr-borr' : '') + '">' + (cerr ? 'Closed' : run ? 'Draft' : 'Not saved') + '</span>' +
@@ -5560,7 +5561,7 @@ function descargarBlob(blob, nombre){
 }
 $('pyExportar').addEventListener('click', async () => {
   const pr = S.pr; if(!pr || !pr.filas.length) return;
-  if(!pr.P.trm) return toast('Set the TRM first.', 'err');
+  if(!pr.P.trm && !pr.imp) return toast('Set the TRM first.', 'err');
   if(!S.coloresN) await cargarColores().catch(() => null);
   const d = new Date(pr.hasta + 'T12:00:00Z');
   descargarBlob(xlsxPayRun([{ desde:pr.desde, hasta:pr.hasta, trm:pr.P.trm, tasa:pr.P.tasa, reglas:pr.P.reglas, filas:pr.filas }], 'PAY ROLL ' + pr.hasta.slice(0, 4)),
@@ -5895,7 +5896,7 @@ function pintarPagoImp(){
   pintarTablaImp();
   const btn = (id, on) => $(id).classList.toggle('hidden', !on);
   btn('pyGuardar', !cerr); btn('pyCerrar', !cerr); btn('pyReabrir', cerr); btn('pyBorrar', !cerr);
-  $('pyReabrir').textContent = 'Unlock to edit'; $('pyCerrar').textContent = 'Lock again';
+  $('pyReabrir').textContent = 'Unlock to edit'; $('pyCerrar').textContent = 'Lock again'; $('pyLeyenda').classList.add('hidden');
   $('pyExportar').disabled = !pr.filas.length;
 }
 const nmVal = (x, f) => x == null ? '<span class="muted">—</span>' : f(x);
