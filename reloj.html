@@ -2084,6 +2084,19 @@ async function yoSB(){
     config:{ almuerzoMax:CFG.ALMUERZO_MAX_MIN, monitor:!!monCfg() } };
 }
 
+// Nombres de cuenta de Connecteam → los del Monitor (igual que reloj__cuenta_normal del paso 35).
+const CUENTA_ALIAS = { 'total sleep management':'Total Sleep', 'lake nona':'Lake Nona Medical Center', '24/7 medical':'24/7 Call Center' };
+const cuentaNormal = c => { c = String(c || '').trim(); return CUENTA_ALIAS[c.toLowerCase()] || c; };
+// La cuenta de cada persona en el periodo: la de sus días importados (la que más días tuvo; si empatan, la más reciente).
+// Sin días importados en el periodo, la de su ficha.
+function cuentasDelPeriodo(emps, aprob){
+  const pu = {};
+  (aprob || []).forEach(a => { const c = a.importacion != null ? cuentaNormal(a.cuenta) : ''; if(!c) return;
+    const x = (pu[a.usuario] = pu[a.usuario] || {}), y = (x[c] = x[c] || { n:0, f:'' }); y.n++; if(a.fecha > y.f) y.f = a.fecha; });
+  return emps.map(e => { const x = pu[e.usuario]; if(!x) return e;
+    const c = Object.keys(x).sort((a, b) => (x[b].n - x[a].n) || (x[b].f < x[a].f ? -1 : x[b].f > x[a].f ? 1 : 0))[0];
+    return c && c !== e.cuenta ? Object.assign({}, e, { cuenta:c, cuentaFicha:e.cuenta }) : e; });
+}
 async function hojaSB(desde, hasta){
   const t0 = performance.now(); await sesionSB();
   const hoy = fechaHoy();
@@ -2110,7 +2123,7 @@ async function hojaSB(desde, hasta){
   // los inactivos (p. ej. ex empleados importados) salen solo si tienen algo en el periodo
   const conDatos = new Set([].concat(marcas.map(m => m.usuario), aprob.map(a => a.usuario), aus.map(a => a.usuario)));
   const emps = empsT.filter(e => e.activo || conDatos.has(e.usuario));
-  const raw = { hoy, desde, hasta, fechas, emps:emps.map(empJS), marcas:marcas.map(mapM), aprob,
+  const raw = { hoy, desde, hasta, fechas, emps:cuentasDelPeriodo(emps.map(empJS), aprob), marcas:marcas.map(mapM), aprob,
                 pc:(pcs || []).map(x => ({ k:x.usuario + '|' + Date.parse(x.ts) + '|' + x.tipo, ts:Date.parse(x.pc.ts), estado:x.pc.estado,
                   lat:x.pc.lat == null ? null : Number(x.pc.lat), lng:x.pc.lng == null ? null : Number(x.pc.lng), prec:x.pc.prec == null ? null : Number(x.pc.prec) })),
                 ubic:ubic.map(u => ({ usuario:u.usuario, fecha:u.fecha, tipo:u.tipo, ms:Date.parse(u.ts), lat:Number(u.lat), lng:Number(u.lng), prec:u.prec_m == null ? null : Number(u.prec_m), anulada:!!u.anulada_en })),
