@@ -93,7 +93,39 @@ button,input,select{font:inherit;color:inherit}
   align-items:center;justify-content:center;cursor:pointer;flex:none}
 .btn-menu svg{width:22px;height:22px;stroke:var(--ink-900);fill:none;stroke-width:2;stroke-linecap:round}
 .cortina{display:none}
-body[data-vista="hoja"] main{max-width:1680px}
+body[data-vista="hoja"] main,body[data-vista="pago"] main{max-width:1680px}
+.pr-estado{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
+.pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
+.pill.pr-borr{background:var(--warn-50);color:var(--warn)}
+.pr-sucio{color:var(--warn)}
+.pr-param{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 4px;margin-bottom:12px}
+.pr-param input{width:100%}
+.pr-param .pr-fila{display:flex;gap:6px}
+.pr-param .pr-fila input{flex:1;min-width:0}
+.pr-param .pr-tasa b{display:block;font-family:var(--font-display);font-size:22px;color:var(--brand-700);line-height:1.4;font-variant-numeric:tabular-nums}
+@media (max-width:900px){ .pr-param{grid-template-columns:1fr 1fr} }
+@media (max-width:520px){ .pr-param{grid-template-columns:1fr} }
+.hoja.pago td{padding:6px 10px}
+.hoja.pago td.nombre{padding:6px 14px}
+.hoja.pago thead th{padding:8px 10px;white-space:nowrap}
+.hoja.pago td.num{text-align:right}
+.hoja.pago .pr-in{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--paper)}
+.hoja.pago .pr-dias{width:58px;text-align:right}
+.hoja.pago .pr-bono{width:118px;text-align:right}
+.hoja.pago .pr-bono.mal{border-color:var(--accent-500);background:var(--accent-50)}
+.hoja.pago .pr-in:disabled{background:transparent;border-color:transparent;color:var(--text);opacity:1}
+.hoja.pago .pr-aj{display:inline-flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap}
+.hoja.pago .pr-aj .neg{color:var(--accent-600)}
+.hoja.pago .pr-ot{color:#9A5B00}
+.hoja.pago .pr-propia{font-weight:700;color:var(--brand-700)}
+.hoja.pago .pr-fijo{margin-left:6px;background:var(--brand-50);color:var(--brand-700)}
+.hoja.pago .pr-neto{color:var(--brand-700)}
+.hoja.pago tfoot td{padding:9px 10px;font-weight:700;background:var(--sand);border-top:2px solid var(--line);text-align:right}
+.hoja.pago tfoot td.nombre{text-align:left;background:var(--sand)}
+.hoja.pr-hist td{padding:7px 12px}
+.hoja.pr-hist td.num{text-align:right}
+.pr-hist-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:26px 0 10px}
+.pr-hist-cab h2{font-size:18px;margin-right:auto}
 .hoja .ap-ok{display:inline-flex;align-items:center;margin-left:6px;color:var(--brand-600);font-weight:700;font-size:13px}
 main{max-width:1240px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,32px) 80px}
 @media (min-width:700px) and (max-width:999px){
@@ -842,6 +874,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
   <button class="tab" role="tab" data-v="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Today</span></button>
   <button class="tab" role="tab" data-v="sols"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span>Requests</span><b class="badge hidden" id="solBadge"></b></button>
   <button class="tab" role="tab" data-v="hoja"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg><span>Timesheet</span></button>
+  <button class="tab" role="tab" data-v="pago"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 10v4M18 10v4"/></svg><span>Pay run</span></button>
   <button class="tab" role="tab" data-v="emps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span></button>
   <button class="tab" role="tab" data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   <div class="pie-lat"><a class="tab" href="https://247medicalaid.github.io/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Portal</span></a></div>
@@ -979,6 +1012,35 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     <div class="leyenda" id="hojaLeyenda"></div>
   </section>
 
+  <!-- ADMIN: PAY RUN -->
+  <section id="vPago" class="hidden">
+    <div class="cabecera">
+      <h1>Pay run</h1>
+      <span class="esp"></span>
+      <div class="periodo">
+        <button class="btn btn-ghost btn-sm flecha" id="pyAnt" type="button" title="Previous pay period" aria-label="Previous pay period">‹</button>
+        <select id="pyQuin" aria-label="Pay period"></select>
+        <button class="btn btn-ghost btn-sm flecha" id="pySig" type="button" title="Next pay period" aria-label="Next pay period">›</button>
+      </div>
+    </div>
+    <div class="pr-estado" id="pyEstado"></div>
+    <div class="pr-param" id="pyParam"></div>
+    <div class="res-hoja hidden" id="pyResumen" aria-label="Pay run totals"></div>
+    <div id="pyAvisos"></div>
+    <div class="tabla-wrap" id="pyTabla"></div>
+    <div class="barra-acc">
+      <button class="btn btn-ink btn-sm" id="pyGuardar" type="button">Save draft</button>
+      <button class="btn btn-brand btn-sm" id="pyCerrar" type="button">Close pay run</button>
+      <button class="btn btn-ink btn-sm hidden" id="pyReabrir" type="button">Reopen</button>
+      <button class="btn btn-ghost btn-sm hidden" id="pyBorrar" type="button">Delete draft</button>
+      <span class="esp"></span>
+      <button class="btn btn-ink btn-sm" id="pyExportar" type="button" title="Same format as the CALL CENTER PAY ROLL workbook (Paystubs reads it)">Export pay run (Excel)</button>
+    </div>
+    <p class="nota" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
+    <div class="pr-hist-cab"><h2>Saved pay runs</h2><span id="pyAnios"></span></div>
+    <div id="pyHist"></div>
+  </section>
+
   <!-- ADMIN: SETTINGS -->
   <section id="vAjustes" class="hidden">
     <div class="cabecera"><h1>Settings</h1></div>
@@ -1009,6 +1071,18 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
       <div class="listas" id="ajListas"></div>
       <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
       <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
+    </div>
+    <div class="ajuste" id="ajPago">
+      <h2>Pay run</h2>
+      <p class="nota">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. Rete ICA is withheld only from people paid from Nómina 247.</p>
+      <div class="ficha-grid" style="grid-template-columns:repeat(3,1fr)">
+        <label class="campo"><span>Add to the TRM (COP)</span><input id="ajPagoExtra" type="number" min="0" max="5000" step="1" inputmode="numeric"></label>
+        <label class="campo"><span>Maximum (COP per dollar)</span><input id="ajPagoTope" type="number" min="0" max="20000" step="1" inputmode="numeric"></label>
+        <label class="campo"><span>Rete ICA (per thousand)</span><input id="ajPagoIca" type="number" min="0" max="100" step="0.01" inputmode="decimal"></label>
+      </div>
+      <p class="nota" id="ajPagoEjemplo"></p>
+      <button class="btn btn-ink btn-sm" id="ajPagoGuardar" type="button">Save</button>
+      <span class="nota" id="ajPagoEstado" style="margin-left:8px"></span>
     </div>
     <div class="ajuste" id="ajImp">
       <h2>Import from Connecteam</h2>
@@ -1068,6 +1142,19 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 </div>
 
 <!-- confirmar salida -->
+<!-- pay run: datos de pago de una persona -->
+<div class="overlay hidden" id="ovPagoEmp" role="dialog" aria-modal="true" aria-labelledby="peTitulo">
+  <div class="ventana" style="max-width:620px">
+    <h2 id="peTitulo"></h2>
+    <div id="peCuerpo"></div>
+    <div class="err" id="peErr"></div>
+    <div class="pie">
+      <button class="btn btn-ghost" data-cerrar type="button">Cancel</button>
+      <button class="btn btn-ink" id="peAplicar" type="button">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- borrar todo (modo de pruebas) -->
 <div class="overlay hidden" id="ovBorrar" role="dialog" aria-modal="true" aria-labelledby="bTitulo">
   <div class="ventana" style="max-width:480px">
@@ -1719,6 +1806,17 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede cambiar los ajustes\.$/, 'Only an administrator can change settings.'],
   [/^Aproximación no válida\.$/, 'Invalid rounding.'],
   [/^Solo un administrador puede importar\.$/, 'Only an administrator can import.'],
+  [/^Solo un administrador puede (guardar|reabrir|borrar) la nómina\.$/, 'Only an administrator can change pay runs.'],
+  [/^Datos de la nómina no válidos\.$/, 'The pay run data isn\'t valid.'],
+  [/^Periodo no válido\.$/, 'Invalid pay period.'],
+  [/^Para cerrar la nómina falta la fecha de pago o la TRM\.$/, 'To close the pay run, set the payment date and the TRM.'],
+  [/^Esa nómina ya está cerrada\..*/, 'That pay run is already closed. Reopen it to change it.'],
+  [/^Esa nómina no está cerrada\.$/, 'That pay run isn\'t closed.'],
+  [/^Solo se puede borrar una nómina en borrador\.$/, 'Only a draft pay run can be deleted.'],
+  [/^Cuenta de pago no válida\.$/, 'Invalid "paid from" option.'],
+  [/^Valores de pago no válidos\.$/, 'Invalid payment values.'],
+  [/^Reglas de pago no válidas\.$/, 'Invalid pay run rules.'],
+  [/reloj_nominas|reloj_nomina_guardar|reloj_pago_defaults|pago_cuenta/, 'The Pay run needs SQL step 33 in Supabase.'],
   [/^El día (\d{4}-\d{2}-\d{2}) está aprobado\. Quita la aprobación para cambiarlo\.$/, (x, f) => diaS(f) + ' is approved, so it\'s locked. Remove the approval to change it.'],
   [/^Solo un administrador puede borrar el Reloj\.$/, 'Only an administrator can erase the Time Clock.'],
   [/^El modo de pruebas está apagado: ya no se puede borrar todo\.$/, 'Testing tools are turned off, so the Time Clock can no longer be erased.'],
@@ -1774,11 +1872,12 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '',
+  pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true';
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -1872,6 +1971,13 @@ async function api(action, p){
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
   if(action === 'impExistentes') return q(sb.rpc('reloj_importados', { p_desde:p.desde, p_hasta:p.hasta }));
+  if(action === 'nomina') return q(sb.from('reloj_nominas').select('*').eq('desde', p.desde).eq('hasta', p.hasta).maybeSingle());
+  if(action === 'nominas') return q(sb.from('reloj_nominas').select('id,desde,hasta,fecha_pago,trm,tasa,estado,totales,actualizado_en,cerrado_en').order('desde', { ascending:false }).limit(72));
+  if(action === 'nominasAnio') return q(sb.from('reloj_nominas').select('*').eq('estado', 'cerrada').gte('desde', p.anio + '-01-01').lte('desde', p.anio + '-12-31').order('desde'));
+  if(action === 'guardarNomina') return q(sb.rpc('reloj_nomina_guardar', { p:p.nomina, p_cerrar:!!p.cerrar }));
+  if(action === 'reabrirNomina') return q(sb.rpc('reloj_nomina_reabrir', { p_id:p.id }));
+  if(action === 'borrarNomina') return q(sb.rpc('reloj_nomina_borrar', { p_id:p.id }));
+  if(action === 'pagoDefaults') return q(sb.rpc('reloj_pago_defaults', { p:p.lista }));
   if(action === 'impLista') return q(sb.from('reloj_importaciones').select('*').order('id', { ascending:false }).limit(50));
   if(action === 'impInicio') return q(sb.rpc('reloj_importar_inicio', { p:p.datos }));
   if(action === 'impLote') return q(sb.rpc('reloj_importar_lote', { p_id:p.id, p_dias:p.dias }));
@@ -2254,7 +2360,7 @@ async function inicio(){
       $('grpMio').classList.toggle('hidden', !yo.empleado);
       actualizarBadge(); setInterval(() => { if(!document.hidden) actualizarBadge(); }, 60000);
       const pedida = location.hash.slice(1);
-      irA(['reloj','hoy','sols','hoja','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+      irA(['reloj','hoy','sols','hoja','pago','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
     } else if(yo.empleado) irA('reloj');
     else irA('sin');
   }catch(e){
@@ -2283,7 +2389,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S.v
 
 function irA(v){
   S.vista = v; document.body.dataset.vista = v;
-  ['reloj','sin','hoy','sols','hoja','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
+  ['reloj','sin','hoy','sols','hoja','pago','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
   if(S.yo && S.yo.esAdmin){ try{ history.replaceState(null, '', '#' + v); }catch(e){} }
   clearInterval(S.timerReloj); clearInterval(S.timerHoy);
@@ -2293,6 +2399,7 @@ function irA(v){
   if(v === 'emps') cargarEmps();
   if(v === 'sols') cargarSols();
   if(v === 'ajustes') pintarAjustes();
+  if(v === 'pago') cargarPago(S.pr ? S.pr.desde : null);
 }
 document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
 
@@ -3306,8 +3413,8 @@ function minPagoDia(d){
   if(d.aprobado) return Math.round(d.aprobado.horas * 60);
   return d.incompleto || !d.marcas || !d.marcas.length ? 0 : Math.round(d.min);
 }
-function filasPayroll(h){
-  return empsVisibles().map(e => {
+function filasPayroll(h, lista){
+  return (lista || empsVisibles()).map(e => {
     let trab = 0, ot = 0, pagoDias = 0; const tarifaHoy = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora), tarDias = new Set();
     Object.keys(e.dias).forEach(f => { const d = e.dias[f], m = minPagoDia(d); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60));
       const td = d && d.aprobado && d.aprobado.tarifa != null ? d.aprobado.tarifa : tarifaHoy;
@@ -3317,7 +3424,7 @@ function filasPayroll(h){
     // la tarifa que se muestra: la de los días importados si es una sola; si no, la actual
     const tarifa = tarDias.size === 1 && (tarifaHoy == null || !Object.keys(e.dias).some(f => minPagoDia(e.dias[f]) && !(e.dias[f].aprobado && e.dias[f].aprobado.tarifa != null))) ? [...tarDias][0] : tarifaHoy;
     const [nom, ape] = partesNombre(e);
-    return { nom, ape, cuenta:e.cuenta || '', job:e.cuenta || '', tarifa: tarifa != null ? tarifa : '',
+    return { usuario:e.usuario, min:pagadas, minOt:ot, nom, ape, cuenta:e.cuenta || '', job:e.cuenta || '', tarifa: tarifa != null ? tarifa : '',
              horas:hhmm2(pagadas), ot: ot ? hhmm2(ot) : '', pago: tarifa != null || tarDias.size ? centavos(pagoDias + (tarifaHoy || 0) * (e.totales.minPto || 0) / 60) : 0 };
   });
 }
@@ -3744,7 +3851,7 @@ $('ajListasGuardar').addEventListener('click', async () => {
   b.disabled = false;
 });
 function pintarAjustes(){
-  pintarListas(); pintarImportaciones();
+  pintarListas(); pintarImportaciones(); pintarReglasPago();
   $('ajPruebas').classList.toggle('hidden', !S.modoPruebas); $('prEstado').textContent = '';
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
@@ -4240,7 +4347,7 @@ $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -4946,6 +5053,552 @@ $('phCerrar').addEventListener('click', () => {
   cerrar('ovHoras');
 });
 
+/* ══════════════════ ADMIN: PAY RUN (la nómina de cada quincena) ══════════════════
+   Pedido de Carlos (oct 2026): lo que arma a mano en «CALL CENTER PAY ROLL».
+   Horas de la quincena (hasta el día antes de «assume worked from») + días por adelantado
+   (tarifa × horas por día × días) + bono + ajuste de los días asumidos la quincena anterior
+   = total en dólares. Dólar a TRM + 400, máximo 4.000 (Ajustes → Pay run). Pesos = total × tasa,
+   o el valor fijo de la persona. Nómina 247 paga Rete ICA (9,5 por mil); personal no. − aportes = neto. */
+const REGLAS_BASE = { extra:400, tope:4000, ica:9.5 };
+const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
+const r2 = x => Math.round(x * 100) / 100;
+function tasaDe(trm, R){ R = R || reglasPago(); trm = Number(trm); return trm > 0 ? Math.min(r2(trm + Number(R.extra)), Number(R.tope)) : null; }
+const usd = x => (x < -0.004 ? '−$' : '$') + Math.abs(x || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const cop = x => (x < -0.4 ? '−$' : '$') + Math.abs(Math.round(x || 0)).toLocaleString('en-US');
+const esFinde = f => [0, 6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
+const DE_TXT = { '247':'Nómina 247', personal:'Personal' };
+
+// Bono: «25», «-10.50», o en pesos «-100000 COP» (se pasa a dólares con la tasa de la persona).
+function leerBono(txt){
+  const t = String(txt == null ? '' : txt).trim().replace(/−/g, '-');
+  if(!t) return { usd:0, cop:null, ok:true };
+  const m = /^([+-]?)\s*\$?\s*([\d.,]+)\s*(cop|usd)?$/i.exec(t);
+  if(!m) return { usd:0, cop:null, ok:false };
+  const s = m[1] === '-' ? -1 : 1;
+  if(m[3] && m[3].toLowerCase() === 'cop'){ const n = Number(m[2].replace(/[.,]/g, '')); return isFinite(n) ? { usd:0, cop:s * n, ok:true } : { usd:0, cop:null, ok:false }; }
+  const n = Number(m[2].replace(/,/g, '')); return isFinite(n) ? { usd:s * n, cop:null, ok:true } : { usd:0, cop:null, ok:false };
+}
+const numO = v => v === '' || v == null || isNaN(Number(v)) ? null : Number(v);
+
+// Una fila: base (lo de las horas) + ed (lo que se edita) + P (tasa y reglas) → todos los valores.
+function calcFila(base, ed, P){
+  const R = P.reglas || reglasPago(), tar = numO(base.tarifa), fijo = numO(ed.fijo);
+  const dias = tar != null ? Math.max(0, Number(ed.dias) || 0) : 0;   // con pago fijo también (cambia el USD y las horas del comprobante, no los pesos)
+  const k = dias ? r2(tar * (base.horasDia || 8) * dias) : 0;
+  const y = numO(ed.tasaPropia) > 0 ? Number(ed.tasaPropia) : (P.tasa || 0);
+  const b = leerBono(ed.bonoTxt), bonoUsd = b.cop != null ? (y ? b.cop / y : 0) : b.usd;
+  const aj = ed.ajusteSi && ed.ajusteSug ? Number(ed.ajusteSug) : 0;
+  const l = bonoUsd + aj, m = (Number(base.j) || 0) + k + l;
+  const n = fijo != null ? fijo : (y ? Math.round(m * y) : 0);
+  const de = ed.de === 'personal' ? 'personal' : '247';
+  const v = de === '247' && fijo == null ? Math.round(n * Number(R.ica) / 1000) : 0;
+  const w = Math.max(0, Number(ed.aportes) || 0);
+  return Object.assign({}, base, ed, { dias, k, y, bonoUsd, bonoCop:b.cop, bonoOk:b.ok, aj, l, m, n, de, v, w, x:n - v - w, fijo });
+}
+function totalesPago(filas){
+  const t = { personas:filas.length, usd:0, cop:0, n247:0, personal:0, ica:0, aportes:0, aportes247:0, neto:0, neto247:0, netoPersonal:0, dias:0, ajustes:0 };
+  filas.forEach(f => { t.usd += f.m; t.cop += f.n; t.ica += f.v; t.aportes += f.w; t.neto += f.x; t.dias += f.dias || 0; t.ajustes += f.aj || 0;
+    if(f.de === 'personal'){ t.personal += f.n; t.netoPersonal += f.x; } else { t.n247 += f.n; t.aportes247 += f.w; t.neto247 += f.x; } });
+  t.usd = r2(t.usd); t.ajustes = r2(t.ajustes);
+  return t;
+}
+// Un empleado de la hoja con solo los días antes de «corte» (los demás se asumen).
+function recortarEmp(e, corte){
+  const dias = {}; let pto = 0;
+  Object.keys(e.dias).forEach(f => { if(corte && f >= corte) return; const d = e.dias[f]; dias[f] = d; if(d && d.ausencia && d.ausencia.pagada) pto += Math.round((d.ausencia.horas || 0) * 60); });
+  return Object.assign({}, e, { dias, totales:Object.assign({}, e.totales, { minPto:pto }) });
+}
+// Días por asumir: lunes a viernes desde «corte» hasta el fin de la quincena.
+function diasPorAsumir(corte, hasta){ const r = []; if(!corte) return r; for(let f = corte; f <= hasta; f = sumarDias(f, 1)) if(!esFinde(f)) r.push(f); return r; }
+function asumirPorDefecto(desde, hasta){ const hoy = fechaHoy(); return hoy > hasta ? '' : hoy < desde ? desde : hoy; }
+
+S.pr = null;
+function opcionesQuin(sel){
+  const lista = []; let q = quinSig(rangoPreset('q0').desde);
+  for(let i = 0; i < 60; i++){ lista.push(q); q = quinAnt(q); }
+  if(sel && lista.indexOf(sel) < 0) lista.push(sel);
+  lista.sort().reverse();
+  let html = '', anio = '';
+  lista.forEach(d => {
+    if(d.slice(0, 4) !== anio){ if(anio) html += '</optgroup>'; anio = d.slice(0, 4); html += '<optgroup label="' + anio + '">'; }
+    html += '<option value="' + d + '"' + (d === sel ? ' selected' : '') + '>' + nomQuin(d) + '</option>';
+  });
+  return html + (anio ? '</optgroup>' : '');
+}
+async function irPago(desde){
+  if(S.pr && S.pr.sucio && S.pr.desde !== desde && !(await confirmar('Discard changes?', 'The ' + esc(nomQuin(S.pr.desde)) + ' pay run has changes that weren\'t saved.', 'Discard', true))){ $('pyQuin').value = S.pr.desde; return; }
+  cargarPago(desde);
+}
+async function cargarPago(desde){
+  desde = desde || (S.pr && S.pr.desde) || rangoPreset('q0').desde;
+  const hasta = finQ(desde), ant = quinAnt(desde), tok = {};
+  S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[] };
+  $('pyQuin').innerHTML = opcionesQuin(desde);
+  $('pyTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading the pay period…</div>';
+  ['pyParam','pyResumen','pyAvisos','pyEstado'].forEach(id => { $(id).innerHTML = ''; });
+  pintarHistorialPago();
+  try{
+    const [hoja, run, prev] = await Promise.all([api('hoja', { desde, hasta }), api('nomina', { desde, hasta }), api('nomina', { desde:ant, hasta:finQ(ant) }).catch(() => null),
+      S.coloresN ? null : cargarColores().catch(() => null)]);
+    if(S.pr.tok !== tok) return;
+    Object.assign(S.pr, { hoja, run:run || null, prev:prev || null, cargando:false });
+    const R = run && run.datos && run.datos.reglas ? run.datos.reglas : reglasPago();
+    if(run && run.estado === 'cerrada'){
+      S.pr.P = { fechaPago:run.fecha_pago, trm:Number(run.trm), tasa:Number(run.tasa), reglas:R, asumeDesde:run.datos.asumeDesde || '', trmNota:run.datos.trmNota || '' };
+      S.pr.filas = (run.datos.filas || []).slice();
+      pintarPago(); return;
+    }
+    S.pr.P = { fechaPago: run && run.fecha_pago || fechaHoy(), trm: run && run.trm != null ? Number(run.trm) : null, reglas:reglasPago(),
+               asumeDesde: run && run.datos && 'asumeDesde' in run.datos ? run.datos.asumeDesde : asumirPorDefecto(desde, hasta), trmNota: run && run.datos ? run.datos.trmNota || '' : '' };
+    S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas);
+    S.pr.guardadas = {}; if(run && run.datos && run.datos.filas) run.datos.filas.forEach(f => { S.pr.guardadas[f.usuario] = f; });
+    await ajustesPrevios(tok);
+    if(S.pr.tok !== tok) return;
+    armarBase(true); pintarPago();
+    if(S.pr.P.trm == null) buscarTrm(false);
+  }catch(e){ if(S.pr && S.pr.tok === tok) $('pyTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
+}
+// Ajuste sugerido: días que la quincena anterior se pagaron por adelantado contra lo que de verdad se trabajó.
+async function ajustesPrevios(tok){
+  const pv = S.pr.prev; S.pr.ajustes = {};
+  if(!pv || !pv.datos || !pv.datos.filas) return;
+  const filas = pv.datos.filas.filter(f => f.dias > 0 && f.fijo == null && numO(f.tarifa) != null && (f.fechasAdd || []).length);
+  if(!filas.length) return;
+  const fechas = [].concat(...filas.map(f => f.fechasAdd)).sort(), hoy = fechaHoy();
+  if(fechas[0] > hoy) return;
+  const h = await api('hoja', { desde:fechas[0], hasta:fechas[fechas.length - 1] < hoy ? fechas[fechas.length - 1] : hoy });
+  if(S.pr.tok !== tok) return;
+  filas.forEach(f => {
+    const e = h.empleados.find(x => x.usuario === f.usuario), tar = Number(f.tarifa), porDia = f.k / f.dias, hd = Math.round((f.horasDia || 8) * 60);
+    let dif = 0; const notas = [], quedan = Math.ceil(f.dias);
+    f.fechasAdd.slice(0, quedan).forEach((fe, i) => {
+      if(fe > hoy) return;
+      const frac = Math.min(1, f.dias - i), d = e ? e.dias[fe] : null;
+      const min = minPagoDia(d) + (d && d.ausencia && d.ausencia.pagada ? Math.round((d.ausencia.horas || 0) * 60) : 0);
+      const t = d && d.aprobado && d.aprobado.tarifa != null ? Number(d.aprobado.tarifa) : tar;
+      const di = t * min / 60 - porDia * frac;
+      if(Math.abs(di) >= 0.005) notas.push(diaS(fe) + ': ' + hm(min) + ' of ' + hm(hd * frac) + (d && !d.aprobado && min ? ' (not approved yet)' : ''));
+      dif += di;
+    });
+    dif = r2(dif);
+    if(Math.abs(dif) >= 0.01) S.pr.ajustes[f.usuario] = { monto:dif, nota:'Paid in advance in ' + nomQuin(pv.desde) + ' — ' + notas.join(' · '), borrador:pv.estado !== 'cerrada' };
+  });
+}
+// Filas de la quincena (sin cerrar): horas hasta el corte, días asumidos por persona y lo editado.
+function armarBase(primera){
+  const pr = S.pr, P = pr.P, corte = P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '';
+  const asum = diasPorAsumir(corte, pr.hasta);
+  const emps = pr.hoja.empleados.map(e => recortarEmp(e, corte));
+  const fp = filasPayroll(pr.hoja, emps);
+  pr.asumidos = asum; pr.corte = corte;
+  pr.base = [];
+  fp.forEach((x, i) => {
+    const e = emps[i], g = pr.guardadas[e.usuario], aj = pr.ajustes[e.usuario];
+    const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(pr.hoja.empleados[i].dias[f] && pr.hoja.empleados[i].dias[f].ausencia));
+    const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop), tar = numO(x.tarifa);
+    const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar, horas:x.horas, ot:x.ot, min:x.min, minOt:x.minOt,
+                   j:Number(x.pago) || 0, horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres };
+    if(!(base.min > 0 || fijo != null || aj || g)) return;
+    let ed = pr.ed[e.usuario];
+    if(!ed || primera){
+      ed = g ? { dias:g.dias || 0, bonoTxt:g.bonoTxt || '', ajusteSi:!!g.ajusteSi, de:g.de, aportes:g.aportes != null ? g.aportes : g.w, fijo:numO(g.fijo), tasaPropia:numO(g.tasaPropia) }
+             : { dias: base.min > 0 && tar != null ? libres.length : 0, bonoTxt:'', ajusteSi:false, de:e.pagoCuenta === 'personal' ? 'personal' : '247',
+                 aportes:Number(e.aportesCop) || 0, fijo, tasaPropia:null };
+      pr.ed[e.usuario] = ed;
+    }
+    ed.ajusteSug = aj ? aj.monto : 0; ed.ajusteNota = aj ? aj.nota : ''; if(!aj) ed.ajusteSi = false;
+    pr.base.push(base);
+  });
+  recalcPago();
+}
+function recalcPago(){
+  const pr = S.pr;
+  pr.filas = pr.base.map(b => { const ed = pr.ed[b.usuario], f = calcFila(b, ed, pr.P);
+    f.fechasAdd = f.dias ? b.libres.slice(0, Math.ceil(f.dias)) : []; return f; });
+}
+const cerradaPago = () => !!(S.pr && S.pr.run && S.pr.run.estado === 'cerrada');
+function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || (a.nom + ' ' + a.ape).localeCompare(b.nom + ' ' + b.ape, 'en')); }
+
+function pintarPago(){
+  const pr = S.pr, P = pr.P, cerr = cerradaPago(), run = pr.run;
+  $('pyEstado').innerHTML = '<span class="pill ' + (cerr ? 'pr-cerr' : run ? 'pr-borr' : '') + '">' + (cerr ? 'Closed' : run ? 'Draft' : 'Not saved') + '</span>' +
+    '<span class="nota">' + (cerr ? 'Closed by ' + esc(run.cerrado_por || '') + ' on ' + fmt(Date.parse(run.cerrado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + '. Reopen it to change anything.'
+      : run ? 'Saved ' + fmt(Date.parse(run.actualizado_en || run.creado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + ' by ' + esc(run.actualizado_por || run.creado_por || '') + '.'
+      : 'Nothing saved for this pay period yet.') + (pr.sucio ? ' <b class="pr-sucio">Unsaved changes.</b>' : '') + '</span>';
+  const R = P.reglas, dis = cerr ? ' disabled' : '';
+  const asum = cerr ? diasPorAsumir(P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '', pr.hasta) : pr.asumidos;
+  $('pyParam').innerHTML =
+    '<label class="campo"><span>Payment date</span><input type="date" id="pyFecha" value="' + esc(P.fechaPago || '') + '"' + dis + '></label>' +
+    '<div class="campo pr-trm"><span>TRM (COP per dollar)</span><div class="pr-fila"><input type="number" id="pyTrm" min="0" step="0.01" inputmode="decimal" value="' + (P.trm != null ? P.trm : '') + '"' + dis + '>' +
+      (cerr ? '' : '<button class="btn btn-ghost btn-sm" id="pyTrmBuscar" type="button" title="Get the official TRM for the payment date">Get TRM</button>') + '</div><small id="pyTrmNota">' + esc(P.trmNota || '') + '</small></div>' +
+    '<div class="campo pr-tasa"><span>Dollar paid at</span><b id="pyTasa">' + (P.tasa ? '$' + P.tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—') + '</b>' +
+      '<small>TRM + ' + Number(R.extra).toLocaleString('en-US') + ', up to ' + Number(R.tope).toLocaleString('en-US') + '</small></div>' +
+    '<label class="campo"><span>Assume worked from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
+      '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
+        : 'No days paid in advance: every day of the pay period is counted as worked.') + '</small></label>';
+  pintarResumenPago();
+  // avisos: días sin salida, sin aprobar, ajustes de la quincena anterior
+  let av = '';
+  if(!cerr){
+    let sinSalida = 0, sinAprobar = 0;
+    pr.hoja.empleados.forEach(e => Object.keys(e.dias).forEach(f => { if(pr.corte && f >= pr.corte) return; const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length || d.aprobado || f >= pr.hoja.hoy) return; if(d.incompleto) sinSalida++; else sinAprobar++; }));
+    if(sinSalida) av += '<div class="aviso warn">' + IC.aviso + '<span><b>' + sinSalida + (sinSalida === 1 ? ' day has' : ' days have') + ' no clock-out</b> and ' + (sinSalida === 1 ? 'isn\'t' : 'aren\'t') + ' counted. Fix ' + (sinSalida === 1 ? 'it' : 'them') + ' in the Timesheet.</span></div>';
+    if(sinAprobar) av += '<div class="aviso info">' + IC.info + '<span>' + sinAprobar + (sinAprobar === 1 ? ' day isn\'t' : ' days aren\'t') + ' approved yet. They\'re counted with the hours worked.</span></div>';
+    const naj = pr.filas.filter(f => f.ajusteSug).length;
+    if(naj) av += '<div class="aviso info">' + IC.info + '<span><b>' + naj + (naj === 1 ? ' adjustment' : ' adjustments') + '</b> from the days paid in advance in ' + esc(nomQuin(pr.prev.desde)) +
+      (pr.prev.estado !== 'cerrada' ? ' (that pay run is still a draft)' : '') + '. Check them in the Adjustment column. <button class="btn-link" id="pyAjTodos" type="button">Apply all</button> · <button class="btn-link" id="pyAjNinguno" type="button">Apply none</button></span></div>';
+  }
+  if(!pr.filas.length) av += '<div class="aviso info">' + IC.info + '<span>Nobody has hours to pay in this pay period yet.</span></div>';
+  $('pyAvisos').innerHTML = av;
+  pintarTablaPago();
+  const btn = (id, on) => $(id).classList.toggle('hidden', !on);
+  btn('pyGuardar', !cerr); btn('pyCerrar', !cerr); btn('pyReabrir', cerr); btn('pyBorrar', !cerr && !!run);
+  $('pyExportar').disabled = !pr.filas.length;
+}
+function pintarResumenPago(){
+  const pr = S.pr, t = totalesPago(pr.filas);
+  const c = (v, txt, cls) => '<span' + (cls ? ' class="' + cls + '"' : '') + '><b>' + v + '</b><small>' + txt + '</small></span>';
+  $('pyResumen').innerHTML = c(t.personas, t.personas === 1 ? 'person' : 'people') + c(usd(t.usd), 'Total USD') + '<span class="rh-sep"></span>' +
+    '<div class="rh-calc">' + c(cop(t.n247), 'Nómina 247') + '<i>−</i>' + c(cop(t.ica), 'Rete ICA') + '<i>−</i>' + c(cop(t.aportes247), 'Aportes') + '<i>=</i>' + c(cop(t.neto247), 'Net from 247', 'rh-tot') + '</div>' +
+    '<span class="rh-sep"></span>' + c(cop(t.netoPersonal), 'Personal' + (t.personal !== t.netoPersonal ? ' (net)' : '')) +
+    '<span class="esp"></span>' + c(cop(t.neto), 'Total to pay (COP)', 'rh-pago');
+  $('pyResumen').classList.toggle('hidden', !pr.filas.length);
+}
+function celdasCalc(f){
+  return { k: f.k ? usd(f.k) : '—', m: usd(f.m), y: f.y ? f.y.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—', n: cop(f.n), v: f.v ? cop(f.v) : '—', w: f.w ? cop(f.w) : '—', x: cop(f.x) };
+}
+function pintarTablaPago(){
+  const pr = S.pr, cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
+  if(!pr.filas.length){ $('pyTabla').innerHTML = ''; return; }
+  let t = '<table class="hoja pago"><thead><tr><th class="nombre">Employee</th><th>Rate</th><th>Hours</th><th>OT</th><th>Hours pay</th><th title="Days paid in advance (assumed worked)">Add days</th><th>Add pay</th>' +
+    '<th title="In USD. For pesos write COP after the amount, e.g. -100000 COP">Bonus</th><th title="Difference from the days paid in advance last pay run">Adjustment</th><th class="tot">Total USD</th><th>COP / USD</th>' +
+    '<th class="tot">Total COP</th><th>Paid from</th><th>Rete ICA</th><th>Aportes</th><th class="tot">Net COP</th></tr></thead><tbody>';
+  const lista = ordenPago(pr.filas); let g = null;
+  lista.forEach(f => {
+    const gc = f.cuenta || SIN_CUENTA;
+    if(gc !== g){
+      g = gc; const del = lista.filter(x => (x.cuenta || SIN_CUENTA) === gc), col = gc === SIN_CUENTA ? null : colorCuenta(gc);
+      t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '" data-g="' + esc(gc) + '"><td class="nombre">' + esc(gc) + '<span class="n">' + del.length + '</span></td><td colspan="8"></td>' +
+        '<td class="tot num" data-gc="m"></td><td></td><td class="tot num" data-gc="n"></td><td colspan="3"></td><td class="tot num" data-gc="x"></td></tr>';
+    }
+    const c = celdasCalc(f), u = esc(f.usuario), sinTar = f.tarifa == null;
+    t += '<tr data-pf="' + u + '"><td class="nombre"><button class="nom-btn' + (f.activo === false ? ' inact' : '') + '" type="button" data-pe="' + u + '" title="Payment settings for ' + esc(f.nombre || f.nom) + '"><span>' + esc(f.nombre || (f.nom + ' ' + f.ape)) + '</span>' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' + (f.fijo != null ? '<span class="pill pr-fijo" title="Fixed pay in pesos each pay period">Fixed</span>' : '') + '</td>' +
+      '<td class="num">' + (sinTar ? '<span class="muted" title="No pay rate in Users">—</span>' : usd(f.tarifa)) + '</td><td class="num">' + esc(f.horas) + '</td><td class="num' + (f.ot ? ' pr-ot' : ' muted') + '">' + (f.ot || '—') + '</td>' +
+      '<td class="num">' + usd(f.j) + '</td>' +
+      '<td><input class="pr-in pr-dias" type="number" min="0" max="10" step="0.5" data-ed="dias" data-u="' + u + '" value="' + (f.dias || 0) + '" aria-label="Days paid in advance for ' + esc(f.nom) + '"' +
+        (cerr || sinTar ? ' disabled' : '') + ' title="' + esc(f.fechasAdd && f.fechasAdd.length ? f.fechasAdd.map(diaS).join(', ') : 'No days paid in advance') + '"></td>' +
+      '<td class="num" data-c="k">' + c.k + '</td>' +
+      '<td><input class="pr-in pr-bono' + (f.bonoOk === false ? ' mal' : '') + '" data-ed="bonoTxt" data-u="' + u + '" value="' + esc(f.bonoTxt || '') + '" placeholder="0" autocomplete="off" aria-label="Bonus for ' + esc(f.nom) + '"' + dis + '></td>' +
+      '<td>' + (f.ajusteSug ? '<label class="pr-aj" title="' + esc(f.ajusteNota || '') + '"><input type="checkbox" data-ed="ajusteSi" data-u="' + u + '"' + (f.ajusteSi ? ' checked' : '') + dis + '> <span class="num ' + (f.ajusteSug < 0 ? 'neg' : '') + '">' + usd(f.ajusteSug) + '</span></label>' : '<span class="muted">—</span>') + '</td>' +
+      '<td class="tot num" data-c="m">' + c.m + '</td>' +
+      '<td class="num' + (f.tasaPropia ? ' pr-propia" title="Rate set for this person' : '') + '" data-c="y">' + c.y + '</td>' +
+      '<td class="tot num" data-c="n">' + c.n + '</td>' +
+      '<td><select class="pr-in pr-de" data-ed="de" data-u="' + u + '" aria-label="Paid from"' + dis + '><option value="247"' + (f.de === '247' ? ' selected' : '') + '>Nómina 247</option><option value="personal"' + (f.de === 'personal' ? ' selected' : '') + '>Personal</option></select></td>' +
+      '<td class="num" data-c="v">' + c.v + '</td><td class="num" data-c="w">' + c.w + '</td><td class="tot num pr-neto" data-c="x">' + c.x + '</td></tr>';
+  });
+  t += '</tbody><tfoot><tr><td class="nombre" data-t="personas"></td><td colspan="3"></td><td class="num" data-t="j"></td><td class="num" data-t="dias"></td>' +
+    '<td class="num" data-t="k"></td><td class="num" data-t="bono"></td><td class="num" data-t="aj"></td>' +
+    '<td class="tot num" data-t="usd"></td><td></td><td class="tot num" data-t="cop"></td><td></td><td class="num" data-t="ica"></td><td class="num" data-t="aportes"></td><td class="tot num" data-t="neto"></td></tr></tfoot></table>';
+  $('pyTabla').innerHTML = t;
+  totalesTablaPago();
+}
+// Totales de cada cuenta y del pie (se actualizan mientras se escribe, sin volver a pintar la tabla).
+function totalesTablaPago(){
+  const pr = S.pr, tb = $('pyTabla'); if(!tb.querySelector('table')) return;
+  tb.querySelectorAll('tr[data-g]').forEach(tr => { const del = pr.filas.filter(x => (x.cuenta || SIN_CUENTA) === tr.dataset.g);
+    tr.querySelector('[data-gc="m"]').textContent = usd(del.reduce((s, x) => s + x.m, 0)); tr.querySelector('[data-gc="n"]').textContent = cop(del.reduce((s, x) => s + x.n, 0));
+    tr.querySelector('[data-gc="x"]').textContent = cop(del.reduce((s, x) => s + x.x, 0)); });
+  const T = totalesPago(pr.filas), sum = k => pr.filas.reduce((s, f) => s + (Number(f[k]) || 0), 0);
+  const v = { personas:'Total · ' + T.personas, j:usd(sum('j')), dias:T.dias ? String(T.dias) : '', k:usd(sum('k')), bono:usd(sum('bonoUsd')), aj:T.ajustes ? usd(T.ajustes) : '',
+              usd:usd(T.usd), cop:cop(T.cop), ica:cop(T.ica), aportes:cop(T.aportes), neto:cop(T.neto) };
+  Object.keys(v).forEach(k => { const td = tb.querySelector('[data-t="' + k + '"]'); if(td) td.textContent = v[k]; });
+}
+function marcarSucio(){ if(S.pr.sucio) return; S.pr.sucio = true; const e = $('pyEstado').querySelector('.nota'); if(e && !e.querySelector('.pr-sucio')) e.insertAdjacentHTML('beforeend', ' <b class="pr-sucio">Unsaved changes.</b>'); }
+// Mientras se escribe: solo se repintan los números de esa fila y el resumen (sin perder el foco).
+function editarPago(el, final){
+  const pr = S.pr, u = el.dataset.u, k = el.dataset.ed, ed = pr.ed[u]; if(!ed || cerradaPago()) return;
+  ed[k] = el.type === 'checkbox' ? el.checked : k === 'dias' ? Math.max(0, Number(el.value) || 0) : el.value;
+  recalcPago(); marcarSucio();
+  const f = pr.filas.find(x => x.usuario === u), tr = el.closest('tr'), c = celdasCalc(f);
+  Object.keys(c).forEach(x => { const td = tr.querySelector('[data-c="' + x + '"]'); if(td) td.textContent = c[x]; });
+  if(k === 'bonoTxt') el.classList.toggle('mal', !f.bonoOk);
+  if(k === 'dias'){ el.title = f.fechasAdd.length ? f.fechasAdd.map(diaS).join(', ') : 'No days paid in advance'; }
+  if(k === 'ajusteSi'){ const td = tr.querySelector('[data-c="m"]'); if(td) td.textContent = c.m; }
+  pintarResumenPago(); totalesTablaPago();
+}
+$('pyTabla').addEventListener('input', e => { if(e.target.dataset.ed && e.target.type !== 'checkbox' && e.target.tagName !== 'SELECT') editarPago(e.target, false); });
+$('pyTabla').addEventListener('change', e => { if(e.target.dataset.ed && (e.target.type === 'checkbox' || e.target.tagName === 'SELECT' || e.target.dataset.ed === 'dias')) editarPago(e.target, true); });
+$('pyTabla').addEventListener('click', e => { const b = e.target.closest('[data-pe]'); if(b) abrirPagoEmp(b.dataset.pe); });
+$('pyAvisos').addEventListener('click', e => {
+  const on = e.target.id === 'pyAjTodos' ? true : e.target.id === 'pyAjNinguno' ? false : null; if(on === null || cerradaPago()) return;
+  S.pr.filas.forEach(f => { if(f.ajusteSug) S.pr.ed[f.usuario].ajusteSi = on; }); recalcPago(); marcarSucio(); pintarResumenPago(); pintarTablaPago();
+});
+$('pyQuin').addEventListener('change', () => irPago($('pyQuin').value));
+$('pyAnt').addEventListener('click', () => irPago(quinAnt(S.pr ? S.pr.desde : rangoPreset('q0').desde)));
+$('pySig').addEventListener('click', () => irPago(quinSig(S.pr ? S.pr.desde : rangoPreset('q0').desde)));
+$('pyParam').addEventListener('change', e => {
+  const pr = S.pr; if(!pr || cerradaPago()) return;
+  if(e.target.id === 'pyFecha'){ pr.P.fechaPago = e.target.value; marcarSucio(); if(e.target.value) buscarTrm(true); }
+  if(e.target.id === 'pyTrm'){ const v = Number(e.target.value); pr.P.trm = v > 0 ? r2(v) : null; pr.P.trmNota = v > 0 ? 'Typed in.' : ''; pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
+  if(e.target.id === 'pyAsume'){ pr.P.asumeDesde = e.target.value && e.target.value <= pr.hasta ? e.target.value : ''; marcarSucio();
+    // cambian los días asumidos: se vuelven a calcular los días de cada persona (lo demás editado se queda)
+    Object.keys(pr.ed).forEach(u => { pr.ed[u]._diasAuto = true; }); armarBaseDias(); pintarPago(); }
+});
+$('pyParam').addEventListener('click', e => { if(e.target.id === 'pyTrmBuscar') buscarTrm(true); });
+function armarBaseDias(){
+  const pr = S.pr; armarBase(false);
+  pr.base.forEach(b => { const ed = pr.ed[b.usuario]; if(ed._diasAuto){ delete ed._diasAuto; ed.dias = b.min > 0 && b.tarifa != null ? b.libres.length : 0; } });
+  recalcPago();
+}
+// TRM oficial (Banco de la República, en datos.gov.co): la vigente en la fecha de pago.
+async function trmPara(fecha){
+  if(DEMO) return { valor:3328, desde:fecha, hasta:fecha, demo:true };
+  const u = 'https://www.datos.gov.co/resource/32sa-8pi3.json?$where=' + encodeURIComponent("vigenciadesde <= '" + fecha + "T00:00:00.000'") +
+    '&$order=' + encodeURIComponent('vigenciadesde DESC') + '&$limit=1';
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 12000);
+  try{
+    const r = await fetch(u, { signal:ctl.signal }); if(!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json(); if(!j || !j[0] || !(Number(j[0].valor) > 0)) throw new Error('vacío');
+    return { valor:Number(j[0].valor), desde:String(j[0].vigenciadesde).slice(0, 10), hasta:String(j[0].vigenciahasta || j[0].vigenciadesde).slice(0, 10) };
+  }catch(e){ throw new Error('Couldn\'t get the TRM from Banco de la República. Type it in.'); }
+  finally{ clearTimeout(tm); }
+}
+async function buscarTrm(sucio){
+  const pr = S.pr, tok = pr && pr.tok; if(!pr || !pr.P.fechaPago) return;
+  const b = $('pyTrmBuscar'); if(b) b.disabled = true; $('pyTrmNota').textContent = 'Getting the TRM…';
+  try{
+    const t = await trmPara(pr.P.fechaPago); if(!S.pr || S.pr.tok !== tok) return;
+    pr.P.trm = r2(t.valor); pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas);
+    pr.P.trmNota = t.demo ? 'Example TRM (demo mode).' : 'Banco de la República, valid ' + (t.desde === t.hasta ? diaS(t.desde) : diaS(t.desde) + ' – ' + diaS(t.hasta)) +
+      (t.hasta < pr.P.fechaPago ? '. The TRM for ' + diaS(pr.P.fechaPago) + ' isn\'t published yet: this is the latest.' : '.');
+    if(sucio) pr.sucio = true;
+    recalcPago(); pintarPago();
+  }catch(e){ if(S.pr && S.pr.tok === tok){ $('pyTrmNota').textContent = e.message; if(b) b.disabled = false; } }
+}
+
+// Datos de pago de una persona (se recuerdan al guardar): de dónde se paga, aportes, valor fijo y tasa propia.
+function abrirPagoEmp(u){
+  const pr = S.pr, f = pr.filas.find(x => x.usuario === u); if(!f) return;
+  const cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
+  $('peTitulo').textContent = f.nombre || (f.nom + ' ' + f.ape);
+  $('peCuerpo').innerHTML = '<p class="sub">' + esc(f.cuenta || SIN_CUENTA) + (f.tarifa != null ? ' · ' + usd(f.tarifa) + '/hour' : '') + ' · ' + f.horasDia + ' h per day</p>' +
+    '<div class="ficha-grid">' +
+    '<label class="campo"><span>Paid from</span><select id="peDe"' + dis + '><option value="247"' + (f.de === '247' ? ' selected' : '') + '>Nómina 247 (pays Rete ICA)</option><option value="personal"' + (f.de === 'personal' ? ' selected' : '') + '>Personal (no Rete ICA)</option></select></label>' +
+    '<label class="campo"><span>Aportes planilla (COP per pay period)</span><input id="peAportes" type="number" min="0" step="1" inputmode="numeric" value="' + (f.w || '') + '" placeholder="0"' + dis + '></label>' +
+    '<label class="campo"><span>Fixed pay (COP per pay period)</span><input id="peFijo" type="number" min="0" step="1" inputmode="numeric" value="' + (f.fijo != null ? f.fijo : '') + '" placeholder="By hours"' + dis + '><small>Leave it empty to pay by hours. Fixed pay has no Rete ICA; add days and bonus still show in USD on the paystub.</small></label>' +
+    '<label class="campo"><span>Dollar rate for this person (COP)</span><input id="peTasa" type="number" min="0" step="0.01" inputmode="decimal" value="' + (f.tasaPropia || '') + '" placeholder="' + (pr.P.tasa || '') + ' (pay run rate)"' + dis + '><small>Only for this pay period. Empty = the pay run rate.</small></label>' +
+    '</div><p class="nota">Paid from, aportes and fixed pay are remembered for the next pay periods when you save.</p>';
+  $('peErr').textContent = ''; $('peAplicar').classList.toggle('hidden', cerr); $('peAplicar').dataset.u = u;
+  abrir('ovPagoEmp');
+}
+$('peAplicar').addEventListener('click', () => {
+  const u = $('peAplicar').dataset.u, ed = S.pr.ed[u]; if(!ed) return;
+  const ap = $('peAportes').value.trim(), fj = $('peFijo').value.trim(), ts = $('peTasa').value.trim();
+  if((ap && !(Number(ap) >= 0)) || (fj && !(Number(fj) >= 0)) || (ts && !(Number(ts) > 0))) return $('peErr').textContent = 'Check the numbers: they can\'t be negative.';
+  ed.de = $('peDe').value; ed.aportes = ap ? Math.round(Number(ap)) : 0; ed.fijo = fj ? Math.round(Number(fj)) : null; ed.tasaPropia = ts ? r2(Number(ts)) : null;
+  recalcPago(); marcarSucio(); cerrar('ovPagoEmp'); pintarResumenPago(); pintarTablaPago();
+});
+
+// Guardar / cerrar / reabrir / borrar
+function paqueteNomina(){
+  const pr = S.pr, P = pr.P;
+  const filas = pr.filas.map(f => { const o = {}; ['usuario','nom','ape','nombre','cuenta','job','tarifa','horas','ot','min','minOt','horasDia','activo','j','dias','fechasAdd','k','bonoTxt','bonoUsd','bonoCop',
+    'ajusteSug','ajusteSi','ajusteNota','aj','l','m','y','tasaPropia','fijo','n','de','v','w','x'].forEach(k => { o[k] = f[k] === undefined ? null : f[k]; }); o.aportes = f.w; return o; });
+  return { desde:pr.desde, hasta:pr.hasta, fechaPago:P.fechaPago || null, trm:P.trm, tasa:P.tasa,
+           datos:{ v:1, filas, asumeDesde:P.asumeDesde || '', asumidos:pr.asumidos || [], reglas:P.reglas, trmNota:P.trmNota || '' }, totales:totalesPago(pr.filas) };
+}
+async function guardarPago(cerrarla){
+  const pr = S.pr; if(!pr || pr.cargando || cerradaPago()) return;
+  const malos = pr.filas.filter(f => !f.bonoOk);
+  if(malos.length) return toast('Check the bonus of ' + malos.map(f => f.nombre || f.nom).join(', ') + ': use a number, or pesos like -100000 COP.', 'err');
+  if(cerrarla){
+    if(!pr.P.fechaPago || !pr.P.trm) return toast('To close the pay run, set the payment date and the TRM.', 'err');
+    const t = totalesPago(pr.filas);
+    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + cop(t.neto) + ' to pay</b> (Nómina 247 ' + cop(t.neto247) + ', personal ' + cop(t.netoPersonal) +
+      ').<br><br>Closed pay runs don\'t change when hours are edited later. You can reopen it if something has to change.', 'Close pay run'))) return;
+  }
+  const bs = ['pyGuardar','pyCerrar'].map(id => $(id)); bs.forEach(b => { b.disabled = true; });
+  try{
+    await api('guardarNomina', { nomina:paqueteNomina(), cerrar:!!cerrarla });
+    // lo que cambió en la persona (de dónde se paga, aportes, fijo) se recuerda para la próxima quincena
+    const cambios = [];
+    pr.hoja.empleados.forEach(e => { const ed = pr.ed[e.usuario]; if(!ed) return;
+      const de = ed.de === 'personal' ? 'personal' : '247', ap = Math.round(Number(ed.aportes) || 0), fj = numO(ed.fijo);
+      if(de !== (e.pagoCuenta || '247') || ap !== Math.round(Number(e.aportesCop) || 0) || fj !== numO(e.pagoFijoCop)) cambios.push({ usuario:e.usuario, pagoCuenta:de, aportes:ap, fijo:fj }); });
+    if(cambios.length){ try{ await api('pagoDefaults', { lista:cambios }); cambios.forEach(c => { pr.hoja.empleados.filter(e => e.usuario === c.usuario).forEach(e => { e.pagoCuenta = c.pagoCuenta; e.aportesCop = c.aportes; e.pagoFijoCop = c.fijo; }); }); }
+      catch(e){ toast('The pay run was saved, but the people\'s payment settings weren\'t: ' + e.message, 'err'); } }
+    toast(cerrarla ? 'Pay run closed.' : 'Draft saved.');
+    pr.sucio = false; await cargarPago(pr.desde);
+  }catch(e){ toast(e.message, 'err'); }
+  bs.forEach(b => { b.disabled = false; });
+}
+$('pyGuardar').addEventListener('click', () => guardarPago(false));
+$('pyCerrar').addEventListener('click', () => guardarPago(true));
+$('pyReabrir').addEventListener('click', async () => {
+  const pr = S.pr; if(!pr || !pr.run) return;
+  if(!(await confirmar('Reopen this pay run?', 'It goes back to draft and is recalculated with the current hours. Edits you made (days, bonus, adjustments, paid from) are kept.', 'Reopen'))) return;
+  try{ await api('reabrirNomina', { id:pr.run.id }); toast('Pay run reopened.'); await cargarPago(pr.desde); }catch(e){ toast(e.message, 'err'); }
+});
+$('pyBorrar').addEventListener('click', async () => {
+  const pr = S.pr; if(!pr || !pr.run) return;
+  if(!(await confirmar('Delete this draft?', 'The saved draft for ' + esc(nomQuin(pr.desde)) + ' is deleted. Hours aren\'t touched.', 'Delete draft', true))) return;
+  try{ await api('borrarNomina', { id:pr.run.id }); toast('Draft deleted.'); pr.sucio = false; await cargarPago(pr.desde); }catch(e){ toast(e.message, 'err'); }
+});
+
+// Pay runs guardadas
+async function pintarHistorialPago(){
+  const caja = $('pyHist');
+  try{
+    const l = await api('nominas');
+    S.prLista = l;
+    if(!l.length){ caja.innerHTML = '<p class="nota">No saved pay runs yet.</p>'; $('pyAnios').innerHTML = ''; return; }
+    const anios = Array.from(new Set(l.filter(x => x.estado === 'cerrada').map(x => x.desde.slice(0, 4)))).sort().reverse();
+    $('pyAnios').innerHTML = anios.map(a => '<button class="btn btn-ghost btn-sm" type="button" data-anio="' + a + '">Export ' + a + ' (Excel)</button>').join('');
+    caja.innerHTML = '<div class="tabla-wrap"><table class="hoja pr-hist"><thead><tr><th class="nombre">Pay period</th><th>Status</th><th>Payment date</th><th>TRM</th><th>Dollar at</th><th>People</th><th class="tot">Total USD</th><th class="tot">To pay (COP)</th></tr></thead><tbody>' +
+      l.map(x => { const t = x.totales || {};
+        return '<tr class="' + (S.pr && x.desde === S.pr.desde ? 'sel' : '') + '"><td class="nombre"><button class="nom-btn" type="button" data-pq="' + x.desde + '"><span>' + esc(nomQuin(x.desde)) + '</span></button></td>' +
+          '<td><span class="pill ' + (x.estado === 'cerrada' ? 'pr-cerr' : 'pr-borr') + '">' + (x.estado === 'cerrada' ? 'Closed' : 'Draft') + '</span></td>' +
+          '<td>' + (x.fecha_pago ? diaS(x.fecha_pago) : '—') + '</td><td class="num">' + (x.trm != null ? Number(x.trm).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td>' +
+          '<td class="num">' + (x.tasa != null ? Number(x.tasa).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td><td class="num">' + (t.personas || 0) + '</td>' +
+          '<td class="tot num">' + usd(t.usd || 0) + '</td><td class="tot num">' + cop(t.neto || 0) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }catch(e){ caja.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; }
+}
+$('pyHist').addEventListener('click', e => { const b = e.target.closest('[data-pq]'); if(b){ irPago(b.dataset.pq); window.scrollTo({ top:0, behavior:'smooth' }); } });
+$('pyAnios').addEventListener('click', async e => {
+  const b = e.target.closest('[data-anio]'); if(!b) return; b.disabled = true;
+  try{
+    const runs = await api('nominasAnio', { anio:b.dataset.anio });
+    if(!S.coloresN) await cargarColores().catch(() => null);
+    descargarBlob(xlsxPayRun(runs.map(runDeGuardada), 'PAY ROLL ' + b.dataset.anio), 'CALL CENTER PAY ROLL ' + b.dataset.anio + '.xlsx');
+    toast('Exported ' + runs.length + (runs.length === 1 ? ' pay run.' : ' pay runs.'));
+  }catch(x){ toast(x.message, 'err'); }
+  b.disabled = false;
+});
+const runDeGuardada = r => ({ desde:r.desde, hasta:r.hasta, trm:Number(r.trm), tasa:Number(r.tasa), reglas:(r.datos && r.datos.reglas) || reglasPago(), filas:(r.datos && r.datos.filas) || [] });
+function descargarBlob(blob, nombre){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$('pyExportar').addEventListener('click', async () => {
+  const pr = S.pr; if(!pr || !pr.filas.length) return;
+  if(!pr.P.trm) return toast('Set the TRM first.', 'err');
+  if(!S.coloresN) await cargarColores().catch(() => null);
+  const d = new Date(pr.hasta + 'T12:00:00Z');
+  descargarBlob(xlsxPayRun([{ desde:pr.desde, hasta:pr.hasta, trm:pr.P.trm, tasa:pr.P.tasa, reglas:pr.P.reglas, filas:pr.filas }], 'PAY ROLL ' + pr.hasta.slice(0, 4)),
+    'PAY ROLL - ' + tituloPeriodo(pr.hasta).replace('/', '-') + (cerradaPago() ? '' : ' (draft)') + '.xlsx');
+  toast('Pay run exported.');
+});
+const MESES_EN = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const tituloPeriodo = hasta => MESES_EN[+hasta.slice(5, 7) - 1] + ' ' + (+hasta.slice(8)) + '/' + hasta.slice(0, 4);
+
+/* Excel con el mismo formato de «CALL CENTER PAY ROLL» (lo lee Paystubs):
+   título «OCTOBER 15/2026» con «TRM» en N · encabezados con la TRM en N · A–J como el export del Reloj ·
+   K días por adelantado · L bono (+ajuste) · M total USD · N pesos · O/P Nómina 247 o personal · Q–U como sus fórmulas ·
+   V Rete ICA · W aportes · X neto · Y dólar. Fórmulas con su valor ya calculado. */
+function xlsxPayRun(runs, nombreHoja){
+  const colL = i => String.fromCharCode(65 + i), serie = f => (Date.parse(f + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000;
+  const cel = (r, i, v, st, f, tipo) => {
+    if((v === null || v === undefined || v === '') && !f) return '';
+    const ref = colL(i) + r, s = st ? ' s="' + st + '"' : '', fx = f ? '<f>' + xmlEsc(f) + '</f>' : '';
+    if(tipo === 'b') return '<c r="' + ref + '"' + s + ' t="b">' + fx + '<v>' + (v ? 1 : 0) + '</v></c>';
+    if(typeof v === 'number') return '<c r="' + ref + '"' + s + '>' + fx + '<v>' + v + '</v></c>';
+    if(f) return '<c r="' + ref + '"' + s + ' t="str">' + fx + '<v>' + xmlEsc(v == null ? '' : v) + '</v></c>';
+    return '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>';
+  };
+  // estilos: 0 normal · 1 encabezado · 2 fecha · 3 negrita · 4 USD · 5 COP · 6 tasa · 7 USD negrita · 8 COP negrita · 9 encabezado con número · 10… cuenta
+  const colores = [], estiloCuenta = {};
+  const ponColor = c => { if(c in estiloCuenta) return; const hx0 = colorCuenta(c); if(!hx0){ estiloCuenta[c] = 0; return; }
+    let hx = hx0.replace('#', ''); if(hx.length === 3) hx = hx.split('').map(y => y + y).join('');
+    colores.push({ fill:'FF' + hx.toUpperCase(), blanco:tintaDe(hx0) === '#FFFFFF' }); estiloCuenta[c] = 9 + colores.length; };
+  let rows = '', r = 0;
+  runs.forEach((run, ri) => {
+    const R = run.reglas || reglasPago(), filas = ordenPago(run.filas || []);
+    r += ri ? 3 : 1;
+    rows += '<row r="' + r + '">' + cel(r, 0, tituloPeriodo(run.hasta), 3) + cel(r, 13, 'TRM', 3) + '</row>';
+    const h = ++r, maxD = Math.max(0, ...filas.map(f => Number(f.dias) || 0));
+    const enc = ['First name','Last name','Start Date','End Date','Team','Job','Hourly rate (USD)','Total paid hours','Overtime','Total pay','ADD ' + maxD + ' DAY','BONUS','TOTAL', null,
+      'NOMINA 247','NOMINA PERSONAL', null,'NOMBRE','AÑO','MES','TOTAL','RETE ICA','APORTES PLANILLA Y','TOTAL\nDESPUES DE RETEICA','VALOR PAGO DOLAR'];
+    rows += '<row r="' + h + '">' + enc.map((t, i) => i === 13 ? cel(h, 13, Number(run.trm) || 0, 9) : t == null ? '' : cel(h, i, t, 1)).join('') + '</row>';
+    const r0 = h + 1; let antes = null;
+    filas.forEach(f => {
+      r += (antes !== null && f.cuenta !== antes) ? 2 : 1; antes = f.cuenta; ponColor(f.cuenta);
+      const sc = estiloCuenta[f.cuenta] || 0, tar = numO(f.tarifa), fijo = numO(f.fijo), y = Number(f.y) || 0, dias = Number(f.dias) || 0;
+      const lF = f.bonoCop != null ? '' + f.bonoCop + '/Y' + r + (f.aj ? (f.aj < 0 ? '' : '+') + r2(f.aj) : '') : null;
+      const c = [
+        cel(r, 0, String(f.nom || '').toUpperCase()), cel(r, 1, String(f.ape || '').toUpperCase()), cel(r, 2, serie(run.desde), 2), cel(r, 3, serie(run.hasta), 2),
+        cel(r, 4, f.cuenta || '', sc), cel(r, 5, f.job || f.cuenta || '', sc), tar == null ? '' : cel(r, 6, tar, 4), cel(r, 7, f.horas || '00:00'), cel(r, 8, f.ot || ''),
+        cel(r, 9, r2(Number(f.j) || 0), 4),
+        dias && tar != null ? cel(r, 10, r2(f.k), 4, 'G' + r + '*' + (f.horasDia || 8) + '*' + dias) : '',
+        f.l ? cel(r, 11, f.l, 4, lF) : '',
+        cel(r, 12, f.m, 4, 'J' + r + '+K' + r + '+L' + r),
+        fijo != null ? cel(r, 13, fijo, 5) : cel(r, 13, f.n, 5, 'ROUND(M' + r + '*Y' + r + ',0)'),
+        f.de === '247' ? cel(r, 14, f.n, 5, 'N' + r) : '', f.de === 'personal' ? cel(r, 15, f.n, 5, 'N' + r) : '',
+        cel(r, 16, true, 0, 'ISNUMBER(N' + r + ')', 'b'),
+        cel(r, 17, (String(f.nom || '').toUpperCase() + ' ' + String(f.ape || '').toUpperCase()), 0, 'IF(Q' + r + '=TRUE,A' + r + '&" "&B' + r + ',"")'),
+        cel(r, 18, +run.desde.slice(0, 4), 0, 'IF(Q' + r + '=TRUE,YEAR(C' + r + '),"")'), cel(r, 19, +run.desde.slice(5, 7), 0, 'IF(Q' + r + '=TRUE,MONTH(C' + r + '),"")'),
+        cel(r, 20, f.n, 5, 'IF(Q' + r + '=TRUE,N' + r + ',"")'),
+        fijo != null ? '' : cel(r, 21, f.v, 5, 'ROUND(IF(O' + r + '<>"",N' + r + '*' + R.ica + '/1000,0),0)'),
+        f.w ? cel(r, 22, f.w, 5) : '',
+        cel(r, 23, f.x, 5, 'U' + r + '-V' + r + '-W' + r),
+        numO(f.tasaPropia) ? cel(r, 24, Number(f.tasaPropia), 6) : cel(r, 24, y, 6, 'MIN($N$' + h + '+' + R.extra + ',' + R.tope + ')')
+      ];
+      rows += '<row r="' + r + '">' + c.join('') + '</row>';
+    });
+    const r1 = r, T = totalesPago(filas); r++;
+    const suma = (i, v, st) => cel(r, i, v, st, 'SUM(' + colL(i) + r0 + ':' + colL(i) + r1 + ')');
+    rows += '<row r="' + r + '">' + [suma(12, T.usd, 7), suma(13, T.cop, 8), suma(14, T.n247, 8), suma(15, T.personal, 8), suma(20, T.cop, 8), suma(21, T.ica, 8), suma(22, T.aportes, 8), suma(23, T.neto, 8)].join('') + '</row>';
+    const rt = r; r++;
+    rows += '<row r="' + r + '">' + cel(r, 14, T.n247 - T.ica - T.aportes, 8, 'O' + rt + '-V' + rt + '-W' + rt) +
+      (run.trm ? cel(r, 20, r2(T.cop / Number(run.trm)), 7, 'U' + rt + '/N' + h) : '') + '</row>';
+  });
+  const anchos = [18.7, 20.7, 10.7, 10.7, 16.7, 22.7, 10.7, 10.7, 9.7, 10.7, 10.7, 10.7, 11.7, 13.7, 14.7, 14.7, 6.7, 30.7, 6.7, 5.7, 13.7, 11.7, 12.7, 14.7, 11.7];
+  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<dimension ref="A1:Y' + Math.max(r, 1) + '"/><sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>' +
+    anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols><sheetData>' + rows + '</sheetData>' +
+    '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';
+  const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="4"><numFmt numFmtId="164" formatCode="mm/dd/yyyy"/><numFmt numFmtId="167" formatCode="&quot;$&quot;#,##0.00"/><numFmt numFmtId="168" formatCode="&quot;$&quot;#,##0"/><numFmt numFmtId="169" formatCode="#,##0.00"/></numFmts>' +
+    '<fonts count="4"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
+    '<font><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font><font><sz val="11"/><color rgb="FF0B2233"/><name val="Calibri"/><family val="2"/></font></fonts>' +
+    '<fills count="' + (3 + colores.length) + '"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFCFE2F3"/><bgColor indexed="64"/></patternFill></fill>' +
+    colores.map(c => '<fill><patternFill patternType="solid"><fgColor rgb="' + c.fill + '"/><bgColor indexed="64"/></patternFill></fill>').join('') + '</fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="' + (10 + colores.length) + '"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="168" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="169" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="167" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>' +
+    '<xf numFmtId="168" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/><xf numFmtId="169" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/>' +
+    colores.map((c, i) => '<xf numFmtId="0" fontId="' + (c.blanco ? 2 : 3) + '" fillId="' + (3 + i) + '" borderId="0" xfId="0" applyFont="1" applyFill="1"/>').join('') + '</cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  return zipBlob([
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + xmlEsc(nombreHoja) + '" sheetId="1" r:id="rId1"/></sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', estilos],
+    ['xl/worksheets/sheet1.xml', hoja]]);
+}
+
+// Ajustes → Pay run: las reglas del dólar y el Rete ICA
+function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = ''; ejemploReglas(); }
+function ejemploReglas(){
+  const R = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
+  if(!(R.extra >= 0 && R.tope > 0)){ $('ajPagoEjemplo').textContent = ''; return; }
+  $('ajPagoEjemplo').textContent = 'Examples: ' + [3200, 3500, 3600, 4100].map(t => 'TRM ' + t.toLocaleString('en-US') + ' → ' + tasaDe(t, R).toLocaleString('en-US')).join(' · ');
+}
+['ajPagoExtra','ajPagoTope','ajPagoIca'].forEach(id => $(id).addEventListener('input', ejemploReglas));
+$('ajPagoGuardar').addEventListener('click', async () => {
+  const v = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
+  if(!(v.extra >= 0 && v.extra <= 5000 && v.tope > 0 && v.tope <= 20000 && v.ica >= 0 && v.ica <= 100) || [$('ajPagoExtra'), $('ajPagoTope'), $('ajPagoIca')].some(x => x.value.trim() === ''))
+    return $('ajPagoEstado').textContent = 'Check the numbers.';
+  const b = $('ajPagoGuardar'); b.disabled = true;
+  try{ await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; $('ajPagoEstado').textContent = 'Saved. New pay runs use these rules.'; toast('Settings saved.'); }
+  catch(e){ $('ajPagoEstado').textContent = e.message; }
+  b.disabled = false;
+});
+
 /* ══════════════════ MODO DE EJEMPLO (?demo=1) ══════════════════
    Datos inventados para ver la app sin servidor. No guarda nada. */
 const DM = { listo:false };
@@ -4960,6 +5613,8 @@ function demoInit(){
     { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
     { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
   ];
+  DM.emps.forEach(e => { e.pagoCuenta = e.usuario === 'saori.m' ? 'personal' : '247'; e.aportesCop = e.usuario === 'hebert.h' ? 259450 : 0; e.pagoFijoCop = e.usuario === 'claudia.c' ? 1454984 : null; });
+  DM.nominas = []; DM.nomId = 0;
   DM.marcas = {}; DM.aprob = {}; DM.ubic = {};
   DM.diaLejos = sumarDias(hoy, -2); while([0, 6].indexOf(new Date(DM.diaLejos + 'T12:00:00Z').getUTCDay()) >= 0) DM.diaLejos = sumarDias(DM.diaLejos, -1);
   const CASA = { 'laura.a':[28.55291, -81.30612], 'claudia.c':[28.48114, -81.45973], 'farouk.n':[28.60402, -81.20019], 'saori.m':[28.4158, -81.2989], 'hebert.h':[28.6934, -81.3412] };
@@ -5169,7 +5824,7 @@ async function demoApi(action, p){
     const nm = Object.values(DM.marcas).reduce((s, l) => s + (l ? l.length : 0), 0), na = Object.keys(DM.aprob).length, ns = DM.sols.length, ni = (DM.imps || []).length;
     const conCuenta = DM.emps.filter(e => DM.cuentas && DM.cuentas[e.usuario]).map(e => e.usuario);
     const ne = DM.emps.length - conCuenta.length;
-    DM.marcas = {}; DM.aprob = {}; DM.aprobH = {}; DM.aprobT = {}; DM.sols = []; DM.imps = []; DM.emps = DM.emps.filter(e => conCuenta.includes(e.usuario));
+    DM.marcas = {}; DM.aprob = {}; DM.aprobH = {}; DM.aprobT = {}; DM.sols = []; DM.imps = []; DM.nominas = []; DM.emps = DM.emps.filter(e => conCuenta.includes(e.usuario));
     S.redondeo = 1; S.ubicObligatoria = true;
     return { ok:true, marcas:nm, aprobaciones:na, solicitudes:ns, importaciones:ni, empleados:ne, conCuenta };
   }
@@ -5182,6 +5837,24 @@ async function demoApi(action, p){
     return out;
   }
   if(action === 'impLista') return (DM.imps || []).slice().reverse();
+  const copia = x => x ? JSON.parse(JSON.stringify(x)) : null;
+  if(action === 'nomina') return copia(DM.nominas.find(n => n.desde === p.desde && n.hasta === p.hasta));
+  if(action === 'nominas') return DM.nominas.slice().sort((a, b) => b.desde.localeCompare(a.desde)).map(n => { const c = copia(n); delete c.datos; return c; });
+  if(action === 'nominasAnio') return copia(DM.nominas.filter(n => n.estado === 'cerrada' && n.desde.slice(0, 4) === String(p.anio)).sort((a, b) => a.desde.localeCompare(b.desde)));
+  if(action === 'guardarNomina'){
+    const x = p.nomina, ya = DM.nominas.find(n => n.desde === x.desde && n.hasta === x.hasta), ahoraIso = new Date().toISOString();
+    if(ya && ya.estado === 'cerrada') throw new Error('That pay run is already closed. Reopen it to change it.');
+    if(p.cerrar && (!x.trm || !x.tasa || !x.fechaPago)) throw new Error('To close the pay run, set the payment date and the TRM.');
+    const n = ya || { id:++DM.nomId, desde:x.desde, hasta:x.hasta, creado_por:'carloshtl75', creado_en:ahoraIso };
+    Object.assign(n, { fecha_pago:x.fechaPago, trm:x.trm, tasa:x.tasa, estado:p.cerrar ? 'cerrada' : 'borrador', datos:copia(x.datos), totales:copia(x.totales), actualizado_por:'carloshtl75', actualizado_en:ahoraIso,
+      cerrado_por:p.cerrar ? 'carloshtl75' : null, cerrado_en:p.cerrar ? ahoraIso : null });
+    if(!ya) DM.nominas.push(n);
+    return { ok:true, id:n.id, estado:n.estado };
+  }
+  if(action === 'reabrirNomina'){ const n = DM.nominas.find(x => x.id === p.id && x.estado === 'cerrada'); if(!n) throw new Error('That pay run isn\'t closed.');
+    Object.assign(n, { estado:'borrador', cerrado_por:null, cerrado_en:null, actualizado_en:new Date().toISOString() }); return { ok:true }; }
+  if(action === 'borrarNomina'){ const i = DM.nominas.findIndex(x => x.id === p.id && x.estado === 'borrador'); if(i < 0) throw new Error('Only a draft pay run can be deleted.'); DM.nominas.splice(i, 1); return { ok:true }; }
+  if(action === 'pagoDefaults'){ let c = 0; p.lista.forEach(x => { const e = DM.emps.find(y => y.usuario === x.usuario); if(e){ e.pagoCuenta = x.pagoCuenta; e.aportesCop = x.aportes; e.pagoFijoCop = x.fijo; c++; } }); return { ok:true, cambiados:c }; }
   if(action === 'primerLatido') return [];
   if(action === 'impInicio'){
     DM.imps = DM.imps || []; const d = p.datos, id = DM.imps.length + 1, usuarios = {}, creados = [];
@@ -5241,6 +5914,7 @@ async function demoApi(action, p){
     imp.deshecha_en = new Date().toISOString();
     return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne, restauradas:nr };
   }
+  if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
