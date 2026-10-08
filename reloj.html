@@ -102,6 +102,10 @@ body[data-vista="hoja"] main,body[data-vista="pago"] main{max-width:1680px}
 .pr-param input{width:100%}
 .pr-param .pr-fila{display:flex;gap:6px}
 .pr-param .pr-fila input{flex:1;min-width:0}
+.pr-param .pr-regla{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);margin-top:2px}
+.pr-param .pr-regla input{width:76px;padding:4px 6px;font-size:13.5px;text-align:right}
+.pr-param .pr-regla input:disabled{background:transparent;border-color:transparent;color:var(--text);padding:4px 0;width:auto;max-width:60px}
+.pr-param .pr-regla-nota{display:block;font-size:12.5px;color:var(--warn);margin-top:3px}
 .pr-param .pr-tasa b{display:block;font-family:var(--font-display);font-size:22px;color:var(--brand-700);line-height:1.4;font-variant-numeric:tabular-nums}
 @media (max-width:900px){ .pr-param{grid-template-columns:1fr 1fr} }
 @media (max-width:520px){ .pr-param{grid-template-columns:1fr} }
@@ -1079,7 +1083,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
     </div>
     <div class="ajuste" id="ajPago">
       <h2>Pay run</h2>
-      <p class="nota">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. Rete ICA is withheld only from people paid from Nómina 247.</p>
+      <p class="nota">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. These are the <b>default</b> values for each new pay run; you can still change them in a pay run. Rete ICA is withheld only from people paid from Nómina 247.</p>
       <div class="ficha-grid" style="grid-template-columns:repeat(3,1fr)">
         <label class="campo"><span>Add to the TRM (COP)</span><input id="ajPagoExtra" type="number" min="0" max="5000" step="1" inputmode="numeric"></label>
         <label class="campo"><span>Maximum (COP per dollar)</span><input id="ajPagoTope" type="number" min="0" max="20000" step="1" inputmode="numeric"></label>
@@ -5157,7 +5161,7 @@ async function cargarPago(desde){
       S.pr.filas = (run.datos.filas || []).slice();
       pintarPago(); return;
     }
-    S.pr.P = { fechaPago: run && run.fecha_pago || fechaHoy(), trm: run && run.trm != null ? Number(run.trm) : null, reglas:reglasPago(),
+    S.pr.P = { fechaPago: run && run.fecha_pago || fechaHoy(), trm: run && run.trm != null ? Number(run.trm) : null, reglas: run && run.datos && run.datos.reglas ? Object.assign({}, reglasPago(), run.datos.reglas) : reglasPago(),
                asumeDesde: run && run.datos && 'asumeDesde' in run.datos ? run.datos.asumeDesde : asumirPorDefecto(desde, hasta), trmNota: run && run.datos ? run.datos.trmNota || '' : '' };
     S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas);
     S.pr.guardadas = {}; if(run && run.datos && run.datos.filas) run.datos.filas.forEach(f => { S.pr.guardadas[f.usuario] = f; });
@@ -5241,7 +5245,12 @@ function pintarPago(){
     '<div class="campo pr-trm"><span>TRM (COP per dollar)</span><div class="pr-fila"><input type="number" id="pyTrm" min="0" step="0.01" inputmode="decimal" value="' + (P.trm != null ? P.trm : '') + '"' + dis + '>' +
       (cerr ? '' : '<button class="btn btn-ghost btn-sm" id="pyTrmBuscar" type="button" title="Get the official TRM for the payment date">Get TRM</button>') + '</div><small id="pyTrmNota">' + esc(P.trmNota || '') + '</small></div>' +
     '<div class="campo pr-tasa"><span>Dollar paid at</span><b id="pyTasa">' + (P.tasa ? '$' + P.tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—') + '</b>' +
-      '<small>TRM + ' + Number(R.extra).toLocaleString('en-US') + ', up to ' + Number(R.tope).toLocaleString('en-US') + '</small></div>' +
+      '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
+      ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
+      (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
+        ? '<small class="pr-regla-nota">Default: TRM + ' + Number(reglasPago().extra).toLocaleString('en-US') + ', up to ' + Number(reglasPago().tope).toLocaleString('en-US') +
+          (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
+        : '<small>Default rule (Settings → Pay run). You can change it for this pay period.</small>') + '</div>' +
     '<label class="campo"><span>Assume worked from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
       '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
         : 'No days paid in advance: every day of the pay period is counted as worked.') + '</small></label>';
@@ -5349,12 +5358,21 @@ $('pySig').addEventListener('click', () => irPago(quinSig(S.pr ? S.pr.desde : ra
 $('pyParam').addEventListener('change', e => {
   const pr = S.pr; if(!pr || cerradaPago()) return;
   if(e.target.id === 'pyFecha'){ pr.P.fechaPago = e.target.value; marcarSucio(); if(e.target.value) buscarTrm(true); }
+  if(e.target.id === 'pyExtra' || e.target.id === 'pyTope'){
+    const v = Number(e.target.value), k = e.target.id === 'pyExtra' ? 'extra' : 'tope', ok = e.target.value.trim() !== '' && (k === 'extra' ? v >= 0 && v <= 5000 : v > 0 && v <= 20000);
+    if(!ok){ e.target.value = pr.P.reglas[k]; return toast(k === 'extra' ? 'The amount added to the TRM must be between 0 and 5,000.' : 'The maximum must be between 1 and 20,000.', 'err'); }
+    pr.P.reglas = Object.assign({}, pr.P.reglas, { [k]:Math.round(v) }); pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); return;
+  }
   if(e.target.id === 'pyTrm'){ const v = Number(e.target.value); pr.P.trm = v > 0 ? r2(v) : null; pr.P.trmNota = v > 0 ? 'Typed in.' : ''; pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
   if(e.target.id === 'pyAsume'){ pr.P.asumeDesde = e.target.value && e.target.value <= pr.hasta ? e.target.value : ''; marcarSucio();
     // cambian los días asumidos: se vuelven a calcular los días de cada persona (lo demás editado se queda)
     Object.keys(pr.ed).forEach(u => { pr.ed[u]._diasAuto = true; }); armarBaseDias(); pintarPago(); }
 });
-$('pyParam').addEventListener('click', e => { if(e.target.id === 'pyTrmBuscar') buscarTrm(true); });
+$('pyParam').addEventListener('click', e => {
+  if(e.target.id === 'pyTrmBuscar') buscarTrm(true);
+  if(e.target.id === 'pyReglaDef' && S.pr && !cerradaPago()){ const d = reglasPago(); S.pr.P.reglas = Object.assign({}, S.pr.P.reglas, { extra:d.extra, tope:d.tope });
+    S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
+});
 function armarBaseDias(){
   const pr = S.pr; armarBase(false);
   pr.base.forEach(b => { const ed = pr.ed[b.usuario]; if(ed._diasAuto){ delete ed._diasAuto; ed.dias = b.min > 0 && b.tarifa != null ? b.libres.length : 0; } });
