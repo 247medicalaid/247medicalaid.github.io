@@ -2400,11 +2400,11 @@ function irA(v){
   clearInterval(S.timerReloj); clearInterval(S.timerHoy);
   if(v === 'reloj'){ pintarReloj(); S.timerReloj = setInterval(tic, 1000); refrescarYo(3000); }
   if(v === 'hoy'){ cargarHoy(); S.timerHoy = setInterval(() => { if(!document.hidden) cargarHoy(true); }, 60000); }
-  if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else cargarHoja(); }
+  if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else if(S.periodoDePago){ S.periodoDePago = false; ponerPeriodo(S.periodo.desde, S.periodo.hasta); } else cargarHoja(); }
   if(v === 'emps') cargarEmps();
   if(v === 'sols') cargarSols();
   if(v === 'ajustes') pintarAjustes();
-  if(v === 'pago') cargarPago(S.pr ? S.pr.desde : null);
+  if(v === 'pago') cargarPago(S.periodo ? quinDe(S.periodo.desde) : S.pr ? S.pr.desde : null);
 }
 document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
 
@@ -5134,9 +5134,13 @@ async function irPago(desde){
   if(S.pr && S.pr.sucio && S.pr.desde !== desde && !(await confirmar('Discard changes?', 'The ' + esc(nomQuin(S.pr.desde)) + ' pay run has changes that weren\'t saved.', 'Discard', true))){ $('pyQuin').value = S.pr.desde; return; }
   cargarPago(desde);
 }
+// Quincena (1–15 o 16–fin) que contiene una fecha.
+const quinDe = f => f.slice(0, 7) + (+f.slice(8) <= 15 ? '-01' : '-16');
 async function cargarPago(desde){
   desde = desde || (S.pr && S.pr.desde) || rangoPreset('q0').desde;
   const hasta = finQ(desde), ant = quinAnt(desde), tok = {};
+  // la Timesheet queda en la misma quincena (si ya estaba dentro de ella, se deja como estaba)
+  if(!S.periodo || quinDe(S.periodo.desde) !== desde){ S.periodo = { desde, hasta }; S.periodoDePago = true; }
   S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[] };
   $('pyQuin').innerHTML = opcionesQuin(desde);
   $('pyTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading the pay period…</div>';
