@@ -942,6 +942,32 @@ body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 body.aw[data-aw="perfil"] .aw-panel > [data-aw="perfil"]{display:block}
 body.aw .aw-panel > .ventana{width:auto;max-height:none;overflow:visible;box-shadow:none;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 16px}
 body.aw .aw-panel > .ventana [data-cerrar]{display:none}
+
+/* v51: app más compacta (ventana menos ancha; el pay period completo cabe sin scroll) */
+body.aw #vReloj .reloj-grid{grid-template-columns:192px minmax(0,1fr)}
+body.aw .aw-menu{padding:14px 8px 12px}
+body.aw .aw-marca{padding:2px 8px 16px;font-size:16px}
+body.aw .aw-item{font-size:14px;padding:9px 11px}
+body.aw .aw-fijo{grid-template-columns:minmax(0,1fr) 214px;grid-template-rows:1fr auto;gap:6px 14px;padding:12px 18px 10px}
+body.aw .aw-fijo .esfera{grid-row:1 / span 2;padding:11px 16px 10px;border-radius:14px}
+body.aw .aw-fijo .esfera .hora{font-size:48px;margin:1px 0 0}
+body.aw .aw-fijo .esfera .estado{margin-top:5px}
+body.aw .aw-fijo .esfera .acum{flex-basis:100%;min-height:1.45em}   /* la línea de horas siempre ocupa su lugar: el alto no cambia al marcar */
+body.aw .aw-fijo .acciones{grid-column:2;grid-row:1;gap:8px}
+body.aw .aw-fijo .marcar{padding:12px 16px;font-size:17px}
+body.aw .aw-fijo .marcar-2{padding:9px;font-size:14.5px}
+body.aw .aw-fijo .nota-ubic{grid-column:2;grid-row:2;font-size:10.5px;line-height:1.3;text-align:left;align-self:end;gap:5px}
+body.aw .aw-fijo .nota-ubic svg{flex:none}
+body.aw .aw-panel{padding:0 18px 14px}
+body.aw .aw-panel > [data-aw]{margin-top:12px}
+body.aw .per-ag{padding:12px 14px 10px}
+body.aw .per-cab{margin-bottom:4px}
+body.aw .per td{padding:3.5px 6px}
+body.aw .per th{padding:4px 6px}
+body.aw .per-ayuda{margin:6px 0 0}
+body.aw .per-tot{margin-top:8px;gap:6px}
+body.aw .per-tot div{padding:5px 10px}
+body.aw .per-tot b{font-size:16px}
 body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--paper);margin:14px -20px -16px;padding:12px 20px 14px;border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
 </style>
 </head>
@@ -2555,7 +2581,7 @@ function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now
    Fuera de la app (navegador normal) nada de esto corre. */
 // (función y no constante: la pantalla de inicio de sesión puede llamarla antes de que el script termine de cargar)
 // Diseño de la app de Windows: se mueven las mismas piezas de «My clock» a un menú lateral con paneles (no se duplica nada).
-const AW_TAM = [900, 780];   // tamaño de la ventana de la app (px a 100 %); la app lo recorta a la pantalla
+const AW_TAM = [820, 780];   // tamaño de la ventana de la app (px a 100 %); el alto se mide (awTamano); la app lo recorta a la pantalla
 const AW_MENU = [
   ['dia', 'Today', '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'],
   ['per', 'Pay period', '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'],
@@ -2594,7 +2620,25 @@ function appLayout(){
   new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
   let k = 'dia'; try{ k = localStorage.getItem('aw_panel') || 'dia'; }catch(e){}
   appPanel(['dia', 'per', 'sol', 'perfil'].indexOf(k) >= 0 ? k : 'dia');
-  appMandar({ tipo:'ventana', v:1, ancho:AW_TAM[0], alto:AW_TAM[1] });
+  if($('pTabla').querySelector('table.per')) awTamano();   // si no, se mide cuando se pinta el pay period
+}
+// Alto que necesita la ventana para ver el pay period completo (16 días) sin scroll: se mide con el panel
+// visible por un instante (sin pintar en pantalla) y se le pide a la app. Una vez por carga de la página.
+function awTamano(){
+  if(!S.awListo || S.awTam) return;
+  S.awTam = true;
+  const medir = () => {
+    const per = document.querySelector('.aw-panel .per-ag'), fijo = document.querySelector('.aw-fijo'), panel = document.querySelector('.aw-panel');
+    if(!per || !fijo || !panel) return;
+    const antes = document.body.dataset.aw; document.body.dataset.aw = 'per';
+    const filas = [...per.querySelectorAll('tbody tr')].filter(tr => !tr.classList.contains('per-ed'));
+    const fila = filas.length ? filas[0].offsetHeight : 28, cs = getComputedStyle(panel), mt = parseFloat(getComputedStyle(per).marginTop) || 0;
+    const alto = fijo.offsetHeight + (parseFloat(cs.paddingTop) || 0) + mt + per.offsetHeight + Math.max(0, 16 - filas.length) * fila + (parseFloat(cs.paddingBottom) || 0) + 2;
+    document.body.dataset.aw = antes;
+    S.awAlto = Math.round(Math.min(1400, Math.max(560, alto)));
+    appMandar({ tipo:'ventana', v:1, ancho:AW_TAM[0], alto:S.awAlto });
+  };
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(medir, 0));
 }
 function appPanel(k){
   document.body.dataset.aw = k;
@@ -2877,6 +2921,7 @@ function pintarPeriodoAg(){
     '<div>Approved<b class="num">' + hm(totAp) + '</b></div>' +
     (pto ? '<div>Paid time off<b class="num">' + hm(pto) + '</b></div>' : '') +
     (faltan ? '<div style="background:var(--accent-50);color:#7A1418">Missing clock-out<b class="num" style="color:var(--accent-600)">' + faltan + (faltan === 1 ? ' day' : ' days') + '</b></div>' : '');
+  if(S.awListo && !S.awTam) awTamano();
   $('pTabla').querySelectorAll('tr.ed').forEach(tr => {
     tr.addEventListener('click', () => abrirPed(tr.dataset.f));
     tr.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrirPed(tr.dataset.f); } });
