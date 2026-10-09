@@ -2125,7 +2125,7 @@ async function yoSB(){
   ]);
   S.offset = Date.parse(ahoraSrv) - Date.now();
   if(!perfil || !perfil.activo) throw Object.assign(new Error('Your user is not active. Talk to the administrator.'), { codigo:'INACTIVO' });
-  const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia) } : null;
+  const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia), horaEntrada:(emp.hora_entrada || '').slice(0, 5) } : null;
   const ahoraMs = ahora(), hoy = fechaHoy(), ap = {};
   aprob.forEach(a => { ap[a.fecha] = true; });
   const ms = tiempo('abrir', t0);
@@ -2284,6 +2284,7 @@ const emailBueno = e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 const portalLink = '<div class="pie-acc">Administrative staff: <a href="' + PORTAL + '">sign in through the portal</a>.</div>';
 
 function pantallaLogin(aviso, email){
+  appMandar({ tipo:'estado', v:1, conectado:false, empleado:false, estado:'fuera', nombre:'', minHoy:0, recordatorios:[] });
   caja('<h1>Sign in</h1><div class="sub">Clock in and out, see your hours and send requests.</div>' +
     (aviso ? '<div class="listo">' + aviso + '</div>' : '') +
     '<form id="fLogin" novalidate><label class="campo"><span>Email</span><input id="lEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="' + esc(email || '') + '"></label>' +
@@ -2502,7 +2503,59 @@ async function inicio(){
   $('velo').remove();
 }
 
-function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now(); }
+function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now(); appEstado(); }
+
+/* ── App de Windows «247 Time Clock» (WebView2 + icono en la bandeja) ──
+   El programa muestra esta misma página. Aquí se le cuenta el estado y los recordatorios, y se reciben sus pedidos.
+   Fuera de la app (navegador normal) nada de esto corre. */
+// (función y no constante: la pantalla de inicio de sesión puede llamarla antes de que el script termine de cargar)
+function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
+function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
+function appRecordatorios(yo, r, t){
+  const out = [], seg = ms => Math.round((ms - t) / 1000), hd = (yo.empleado && yo.empleado.horasDia) || 8, almMax = (yo.config && yo.config.almuerzoMax) || 60;
+  const abierto = r.estado !== 'fuera' && r.desde ? (yo.ahora - r.desde) / 60000 : 0;
+  if(r.estado === 'almuerzo' && r.desde){
+    const almBase = r.alm - abierto, fin = r.desde + Math.max(0, almMax - almBase) * 60000;
+    out.push({ id:'alm5|' + r.desde, en:seg(fin - 5 * 60000), titulo:'Lunch ends in 5 minutes', texto:'Your lunch ends at ' + hora(fin) + '.' });
+    out.push({ id:'alm0|' + r.desde, en:seg(fin), titulo:'Your lunch hour is over', texto:'Click End lunch to go back to work.' });
+  }
+  if(r.estado === 'trabajando' && r.desde){
+    const base = r.min - abierto, falta = hd * 60 - base, fin = r.desde + falta * 60000;
+    out.push({ id:'sal|' + r.fecha, en:seg(fin + 10 * 60000), titulo:'You\'ve completed your ' + hd + ' hours', texto:'Don\'t forget to clock out when you finish.' });
+    out.push({ id:'sal2|' + r.fecha, en:seg(fin + 120 * 60000), titulo:'You\'re still clocked in', texto:'It\'s been 2 hours past your ' + hd + ' hours today. Clock out if you\'re done.' });
+  }
+  const he = yo.empleado && yo.empleado.horaEntrada, dow = new Date(yo.hoy + 'T12:00:00Z').getUTCDay(), hoySem = (r.semana || []).find(x => x.fecha === yo.hoy);
+  if(r.estado === 'fuera' && he && /^\d\d:\d\d$/.test(he) && dow >= 1 && dow <= 5 && !r.marcas.length && r.fecha === yo.hoy && !(hoySem && hoySem.aus)){
+    const ini = ctMs(yo.hoy, he, S.zona);
+    out.push({ id:'ent|' + yo.hoy, en:seg(ini + 5 * 60000), titulo:'Your shift started at ' + hora(ini), texto:'You haven\'t clocked in yet today.' });
+  }
+  if((r.pendientes || []).length) out.push({ id:'pend|' + r.pendientes.join(','), en:0, titulo:'A clock-out is missing',
+    texto:'Your clock-out for ' + fechaL(r.pendientes[0]) + ' is missing. Open the Time Clock to fix it.' });
+  return out;
+}
+function appEstado(){
+  if(!appWin()) return;
+  const yo = S.yo, r = yo && yo.reloj;
+  if(!yo || !r) return appMandar({ tipo:'estado', v:1, conectado:!!yo, empleado:!!(yo && yo.empleado), estado:'fuera', nombre: yo ? (yo.usuario.nombre || yo.usuario.username || '') : '', minHoy:0, recordatorios:[] });
+  const t = ahora(), abierto = r.estado !== 'fuera' && r.desde ? (t - r.desde) / 60000 : 0;
+  const base = r.estado === 'trabajando' ? r.min - (yo.ahora - r.desde) / 60000 : r.min;
+  const entrada = (r.marcas.find(m => m.tipo === 'entrada') || {}).ms || null;
+  appMandar({ tipo:'estado', v:1, conectado:true, empleado:true, nombre:yo.empleado.nombre, estado:r.estado,
+    minHoy:Math.max(0, Math.round(r.estado === 'trabajando' ? base + abierto : base)),
+    desdeTxt: r.desde ? hora(r.desde) : '', entradaTxt: entrada ? hora(entrada) : '', horasDia:yo.empleado.horasDia || 8,
+    recordatorios:appRecordatorios(yo, r, t) });
+}
+if(appWin()) window.chrome.webview.addEventListener('message', ev => {
+  let d = ev.data; try{ if(typeof d === 'string') d = JSON.parse(d); }catch(e){ return; }
+  if(!d || !d.accion) return;
+  if(d.accion === 'estado'){ if(S.yo) refrescarYo(0).then(appEstado); else appEstado(); return; }
+  if(d.accion === 'marcar' && S.yo && S.yo.reloj && S.yo.empleado){
+    if(S.vista !== 'reloj') irA('reloj');
+    const validos = { fuera:['entrada'], trabajando:['almuerzo_ini', 'salida'], almuerzo:['almuerzo_fin'] }[S.yo.reloj.estado] || [];
+    if(validos.indexOf(d.tipo) >= 0) pedirMarca(d.tipo);
+    else { toast('That isn\'t available right now. Your status was updated.'); refrescarYo(0).then(appEstado); }
+  }
+});
 /* My clock se vuelve a leer al entrar a la vista y al volver a la pestaña: así lo que el
    administrador aprobó o corrigió (marcas, días libres) se ve sin recargar la página. */
 async function refrescarYo(minimo){
@@ -6426,7 +6479,7 @@ async function demoApi(action, p){
     for(let i = 0; i < 7; i++){ const f = sumarDias(lun, i), x = demoDia(e, f); const au = DM.sols.find(s => s.usuario === yoU && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
       semana.push({ fecha:f, min:x.min, alm:x.alm, incompleto:x.incompleto, enCurso:x.enCurso, aprobado:!!x.aprobado, marcas:x.marcas.length, aus: au ? { clase:au.clase, pagada:!!au.pagada } : null }); }
     if(S.demoAgente) return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'laura.a', nombre:'Laura Acevedo', rol:'agente' }, esAdmin:false,
-      empleado:{ nombre:e.nombre, horasDia:8 }, config:{ almuerzoMax:60, monitor:true },
+      empleado:{ nombre:e.nombre, horasDia:8, horaEntrada:'08:00' }, config:{ almuerzoMax:60, monitor:true },
       reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
     return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'carloshtl75', nombre:'Carlos Tobon (demo)', rol:'admin' }, esAdmin:true,
       empleado:{ nombre:e.nombre, horasDia:8 }, config:{ almuerzoMax:60, monitor:true },
