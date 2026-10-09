@@ -898,6 +898,45 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .ayuda-ubic{font-size:14.5px;line-height:1.5}
 .ayuda-ubic ol{margin:8px 0 0 18px;padding:0}
 .ayuda-ubic li{margin:3px 0}
+
+/* ── App de Windows (body.aw): menú lateral + reloj fijo arriba + panel elegido debajo ── */
+body.aw{overflow:hidden;height:100vh}
+body.aw .top,body.aw #tabs,body.aw .btn-menu{display:none !important}
+body.aw .marco{display:block}
+body.aw main{max-width:none;margin:0;padding:0}
+body.aw #vReloj .reloj-grid{display:grid !important;grid-template-columns:212px minmax(0,1fr);gap:0;height:100vh;max-width:none;align-items:stretch;justify-items:stretch}
+.aw-menu{background:var(--ink-900);color:#C9DCE3;display:flex;flex-direction:column;padding:16px 10px 14px;min-height:0}
+.aw-marca{display:flex;align-items:center;gap:9px;padding:2px 8px 18px;color:#fff;font-family:var(--font-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.aw-marca svg{width:30px;height:30px;flex:none}
+.aw-marca small{display:block;font-family:var(--font-body);font-weight:600;font-size:11px;letter-spacing:.08em;color:#7FA6B6;text-transform:uppercase}
+.aw-item{display:flex;align-items:center;gap:11px;width:100%;border:0;background:transparent;color:#C9DCE3;font:inherit;font-size:14.5px;font-weight:600;
+  padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left;margin-bottom:2px}
+.aw-item svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.aw-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.aw-item[aria-current="true"]{background:rgba(23,169,222,.18);color:#fff;box-shadow:inset 3px 0 0 var(--brand-500)}
+.aw-item b{margin-left:auto;background:var(--accent-500);color:#fff;border-radius:999px;font-size:11.5px;padding:1px 7px}
+.aw-sep{flex:1}
+.aw-yo{border-top:1px solid rgba(255,255,255,.1);padding:12px 12px 4px;font-size:13px;line-height:1.35}
+.aw-yo b{display:block;color:#fff;font-size:14px}
+.aw-yo .aw-item{padding:8px 0;margin-top:6px;font-size:13.5px}
+.aw-main{display:flex;flex-direction:column;min-width:0;min-height:0;height:100vh;background:var(--sand)}
+.aw-fijo{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:10px 14px;padding:16px 20px 12px;border-bottom:1px solid var(--line);background:var(--sand);align-items:stretch}
+body.aw .aw-fijo .esfera{padding:16px 20px 14px;border-radius:16px;margin:0}
+body.aw .aw-fijo .esfera .yo{font-size:15px;margin:0}
+body.aw .aw-fijo .esfera .fecha{font-size:13px}
+body.aw .aw-fijo .esfera .hora{font-size:58px;margin:4px 0 2px}
+body.aw .aw-fijo .esfera .zona{display:none}
+body.aw .aw-fijo .esfera .estado{margin-top:8px;gap:2px 12px}
+body.aw .aw-fijo .esfera .estado .st{font-size:15px}
+body.aw .aw-fijo .acciones{margin:0;display:flex;flex-direction:column;justify-content:center;gap:10px}
+body.aw .aw-fijo .marcar{padding:16px 18px;font-size:18px}
+body.aw .aw-fijo .marcar-2{padding:13px;font-size:15.5px;border-radius:999px}
+body.aw .aw-fijo .nota-ubic{grid-column:1 / -1;margin:0;font-size:12.5px}
+.aw-panel{flex:1;min-height:0;overflow:auto;padding:4px 20px 20px}
+body.aw .aw-panel > [data-aw]{display:none;margin-top:14px;max-width:none}
+body.aw[data-aw="dia"] .aw-panel > [data-aw="dia"],body.aw[data-aw="per"] .aw-panel > [data-aw="per"],body.aw[data-aw="sol"] .aw-panel > [data-aw="sol"]{display:block}
+body.aw .aw-panel #avisosAgente:not(:empty){margin-top:14px}
+body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -2509,6 +2548,52 @@ function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now
    El programa muestra esta misma página. Aquí se le cuenta el estado y los recordatorios, y se reciben sus pedidos.
    Fuera de la app (navegador normal) nada de esto corre. */
 // (función y no constante: la pantalla de inicio de sesión puede llamarla antes de que el script termine de cargar)
+// Diseño de la app de Windows: se mueven las mismas piezas de «My clock» a un menú lateral con paneles (no se duplica nada).
+const AW_MENU = [
+  ['dia', 'Today', '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'],
+  ['per', 'Pay period', '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'],
+  ['sol', 'Requests', '<svg viewBox="0 0 24 24"><path d="M21 12h-5l-2 3h-4l-2-3H3"/><path d="M5.5 5.5 3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6l-2.5-6.5A2 2 0 0 0 16.6 4H7.4a2 2 0 0 0-1.9 1.5z"/></svg>'],
+  ['perfil', 'My profile', '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>']
+];
+function appLayout(){
+  const grid = document.querySelector('#vReloj .reloj-grid'), r = grid && grid.querySelector('.reloj');
+  if(!r) return;
+  S.awListo = true;
+  const fijo = document.createElement('div'); fijo.className = 'aw-fijo';
+  fijo.append(r.querySelector('.esfera'), $('rAcciones'), r.querySelector('.nota-ubic'));
+  const dia = r.querySelector('.cinta-box:not(.sol-box)'), sol = r.querySelector('.sol-box'), per = grid.querySelector('.per-ag');
+  dia.dataset.aw = 'dia'; sol.dataset.aw = 'sol'; per.dataset.aw = 'per';
+  const panel = document.createElement('div'); panel.className = 'aw-panel';
+  panel.append($('avisosAgente'), dia, per, sol);
+  const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
+  nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
+      '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
+      '<div>Time Clock<small>24/7 Medical Aid</small></div></div>' +
+    AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : '') + '</button>').join('') +
+    '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span>Agent</span>' +
+    '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
+  const main = document.createElement('div'); main.className = 'aw-main';
+  main.append(fijo, panel);
+  grid.replaceChildren(nav, main);
+  document.body.classList.add('aw');
+  $('awNom').textContent = (S.yo && S.yo.empleado && S.yo.empleado.nombre) || '';
+  nav.querySelectorAll('[data-awi]').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.awi === 'perfil') return $('btnPerfil').click();
+    appPanel(b.dataset.awi);
+  }));
+  $('awSalir').addEventListener('click', () => $('btnSalir').click());
+  // el número de solicitudes del agente (el mismo que el botón «View your requests»)
+  const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = n.textContent; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
+  new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
+  let k = 'dia'; try{ k = localStorage.getItem('aw_panel') || 'dia'; }catch(e){}
+  appPanel(['dia', 'per', 'sol'].indexOf(k) >= 0 ? k : 'dia');
+}
+function appPanel(k){
+  document.body.dataset.aw = k;
+  document.querySelectorAll('.aw-menu [data-awi]').forEach(b => b.setAttribute('aria-current', b.dataset.awi === k ? 'true' : 'false'));
+  const p = document.querySelector('.aw-panel'); if(p) p.scrollTop = 0;
+  try{ localStorage.setItem('aw_panel', k); }catch(e){}
+}
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
 function appRecordatorios(yo, r, t){
@@ -2658,6 +2743,7 @@ function pintarReloj(){
       (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta();
+  if(appWin() && !S.awListo && !yo.esAdmin) appLayout();
 
   const hoy = yo.hoy;
   if(!S.contadas){ S.contadas = true; contarMias(); }
