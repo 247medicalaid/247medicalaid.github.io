@@ -1017,6 +1017,13 @@ table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:
 .dt-fila > div{flex:1;min-width:0}.dt-fila small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:2px}
 .dt-chk{display:flex;gap:9px;align-items:flex-start;margin:0 0 10px;font-size:14px;cursor:pointer}
 .dt-chk input{margin-top:3px}.dt-chk small{display:block;color:var(--text-muted);font-size:12.5px}
+
+.md-cab{display:flex;align-items:center;gap:10px;justify-content:space-between}.md-cab h3{margin:0}
+.md-cab svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:5px}
+.ficha-sec.md-mensual .md-cab{margin-bottom:8px}
+.od-aviso{background:var(--warn-50);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin:0 0 10px}
+.dc-num.dc-fijo{cursor:default}
+.dc-mat td.dc-req small{display:block;font-size:10.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap}
 #dtPlantillaTxt svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;vertical-align:-3px}
 @media (max-width:820px){ .dc-cuerpo{grid-template-columns:1fr;grid-template-rows:minmax(260px,1fr) auto} .ventana.dc-ventana{height:auto;max-height:92vh;overflow:auto} .dc-lado{overflow:visible} }
 @media (max-width:600px){ .md-item{grid-template-columns:1fr} .md-acc{flex-direction:row;flex-wrap:wrap} }
@@ -1490,7 +1497,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <div class="overlay hidden" id="ovVerDoc" role="dialog" aria-modal="true" aria-labelledby="vdTitulo">
   <div class="ventana dc-ver">
     <div class="dc-ver-cab"><div><h2 id="vdTitulo"></h2><div class="sub" id="vdSub"></div></div><span class="esp"></span>
-      <button class="btn btn-ghost btn-sm" type="button" id="vdBajar">Download</button><button class="btn btn-ghost btn-sm" type="button" data-cerrar>Close</button></div>
+      <button class="btn btn-peligro btn-sm hidden" type="button" id="vdBorrar">Delete</button><button class="btn btn-ghost btn-sm" type="button" id="vdBajar">Download</button><button class="btn btn-ghost btn-sm" type="button" data-cerrar>Close</button></div>
     <div class="dc-previa" id="vdPrevia"></div>
   </div>
 </div>
@@ -2104,6 +2111,7 @@ const SERVIDOR_EN = [
   [/^El día límite debe estar.*/, 'The due day must be between 1 and 28.'],
   [/^Elige desde qué mes se pide\.$/, 'Choose the first month.'],
   [/^Ese usuario no existe\.$/, 'That user doesn\'t exist.'],
+  [/^Solo un administrador puede enviar comprobantes\.$/, 'Only an administrator can send paystubs.'],
   [/^Usa un PDF, una foto.*/, 'Use a PDF, a photo (JPG or PNG) or a Word file.'],
   [/^Ese documento ya tiene archivos: no se puede cambiar.*/, 'This document already has files: it can\'t switch between «one per person» and «one per month». Create a new one.'],
   [/reloj_doc_|reloj_docs|reloj_doc_tipos/, 'Documents need SQL step 36 in Supabase.'],
@@ -2231,6 +2239,9 @@ const tipoJS = t => ({ id:Number(t.id), nombre:t.nombre, descripcion:t.descripci
 const docJS = d => ({ id:Number(d.id), tipoId:Number(d.tipo_id), usuario:d.usuario, periodo:d.periodo || null, archivo:d.archivo, nombre:d.nombre_archivo, bytes:d.bytes == null ? null : Number(d.bytes),
   mime:d.mime || '', fechaDoc:d.fecha_doc || '', estado:d.estado, subidoPor:d.subido_por, subidoEn:Date.parse(d.subido_en), revisadoPor:d.revisado_por || '',
   revisadoEn:d.revisado_en ? Date.parse(d.revisado_en) : null, nota:d.nota || '', vence:d.vence || '' });
+const personaJS = x => ({ tipoId:Number(x.tipo_id), usuario:x.usuario, desdeMes:x.desde_mes, activo:x.activo !== false });
+const payJS = x => ({ id:Number(x.id), usuario:x.usuario, periodoFin:x.periodo_fin, periodo:x.periodo || '', archivo:x.archivo, nombre:x.nombre_archivo, bytes:x.bytes == null ? null : Number(x.bytes),
+  neto:x.neto == null ? null : Number(x.neto), enviadoPor:x.enviado_por, enviadoEn:Date.parse(x.enviado_en), vistoEn:x.visto_en ? Date.parse(x.visto_en) : null, reemplazado:!!x.reemplazado });
 const docMime = n => ({ pdf:'application/pdf', jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp', heic:'image/heic', heif:'image/heif', doc:'application/msword',
   docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })[(String(n).split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
 // ruta en Storage: <carpeta>/<sub>/<aleatorio>-<nombre sin tildes ni símbolos>
@@ -2256,15 +2267,17 @@ async function docStorageSubir(ruta, f){
 async function docsSB(action, p){
   if(action === 'docsAdmin'){
     await sesionSB();
-    const [tipos, docs, emps] = await Promise.all([q(sb.from('reloj_doc_tipos').select('*').order('orden').order('id')),
-      todas(() => sb.from('reloj_docs').select('*').order('id')), q(sb.from('reloj_empleados').select('*'))]);
-    return { tipos:tipos.map(tipoJS), docs:docs.map(docJS), emps:emps.map(e => Object.assign(empJS(e), { docsAportes:!!e.docs_aportes })) };
+    const [tipos, docs, emps, personas, pays] = await Promise.all([q(sb.from('reloj_doc_tipos').select('*').order('orden').order('id')),
+      todas(() => sb.from('reloj_docs').select('*').order('id')), q(sb.from('reloj_empleados').select('*')),
+      todas(() => sb.from('reloj_doc_personas').select('*').order('tipo_id').order('usuario')), todas(() => sb.from('reloj_paystubs').select('*').order('id'))]);
+    return { tipos:tipos.map(tipoJS), docs:docs.map(docJS), emps:emps.map(empJS), personas:personas.map(personaJS), paystubs:pays.map(payJS) };
   }
   if(action === 'docsMios'){
     const ses = await sesionSB(), u = usuarioDe(ses);
-    const [tipos, docs, emp] = await Promise.all([q(sb.from('reloj_doc_tipos').select('*').eq('activo', true).order('orden').order('id')),
-      q(sb.from('reloj_docs').select('*').eq('usuario', u).order('id')), q(sb.from('reloj_empleados').select('docs_aportes').eq('usuario', u).maybeSingle())]);
-    return { usuario:u, tipos:tipos.map(tipoJS), docs:docs.map(docJS), aportes:!!(emp && emp.docs_aportes) };
+    const [tipos, docs, personas, pays] = await Promise.all([q(sb.from('reloj_doc_tipos').select('*').eq('activo', true).order('orden').order('id')),
+      q(sb.from('reloj_docs').select('*').eq('usuario', u).order('id')), q(sb.from('reloj_doc_personas').select('*').eq('usuario', u)),
+      q(sb.from('reloj_paystubs').select('*').eq('usuario', u).order('periodo_fin', { ascending:false }).limit(200))]);
+    return { usuario:u, tipos:tipos.map(tipoJS), docs:docs.map(docJS), personas:personas.map(personaJS), paystubs:pays.map(payJS) };
   }
   if(action === 'docsPorRevisar'){
     const { count, error } = await sb.from('reloj_docs').select('id', { count:'exact', head:true }).eq('estado', 'pendiente');
@@ -2287,7 +2300,13 @@ async function docsSB(action, p){
     try{ const { error } = await sb.storage.from(BUCKET_DOCS).remove([r.archivo]); if(error) console.warn('No se borró el archivo', r.archivo, error); }catch(e){}
     return r;
   }
-  if(action === 'docAportes') return q(sb.rpc('reloj_doc_aportes', { p_usuario:p.usuario, p_obligado:!!p.obligado }));
+  if(action === 'docPersona') return q(sb.rpc('reloj_doc_persona', { p_tipo:p.tipoId, p_usuario:p.usuario, p_obligado:!!p.obligado, p_desde:p.desde || null }));
+  if(action === 'docPaystubVisto') return q(sb.rpc('reloj_paystub_visto', { p_id:p.id }));
+  if(action === 'docPaystubBorrar'){
+    const r = await q(sb.rpc('reloj_paystub_borrar', { p_id:p.id }));
+    try{ const { error } = await sb.storage.from(BUCKET_DOCS).remove([r.archivo]); if(error) console.warn('No se borró el archivo', r.archivo, error); }catch(e){}
+    return r;
+  }
   if(action === 'docTipoGuardar'){
     const t = Object.assign({}, p.tipo);
     if(p.plantilla){ const ruta = docRuta('plantillas', t.id || 'nuevo', p.plantilla.name); await docStorageSubir(ruta, p.plantilla); t.plantilla = ruta; t.plantillaNombre = p.plantilla.name.slice(-160); }
@@ -5359,6 +5378,8 @@ const docEnMs = d => new Intl.DateTimeFormat('en-US', { timeZone:S.zona || 'Amer
 const docLimite = (t, m) => mesSig(m) + '-' + String(t.diaLimite || 10).padStart(2, '0');
 // meses que se piden, del primero al actual (el más reciente primero)
 function docMeses(t){ const out = [], fin = fechaHoy().slice(0, 7); if(!t.desdeMes) return out; for(let m = t.desdeMes; m <= fin && out.length < 240; m = mesSig(m)) out.push(m); return out.reverse(); }
+// meses que debe una persona (desde el mes en que la marcaron)
+const docMesesDe = (t, pe, docs) => docMeses(t).filter(m => (pe && m >= pe.desdeMes) || (docs || []).some(d => d.tipoId === t.id && d.periodo === m));
 // vencimiento por defecto al aprobar (igual que en la base de datos)
 function docVenceDefecto(t, fechaDoc){
   const hoy = fechaHoy();
@@ -5367,10 +5388,18 @@ function docVenceDefecto(t, fechaDoc){
   if(t.vence === 'fecha' && t.venceFecha){ let v = t.venceFecha; while(v < hoy){ const [a, m, d] = v.split('-'); v = (Number(a) + 1) + '-' + m + '-' + d; } return v; }
   return '';
 }
+// personas que deben subir un documento mensual: {tipoId, usuario, desdeMes}
+const docPersona = (personas, tid, u) => (personas || []).find(x => x.tipoId === tid && x.usuario === u && x.activo !== false) || null;
 const docsDe = (docs, u, tid, per) => docs.filter(d => d.usuario === u && d.tipoId === tid && (d.periodo || null) === (per || null)).sort((a, b) => b.subidoEn - a.subidoEn || b.id - a.id);
-// estado de un documento de una persona (el archivo más reciente es el que cuenta)
+// estado de un documento de una persona: cuenta el archivo más reciente que no esté rechazado
+// (si se rechaza uno nuevo, vuelve a contar el anterior aprobado; el rechazado queda en el historial)
 function docEstado(t, lista, per){
-  const hoy = fechaHoy(), d = lista[0];
+  const hoy = fechaHoy(), d = lista.find(x => x.estado !== 'rechazado') || lista[0];
+  const e = docEstadoDe(t, d, per, hoy);
+  if(d && lista[0] && lista[0] !== d && lista[0].estado === 'rechazado') e.rechNuevo = lista[0];
+  return e;
+}
+function docEstadoDe(t, d, per, hoy){
   if(!d){
     if(t.mensual){ const lim = docLimite(t, per); return { k: hoy > lim ? 'atrasado' : 'falta', sub:'Due ' + fechaUS(lim) }; }
     return { k: t.obligatorio ? 'falta' : 'vacio', sub:'' };
@@ -5430,9 +5459,11 @@ async function cargarMisDocs(callado){
 function misDocsPendientes(md){
   let n = 0;
   md.tipos.forEach(t => {
-    if(t.mensual){ if(md.aportes) docMeses(t).forEach(m => { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id, m), m).k; if(k === 'atrasado' || k === 'rechazado' || (k === 'falta' && m < fechaHoy().slice(0, 7))) n++; }); }
+    if(t.mensual){ if(docPersona(md.personas, t.id, md.usuario)) docMesesDe(t, docPersona(md.personas, t.id, md.usuario)).forEach(m => { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id, m), m).k; if(k === 'atrasado' || k === 'rechazado' || (k === 'falta' && m < fechaHoy().slice(0, 7))) n++; }); }
     else { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id), null).k; if(DOC_ACCION.includes(k) && (t.agenteSube || k !== 'falta')) n++; }
   });
+  // paystubs nuevos que todavía no abrió (de los últimos 60 días)
+  n += (md.paystubs || []).filter(x => !x.reemplazado && !x.vistoEn && x.periodoFin >= sumarDias(fechaHoy(), -60)).length;
   return n;
 }
 function pintarMisDocsN(){
@@ -5450,6 +5481,7 @@ function mdFila(t, per){
       '<div class="md-est">' + docChip(e.k, e.k === 'rechazado' ? '' : e.sub) +
         (d ? ' <button class="btn-link md-ver" type="button" data-md-ver="' + d.id + '">' + DOC_IC.ver + esc(d.nombre) + '</button>' : '') + reemplazar + '</div>' +
       (e.k === 'rechazado' && d.nota ? '<div class="md-motivo"><b>Why:</b> ' + esc(d.nota) + '</div>' : '') +
+      (e.rechNuevo ? '<div class="md-motivo">Your newer file (' + esc(e.rechNuevo.nombre) + ') was rejected' + (e.rechNuevo.nota ? ': ' + esc(e.rechNuevo.nota) : '') + '. The one above still counts.</div>' : '') +
       (!t.agenteSube && !d ? '<div class="nota">Your administrator uploads this one.</div>' : '') +
     '</div><div class="md-acc">' +
       (t.plantilla && !per ? '<button class="btn btn-ghost btn-sm" type="button" data-md-plantilla="' + t.id + '">' + DOC_IC.bajar + 'Blank form</button>' : '') + subir +
@@ -5457,22 +5489,40 @@ function mdFila(t, per){
 }
 function pintarMisDocs(){
   const md = S.md;
-  const unicos = md.tipos.filter(t => !t.mensual), mensuales = md.tipos.filter(t => t.mensual && md.aportes);
+  const unicos = md.tipos.filter(t => !t.mensual), mensuales = md.tipos.filter(t => t.mensual && (docPersona(md.personas, t.id, md.usuario) || md.docs.some(d => d.tipoId === t.id)));
   let h = '';
-  if(!unicos.length && !mensuales.length) h = '<p class="nota">There are no documents for you yet.</p>';
+  const pays = (md.paystubs || []).filter(x => !x.reemplazado).sort((a, b) => b.periodoFin.localeCompare(a.periodoFin) || b.id - a.id);
+  if(!unicos.length && !mensuales.length && !pays.length) h = '<p class="nota">There are no documents for you yet.</p>';
   if(unicos.length) h += '<div class="md-lista">' + unicos.map(t => mdFila(t, null)).join('') + '</div>';
   mensuales.forEach(t => {
-    const meses = docMeses(t), ver = S.mdTodos ? meses : meses.slice(0, 6);
-    h += '<div class="ficha-sec md-mensual"><h3>' + esc(t.nombre) + ' — every month</h3>' + (t.descripcion ? '<p class="nota" style="margin:-4px 0 10px">' + esc(t.descripcion) + ' Due by day ' + t.diaLimite + ' of the next month.</p>' : '') +
+    const meses = docMesesDe(t, docPersona(md.personas, t.id, md.usuario), md.docs), ver = S.mdTodos ? meses : meses.slice(0, 6);
+    h += '<div class="ficha-sec md-mensual"><div class="md-cab"><h3>' + esc(t.nombre) + ' — every month</h3>' +
+        (t.plantilla ? '<button class="btn btn-ghost btn-sm" type="button" data-md-plantilla="' + t.id + '">' + DOC_IC.bajar + 'Blank form</button>' : '') + '</div>' +
+      '<p class="nota" style="margin:-4px 0 10px">' + (t.descripcion ? esc(t.descripcion) + ' ' : '') + 'Due by day ' + t.diaLimite + ' of the next month.</p>' +
       '<div class="md-lista">' + ver.map(m => mdFila(t, m)).join('') + '</div>' +
-      (meses.length > 6 ? '<button class="btn-link" type="button" id="mdMasMeses">' + (S.mdTodos ? 'Show fewer months' : 'Show all ' + meses.length + ' months') + '</button>' : '') + '</div>';
+      (meses.length > 6 ? '<button class="btn-link" type="button" data-md-mas>' + (S.mdTodos ? 'Show fewer months' : 'Show all ' + meses.length + ' months') + '</button>' : '') + '</div>';
   });
+  // Paystubs (los envía el administrador desde Comprobantes)
+  if(pays.length){
+    const verP = S.mdPayTodos ? pays : pays.slice(0, 6);
+    h += '<div class="ficha-sec md-mensual"><h3>Paystubs</h3><div class="md-lista">' + verP.map(x =>
+      '<div class="md-item md-' + (x.vistoEn ? 'ok' : 'falta') + ' md-pay"><div class="md-info"><b>Pay period ending ' + esc(fechaUS(x.periodoFin)) + '</b>' +
+        '<div class="md-est">' + (x.vistoEn ? '<span class="dc-chip dc-ok">Seen</span>' : '<span class="dc-chip dc-pend">New</span>') +
+        (x.neto ? '<small class="dc-sub">Net ' + esc(Number(x.neto).toLocaleString('es-CO', { maximumFractionDigits:0 })) + ' COP</small>' : '') + '</div></div>' +
+      '<div class="md-acc"><button class="btn btn-sm ' + (x.vistoEn ? 'btn-ghost' : 'btn-brand') + '" type="button" data-md-pay="' + x.id + '">' + DOC_IC.ver + 'View</button></div></div>').join('') + '</div>' +
+      (pays.length > 6 ? '<button class="btn-link" type="button" data-md-paymas>' + (S.mdPayTodos ? 'Show fewer' : 'Show all ' + pays.length) + '</button>' : '') + '</div>';
+  }
   $('mdCuerpo').innerHTML = h;
   pintarMisDocsN();
 }
 $('mdCuerpo').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if(!b) return;
-  if(b.id === 'mdMasMeses'){ S.mdTodos = !S.mdTodos; return pintarMisDocs(); }
+  if(b.hasAttribute('data-md-mas')){ S.mdTodos = !S.mdTodos; return pintarMisDocs(); }
+  if(b.hasAttribute('data-md-paymas')){ S.mdPayTodos = !S.mdPayTodos; return pintarMisDocs(); }
+  if(b.dataset.mdPay){ const x = (S.md.paystubs || []).find(y => y.id === Number(b.dataset.mdPay)); if(!x) return;
+    verDoc(payComoDoc(x));
+    if(!x.vistoEn){ try{ await api('docPaystubVisto', { id:x.id }); x.vistoEn = Date.now(); pintarMisDocs(); }catch(e){} }
+    return; }
   if(b.dataset.mdPlantilla){ const t = S.md.tipos.find(x => x.id === Number(b.dataset.mdPlantilla)); if(t) docDescargar(t.plantilla, t.plantillaNombre, b); return; }
   if(b.dataset.mdVer){ const d = S.md.docs.find(x => x.id === Number(b.dataset.mdVer)); if(d) verDoc(d); return; }
   if(b.dataset.mdSubir){ S.mdSubir = b.dataset.mdSubir; $('mdArchivo').value = ''; $('mdArchivo').click(); }
@@ -5502,10 +5552,16 @@ $('mdArchivo').addEventListener('change', () => {
   });
   if(fila) fila.scrollIntoView({ block:'nearest' });
 });
+const payComoDoc = x => ({ id:x.id, archivo:x.archivo, nombre:x.nombre, bytes:x.bytes, subidoEn:x.enviadoEn, periodo:null, mime:'application/pdf', pay:x });
 // ver un archivo (agente o admin) en una ventana con descarga
 function verDoc(d){
   $('vdTitulo').textContent = d.nombre;
-  $('vdSub').textContent = (d.periodo ? mesTxt(d.periodo) + ' · ' : '') + 'Uploaded ' + docEnMs(d.subidoEn) + (d.bytes ? ' · ' + tamTxt(d.bytes) : '');
+  $('vdSub').textContent = d.pay ? 'Pay period ending ' + fechaUS(d.pay.periodoFin) + ' · sent ' + docEnMs(d.subidoEn) + (d.pay.vistoEn ? ' · seen ' + docEnMs(d.pay.vistoEn) : '')
+    : (d.periodo ? mesTxt(d.periodo) + ' · ' : '') + 'Uploaded ' + docEnMs(d.subidoEn) + (d.bytes ? ' · ' + tamTxt(d.bytes) : '');
+  // el admin puede borrar un paystub enviado por error
+  const bo = $('vdBorrar'); bo.classList.toggle('hidden', !(d.pay && S.dc)); delete bo.dataset.seguro; bo.textContent = 'Delete'; bo.disabled = false;
+  bo.onclick = async () => { if(!bo.dataset.seguro){ bo.dataset.seguro = '1'; bo.textContent = 'Click again to delete'; return; }
+    bo.disabled = true; try{ await api('docPaystubBorrar', { id:d.id }); cerrar('ovVerDoc'); toast('Deleted.'); await cargarDocs(true); }catch(e){ toast(e.message, 'err'); bo.disabled = false; } };
   $('vdBajar').onclick = () => docDescargar(d.archivo, d.nombre, $('vdBajar'));
   abrir('ovVerDoc');
   docPrevia($('vdPrevia'), d);
@@ -5521,18 +5577,20 @@ async function cargarDocs(callado){
   catch(e){ $('dcTabla').innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
 }
 const dcTiposActivos = () => S.dc.tipos.filter(t => t.activo);
-function dcPestana(){ const m = dcTiposActivos().filter(t => t.mensual); if(S.dcPest && S.dcPest !== 'docs' && !m.some(t => String(t.id) === S.dcPest)) S.dcPest = 'docs'; return S.dcPest || 'docs'; }
+function dcPestana(){ const m = dcTiposActivos().filter(t => t.mensual); if(S.dcPest && S.dcPest !== 'docs' && S.dcPest !== 'pay' && !m.some(t => String(t.id) === S.dcPest)) S.dcPest = 'docs'; return S.dcPest || 'docs'; }
 // personas que se ven (búsqueda, cuenta, activos) y las celdas de cada una
 function dcFilas(){
   const dc = S.dc, bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value, pest = dcPestana();
   const tm = pest === 'docs' ? null : dc.tipos.find(t => String(t.id) === pest);
   let emps = dc.emps.filter(e => e.activo || dc.docs.some(d => d.usuario === e.usuario));
-  if(tm && !S.dcTodosAp) emps = emps.filter(e => e.docsAportes);
+  const pe = e => tm ? docPersona(dc.personas, tm.id, e.usuario) : null;
+  if(tm && !S.dcTodosAp) emps = emps.filter(e => pe(e));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
   if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
   const cols = tm ? docMeses(tm).slice(0, S.dcMesesTodos ? 240 : 6).reverse().map(m => ({ t:tm, per:m })) : dcTiposActivos().filter(t => !t.mensual).map(t => ({ t, per:null }));
   return { tm, cols, filas: emps.sort((a, b) => a.nombre.localeCompare(b.nombre, 'en')).map(e => ({ e,
-    celdas: cols.map(c => (tm && !e.docsAportes) ? { k:'vacio', sub:'', no:true } : docEstado(c.t, docsDe(dc.docs, e.usuario, c.t.id, c.per), c.per)) })) };
+    pe: pe(e), celdas: cols.map(c => (tm && (!pe(e) || c.per < pe(e).desdeMes) && !docsDe(dc.docs, e.usuario, c.t.id, c.per).length) ? { k:'vacio', sub:'', no:true }
+      : docEstado(c.t, docsDe(dc.docs, e.usuario, c.t.id, c.per), c.per)) })) };
 }
 const DC_FILTROS = { rev:['pendiente'], falta:['falta', 'atrasado'], venc:['vencido', 'porVencer'], rech:['rechazado'] };
 function pintarDocs(){
@@ -5542,9 +5600,11 @@ function pintarDocs(){
   if(sc.dataset.lista !== ctas.join('|')){ sc.innerHTML = '<option value="">All accounts</option>' + ctas.map(c => '<option>' + esc(c) + '</option>').join(''); sc.value = ctas.includes(va) ? va : ''; sc.dataset.lista = ctas.join('|'); }
   // pestañas: Documents + una por cada documento mensual
   const mens = dcTiposActivos().filter(t => t.mensual);
-  $('dcPestanas').innerHTML = [['docs', 'Documents']].concat(mens.map(t => [String(t.id), t.nombre])).map(([k, n]) => {
-    const pend = dc.docs.filter(d => d.estado === 'pendiente' && (k === 'docs' ? !(dc.tipos.find(t => t.id === d.tipoId) || {}).mensual : String(d.tipoId) === k)).length;
+  $('dcPestanas').innerHTML = [['docs', 'Documents']].concat(mens.map(t => [String(t.id), t.nombre])).concat([['pay', 'Paystubs']]).map(([k, n]) => {
+    const pend = k === 'pay' ? 0 : dc.docs.filter(d => d.estado === 'pendiente' && (k === 'docs' ? !(dc.tipos.find(t => t.id === d.tipoId) || {}).mensual : String(d.tipoId) === k)).length;
     return '<button type="button" role="tab" class="dc-pest" data-pest="' + esc(k) + '" aria-selected="' + (k === pest) + '">' + esc(n) + (pend ? ' <b class="badge">' + pend + '</b>' : '') + '</button>'; }).join('');
+  $('dcFiltro').classList.toggle('hidden', pest === 'pay');
+  if(pest === 'pay') return pintarPaystubs();
   const { tm, cols, filas } = dcFilas();
   // resumen (cada número filtra la tabla)
   const cuenta = ks => filas.reduce((a, f) => a + f.celdas.filter(c => ks.includes(c.k)).length, 0);
@@ -5563,7 +5623,8 @@ function pintarDocs(){
     vis.map(f => { const e = f.e, cc = colorCuenta(e.cuenta);
       return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') +
         '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
-        (tm ? '<td class="dc-req"><input type="checkbox" class="dc-ap" data-u="' + esc(e.usuario) + '" aria-label="' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '"' + (e.docsAportes ? ' checked' : '') + '></td>' : '') +
+        (tm ? '<td class="dc-req"><input type="checkbox" class="dc-ap" data-u="' + esc(e.usuario) + '" data-t="' + tm.id + '" aria-label="' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '"' + (f.pe ? ' checked' : '') + '>' +
+          (f.pe ? '<small>since ' + esc(mesTxt(f.pe.desdeMes, true)) + '</small>' : '') + '</td>' : '') +
         f.celdas.map((c, i) => c.no ? '<td class="dc-c"><span class="dc-na">—</span></td>' :
           '<td class="dc-c"><button type="button" class="dc-celda dc-' + DOC_EST[c.k].c + (fl && !DC_FILTROS[fl].includes(c.k) ? ' dc-tenue' : '') + '" data-u="' + esc(e.usuario) + '" data-t="' + cols[i].t.id + '"' + (cols[i].per ? ' data-p="' + cols[i].per + '"' : '') +
           ' title="' + esc(e.nombre + ' · ' + (cols[i].per ? mesTxt(cols[i].per) : cols[i].t.nombre) + ': ' + DOC_EST[c.k].t) + '"><span>' + DOC_EST[c.k].t + '</span>' + (c.sub && c.k !== 'rechazado' ? '<small>' + esc(c.sub) + '</small>' : '') + '</button></td>').join('') + '</tr>'; }).join('') +
@@ -5579,49 +5640,80 @@ $('dcBuscar').addEventListener('input', pintarDocs);
 $('dcTabla').addEventListener('change', async ev => {
   const c = ev.target.closest('.dc-ap'); if(!c) return;
   c.disabled = true;
-  try{ await api('docAportes', { usuario:c.dataset.u, obligado:c.checked }); const e = S.dc.emps.find(x => x.usuario === c.dataset.u); if(e) e.docsAportes = c.checked; pintarDocs(); }
+  try{ const r = await api('docPersona', { tipoId:Number(c.dataset.t), usuario:c.dataset.u, obligado:c.checked });
+    S.dc.personas = (S.dc.personas || []).filter(x => !(x.tipoId === Number(c.dataset.t) && x.usuario === c.dataset.u));
+    S.dc.personas.push({ tipoId:Number(c.dataset.t), usuario:c.dataset.u, desdeMes:r.desde || fechaHoy().slice(0, 7), activo:c.checked });
+    pintarDocs(); }
   catch(e){ c.checked = !c.checked; c.disabled = false; toast(e.message, 'err'); }
 });
-$('dcTabla').addEventListener('click', ev => { const b = ev.target.closest('.dc-celda'); if(b) abrirDoc(b.dataset.u, Number(b.dataset.t), b.dataset.p || null); });
+$('dcTabla').addEventListener('click', ev => { const b = ev.target.closest('.dc-celda'); if(!b) return;
+  if(b.dataset.pay){ const x = (S.dc.paystubs || []).find(y => y.id === Number(b.dataset.pay)); if(x) verDoc(payComoDoc(x)); return; }
+  abrirDoc(b.dataset.u, Number(b.dataset.t), b.dataset.p || null); });
+
+/* Paystubs: los envía el módulo «Comprobantes» (botón «Send to Time Clock»). Personas × quincenas: enviado / visto. */
+function pintarPaystubs(){
+  const dc = S.dc, pays = (dc.paystubs || []).filter(x => !x.reemplazado), bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value;
+  const periodos = [...new Set(pays.map(x => x.periodoFin))].sort().reverse(), cols = (S.dcPayTodos ? periodos : periodos.slice(0, 6)).slice().reverse();
+  let emps = dc.emps.filter(e => e.activo || pays.some(x => x.usuario === e.usuario));
+  if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
+  if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
+  emps.sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
+  const ult = periodos[0], deUlt = pays.filter(x => x.periodoFin === ult);
+  $('dcResumen').innerHTML = (ult ? '<span class="dc-num dc-fijo"><b>' + deUlt.length + '</b><small>Sent for ' + esc(fechaUS(ult)) + '</small></span>' +
+      '<span class="dc-num dc-fijo"><b>' + deUlt.filter(x => x.vistoEn).length + '</b><small>Opened</small></span>' +
+      '<span class="dc-num dc-fijo dc-n-rev"><b>' + deUlt.filter(x => !x.vistoEn).length + '</b><small>Not opened yet</small></span>' : '') +
+    '<span class="esp"></span><span class="nota" style="max-width:52ch">Paystubs are sent from <a href="paystubs.html" target="_blank" rel="noopener">Comprobantes</a>: generate them and press «Enviar al Time Clock».</span>' +
+    (periodos.length > 6 ? '<button class="btn-link" type="button" id="dcPayMas">' + (S.dcPayTodos ? 'Last 6 pay periods' : 'All pay periods') + '</button>' : '');
+  if(!periodos.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No paystubs sent yet.</div>'; return; }
+  if(!emps.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No one matches.</div>'; return; }
+  $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + cols.map(f => '<th class="dc-col">' + esc(fechaUS(f).replace(/, \d{4}$/, '')) + '<small>pay period end</small></th>').join('') + '</tr></thead><tbody>' +
+    emps.map(e => { const cc = colorCuenta(e.cuenta);
+      return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
+        cols.map(f => { const x = pays.find(y => y.usuario === e.usuario && y.periodoFin === f);
+          return '<td class="dc-c">' + (x ? '<button type="button" class="dc-celda dc-' + (x.vistoEn ? 'ok' : 'pend') + '" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>' + (x.vistoEn ? 'Opened' : 'Sent') + '</span><small>' +
+            esc(x.vistoEn ? docEnMs(x.vistoEn).replace(/, \d{4},/, ',') : 'not opened yet') + '</small></button>' : '<span class="dc-na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+}
+$('dcResumen').addEventListener('click', ev => { if(ev.target.id === 'dcPayMas'){ S.dcPayTodos = !S.dcPayTodos; pintarDocs(); } });
 
 // Ventana de un documento de una persona: el archivo, su estado, aprobar / rechazar, vencimiento, subir por ella e historial.
 function abrirDoc(u, tid, per){ S.dcAbierto = { u, tid, per, ver:null }; pintarDoc(); abrir('ovDoc'); }
 function pintarDoc(){
   const a = S.dcAbierto, dc = S.dc, t = dc.tipos.find(x => x.id === a.tid), e = dc.emps.find(x => x.usuario === a.u) || { nombre:a.u, usuario:a.u };
-  const lista = docsDe(dc.docs, a.u, a.tid, a.per), est = docEstado(t, lista, a.per), d = (a.ver && lista.find(x => x.id === a.ver)) || lista[0];
+  const lista = docsDe(dc.docs, a.u, a.tid, a.per), est = docEstado(t, lista, a.per), d = (a.ver && lista.find(x => x.id === a.ver)) || est.doc || lista[0];
   $('odTitulo').textContent = (a.per ? t.nombre + ' — ' + mesTxt(a.per) : t.nombre);
   $('odSub').innerHTML = esc(e.nombre) + (e.cuenta ? ' · ' + esc(e.cuenta) : '') + ' &nbsp; ' + docChip(est.k, est.k === 'rechazado' ? '' : est.sub);
   const prev = $('odPrevia');
   if(!d){ prev.innerHTML = '<div class="dc-previa-msg">' + DOC_IC.doc + '<b>Nothing uploaded yet</b><span>' + (t.agenteSube ? esc(e.nombre) + ' can upload it from My documents, or you can upload it here.' : 'Upload it here.') + '</span></div>'; }
   else docPrevia(prev, d);
-  const esUltimo = d && d === lista[0];
+  const esVigente = d && d === est.doc;
   let h = '';
   if(d){
+    if(!esVigente && est.doc) h += '<p class="od-aviso">This is an older file from the history. The one that counts is from ' + esc(docEnMs(est.doc.subidoEn)) + '.</p>';
     h += '<div class="od-dato"><small>File</small><b>' + esc(d.nombre) + '</b>' + (d.bytes ? ' <span class="nota">' + tamTxt(d.bytes) + '</span>' : '') + '</div>' +
       '<div class="od-dato"><small>Uploaded</small>' + esc(docEnMs(d.subidoEn)) + ' by ' + esc(d.subidoPor === a.u ? e.nombre : d.subidoPor) + '</div>' +
       (d.fechaDoc ? '<div class="od-dato"><small>Date on the document</small>' + esc(fechaUS(d.fechaDoc)) + '</div>' : '') +
       (d.revisadoEn ? '<div class="od-dato"><small>' + (d.estado === 'rechazado' ? 'Rejected' : 'Approved') + '</small>' + esc(docEnMs(d.revisadoEn)) + ' by ' + esc(d.revisadoPor) + '</div>' : '') +
       (d.nota ? '<div class="od-dato"><small>Note</small>' + esc(d.nota) + '</div>' : '') +
       '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odBajar">' + DOC_IC.bajar + 'Download</button></div>';
-    if(esUltimo && d.estado === 'pendiente'){
+    if(d && d.estado === 'pendiente'){
       h += '<div class="od-rev"><h4>Review</h4>' + (t.vence !== 'nunca' && !t.mensual ? '<label class="campo"><span>Expires on</span><input type="date" id="odVence" value="' + docVenceDefecto(t, d.fechaDoc) + '"></label>' : '') +
         '<div class="od-btns"><button class="btn btn-brand btn-sm" type="button" id="odAprobar">Approve</button><button class="btn btn-peligro btn-sm" type="button" id="odRechazarAbrir">Reject…</button></div>' +
         '<div class="hidden" id="odRechCaja"><label class="campo"><span>Why? (the agent will see this)</span><textarea id="odMotivo" rows="2" maxlength="500"></textarea></label>' +
         '<div class="od-btns"><button class="btn btn-peligro btn-sm" type="button" id="odRechazar">Reject</button></div></div></div>';
-    } else if(esUltimo && d.estado === 'aprobado'){
+    } else if(d && d.estado === 'aprobado'){
       h += '<div class="od-rev">' + (t.vence !== 'nunca' && !t.mensual || d.vence ? '<label class="campo"><span>Expires on</span><input type="date" id="odVence" value="' + (d.vence || '') + '"></label><div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odGuardarVence">Save date</button></div>' : '') +
         '<div class="od-btns"><button class="btn-link" type="button" id="odRechazarAbrir">Reject it (ask for a new one)</button></div>' +
         '<div class="hidden" id="odRechCaja"><label class="campo"><span>Why? (the agent will see this)</span><textarea id="odMotivo" rows="2" maxlength="500"></textarea></label>' +
         '<div class="od-btns"><button class="btn btn-peligro btn-sm" type="button" id="odRechazar">Reject</button></div></div></div>';
-    } else if(esUltimo && d.estado === 'rechazado'){
+    } else if(d && d.estado === 'rechazado'){
       h += '<div class="od-rev"><div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odAprobar">Approve it anyway</button></div></div>';
     }
   }
   h += '<div class="od-rev"><h4>Upload for ' + esc(e.nombre) + '</h4><p class="nota" style="margin:0 0 8px">It is saved as approved.</p>' +
     (t.vence === 'meses' ? '<label class="campo"><span>Date on the document</span><input type="date" id="odFechaDoc" max="' + fechaHoy() + '"></label>' : '') +
     '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odSubir">' + DOC_IC.subir + 'Choose file…</button></div></div>';
-  if(lista.length > 1 || (d && !esUltimo)) h += '<div class="od-hist"><h4>History</h4>' + lista.map(x => '<button type="button" class="od-h' + (d && x.id === d.id ? ' activo' : '') + '" data-ver="' + x.id + '"><span>' + esc(docEnMs(x.subidoEn)) + '</span>' +
-    docChip(x.estado === 'aprobado' ? (x.vence && x.vence < fechaHoy() ? 'vencido' : 'ok') : x.estado === 'pendiente' ? 'pendiente' : 'rechazado', '') + '<small>' + esc(x.nombre) + '</small></button>').join('') + '</div>';
+  if(lista.length > 1) h += '<div class="od-hist"><h4>History</h4>' + lista.map(x => '<button type="button" class="od-h' + (d && x.id === d.id ? ' activo' : '') + '" data-ver="' + x.id + '"><span>' + esc(docEnMs(x.subidoEn)) + '</span>' +
+    docChip(x.estado === 'aprobado' ? (x.vence && x.vence < fechaHoy() ? 'vencido' : 'ok') : x.estado === 'pendiente' ? 'pendiente' : 'rechazado', '') + '<small>' + esc(x.nombre) + (x === est.doc ? ' · <b>this one counts</b>' : '') + '</small></button>').join('') + '</div>';
   if(d) h += '<div class="od-borrar"><button class="btn-link od-peligro" type="button" id="odBorrar">Delete this file</button></div>';
   $('odLado').innerHTML = h + '<div class="err" id="odErr" role="alert"></div>';
   const err = m => { $('odErr').textContent = m || ''; };
@@ -7265,7 +7357,7 @@ function demoDocsInit(){
     { id:2, nombre:'HIPAA', descripcion:'Certificado del curso HIPAA. Vale por un año: cuando venza hay que hacer el curso otra vez y subir el nuevo certificado.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'meses', venceFecha:'', venceMeses:12, mensual:false, desdeMes:'', diaLimite:10, orden:2, activo:true },
     { id:3, nombre:'W-8BEN', descripcion:'Formulario W-8BEN firmado.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:3, activo:true },
     { id:4, nombre:'Resume', descripcion:'Hoja de vida con la que aplicó al trabajo (informativo).', plantilla:null, plantillaNombre:'', obligatorio:false, agenteSube:true, revision:false, vence:'nunca', venceFecha:'', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:4, activo:true },
-    { id:5, nombre:'Formato de Cuenta de Cobro', descripcion:'Formato de cuenta de cobro diligenciado.', plantilla:'plantillas/5/demo-CUENTA_DE_COBRO.pdf', plantillaNombre:'Formato Cuenta de Cobro.pdf', obligatorio:false, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:5, activo:true },
+    { id:5, nombre:'Cuenta de Cobro', descripcion:'Cuenta de cobro del mes, diligenciada en el formato.', plantilla:'plantillas/5/demo-CUENTA_DE_COBRO.pdf', plantillaNombre:'Formato Cuenta de Cobro.pdf', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:true, desdeMes:mesAnt(3), diaLimite:10, orden:5, activo:true },
     { id:6, nombre:'Aportes', descripcion:'Certificado de pago de aportes a seguridad social del mes.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:true, desdeMes:mesAnt(5), diaLimite:10, orden:6, activo:true }
   ];
   DM.docTipoId = 6; DM.docId = 0; DM.docs = []; DM.docFiles = new Map();
@@ -7299,15 +7391,29 @@ function demoDocsInit(){
   // Hebert: aportes atrasados
   add('hebert.h', 6, 'aportes ' + mesAnt(5) + '.pdf', 'aprobado', 140, { periodo:mesAnt(5), vence:'' });
   add('hebert.h', 6, 'aportes ' + mesAnt(4) + '.pdf', 'rechazado', 110, { periodo:mesAnt(4), nota:'Es de otro mes.' });
-  DM.emps.forEach(e => { e.docsAportes = e.usuario === 'laura.a' || e.usuario === 'hebert.h'; });
+  // quién presenta cada mensual: Aportes (Laura y Hebert, desde el primer mes), Cuenta de cobro (todos, desde hace 3 meses; Saori desde el mes pasado)
+  DM.docPersonas = [{ tipoId:6, usuario:'laura.a', desdeMes:mesAnt(5) }, { tipoId:6, usuario:'hebert.h', desdeMes:mesAnt(5) }]
+    .concat(DM.emps.map(e => ({ tipoId:5, usuario:e.usuario, desdeMes: e.usuario === 'saori.m' ? mesAnt(1) : mesAnt(3) })));
+  [3, 2, 1].forEach(n => ['laura.a', 'claudia.c', 'farouk.n'].forEach(u => add(u, 5, 'Cuenta de cobro ' + mesAnt(n) + '.pdf', n === 1 && u === 'farouk.n' ? 'pendiente' : 'aprobado', n * 30 - 25, { periodo:mesAnt(n), vence:'' })));
+  // Laura: en agosto subió uno bueno (aprobado) y luego otro equivocado (rechazado): sigue contando el bueno
+  add('laura.a', 5, 'Cuenta de cobro equivocada.pdf', 'rechazado', 50, { periodo:mesAnt(3), nota:'Es la cuenta de cobro de otro mes.' });
+  // Paystubs de las últimas quincenas (los manda «Comprobantes»)
+  DM.paystubs = []; DM.payId = 0;
+  const finQ = n => { let d = new Date(Date.UTC(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 1, Number(hoy.slice(8, 10)) <= 15 ? 0 : 15)); for(let i = 0; i < n; i++) d = d.getUTCDate() === 15 ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)) : new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 15)); return d.toISOString().slice(0, 10); };
+  [3, 2, 1, 0].forEach(n => DM.emps.forEach((e, i) => { const f = finQ(n), id = ++DM.payId, ruta = e.usuario + '/paystubs/demo' + id + '-' + e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf';
+    DM.docFiles.set(ruta, demoPdf('PAYSTUB ' + e.nombre + ' - pay period ending ' + f));
+    DM.paystubs.push({ id, usuario:e.usuario, periodoFin:f, periodo:'', archivo:ruta, nombre:e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf', bytes:42000 + i * 311, neto:1200000 + i * 98500,
+      enviadoPor:'carloshtl75', enviadoEn:Date.parse(f + 'T22:00:00Z') + 86400000, vistoEn: n > 0 || i % 2 ? Date.parse(f + 'T22:00:00Z') + 2 * 86400000 : null, reemplazado:false }); }));
 }
 const demoCopia = x => JSON.parse(JSON.stringify(x));
 async function demoDocs(action, p){
   demoDocsInit();
   const yo = S.demoAgente ? 'laura.a' : 'carloshtl75', adm = !S.demoAgente;
   const soloAdm = () => { if(!adm) throw new Error('Only an administrator can review documents.'); };
-  if(action === 'docsAdmin'){ soloAdm(); return { tipos:demoCopia(DM.docTipos), docs:demoCopia(DM.docs), emps:DM.emps.map(e => Object.assign({}, e)) }; }
-  if(action === 'docsMios') return { usuario:'laura.a', tipos:demoCopia(DM.docTipos.filter(t => t.activo)), docs:demoCopia(DM.docs.filter(d => d.usuario === 'laura.a')), aportes:!!DM.emps.find(e => e.usuario === 'laura.a' && e.docsAportes) };
+  if(action === 'docsAdmin'){ soloAdm(); return { tipos:demoCopia(DM.docTipos), docs:demoCopia(DM.docs), emps:DM.emps.map(e => Object.assign({}, e)), personas:demoCopia(DM.docPersonas), paystubs:demoCopia(DM.paystubs) }; }
+  if(action === 'docsMios') return { usuario:'laura.a', tipos:demoCopia(DM.docTipos.filter(t => t.activo)), docs:demoCopia(DM.docs.filter(d => d.usuario === 'laura.a')),
+    personas:demoCopia(DM.docPersonas.filter(x => x.usuario === 'laura.a')), paystubs:demoCopia(DM.paystubs.filter(x => x.usuario === 'laura.a')) };
+  if(action === 'docPaystubVisto'){ const x = DM.paystubs.find(y => y.id === p.id && y.usuario === yo); if(x && !x.vistoEn) x.vistoEn = Date.now(); return { ok:true }; }
   if(action === 'docsPorRevisar') return DM.docs.filter(d => d.estado === 'pendiente').length;
   if(action === 'docArchivo'){ const b = DM.docFiles.get(p.ruta); if(!b) throw new Error('That file is not available.'); return b; }
   if(action === 'docSubir'){
@@ -7332,7 +7438,13 @@ async function demoDocs(action, p){
   }
   if(action === 'docVence'){ const d = DM.docs.find(x => x.id === p.id); if(d) d.vence = p.vence || ''; return { ok:true }; }
   if(action === 'docBorrar'){ const i = DM.docs.findIndex(x => x.id === p.id); if(i < 0) throw new Error('That document no longer exists. Reload the page.'); DM.docFiles.delete(DM.docs[i].archivo); DM.docs.splice(i, 1); return { ok:true }; }
-  if(action === 'docAportes'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(e) e.docsAportes = !!p.obligado; return { ok:true }; }
+  if(action === 'docPersona'){
+    const t = DM.docTipos.find(x => x.id === p.tipoId), ya = DM.docPersonas.find(x => x.tipoId === p.tipoId && x.usuario === p.usuario);
+    let d = p.desde || (ya ? ya.desdeMes : fechaHoy().slice(0, 7)); if(t && d < t.desdeMes) d = t.desdeMes;
+    if(ya){ ya.activo = !!p.obligado; ya.desdeMes = d; } else if(p.obligado) DM.docPersonas.push({ tipoId:p.tipoId, usuario:p.usuario, desdeMes:d, activo:true });
+    return { ok:true, desde:d };
+  }
+  if(action === 'docPaystubBorrar'){ const i = DM.paystubs.findIndex(x => x.id === p.id); if(i >= 0){ DM.docFiles.delete(DM.paystubs[i].archivo); DM.paystubs.splice(i, 1); } return { ok:true }; }
   if(action === 'docTipoGuardar'){
     const x = p.tipo; if(!x.nombre) throw new Error('Write the name.');
     if(x.mensual && !x.desdeMes) throw new Error('Choose the first month.');
