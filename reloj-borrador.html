@@ -1050,8 +1050,11 @@ body.aw .aw-panel > [data-aw="docs"] .pie{display:none}
 .md-h small{color:var(--text-muted)}.md-h .md-motivo{flex-basis:100%;margin:0}
 .aw-movil{display:none}
 .aw-cortina{display:none}
-body.aw-web .aw-panel > [data-aw]{max-width:980px}
-body.aw-web .aw-fijo{max-width:1020px}
+body.aw-web .aw-panel > [data-aw]{max-width:900px}
+body.aw.aw-web #vReloj .reloj-grid{grid-template-columns:230px minmax(0,1fr)}
+body.aw.aw-app #vReloj .reloj-grid{grid-template-columns:206px minmax(0,1fr)}
+body.aw.aw-web .aw-fijo{grid-template-columns:minmax(0,430px) 220px;justify-content:start}
+body.aw .aw-item{white-space:nowrap}
 @media (max-width:760px){
   body.aw.aw-web{overflow:auto;height:auto}
   body.aw.aw-web #vReloj .reloj-grid{display:block !important;height:auto}
@@ -5519,7 +5522,8 @@ function misDocsPendientes(md){ return md.tipos.reduce((n, t) => n + mdPendDe(md
 // los documentos que ve el agente: los de una vez, los mensuales que le piden (o que ya subió) y los paystubs
 function mdSecciones(md){
   return md.tipos.filter(t => !t.mensual || docPersona(md.personas, t.id, md.usuario) || md.docs.some(d => d.tipoId === t.id))
-    .map(t => ({ k:'t:' + t.id, t, nombre:t.nombre })).concat([{ k:'pay', nombre:'Paystubs' }]);
+    .map(t => ({ k:'t:' + t.id, t, nombre:t.nombre })).concat([{ k:'pay', nombre:'Paystubs' }])
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity:'base' }));   // en orden alfabético
 }
 // submenú de «Documents» en el menú lateral (navegador y app): un ítem por documento, con su número rojo
 function pintarMenuDocs(){
@@ -7454,7 +7458,6 @@ function demoDocsInit(){
   DM.docTipos = [
     { id:1, nombre:'Contrato 2026', descripcion:'Por favor revisar y firmar el nuevo contrato Freelance para el año 2026. Descargue el formato, fírmelo y súbalo.', plantilla:'plantillas/1/demo-CONTRATO_FREELANCE.pdf', plantillaNombre:'CONTRATO DE PRESTACION DE SERVICIOS FREELANCE.pdf', obligatorio:true, agenteSube:true, revision:true, vence:'fecha', venceFecha:'2027-01-31', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:1, activo:true },
     { id:2, nombre:'HIPAA', descripcion:'Certificado del curso HIPAA. Vale por un año: cuando venza hay que hacer el curso otra vez y subir el nuevo certificado.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'meses', venceFecha:'', venceMeses:12, mensual:false, desdeMes:'', diaLimite:10, orden:2, activo:true },
-    { id:3, nombre:'W-8BEN', descripcion:'Formulario W-8BEN firmado.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:3, activo:true },
     { id:4, nombre:'Resume', descripcion:'Hoja de vida con la que aplicó al trabajo (informativo).', plantilla:null, plantillaNombre:'', obligatorio:false, agenteSube:true, revision:false, vence:'nunca', venceFecha:'', venceMeses:null, mensual:false, desdeMes:'', diaLimite:10, orden:4, activo:true },
     { id:5, nombre:'Cuenta de Cobro', descripcion:'Cuenta de cobro del mes, diligenciada en el formato.', plantilla:'plantillas/5/demo-CUENTA_DE_COBRO.pdf', plantillaNombre:'Formato Cuenta de Cobro.pdf', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:true, desdeMes:mesAnt(3), diaLimite:10, orden:5, activo:true },
     { id:6, nombre:'Aportes', descripcion:'Certificado de pago de aportes a seguridad social del mes.', plantilla:null, plantillaNombre:'', obligatorio:true, agenteSube:true, revision:true, vence:'nunca', venceFecha:'', venceMeses:null, mensual:true, desdeMes:mesAnt(5), diaLimite:10, orden:6, activo:true }
@@ -7470,7 +7473,7 @@ function demoDocsInit(){
       estado, subidoPor:u, subidoEn:hace(dias), revisadoPor:estado === 'pendiente' ? '' : 'carloshtl75', revisadoEn:estado === 'pendiente' ? null : hace(dias - 1),
       nota:'', vence: estado === 'aprobado' ? docVenceDefecto(t, fechaDoc) : '' }, extra || {}));
   };
-  // Laura (la agente del ejemplo): contrato aprobado, HIPAA vencido, falta el W-8BEN, aportes del mes pasado por revisar
+  // Laura (la agente del ejemplo): contrato aprobado, HIPAA vencido, aportes del mes pasado por revisar
   add('laura.a', 1, 'Contrato Laura firmado.pdf', 'aprobado', 40);
   add('laura.a', 2, 'HIPAA certificate.pdf', 'aprobado', 400, { fechaDoc:sumarDias(hoy, -390), vence:sumarDias(hoy, -25) });
   add('laura.a', 4, 'Resume Laura Acevedo.pdf', 'aprobado', 600);
@@ -7479,15 +7482,14 @@ function demoDocsInit(){
   // Claudia: todo al día, HIPAA vence pronto
   add('claudia.c', 1, 'Contrato Claudia.pdf', 'aprobado', 50);
   add('claudia.c', 2, 'Certificado HIPAA Claudia.pdf', 'aprobado', 350, { fechaDoc:sumarDias(hoy, -350), vence:sumarDias(hoy, 15) });
-  add('claudia.c', 3, 'W8BEN Claudia.pdf', 'aprobado', 300);
-  // Farouk: contrato por revisar, W-8BEN rechazado
+  // Farouk: contrato por revisar
   add('farouk.n', 1, 'contrato farouk firmado.pdf', 'pendiente', 1);
-  add('farouk.n', 3, 'w8ben.pdf', 'rechazado', 6, { nota:'Falta la firma en la página 1.' });
   add('farouk.n', 2, 'hipaa farouk.pdf', 'pendiente', 0, { fechaDoc:sumarDias(hoy, -2) });
   // Saori: contrato y HIPAA aprobados
   add('saori.m', 1, 'Contrato Saori.pdf', 'aprobado', 45);
   add('saori.m', 2, 'HIPAA Saori.pdf', 'aprobado', 100, { fechaDoc:sumarDias(hoy, -100) });
-  // Hebert: aportes atrasados
+  // Hebert: HIPAA rechazado; aportes atrasados
+  add('hebert.h', 2, 'certificado.pdf', 'rechazado', 6, { nota:'Es el certificado de otra persona.' });
   add('hebert.h', 6, 'aportes ' + mesAnt(5) + '.pdf', 'aprobado', 140, { periodo:mesAnt(5), vence:'' });
   add('hebert.h', 6, 'aportes ' + mesAnt(4) + '.pdf', 'rechazado', 110, { periodo:mesAnt(4), nota:'Es de otro mes.' });
   // quién presenta cada mensual: Aportes (Laura y Hebert, desde el primer mes), Cuenta de cobro (todos, desde hace 3 meses; Saori desde el mes pasado)
