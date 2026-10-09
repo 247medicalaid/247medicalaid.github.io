@@ -966,7 +966,9 @@ table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:
 .dc-mat .dc-quien{position:sticky;left:0;z-index:1;background:var(--paper);min-width:190px;padding-left:14px}
 .dc-mat th.dc-quien{z-index:3;background:var(--sand)}
 .dc-mat td.dc-quien b{display:block;font-size:13.5px}.dc-mat td.dc-quien small{color:var(--text-muted);font-size:12px}
-.dc-mat .dc-req{text-align:center;width:70px}
+.dc-mat .dc-req{text-align:center;width:128px}
+.dc-desde-l{display:block;font-size:10.5px;color:var(--text-muted);margin-top:3px;white-space:nowrap}
+.dc-desde{font:inherit;font-size:11.5px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--text);width:112px}
 .dc-celda{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font:inherit;cursor:pointer;padding:5px 8px;text-align:left;display:flex;flex-direction:column;justify-content:center}
 .dc-celda span{font-weight:700;font-size:12.5px}.dc-celda small{font-size:11px;color:var(--text-muted);white-space:nowrap}
 .dc-celda:hover{box-shadow:var(--shadow-sm);border-color:var(--brand-500)}
@@ -2156,7 +2158,7 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede enviar comprobantes\.$/, 'Only an administrator can send paystubs.'],
   [/^Usa un PDF, una foto.*/, 'Use a PDF, a photo (JPG or PNG) or a Word file.'],
   [/^Ese documento ya tiene archivos: no se puede cambiar.*/, 'This document already has files: it can\'t switch between «one per person» and «one per month». Create a new one.'],
-  [/reloj_doc_|reloj_docs|reloj_doc_tipos/, 'Documents need SQL step 36 in Supabase.'],
+  [/^.*(reloj_doc_|reloj_docs|reloj_doc_tipos|reloj_paystubs).*$/, 'Documents need SQL step 36 in Supabase.'],
   [/^La fecha debe ser de hoy o de los últimos 31 días\.$/, 'The date must be today or within the last 31 days.'],
   [/^Completa las dos horas\.$/, 'Fill in both times.'],
   [/^La hora de fin debe ser después de la de inicio\.$/, 'The end time must be after the start time.'],
@@ -5727,7 +5729,8 @@ function pintarDocs(){
       return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') +
         '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
         (tm ? '<td class="dc-req"><input type="checkbox" class="dc-ap" data-u="' + esc(e.usuario) + '" data-t="' + tm.id + '" aria-label="' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '"' + (f.pe ? ' checked' : '') + '>' +
-          (f.pe ? '<small>since ' + esc(mesTxt(f.pe.desdeMes, true)) + '</small>' : '') + '</td>' : '') +
+          (f.pe ? '<label class="dc-desde-l">since <input type="month" class="dc-desde" data-u="' + esc(e.usuario) + '" data-t="' + tm.id + '" value="' + esc(f.pe.desdeMes) +
+            '" min="' + esc(tm.desdeMes) + '" max="' + fechaHoy().slice(0, 7) + '" title="From which month ' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '" aria-label="' + esc(e.nombre) + ': since month"></label>' : '') + '</td>' : '') +
         f.celdas.map((c, i) => c.no ? '<td class="dc-c"><span class="dc-na">—</span></td>' :
           '<td class="dc-c"><button type="button" class="dc-celda dc-' + DOC_EST[c.k].c + (fl && !DC_FILTROS[fl].includes(c.k) ? ' dc-tenue' : '') + '" data-u="' + esc(e.usuario) + '" data-t="' + cols[i].t.id + '"' + (cols[i].per ? ' data-p="' + cols[i].per + '"' : '') +
           ' title="' + esc(e.nombre + ' · ' + (cols[i].per ? mesTxt(cols[i].per) : cols[i].t.nombre) + ': ' + DOC_EST[c.k].t) + '"><span>' + DOC_EST[c.k].t + '</span>' + (c.sub && c.k !== 'rechazado' ? '<small>' + esc(c.sub) + '</small>' : '') + '</button></td>').join('') + '</tr>'; }).join('') +
@@ -5741,6 +5744,17 @@ $('dcResumen').addEventListener('change', ev => { if(ev.target.id === 'dcTodosAp
 ['dcCuenta', 'dcFiltro'].forEach(id => $(id).addEventListener('change', pintarDocs));
 $('dcBuscar').addEventListener('input', pintarDocs);
 $('dcTabla').addEventListener('change', async ev => {
+  // desde qué mes debe presentar el documento mensual
+  const dm = ev.target.closest('.dc-desde');
+  if(dm){
+    const t = S.dc.tipos.find(x => x.id === Number(dm.dataset.t)), v = dm.value, pe = docPersona(S.dc.personas, Number(dm.dataset.t), dm.dataset.u);
+    if(!v || !t || !pe) return;
+    if(v < t.desdeMes || v > fechaHoy().slice(0, 7)){ dm.value = pe.desdeMes; return toast('Choose a month between ' + mesTxt(t.desdeMes) + ' and this month.', 'err'); }
+    dm.disabled = true;
+    try{ const r = await api('docPersona', { tipoId:t.id, usuario:dm.dataset.u, obligado:true, desde:v }); pe.desdeMes = r.desde || v; toast('Saved: since ' + mesTxt(pe.desdeMes) + '.'); pintarDocs(); }
+    catch(e){ dm.value = pe.desdeMes; dm.disabled = false; toast(e.message, 'err'); }
+    return;
+  }
   const c = ev.target.closest('.dc-ap'); if(!c) return;
   c.disabled = true;
   try{ const r = await api('docPersona', { tipoId:Number(c.dataset.t), usuario:c.dataset.u, obligado:c.checked });
