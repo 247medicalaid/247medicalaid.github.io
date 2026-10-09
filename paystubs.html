@@ -467,6 +467,20 @@ td {
 .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
 .btn-cancel { padding: 10px 20px; background: var(--stone); border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; color: var(--ink); }
 .btn-save   { padding: 10px 22px; background: var(--green); border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 700; cursor: pointer; color: white; }
+
+/* ── Enviar al Time Clock ── */
+.tc-tabla{width:100%;border-collapse:collapse;font-size:.83rem;margin:4px 0 8px}
+.tc-tabla th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--stone)}
+.tc-tabla td{padding:6px 8px;border-bottom:1px solid var(--cream);vertical-align:middle}
+.tc-tabla select{width:100%;padding:6px 8px;border:1.5px solid var(--stone);border-radius:8px;font:inherit;font-size:.82rem;background:#fff;color:var(--ink);appearance:auto;-webkit-appearance:auto}
+.tc-tabla select option{color:var(--ink);background:#fff}
+.tc-tabla tr.tc-sin td{background:#FFF8E6}
+.tc-tabla td.tc-num{text-align:right;white-space:nowrap;font-family:'DM Mono',monospace}
+.tc-est{font-size:.75rem;white-space:nowrap}.tc-est.ok{color:var(--green);font-weight:700}.tc-est.err{color:var(--red);font-weight:700}.tc-est.rep{color:#92400E}
+.tc-prog{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:.82rem;color:var(--muted)}
+.tc-barra{flex:1;height:8px;background:var(--stone);border-radius:99px;overflow:hidden}.tc-barra i{display:block;height:100%;width:0;background:var(--sky);transition:width .2s}
+.tc-aviso{background:#FFF8E6;color:#92400E;border-radius:8px;padding:8px 12px;font-size:.82rem;margin-bottom:10px}
+.tc-error{background:#FDECEC;color:var(--red);border-radius:8px;padding:10px 12px;font-size:.85rem}
 .missing-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .missing-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -802,6 +816,9 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
         </button>
         <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">
           ⬇️ Descargar PDF — Todos juntos
+        </button>
+        <button class="dl-btn" id="tc-btn" onclick="abrirEnvioReloj()" style="background:#0E86B4;" title="Cada agente ve su comprobante en el Time Clock">
+          📤 Enviar al Time Clock
         </button>
       </div>
     </div>
@@ -2331,6 +2348,146 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
   img.addEventListener('error', fallar);
   if(img.complete && img.naturalWidth === 0) fallar();
 });
+</script>
+
+<!-- ── MODAL ENVIAR AL TIME CLOCK ─────────────────────────────── -->
+<div class="modal-overlay" id="modal-reloj">
+  <div class="modal" style="width:820px;">
+    <h3>📤 Enviar paystubs al Time Clock</h3>
+    <p id="tc-sub">Cada agente verá su comprobante en el Time Clock → Documents → Paystubs.</p>
+    <div id="tc-cuerpo"></div>
+    <div class="tc-prog" id="tc-prog" style="display:none"><div class="tc-barra"><i id="tc-barra-i"></i></div><span id="tc-prog-t"></span></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="tc-cerrar" onclick="cerrarEnvioReloj()">Cerrar</button>
+      <button class="btn-save" id="tc-enviar" onclick="enviarAlReloj()" style="background:#0E86B4;">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sb.js?v=3"></script>
+<script>
+/* ── Enviar los paystubs al Time Clock (Supabase, paso 36) ── */
+const TC_BUCKET = 'reloj-docs';
+const tcNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const tcEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const tcCOP = n => '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+let tcEstado = null;
+function tcFechaISO(mdy){ const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(mdy || '').trim()); return m ? m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0') : ''; }
+// El usuario del Time Clock de una persona de la nómina. Exacto (nombre de nómina o nombre, sin tildes ni mayúsculas) → se
+// marca para enviar. Aproximado (todas las palabras del nombre del Time Clock están en el de la nómina) → se propone pero NO se
+// marca: un paystub nunca debe llegar a otra persona por un parecido de nombre.
+function tcEmparejar(nombre, emps){
+  const n = tcNorm(nombre); if(!n) return null;
+  const t = n.split(' '), uno = l => l.length === 1 ? l[0] : null;
+  const exacto = uno(emps.filter(e => e.nombre_nomina && tcNorm(e.nombre_nomina) === n)) || uno(emps.filter(e => tcNorm(e.nombre) === n));
+  if(exacto) return { e:exacto, exacto:true };
+  const contiene = campo => emps.filter(e => e.activo && e[campo]).filter(e => { const r = tcNorm(e[campo]).split(' ').filter(Boolean); return r.length >= 2 && r.every(w => t.includes(w)); });
+  const aprox = uno(contiene('nombre_nomina')) || uno(contiene('nombre'));
+  return aprox ? { e:aprox, exacto:false } : null;
+}
+function cerrarEnvioReloj(){ if(tcEstado && tcEstado.enviando) return; document.getElementById('modal-reloj').classList.remove('show'); }
+async function abrirEnvioReloj(){
+  if(!empleados.length) return;
+  if(typeof verificarNominaDoble === 'function' && !verificarNominaDoble()) return;
+  const sel = document.getElementById('period-select'), p = periodos[parseInt(sel.value)];
+  const fin = tcFechaISO(empleados[0].end);
+  const cuerpo = document.getElementById('tc-cuerpo');
+  document.getElementById('tc-prog').style.display = 'none';
+  document.getElementById('tc-enviar').style.display = 'none';
+  document.getElementById('tc-sub').textContent = 'Cada agente verá su comprobante en el Time Clock → Documents → Paystubs.';
+  cuerpo.innerHTML = '<p><span class="spinner" style="border-color:#0E86B4;border-top-color:transparent"></span> Buscando a cada persona en el Time Clock…</p>';
+  document.getElementById('modal-reloj').classList.add('show');
+  try{
+    if(!fin) throw new Error('No se pudo leer la fecha final de la quincena.');
+    if(!window.sb) throw new Error('No se pudo cargar la conexión con la base de datos. Revisa el internet y recarga la página.');
+    const ses = (await window.sb.auth.getSession()).data.session;
+    if(!ses) throw new Error('Para enviar al Time Clock, sal del portal y vuelve a entrar una vez con tu usuario y contraseña.');
+    const [r1, r2] = await Promise.all([
+      window.sb.from('reloj_empleados').select('usuario,nombre,nombre_nomina,activo'),
+      window.sb.from('reloj_paystubs').select('usuario,enviado_en').eq('periodo_fin', fin).eq('reemplazado', false)]);
+    if(r1.error) throw r1.error; if(r2.error) throw r2.error;
+    const emps = r1.data || [], ya = new Map((r2.data || []).map(x => [x.usuario, x.enviado_en]));
+    tcEstado = { p, fin, emps, ya, enviando:false, filas: empleados.map((e, i) => {
+      const m = tcEmparejar(e.nombre, emps);
+      return { i, e, usuario: m ? m.e.usuario : '', auto: !!m, aprox: !!(m && !m.exacto), enviar: !!(m && m.exacto), estado:'', err:'' }; }) };
+    // si dos filas de la nómina caen en el mismo usuario, ninguna se envía sola: se revisa a mano
+    const cuenta = {}; tcEstado.filas.forEach(f => { if(f.usuario) cuenta[f.usuario] = (cuenta[f.usuario] || 0) + 1; });
+    tcEstado.filas.forEach(f => { if(f.usuario && cuenta[f.usuario] > 1){ f.enviar = false; f.dup = true; } });
+    pintarEnvioReloj();
+  }catch(err){
+    const m = String(err && err.message || err);
+    cuerpo.innerHTML = '<div class="tc-error">' + tcEsc(/reloj_paystubs|relation|does not exist|schema cache/i.test(m) ? 'Falta correr el paso 36 (Documentos) en Supabase.' : m) + '</div>';
+  }
+}
+function pintarEnvioReloj(){
+  const t = tcEstado, emps = t.emps.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const opts = '<option value="">— No enviar —</option>' + emps.map(e => '<option value="' + tcEsc(e.usuario) + '">' + tcEsc(e.nombre) + (e.activo ? '' : ' (inactivo)') + '</option>').join('');
+  const sinPar = t.filas.filter(f => !f.usuario).length, aprox = t.filas.filter(f => f.aprox && f.estado !== 'ok').length, n = t.filas.filter(f => f.enviar && f.usuario && f.estado !== 'ok').length;
+  const repetidos = (() => { const c = {}; t.filas.filter(f => f.enviar && f.usuario).forEach(f => { c[f.usuario] = (c[f.usuario] || 0) + 1; }); return Object.keys(c).filter(k => c[k] > 1); })();
+  const finTxt = new Date(t.fin + 'T12:00:00Z').toLocaleDateString('es-CO', { timeZone:'UTC', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('tc-sub').textContent = 'Quincena que termina el ' + finTxt + ' · ' + t.filas.length + ' comprobantes. Cada agente lo verá en el Time Clock → Documents → Paystubs.';
+  document.getElementById('tc-cuerpo').innerHTML =
+    (sinPar ? '<div class="tc-aviso">' + sinPar + (sinPar === 1 ? ' persona no tiene' : ' personas no tienen') + ' usuario en el Time Clock con ese nombre. Elígelo en la lista o déjalo en «No enviar».</div>' : '') +
+    (aprox ? '<div class="tc-aviso">' + aprox + (aprox === 1 ? ' persona se parece' : ' personas se parecen') + ' a un usuario del Time Clock, pero el nombre no es igual. Revísalo y marca la casilla solo si es la misma persona.</div>' : '') +
+    (repetidos.length ? '<div class="tc-aviso">Ojo: ' + repetidos.map(u => tcEsc((t.emps.find(e => e.usuario === u) || {}).nombre || u)).join(', ') + ' quedó elegido en dos filas. Deja marcada solo la correcta (si envías las dos, la última reemplaza a la primera).</div>' : '') +
+    (t.ya.size ? '<div class="tc-aviso">Esta quincena ya se envió a ' + t.ya.size + (t.ya.size === 1 ? ' persona' : ' personas') + '. Si la envías otra vez, el nuevo comprobante reemplaza al anterior (el anterior queda en el historial).</div>' : '') +
+    '<table class="tc-tabla"><thead><tr><th></th><th>En la nómina</th><th>Usuario del Time Clock</th><th style="text-align:right">Neto</th><th>Estado</th></tr></thead><tbody>' +
+    t.filas.map(f => '<tr class="' + (f.usuario && !f.aprox && !f.dup ? '' : 'tc-sin') + '" data-i="' + f.i + '"><td><input type="checkbox" class="tc-chk"' + (f.enviar && f.usuario ? ' checked' : '') + (f.usuario && f.estado !== 'ok' && !t.enviando ? '' : ' disabled') + ' aria-label="Enviar"></td>' +
+      '<td><b>' + tcEsc(f.e.nombre) + '</b></td><td><select class="tc-sel"' + (f.estado === 'ok' || t.enviando ? ' disabled' : '') + '>' + opts + '</select></td>' +
+      '<td class="tc-num">' + tcCOP(f.e.netoCOP) + '</td><td>' + tcEstadoTxt(f) + '</td></tr>').join('') + '</tbody></table>';
+  document.querySelectorAll('#tc-cuerpo tr[data-i]').forEach(tr => { tr.querySelector('.tc-sel').value = t.filas[Number(tr.dataset.i)].usuario; });
+  const b = document.getElementById('tc-enviar');
+  b.style.display = n ? '' : 'none'; b.disabled = t.enviando; b.textContent = 'Enviar ' + n + (n === 1 ? ' paystub' : ' paystubs');
+}
+function tcEstadoTxt(f){
+  if(f.estado === 'ok') return '<span class="tc-est ok">✓ Enviado</span>';
+  if(f.estado === 'error') return '<span class="tc-est err" title="' + tcEsc(f.err) + '">✗ ' + tcEsc(f.err).slice(0, 60) + '</span>';
+  if(f.estado === 'enviando') return '<span class="tc-est">Enviando…</span>';
+  if(!f.usuario) return '<span class="tc-est">Sin usuario</span>';
+  if(f.dup) return '<span class="tc-est rep">Usuario repetido: revisa</span>';
+  if(f.aprox) return '<span class="tc-est rep">Nombre parecido: revisa</span>';
+  if(tcEstado.ya.has(f.usuario)) return '<span class="tc-est rep">Ya enviado: se reemplaza</span>';
+  return f.auto ? '<span class="tc-est">Nuevo</span>' : '<span class="tc-est">Nuevo (elegido a mano)</span>';
+}
+document.getElementById('tc-cuerpo').addEventListener('change', ev => {
+  const tr = ev.target.closest('tr[data-i]'); if(!tr || !tcEstado) return;
+  const f = tcEstado.filas[Number(tr.dataset.i)];
+  if(ev.target.classList.contains('tc-sel')){ f.usuario = ev.target.value; f.enviar = !!f.usuario; f.auto = false; f.aprox = false; f.dup = false; f.estado = ''; }
+  if(ev.target.classList.contains('tc-chk')){ f.enviar = ev.target.checked; if(f.enviar){ f.aprox = false; f.dup = false; } }
+  pintarEnvioReloj();
+});
+async function enviarAlReloj(){
+  const t = tcEstado; if(!t || t.enviando) return;
+  const lista = t.filas.filter(f => f.enviar && f.usuario && f.estado !== 'ok'); if(!lista.length) return;
+  t.enviando = true; pintarEnvioReloj();
+  const prog = document.getElementById('tc-prog'), barra = document.getElementById('tc-barra-i'), txt = document.getElementById('tc-prog-t');
+  prog.style.display = 'flex'; document.getElementById('tc-cerrar').disabled = true;
+  let ok = 0;
+  for(let k = 0; k < lista.length; k++){
+    const f = lista[k]; let subido = null; f.estado = 'enviando'; txt.textContent = (k + 1) + ' / ' + lista.length + ' · ' + f.e.nombre; barra.style.width = Math.round(k / lista.length * 100) + '%';
+    try{
+      const bytes = buildPaystubPDF([f.e]);
+      const nombre = (f.e.nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_') || 'Paystub') + '_' + f.e.end.replace(/\//g, '-') + '.pdf';
+      const ruta = f.usuario + '/paystubs/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '-' + nombre;
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      const up = await window.sb.storage.from(TC_BUCKET).upload(ruta, blob, { contentType:'application/pdf', upsert:false });
+      if(up.error) throw up.error;
+      subido = ruta;
+      const r = await window.sb.rpc('reloj_paystub_registrar', { p:{ usuario:f.usuario, periodoFin:t.fin, periodo:f.e.periodo || t.p.periodo, archivo:ruta, nombre, bytes:blob.size, neto:Math.round(Number(f.e.netoCOP) || 0) } });
+      if(r.error) throw r.error;
+      f.estado = 'ok'; ok++; t.ya.set(f.usuario, new Date().toISOString());
+    }catch(err){
+      f.estado = 'error'; f.err = String(err && err.message || err);
+      // si se subió pero no quedó registrado, se borra el archivo (no debe quedar suelto en la carpeta del agente)
+      if(subido){ try{ await window.sb.storage.from(TC_BUCKET).remove([subido]); }catch(e){} }
+    }
+  }
+  barra.style.width = '100%';
+  t.enviando = false; document.getElementById('tc-cerrar').disabled = false;
+  txt.textContent = ok === lista.length ? '✅ ' + ok + (ok === 1 ? ' paystub enviado' : ' paystubs enviados') + ' al Time Clock.' : ok + ' de ' + lista.length + ' enviados. Revisa los que tienen ✗ y vuelve a intentarlo.';
+  pintarEnvioReloj();
+}
 </script>
 </body>
 </html>
