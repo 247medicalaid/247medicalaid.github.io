@@ -1030,6 +1030,45 @@ table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:
 /* en la app de Windows: «Documents» es un panel */
 body.aw[data-aw="docs"] .aw-panel > [data-aw="docs"]{display:block}
 body.aw .aw-panel > [data-aw="docs"] .pie{display:none}
+
+/* Borrador 3: submenú de Documents y el menú lateral también en el navegador (body.aw-web) */
+.aw-sub{display:flex;flex-direction:column;gap:1px;margin:0 0 6px 30px;border-left:1px solid rgba(255,255,255,.12);padding-left:6px}
+.aw-subitem{display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#AFC7D1;font:inherit;font-size:13px;font-weight:600;padding:6px 9px;border-radius:8px;cursor:pointer;text-align:left}
+.aw-subitem:hover{background:rgba(255,255,255,.07);color:#fff}
+.aw-subitem[aria-current="true"]{background:rgba(23,169,222,.18);color:#fff}
+.aw-subitem span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-subitem b{background:var(--accent-500);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;line-height:17px}
+.md-resumen{display:flex;flex-direction:column;gap:8px}
+.md-res{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:12px 14px;font:inherit;text-align:left;cursor:pointer}
+.md-res:hover{border-color:var(--brand-500);box-shadow:var(--shadow-sm)}
+.md-res-n{display:flex;align-items:center;gap:9px;flex:1;min-width:0}.md-res-n b{font-size:14.5px}
+.md-res-n svg{width:20px;height:20px;stroke:var(--brand-700);fill:none;stroke-width:1.8;flex:none}
+.md-res-e{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.md-res-e small{font-size:12px;color:var(--text-muted)}
+.md-res i{font-style:normal;font-size:20px;color:var(--text-muted)}
+.md-hist{margin-top:14px}.md-hist h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin:0 0 6px}
+.md-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;border-bottom:1px solid var(--line);padding:7px 2px;font-size:13px}
+.md-h small{color:var(--text-muted)}.md-h .md-motivo{flex-basis:100%;margin:0}
+.aw-movil{display:none}
+.aw-cortina{display:none}
+body.aw-web .aw-panel > [data-aw]{max-width:980px}
+body.aw-web .aw-fijo{max-width:1020px}
+@media (max-width:760px){
+  body.aw.aw-web{overflow:auto;height:auto}
+  body.aw.aw-web #vReloj .reloj-grid{display:block !important;height:auto}
+  body.aw.aw-web .aw-menu{position:fixed;top:0;bottom:0;left:0;width:min(250px,80vw);z-index:70;transform:translateX(-105%);transition:transform .2s;overflow:auto}
+  body.aw.aw-web.aw-menu-abierto .aw-menu{transform:none}
+  body.aw.aw-web.aw-menu-abierto .aw-cortina{display:block;position:fixed;inset:0;z-index:65;background:rgba(4,20,31,.45)}
+  body.aw.aw-web .aw-movil{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;background:var(--ink-900);color:#fff;padding:9px 12px;font-family:var(--font-display);font-size:16px}
+  body.aw.aw-web .aw-movil span{margin-left:auto;font-family:var(--font-body);font-size:12.5px;color:#C9DCE3;font-weight:600}
+  body.aw.aw-web .aw-hamb{border:0;background:transparent;color:#fff;padding:4px;cursor:pointer;display:flex}
+  body.aw.aw-web .aw-hamb svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+  body.aw.aw-web .aw-main{height:auto;display:block}
+  body.aw.aw-web .aw-fijo{grid-template-columns:1fr;grid-template-rows:auto;padding:10px 12px}
+  body.aw.aw-web .aw-fijo .esfera{grid-row:auto}
+  body.aw.aw-web .aw-fijo .acciones,body.aw.aw-web .aw-fijo .nota-ubic{grid-column:1;grid-row:auto}
+  body.aw.aw-web .aw-panel{overflow:visible;padding:0 12px 16px}
+  body.aw.aw-web .md-res{flex-wrap:wrap}
+}
 /* My profile como panel de la app (v50) */
 body.aw[data-aw="perfil"] .aw-panel > [data-aw="perfil"]{display:block}
 body.aw .aw-panel > .ventana{width:auto;max-height:none;overflow:visible;box-shadow:none;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 16px}
@@ -2867,15 +2906,26 @@ function appLayout(){
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
       '<div>Time Clock<small>24/7 Medical Aid</small></div></div>' +
-    AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : '') + '</button>').join('') +
+    AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : '') + '</button>' +
+      (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span>Agent</span>' +
     '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
   const main = document.createElement('div'); main.className = 'aw-main';
   main.append(fijo, panel);
-  grid.replaceChildren(nav, main);
-  document.body.classList.add('aw');
-  $('awNom').textContent = (S.yo && S.yo.empleado && S.yo.empleado.nombre) || '';
+  // en el celular: barra con ☰ que abre el menú
+  const movil = document.createElement('div'); movil.className = 'aw-movil';
+  movil.innerHTML = '<button class="aw-hamb" type="button" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b>Time Clock</b><span id="awMovNom"></span>';
+  main.prepend(movil);
+  const cortina = document.createElement('div'); cortina.className = 'aw-cortina';
+  grid.replaceChildren(nav, main, cortina);
+  document.body.classList.add('aw', appWin() ? 'aw-app' : 'aw-web');
+  movil.querySelector('.aw-hamb').addEventListener('click', () => document.body.classList.toggle('aw-menu-abierto'));
+  cortina.addEventListener('click', () => document.body.classList.remove('aw-menu-abierto'));
+  $('awDocsSub').addEventListener('click', ev => { const b = ev.target.closest('[data-awd]'); if(b) mdIr(b.dataset.awd); });
+  try{ S.mdFiltro = localStorage.getItem('aw_docs') || null; }catch(e){}
+  $('awNom').textContent = $('awMovNom').textContent = (S.yo && S.yo.empleado && S.yo.empleado.nombre) || '';
   nav.querySelectorAll('[data-awi]').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.awi === 'docs') return mdIr(null);   // «Documents»: el resumen de todos
     appPanel(b.dataset.awi);
   }));
   $('awSalir').addEventListener('click', () => $('btnSalir').click());
@@ -2912,6 +2962,8 @@ function appPanel(k){
   try{ localStorage.setItem('aw_panel', k); }catch(e){}
   if(k === 'perfil') abrirPerfil();   // se carga cada vez que se abre (datos al día)
   if(k === 'docs') cargarMisDocs();
+  const sub = $('awDocsSub'); if(sub) sub.classList.toggle('hidden', k !== 'docs');
+  document.body.classList.remove('aw-menu-abierto');
 }
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
@@ -3063,7 +3115,7 @@ function pintarReloj(){
       (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta();
-  if(appWin() && !S.awListo && !yo.esAdmin) appLayout();
+  if(!S.awListo && !yo.esAdmin) appLayout();   // agentes: menú lateral en la app y en el navegador
 
   const hoy = yo.hoy;
   if(!S.contadas){ S.contadas = true; contarMias(); }
@@ -5456,19 +5508,29 @@ async function cargarMisDocs(callado){
   catch(e){ if(!callado) $('mdCuerpo').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
 // lo que el agente debe hacer (para el número rojo del botón)
-function misDocsPendientes(md){
-  let n = 0;
-  md.tipos.forEach(t => {
-    if(t.mensual){ if(docPersona(md.personas, t.id, md.usuario)) docMesesDe(t, docPersona(md.personas, t.id, md.usuario)).forEach(m => { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id, m), m).k; if(k === 'atrasado' || k === 'rechazado' || (k === 'falta' && m < fechaHoy().slice(0, 7))) n++; }); }
-    else { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id), null).k; if(DOC_ACCION.includes(k) && (t.agenteSube || k !== 'falta')) n++; }
-  });
-  // paystubs nuevos que todavía no abrió (de los últimos 60 días)
-  n += (md.paystubs || []).filter(x => !x.reemplazado && !x.vistoEn && x.periodoFin >= sumarDias(fechaHoy(), -60)).length;
-  return n;
+// lo que el agente debe hacer en cada documento (para los números rojos del menú)
+function mdPendDe(md, t){
+  if(t === 'pay') return (md.paystubs || []).filter(x => !x.reemplazado && !x.vistoEn && x.periodoFin >= sumarDias(fechaHoy(), -60)).length;
+  if(t.mensual){ const pe = docPersona(md.personas, t.id, md.usuario); if(!pe) return 0;
+    return docMesesDe(t, pe).filter(m => { const k = docEstado(t, docsDe(md.docs, md.usuario, t.id, m), m).k; return k === 'atrasado' || k === 'rechazado' || (k === 'falta' && m < fechaHoy().slice(0, 7)); }).length; }
+  const k = docEstado(t, docsDe(md.docs, md.usuario, t.id), null).k; return DOC_ACCION.includes(k) && (t.agenteSube || k !== 'falta') ? 1 : 0;
+}
+function misDocsPendientes(md){ return md.tipos.reduce((n, t) => n + mdPendDe(md, t), 0) + mdPendDe(md, 'pay'); }
+// los documentos que ve el agente: los de una vez, los mensuales que le piden (o que ya subió) y los paystubs
+function mdSecciones(md){
+  return md.tipos.filter(t => !t.mensual || docPersona(md.personas, t.id, md.usuario) || md.docs.some(d => d.tipoId === t.id))
+    .map(t => ({ k:'t:' + t.id, t, nombre:t.nombre })).concat([{ k:'pay', nombre:'Paystubs' }]);
+}
+// submenú de «Documents» en el menú lateral (navegador y app): un ítem por documento, con su número rojo
+function pintarMenuDocs(){
+  const sub = $('awDocsSub'); if(!sub || !S.md) return;
+  sub.innerHTML = mdSecciones(S.md).map(x => { const n = mdPendDe(S.md, x.t || 'pay');
+    return '<button class="aw-subitem" type="button" data-awd="' + x.k + '" aria-current="' + (S.mdFiltro === x.k) + '"><span>' + esc(x.nombre) + '</span>' + (n ? '<b>' + n + '</b>' : '') + '</button>'; }).join('');
 }
 function pintarMisDocsN(){
   const n = S.md ? misDocsPendientes(S.md) : 0;
   [$('docsN'), $('awDocsN')].forEach(b => { if(!b) return; b.textContent = n || ''; b.classList.toggle('hidden', !n); });
+  pintarMenuDocs();
 }
 function mdFila(t, per){
   const md = S.md, lista = docsDe(md.docs, md.usuario, t.id, per), e = docEstado(t, lista, per), d = e.doc;
@@ -5481,42 +5543,79 @@ function mdFila(t, per){
       '<div class="md-est">' + docChip(e.k, e.k === 'rechazado' ? '' : e.sub) +
         (d ? ' <button class="btn-link md-ver" type="button" data-md-ver="' + d.id + '">' + DOC_IC.ver + esc(d.nombre) + '</button>' : '') + reemplazar + '</div>' +
       (e.k === 'rechazado' && d.nota ? '<div class="md-motivo"><b>Why:</b> ' + esc(d.nota) + '</div>' : '') +
-      (e.rechNuevo ? '<div class="md-motivo">Your newer file (' + esc(e.rechNuevo.nombre) + ') was rejected' + (e.rechNuevo.nota ? ': ' + esc(e.rechNuevo.nota) : '') + '. The one above still counts.</div>' : '') +
+      (e.rechNuevo ? '<div class="md-motivo">Your newer file (' + esc(e.rechNuevo.nombre) + ') was rejected' + (e.rechNuevo.nota ? ': ' + esc(e.rechNuevo.nota.replace(/[.\s]+$/, '')) : '') + '. The one above still counts.</div>' : '') +
       (!t.agenteSube && !d ? '<div class="nota">Your administrator uploads this one.</div>' : '') +
     '</div><div class="md-acc">' +
       (t.plantilla && !per ? '<button class="btn btn-ghost btn-sm" type="button" data-md-plantilla="' + t.id + '">' + DOC_IC.bajar + 'Blank form</button>' : '') + subir +
     '</div><div class="md-subiendo hidden"></div></div>';
 }
+function mdSeccionMes(t, sola){
+  const md = S.md, meses = docMesesDe(t, docPersona(md.personas, t.id, md.usuario), md.docs), ver = S.mdTodos ? meses : meses.slice(0, 6);
+  return '<div class="' + (sola ? 'md-sola' : 'ficha-sec md-mensual') + '"><div class="md-cab"><h3>' + (sola ? 'Every month' : esc(t.nombre) + ' — every month') + '</h3>' +
+      (t.plantilla ? '<button class="btn btn-ghost btn-sm" type="button" data-md-plantilla="' + t.id + '">' + DOC_IC.bajar + 'Blank form</button>' : '') + '</div>' +
+    '<p class="nota" style="margin:-4px 0 10px">' + (t.descripcion ? esc(t.descripcion) + ' ' : '') + 'Due by day ' + t.diaLimite + ' of the next month.</p>' +
+    (meses.length ? '<div class="md-lista">' + ver.map(m => mdFila(t, m)).join('') + '</div>' : '<p class="nota">Nothing to upload yet.</p>') +
+    (meses.length > 6 ? '<button class="btn-link" type="button" data-md-mas>' + (S.mdTodos ? 'Show fewer months' : 'Show all ' + meses.length + ' months') + '</button>' : '') + '</div>';
+}
+function mdSeccionPay(sola){
+  const pays = (S.md.paystubs || []).filter(x => !x.reemplazado).sort((a, b) => b.periodoFin.localeCompare(a.periodoFin) || b.id - a.id);
+  if(!pays.length) return sola ? '<div class="md-sola"><p class="nota">You don\'t have paystubs yet. They show up here when your administrator sends them.</p></div>' : '';
+  const verP = S.mdPayTodos ? pays : pays.slice(0, 6);
+  return '<div class="' + (sola ? 'md-sola' : 'ficha-sec md-mensual') + '">' + (sola ? '<p class="nota" style="margin:0 0 10px">Your paystub for each pay period.</p>' : '<div class="md-cab"><h3>Paystubs</h3></div>') + '<div class="md-lista">' + verP.map(x =>
+    '<div class="md-item md-' + (x.vistoEn ? 'ok' : 'falta') + ' md-pay"><div class="md-info"><b>Pay period ending ' + esc(fechaUS(x.periodoFin)) + '</b>' +
+      '<div class="md-est">' + (x.vistoEn ? '<span class="dc-chip dc-ok">Seen</span>' : '<span class="dc-chip dc-pend">New</span>') +
+      (x.neto ? '<small class="dc-sub">Net ' + esc(Number(x.neto).toLocaleString('es-CO', { maximumFractionDigits:0 })) + ' COP</small>' : '') + '</div></div>' +
+    '<div class="md-acc"><button class="btn btn-sm ' + (x.vistoEn ? 'btn-ghost' : 'btn-brand') + '" type="button" data-md-pay="' + x.id + '">' + DOC_IC.ver + 'View</button></div></div>').join('') + '</div>' +
+    (pays.length > 6 ? '<button class="btn-link" type="button" data-md-paymas>' + (S.mdPayTodos ? 'Show fewer' : 'Show all ' + pays.length) + '</button>' : '') + '</div>';
+}
+// un documento de una vez, solo: su fila (formato, subir, estado) y todos los archivos que ha subido
+function mdSeccionUno(t){
+  const md = S.md, lista = docsDe(md.docs, md.usuario, t.id, null), e = docEstado(t, lista, null);
+  return '<div class="md-sola"><div class="md-lista">' + mdFila(t, null) + '</div>' +
+    (lista.length ? '<div class="md-hist"><h4>Your files</h4>' + lista.map(d => '<div class="md-h"><span>' + esc(docEnMs(d.subidoEn)) + '</span>' +
+      docChip(d.estado === 'aprobado' ? (d.vence && d.vence < fechaHoy() ? 'vencido' : 'ok') : d.estado === 'pendiente' ? 'pendiente' : 'rechazado', '') +
+      (d === e.doc && lista.length > 1 ? '<small>this one counts</small>' : '') + (d.estado === 'rechazado' && d.nota ? '<small class="md-motivo">' + esc(d.nota) + '</small>' : '') +
+      '<button class="btn-link md-ver" type="button" data-md-ver="' + d.id + '">' + DOC_IC.ver + esc(d.nombre) + '</button></div>').join('') + '</div>' : '') + '</div>';
+}
+// resumen (al elegir «Documents»): cada documento con su estado; al hacer clic se abre solo ese
+function mdResumen(){
+  const md = S.md;
+  return '<div class="md-resumen">' + mdSecciones(md).map(x => {
+    let chip = '', sub = '';
+    if(x.k === 'pay'){ const p = (md.paystubs || []).filter(y => !y.reemplazado).sort((a, b) => b.periodoFin.localeCompare(a.periodoFin))[0], nn = mdPendDe(md, 'pay');
+      chip = p ? (nn ? '<span class="dc-chip dc-pend">' + nn + ' new</span>' : '<span class="dc-chip dc-ok">Up to date</span>') : '<span class="dc-chip dc-vacio">None yet</span>'; sub = p ? 'Last: ' + fechaUS(p.periodoFin) : ''; }
+    else if(x.t.mensual){ const nn = mdPendDe(md, x.t); chip = nn ? '<span class="dc-chip dc-venc">' + nn + (nn === 1 ? ' month' : ' months') + ' to upload</span>' : '<span class="dc-chip dc-ok">Up to date</span>'; sub = 'Every month · due day ' + x.t.diaLimite; }
+    else { const e = docEstado(x.t, docsDe(md.docs, md.usuario, x.t.id, null), null); chip = docChip(e.k, ''); sub = e.k === 'rechazado' ? 'Upload it again' : e.sub; }
+    return '<button type="button" class="md-res" data-md-ir="' + x.k + '"><span class="md-res-n">' + DOC_IC.doc + '<b>' + esc(x.nombre) + '</b></span><span class="md-res-e">' + chip + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span><i>›</i></button>'; }).join('') + '</div>';
+}
 function pintarMisDocs(){
   const md = S.md;
+  // en el menú lateral (navegador y app): resumen o un solo documento a la vez
+  if(S.awListo){
+    const f = S.mdFiltro, sec = f && mdSecciones(md).find(x => x.k === f);
+    $('mdTitulo').textContent = sec ? sec.nombre : 'My documents';
+    $('mdTitulo').nextElementSibling.textContent = sec ? (sec.t && !sec.t.mensual && sec.t.descripcion ? '' : '') : 'Choose a document to see it, download the blank form or upload yours.';
+    $('mdTitulo').nextElementSibling.classList.toggle('hidden', !!sec);
+    $('mdCuerpo').innerHTML = !sec ? mdResumen() : sec.k === 'pay' ? mdSeccionPay(true) : sec.t.mensual ? mdSeccionMes(sec.t, true) : mdSeccionUno(sec.t);
+    pintarMisDocsN();
+    return;
+  }
   const unicos = md.tipos.filter(t => !t.mensual), mensuales = md.tipos.filter(t => t.mensual && (docPersona(md.personas, t.id, md.usuario) || md.docs.some(d => d.tipoId === t.id)));
   let h = '';
-  const pays = (md.paystubs || []).filter(x => !x.reemplazado).sort((a, b) => b.periodoFin.localeCompare(a.periodoFin) || b.id - a.id);
-  if(!unicos.length && !mensuales.length && !pays.length) h = '<p class="nota">There are no documents for you yet.</p>';
+  const hayPay = (md.paystubs || []).some(x => !x.reemplazado);
+  if(!unicos.length && !mensuales.length && !hayPay) h = '<p class="nota">There are no documents for you yet.</p>';
   if(unicos.length) h += '<div class="md-lista">' + unicos.map(t => mdFila(t, null)).join('') + '</div>';
-  mensuales.forEach(t => {
-    const meses = docMesesDe(t, docPersona(md.personas, t.id, md.usuario), md.docs), ver = S.mdTodos ? meses : meses.slice(0, 6);
-    h += '<div class="ficha-sec md-mensual"><div class="md-cab"><h3>' + esc(t.nombre) + ' — every month</h3>' +
-        (t.plantilla ? '<button class="btn btn-ghost btn-sm" type="button" data-md-plantilla="' + t.id + '">' + DOC_IC.bajar + 'Blank form</button>' : '') + '</div>' +
-      '<p class="nota" style="margin:-4px 0 10px">' + (t.descripcion ? esc(t.descripcion) + ' ' : '') + 'Due by day ' + t.diaLimite + ' of the next month.</p>' +
-      '<div class="md-lista">' + ver.map(m => mdFila(t, m)).join('') + '</div>' +
-      (meses.length > 6 ? '<button class="btn-link" type="button" data-md-mas>' + (S.mdTodos ? 'Show fewer months' : 'Show all ' + meses.length + ' months') + '</button>' : '') + '</div>';
-  });
-  // Paystubs (los envía el administrador desde Comprobantes)
-  if(pays.length){
-    const verP = S.mdPayTodos ? pays : pays.slice(0, 6);
-    h += '<div class="ficha-sec md-mensual"><h3>Paystubs</h3><div class="md-lista">' + verP.map(x =>
-      '<div class="md-item md-' + (x.vistoEn ? 'ok' : 'falta') + ' md-pay"><div class="md-info"><b>Pay period ending ' + esc(fechaUS(x.periodoFin)) + '</b>' +
-        '<div class="md-est">' + (x.vistoEn ? '<span class="dc-chip dc-ok">Seen</span>' : '<span class="dc-chip dc-pend">New</span>') +
-        (x.neto ? '<small class="dc-sub">Net ' + esc(Number(x.neto).toLocaleString('es-CO', { maximumFractionDigits:0 })) + ' COP</small>' : '') + '</div></div>' +
-      '<div class="md-acc"><button class="btn btn-sm ' + (x.vistoEn ? 'btn-ghost' : 'btn-brand') + '" type="button" data-md-pay="' + x.id + '">' + DOC_IC.ver + 'View</button></div></div>').join('') + '</div>' +
-      (pays.length > 6 ? '<button class="btn-link" type="button" data-md-paymas>' + (S.mdPayTodos ? 'Show fewer' : 'Show all ' + pays.length) + '</button>' : '') + '</div>';
-  }
+  mensuales.forEach(t => { h += mdSeccionMes(t, false); });
+  h += mdSeccionPay(false);
   $('mdCuerpo').innerHTML = h;
   pintarMisDocsN();
 }
+// ir a un documento desde el resumen o el submenú
+function mdIr(k){ S.mdFiltro = k || null; try{ localStorage.setItem('aw_docs', S.mdFiltro || ''); }catch(e){} S.mdTodos = false; S.mdPayTodos = false;
+  if(document.body.dataset.aw !== 'docs') appPanel('docs'); else { pintarMisDocs(); const p = document.querySelector('.aw-panel'); if(p) p.scrollTop = 0; } }
 $('mdCuerpo').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if(!b) return;
+  if(b.dataset.mdIr){ return mdIr(b.dataset.mdIr); }
   if(b.hasAttribute('data-md-mas')){ S.mdTodos = !S.mdTodos; return pintarMisDocs(); }
   if(b.hasAttribute('data-md-paymas')){ S.mdPayTodos = !S.mdPayTodos; return pintarMisDocs(); }
   if(b.dataset.mdPay){ const x = (S.md.paystubs || []).find(y => y.id === Number(b.dataset.mdPay)); if(!x) return;
