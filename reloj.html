@@ -2504,7 +2504,14 @@ async function api(action, p){
         .is('anulada_en', null).order('ts').order('id'));
       ms.forEach(m => { (dias[m.usuario + '|' + m.fecha] = dias[m.usuario + '|' + m.fecha] || []).push({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)) }); });
     }catch(e){}
-    return { sols:rows.map(solJS), emps:emps.map(empJS), usados:usadosPorUsuario(usados.map(x => ({ usuario:x.usuario, fecha:x.fecha, fechaFin:x.fecha_fin })), anio), dias, ausAnio };
+    // Correcciones pendientes: lo que el agente marcó en ese día (para ver qué se conserva al aprobar, paso 38)
+    const pc = rows.filter(r => r.estado === 'pendiente' && r.tipo === 'correccion'), luego = {};
+    if(pc.length) try{
+      const ms = await q(sb.from('reloj_marcas').select('usuario,fecha,tipo,ts,creado').in('usuario', [...new Set(pc.map(r => r.usuario))]).in('fecha', [...new Set(pc.map(r => r.fecha))])
+        .is('anulada_en', null).eq('origen', 'agente').order('ts').order('id'));
+      ms.forEach(m => { (luego[m.usuario + '|' + m.fecha] = luego[m.usuario + '|' + m.fecha] || []).push({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)), creado:Date.parse(m.creado) }); });
+    }catch(e){}
+    return { sols:rows.map(solJS), emps:emps.map(empJS), usados:usadosPorUsuario(usados.map(x => ({ usuario:x.usuario, fecha:x.fecha, fechaFin:x.fecha_fin })), anio), dias, ausAnio, luego };
   }
   if(action.startsWith('doc')) return docsSB(action, p);
   if(action === 'bancoPend' || action === 'bancoHist'){
@@ -6394,7 +6401,12 @@ function minutosLista(l){
 }
 // Antes y después de aprobar, como listas de marcas.
 function ladosSol(s, r){
-  if(s.tipo === 'correccion') return { antes:s.marcasAntes || [], despues:s.marcas || [] };
+  if(s.tipo === 'correccion'){
+    // lo que el agente marcó después de mandarla se conserva si la corrección no trae ese tipo de marca (paso 38)
+    const pide = s.marcas || [], tipos = new Set(pide.map(m => m.tipo));
+    const kept = s.estado === 'pendiente' ? ((r.luego || {})[s.usuario + '|' + s.fecha] || []).filter(m => m.creado > s.creada && !tipos.has(m.tipo)).map(m => ({ tipo:m.tipo, hora:m.hora })) : [];
+    return { antes:s.marcasAntes || [], despues:kept.length ? ordenarMarcas(pide.concat(kept)) : pide, kept };
+  }
   const hoy = (r.dias || {})[s.usuario + '|' + s.fecha] || [], nuevas = [];
   if(s.tipo === 'turno'){ nuevas.push({ tipo:'entrada', hora:s.horaIni }, { tipo:'salida', hora:s.horaFin });
     if(s.almIni) nuevas.push({ tipo:'almuerzo_ini', hora:s.almIni }, { tipo:'almuerzo_fin', hora:s.almFin }); }
@@ -6436,9 +6448,10 @@ function rqHTML(s, r){
         (pag ? 'Paid · ' + (parc ? hm(minParcial(s)) + ' h' : (emp.horasDia || 8) + ' h/day') : 'Unpaid') + '</span></div>' +
       '<div class="rq-nota">Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) + '. Approve uses ' + (pag ? 'paid' : 'unpaid') + ' by default; use the note button to change it.</div></section></div>';
   } else {
-    const { antes, despues } = ladosSol(s, r);
+    const { antes, despues, kept } = ladosSol(s, r);
     h += '<div class="rq-comp">' + ladoHTML(s.tipo === 'correccion' ? 'Original' : 'Now', 'orig', antes, despues, emp) +
-      ladoHTML(s.tipo === 'correccion' ? 'Requested' : 'After approval', 'nuevo', despues, antes, emp, IC_CAL) + '</div>';
+      ladoHTML(s.tipo === 'correccion' ? 'Requested' : 'After approval', 'nuevo', despues, antes, emp, IC_CAL) + '</div>' +
+      (kept && kept.length ? '<div class="rq-nota">Kept when you approve: ' + esc(kept.map(m => (NOMBRE_TIPO[m.tipo] || m.tipo) + ' ' + h12(m.hora)).join(', ')) + ' — punched after this request was sent.</div>' : '');
   }
   return h + '</article>';
 }
