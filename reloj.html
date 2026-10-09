@@ -937,6 +937,12 @@ body.aw .aw-panel > [data-aw]{display:none;margin-top:14px;max-width:none}
 body.aw[data-aw="dia"] .aw-panel > [data-aw="dia"],body.aw[data-aw="per"] .aw-panel > [data-aw="per"],body.aw[data-aw="sol"] .aw-panel > [data-aw="sol"]{display:block}
 body.aw .aw-panel #avisosAgente:not(:empty){margin-top:14px}
 body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
+
+/* My profile como panel de la app (v50) */
+body.aw[data-aw="perfil"] .aw-panel > [data-aw="perfil"]{display:block}
+body.aw .aw-panel > .ventana{width:auto;max-height:none;overflow:visible;box-shadow:none;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 16px}
+body.aw .aw-panel > .ventana [data-cerrar]{display:none}
+body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--paper);margin:14px -20px -16px;padding:12px 20px 14px;border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
 </style>
 </head>
 <body>
@@ -2421,7 +2427,7 @@ $('btnPerfil').addEventListener('click', abrirPerfil);
 async function abrirPerfil(){
   $('mpErr').textContent = ''; $('mpGuardar').disabled = true;
   $('mpCuerpo').innerHTML = '<div class="nota" style="padding:14px 0"><span class="spin dark"></span> Loading…</div>';
-  abrir('ovPerfil');
+  if(!document.body.classList.contains('aw')) abrir('ovPerfil');   // en la app es un panel, no una ventana emergente
   try{ S.mp = await api('miFicha'); pintarPerfil(); $('mpGuardar').disabled = false; }
   catch(e){ $('mpCuerpo').innerHTML = ''; $('mpErr').textContent = e.message; }
 }
@@ -2549,6 +2555,7 @@ function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now
    Fuera de la app (navegador normal) nada de esto corre. */
 // (función y no constante: la pantalla de inicio de sesión puede llamarla antes de que el script termine de cargar)
 // Diseño de la app de Windows: se mueven las mismas piezas de «My clock» a un menú lateral con paneles (no se duplica nada).
+const AW_TAM = [900, 780];   // tamaño de la ventana de la app (px a 100 %); la app lo recorta a la pantalla
 const AW_MENU = [
   ['dia', 'Today', '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>'],
   ['per', 'Pay period', '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'],
@@ -2564,7 +2571,8 @@ function appLayout(){
   const dia = r.querySelector('.cinta-box:not(.sol-box)'), sol = r.querySelector('.sol-box'), per = grid.querySelector('.per-ag');
   dia.dataset.aw = 'dia'; sol.dataset.aw = 'sol'; per.dataset.aw = 'per';
   const panel = document.createElement('div'); panel.className = 'aw-panel';
-  panel.append($('avisosAgente'), dia, per, sol);
+  const perfil = $('ovPerfil').querySelector('.ventana'); perfil.dataset.aw = 'perfil';
+  panel.append($('avisosAgente'), dia, per, sol, perfil);
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
@@ -2578,7 +2586,6 @@ function appLayout(){
   document.body.classList.add('aw');
   $('awNom').textContent = (S.yo && S.yo.empleado && S.yo.empleado.nombre) || '';
   nav.querySelectorAll('[data-awi]').forEach(b => b.addEventListener('click', () => {
-    if(b.dataset.awi === 'perfil') return $('btnPerfil').click();
     appPanel(b.dataset.awi);
   }));
   $('awSalir').addEventListener('click', () => $('btnSalir').click());
@@ -2586,13 +2593,15 @@ function appLayout(){
   const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = n.textContent; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
   new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
   let k = 'dia'; try{ k = localStorage.getItem('aw_panel') || 'dia'; }catch(e){}
-  appPanel(['dia', 'per', 'sol'].indexOf(k) >= 0 ? k : 'dia');
+  appPanel(['dia', 'per', 'sol', 'perfil'].indexOf(k) >= 0 ? k : 'dia');
+  appMandar({ tipo:'ventana', v:1, ancho:AW_TAM[0], alto:AW_TAM[1] });
 }
 function appPanel(k){
   document.body.dataset.aw = k;
   document.querySelectorAll('.aw-menu [data-awi]').forEach(b => b.setAttribute('aria-current', b.dataset.awi === k ? 'true' : 'false'));
   const p = document.querySelector('.aw-panel'); if(p) p.scrollTop = 0;
   try{ localStorage.setItem('aw_panel', k); }catch(e){}
+  if(k === 'perfil') abrirPerfil();   // se carga cada vez que se abre (datos al día)
 }
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
