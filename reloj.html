@@ -1157,6 +1157,27 @@ ul.iv-lista li:last-child{border-bottom:0}
 .iv-l-a .iv-borrar{color:var(--accent-600)}
 ul.iv-hist li.iv-pend-li{background:#FFFBFB}
 @media (max-width:640px){ ul.iv-lista li{grid-template-columns:1fr} .iv-l-a{justify-content:flex-start} .id-aviso{flex-wrap:wrap} }
+/* Users: columnas, ordenar y grupos (v61) */
+.u-cols{position:relative}
+.u-cols-panel{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:220px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 30px rgba(11,34,51,.14);padding:12px 14px}
+.u-cols-panel b{display:block;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:6px}
+.u-cols-panel label{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;cursor:pointer}
+.u-cols-panel label input{width:auto;min-width:0;flex:none;margin:0;padding:0;height:auto}
+.emps th .u-orden{white-space:nowrap}
+.u-cols-panel .btn-link{margin-top:6px;font-size:13px}
+.emps th .u-orden{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font:inherit;color:inherit}
+.emps th .u-orden i{font-style:normal;font-size:10px;opacity:.45}
+.emps th .u-orden.on{color:var(--text)}.emps th .u-orden.on i{opacity:1}
+.emps th .u-orden:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:2px;border-radius:3px}
+.emps th.num{text-align:right}
+.emps tr.u-grp-cab th{background:var(--paper);padding:14px 14px 6px;border-bottom:1px solid var(--line)}
+.emps tbody.u-grp:first-of-type tr.u-grp-cab th{padding-top:10px}
+.emps tr.u-grp-cab button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;color:var(--text)}
+.emps tr.u-grp-cab button > i:first-child{font-style:normal;font-size:11px;color:var(--text-muted);width:10px}
+.emps tr.u-grp-cab button:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:2px;border-radius:3px}
+.u-n{background:var(--sand-2);color:var(--text-muted);border-radius:999px;padding:0 8px;font-size:12px;font-weight:600}
+.u-cuenta{margin:8px 2px 0}
+@media (max-width:640px){ #vEmps .users-barra{position:relative} .u-cols{position:static} .u-cols-panel{left:0;right:auto;top:calc(100% + 4px);max-width:calc(100vw - 32px)} }
 /* Users → Import from Connecteam (v59) */
 .pill.pill-arch{background:#4A4F57;color:#fff}
 .ventana.ventana-uimp{max-width:1040px}
@@ -1548,6 +1569,10 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <input id="uBuscar" type="search" placeholder="Search name, phone, email…" autocomplete="off" aria-label="Search users">
       <select id="uCuenta" aria-label="Account"><option value="">All accounts</option></select>
       <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="inact">Inactive</option><option value="arch">Archived (former)</option></select>
+      <select id="uGrupo" aria-label="Group by"><option value="">No groups</option><option value="cuenta">Group by account</option><option value="titulo">Group by title</option><option value="ciudad">Group by city</option></select>
+      <div class="u-cols"><button class="btn btn-ghost btn-sm" id="uCols" type="button" aria-expanded="false" aria-controls="uColsPanel">Columns</button>
+        <div class="u-cols-panel hidden" id="uColsPanel" role="group" aria-label="Columns to show"><b>Columns to show</b><div id="uColsLista"></div>
+          <button class="btn-link" type="button" id="uColsBase">Back to the usual columns</button></div></div>
     </div>
     <div class="tabla-wrap" id="empsTabla"></div>
   </section>
@@ -1709,6 +1734,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo"><span>Department</span><select id="eDepto"></select></label>
         <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select></label>
         <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
+        <label class="campo"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
         <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
         <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
         <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
@@ -2465,7 +2491,7 @@ const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.pars
 const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
-  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null,
+  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
   pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
@@ -3028,7 +3054,7 @@ function pintarPerfil(){
         '<label class="campo"><span>Confirm password</span><input id="mpClave2" type="password" autocomplete="new-password"></label></div>' +
         '<p class="nota" style="margin:-6px 0 10px">At least 8 characters, with letters and numbers.</p>' +
         '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Update password</button></div></div>' : '') + '</div>' +
-    '<div class="ficha-sec"><h3>Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
+    '<div class="ficha-sec"><h3>Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Title', f.titulo) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
       ro('Employment start date', fecha(f.fechaIngreso)) + ro('Scheduled start', f.horaEntrada ? h12(f.horaEntrada) : '') + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
     '<div class="ficha-sec"><h3>Personal</h3><div class="ficha-grid">' +
       '<label class="campo"><span>Mobile phone</span><input id="mpTel" type="tel" autocomplete="tel" maxlength="40"></label>' +
@@ -4496,31 +4522,101 @@ function difMonitor(e){
   const m = monAgente(e.agenteMonitor);
   return m && m.cuenta && !mismaCuenta(m.cuenta, e.cuenta) ? ' <span class="pill dif" title="In the Monitor this agent is in ' + esc(m.cuenta) + '. Open the user to fix it.">≠ Monitor</span>' : '';
 }
+/* ── Users: columnas a elección, ordenar por encabezado y grupos automáticos (v61) ──
+   Columnas: el administrador elige cuáles ver (se recuerda en este navegador).
+   Ordenar: clic en el encabezado (otro clic invierte). Los vacíos siempre al final.
+   Grupos: por cuenta, título o ciudad, armados solos con los datos de cada usuario. */
+const uFecha = f => f ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(f + 'T12:00:00Z')) : '';
+const UCOLS = [
+  { k:'cuenta', t:'Account', v:e => e.cuenta, h:e => (e.cuenta ? (colorCuenta(e.cuenta) ? '<i class="punto-cta" style="background:' + colorCuenta(e.cuenta) + '"></i>' : '') + esc(e.cuenta) : '<span class="pill no">No account</span>') + difMonitor(e) },
+  { k:'titulo', t:'Title', v:e => e.titulo, h:e => e.titulo ? esc(e.titulo) : '<span class="muted">—</span>' },
+  { k:'departamento', t:'Department', v:e => e.departamento, h:e => e.departamento ? esc(e.departamento) : '<span class="muted">—</span>' },
+  { k:'jefe', t:'Direct manager', v:e => e.jefe, h:e => e.jefe ? esc(e.jefe) : '<span class="muted">—</span>' },
+  { k:'contacto', t:'Contact', v:e => e.telefono || e.email, h:e => esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') },
+  { k:'ciudad', t:'City', v:e => e.ciudad, h:e => e.ciudad ? esc(e.ciudad) : '<span class="muted">—</span>' },
+  { k:'ingreso', t:'Start date', num:true, v:e => e.fechaIngreso, h:e => e.fechaIngreso ? esc(uFecha(e.fechaIngreso)) : '—' },
+  { k:'cumple', t:'Birthday', num:true, v:e => e.cumpleanos ? e.cumpleanos.slice(5) : '', h:e => e.cumpleanos ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(e.cumpleanos + 'T12:00:00Z'))) : '<span class="muted">—</span>' },
+  { k:'horario', t:'Schedule', num:true, v:e => e.horaEntrada || '', h:e => (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h' },
+  { k:'pago', t:'Pay rate', num:true, v:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? Number(e.pagoHora) : '',
+    h:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>' },
+  { k:'monitor', t:'Monitor', v:e => e.agenteMonitor, h:e => e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>' }
+];
+const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor'];
+const UGRUPOS = { cuenta:{ t:'Account', v:e => e.cuenta, vacio:'No account' }, titulo:{ t:'Title', v:e => e.titulo, vacio:'No title' }, ciudad:{ t:'City', v:e => e.ciudad, vacio:'No city' } };
+function uPref(k, def){ try{ const v = JSON.parse(localStorage.getItem('reloj_users_' + k)); return v == null ? def : v; }catch(e){ return def; } }
+function uGuardarPref(k, v){ try{ localStorage.setItem('reloj_users_' + k, JSON.stringify(v)); }catch(e){} }
+function uColsVer(){ const c = uPref('cols', UCOLS_BASE); return Array.isArray(c) ? UCOLS.filter(x => c.includes(x.k)) : UCOLS.filter(x => UCOLS_BASE.includes(x.k)); }
+// grupos: por clave normalizada; el nombre que se muestra es la forma más común
+function uGrupos(l, por){
+  const g = UGRUPOS[por], m = new Map();
+  l.forEach(e => { const raw = String(g.v(e) || '').trim(), k = normal(raw);
+    if(!m.has(k)) m.set(k, { k, nombres:{}, gente:[] });
+    const x = m.get(k); x.gente.push(e); if(raw) x.nombres[raw] = (x.nombres[raw] || 0) + 1; });
+  return [...m.values()].map(x => ({ k:x.k, nombre:x.k ? Object.entries(x.nombres).sort((a, b) => b[1] - a[1] || (/^[A-ZÁÉÍÓÚÑ]/.test(b[0]) - /^[A-ZÁÉÍÓÚÑ]/.test(a[0])) || a[0].localeCompare(b[0]))[0][0] : g.vacio, gente:x.gente }))
+    .sort((a, b) => (!a.k - !b.k) || a.nombre.localeCompare(b.nombre, 'en'));
+}
+function uOrdenar(l){
+  const o = S.uOrden;
+  if(!o) return l.sort((a, b) => (b.activo - a.activo) || (!!a.archivadoEn - !!b.archivadoEn) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
+  const col = o.k === 'nombre' ? { v:e => e.nombre } : UCOLS.find(c => c.k === o.k) || { v:e => e.nombre }, d = o.dir === 'desc' ? -1 : 1;
+  return l.sort((a, b) => { const x = col.v(a), y = col.v(b), vx = x === '' || x == null, vy = y === '' || y == null;
+    if(vx !== vy) return vx ? 1 : -1;   // vacíos al final
+    const c = vx ? 0 : typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'en', { numeric:true, sensitivity:'base' });
+    return c * d || a.nombre.localeCompare(b.nombre, 'en'); });
+}
 function pintarEmps(){
   asegurarColores(() => { if(S.vista === 'emps' && S.emps) pintarEmps(); });
   const todos = S.emps.empleados;
   const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
   const fc = $('uCuenta').value; $('uCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === fc ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
-  const busca = normal($('uBuscar').value), est = $('uEstado').value;
-  const l = todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : est === 'arch' ? !e.activo && !!e.archivadoEn : !e.activo && !e.archivadoEn)) &&
-      (!busca || normal([e.nombre, e.usuario, e.telefono, e.email, e.cuenta, e.departamento].join(' ')).indexOf(busca) >= 0))
-    .sort((a, b) => (b.activo - a.activo) || (!!a.archivadoEn - !!b.archivadoEn) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
+  const busca = normal($('uBuscar').value), est = $('uEstado').value, por = $('uGrupo').value;
+  const l = uOrdenar(todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : est === 'arch' ? !e.activo && !!e.archivadoEn : !e.activo && !e.archivadoEn)) &&
+      (!busca || normal([e.nombre, e.usuario, e.telefono, e.email, e.cuenta, e.departamento, e.titulo, e.ciudad, e.jefe].join(' ')).indexOf(busca) >= 0)));
+  pintarUCols();
   if(!todos.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users yet</h2><p>Add the first one with their email.</p></div>'; return; }
   if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users match</h2><p>Try another search or filter.</p></div>'; return; }
-  $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Pay rate</th><th>Monitor</th><th></th></tr></thead><tbody>' +
-    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') + '<small>' + esc(e.email || e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
-      '<td>' + (e.cuenta ? (colorCuenta(e.cuenta) ? '<i class="punto-cta" style="background:' + colorCuenta(e.cuenta) + '"></i>' : '') + esc(e.cuenta) : '<span class="pill no">No account</span>') + difMonitor(e) + '</td>' +
-      '<td>' + esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') + '</td>' +
-      '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
-      '<td class="num">' + (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h</td>' +
-      '<td class="num">' + (e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>') + '</td>' +
-      '<td>' + (e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>') + '</td>' +
-      '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>').join('') + '</tbody></table>';
+  const cols = uColsVer(), o = S.uOrden || {};
+  const th = (k, t, num) => '<th' + (num ? ' class="num"' : '') + ' aria-sort="' + (o.k === k ? (o.dir === 'desc' ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="u-orden' + (o.k === k ? ' on' : '') + '" data-orden="' + k + '">' + t +
+    '<i aria-hidden="true">' + (o.k === k ? (o.dir === 'desc' ? '▼' : '▲') : '↕') + '</i></button></th>';
+  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') +
+      '<small>' + esc(e.email || e.usuario) + (e.departamento && !cols.some(c => c.k === 'departamento') ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
+    cols.map(c => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(e) + '</td>').join('') +
+    '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
+  const cerrados = S.uCerrados || (S.uCerrados = {}), n = cols.length + 2;
+  const cuerpo = por && UGRUPOS[por] ? uGrupos(l, por).map(g => { const ck = por + '|' + g.k, cer = !!cerrados[ck];
+      return '<tbody class="u-grp"><tr class="u-grp-cab"><th colspan="' + n + '"><button type="button" data-grp="' + esc(ck) + '" aria-expanded="' + !cer + '">' +
+        '<i aria-hidden="true">' + (cer ? '▸' : '▾') + '</i>' + (por === 'cuenta' && g.k && colorCuenta(g.nombre) ? '<i class="punto-cta" style="background:' + colorCuenta(g.nombre) + '"></i>' : '') +
+        esc(g.nombre) + ' <span class="u-n">' + g.gente.length + '</span></button></th></tr>' + (cer ? '' : g.gente.map(fila).join('')) + '</tbody>'; }).join('')
+    : '<tbody>' + l.map(fila).join('') + '</tbody>';
+  $('empsTabla').innerHTML = '<table class="emps"><thead><tr>' + th('nombre', 'Name') + cols.map(c => th(c.k, c.t, c.num)).join('') + '<th></th></tr></thead>' + cuerpo + '</table>' +
+    '<p class="nota u-cuenta">' + l.length + (l.length === 1 ? ' user' : ' users') + (por && UGRUPOS[por] ? ' · ' + uGrupos(l, por).length + ' groups by ' + UGRUPOS[por].t.toLowerCase() : '') + '</p>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
   $('empsTabla').querySelectorAll('[data-inv]').forEach(b => b.addEventListener('click', () => invitarDesdeLista(b.dataset.inv, b)));
 }
+// ordenar: clic en el encabezado
+$('empsTabla').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-orden]'), g = ev.target.closest('[data-grp]');
+  if(b){ const k = b.dataset.orden, o = S.uOrden; S.uOrden = o && o.k === k ? (o.dir === 'asc' ? { k, dir:'desc' } : null) : { k, dir:'asc' }; pintarEmps(); }
+  if(g){ const c = S.uCerrados || (S.uCerrados = {}); c[g.dataset.grp] = !c[g.dataset.grp]; pintarEmps(); }
+});
+// columnas: el panel con casillas
+function pintarUCols(){
+  const ver = uColsVer().map(c => c.k);
+  $('uColsLista').innerHTML = UCOLS.map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (ver.includes(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('');
+  $('uCols').textContent = 'Columns (' + ver.length + ')';
+}
+$('uCols').addEventListener('click', ev => { ev.stopPropagation(); const p = $('uColsPanel'), abre = p.classList.contains('hidden'); p.classList.toggle('hidden', !abre); $('uCols').setAttribute('aria-expanded', abre); });
+$('uColsPanel').addEventListener('click', ev => ev.stopPropagation());
+document.addEventListener('click', () => { if(!$('uColsPanel').classList.contains('hidden')){ $('uColsPanel').classList.add('hidden'); $('uCols').setAttribute('aria-expanded', 'false'); } });
+$('uColsLista').addEventListener('change', () => { uGuardarPref('cols', [...$('uColsLista').querySelectorAll('[data-col]:checked')].map(x => x.dataset.col)); if(S.emps) pintarEmps(); });
+$('uColsBase').addEventListener('click', () => { uGuardarPref('cols', UCOLS_BASE); if(S.emps) pintarEmps(); });
+$('uGrupo').value = (v => UGRUPOS[v] ? v : '')(uPref('grupo', ''));
+$('uGrupo').addEventListener('change', () => { uGuardarPref('grupo', $('uGrupo').value); if(S.emps) pintarEmps(); });
+
+$('eCargo').addEventListener('focus', () => { const t = new Set((S.emps ? S.emps.empleados : []).map(e => (e.titulo || '').trim()).filter(Boolean));
+  $('eCargoLista').innerHTML = [...t].sort().map(x => '<option value="' + esc(x) + '">').join(''); });
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
-const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
+const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', titulo:'eCargo', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
 // Listas de Settings → Lists para los campos que se eligen.
@@ -6720,7 +6816,7 @@ const UIMP_CAMPOS = {   // encabezado de Connecteam (en minúsculas, sin tildes)
 };
 const UIMP_IGNORAR = ['kiosk code', 'last login', 'date added', 'added by', 'archived by'];
 const UIMP_NOMBRE = { apellidos:'Last name', email:'Email', telefono:'Phone', cumpleanos:'Birthday', direccion:'Address', ciudad:'City', tipoId:'ID type', numId:'ID number',
-  banco:'Bank', cuentaBanco:'Account number', fechaIngreso:'Start date', departamento:'Department', cuenta:'Account', jefe:'Direct manager', pagoHora:'Pay rate' };
+  banco:'Bank', cuentaBanco:'Account number', fechaIngreso:'Start date', departamento:'Department', cuenta:'Account', jefe:'Direct manager', pagoHora:'Pay rate', titulo:'Title' };
 const UIMP_CUENTA = { 'total sleep':'Total Sleep', 'gastro':'Gastroenterology', 'cardio':'Cardiovascular', 'mab pulmonary':'Pulmonary', 'pulmonary':'Pulmonary',
   'white':'White Wilson', 'white wilson':'White Wilson', '24/7 medical':'24/7 Call Center', 'access':'Access Medical', 'access medical':'Access Medical',
   'access campaign':'Access Medical', 'cardiovascular':'Cardiovascular', 'gastroenterology':'Gastroenterology' };
@@ -6762,7 +6858,7 @@ async function uimpLeer(file){
   const gente = filas.slice(h + 1).filter(f => String(val(f, 'nombre')).trim()).map(f => {
     const nom = uimpTitulo(String(val(f, 'nombre')).trim()), ape = uimpTitulo(String(val(f, 'apellidos')).trim()), tit = String(val(f, 'titulo')).trim(), br = String(val(f, 'branch')).trim();
     // la cuenta: primero «Branch» (Connecteam la tiene con el nombre completo), si no «Title»
-    const x = { nombre:(nom + ' ' + ape).trim(), apellidos:ape, archivadoEn:uimpFecha(val(f, 'archivadoEn')), titulo:br || tit, cuenta:uimpCuenta(br) || uimpCuenta(tit) };
+    const x = { nombre:(nom + ' ' + ape).trim(), apellidos:ape, archivadoEn:uimpFecha(val(f, 'archivadoEn')), titulo:tit, branch:br, cuenta:uimpCuenta(br) || uimpCuenta(tit) };
     ['email', 'telefono', 'direccion', 'ciudad', 'tipoId', 'numId', 'banco', 'cuentaBanco', 'departamento'].forEach(k => { x[k] = String(val(f, k)).trim(); });
     const cp = String(val(f, 'codPais')).replace(/\D/g, '');   // «57» + «3001234567» → «+57 3001234567»
     if(cp && x.telefono && !/^\+/.test(x.telefono)) x.telefono = '+' + cp + ' ' + x.telefono;
@@ -6840,7 +6936,7 @@ function pintarUImp(){
     const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario), cs = uimpCampos(uimpDatos(r), e);
     return '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-ui-i="' + i + '"' + (r.incluir ? ' checked' : '') + ' aria-label="Import ' + esc(r.x.nombre) + '"></td>' +
       '<td><b>' + esc(r.x.nombre) + '</b>' + (r.archivado ? ' <span class="pill pill-arch">Archived ' + esc(fechaUS(r.x.archivadoEn)) + '</span>' : '') +
-        '<small>' + esc([r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
+        '<small>' + esc([r.x.branch || r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
       '<td><select data-ui-u="' + i + '"><option value="">+ Create new (inactive)</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
         esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? ' (active)' : '')) + '</option>').join('') + '</select></td>' +
       '<td>' + (cs.length ? cs.map(k => '<span class="ui-chip">' + esc(UIMP_NOMBRE[k]) + '</span>').join('') : '<span class="muted">Nothing new</span>') + '</td></tr>'; }).join('') + '</tbody></table>';
@@ -8307,9 +8403,9 @@ function demoInit(){
   S.zona = 'America/New_York'; S.modoPruebas = true;
   const hoy = fechaHoy();
   DM.emps = [
-    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
-    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00', lugar:{ lat:28.48114, lng:-81.45973, radio:400, por:'carloshtl75' } },
-    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00', lugar:{ lat:28.60402, lng:-81.20019, radio:400, por:'carloshtl75' } },
+    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', titulo:'TOTAL SLEEP', ciudad:'Cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
+    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', titulo:'24/7 Medical', ciudad:'cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00', lugar:{ lat:28.48114, lng:-81.45973, radio:400, por:'carloshtl75' } },
+    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', titulo:'GASTRO', ciudad:'Medellín', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00', lugar:{ lat:28.60402, lng:-81.20019, radio:400, por:'carloshtl75' } },
     { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
     { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
   ];
@@ -8626,7 +8722,7 @@ function demoImportarUsuarios(p){
   const filas = (p && p.filas) || []; if(!filas.length || filas.length > 500) throw new Error('Invalid batch.');
   const vacio = v => v == null || String(v).trim() === '', out = { ok:true, creados:0, actualizados:0, archivados:0, filas:[], avisos:[] };
   const MAPA = { apellidos:'apellidos', email:'email', telefono:'telefono', cumpleanos:'cumpleanos', direccion:'direccion', ciudad:'ciudad', tipoId:'tipoId', numId:'numId',
-    banco:'banco', cuentaBanco:'cuentaBanco', fechaIngreso:'fechaIngreso', departamento:'departamento', cuenta:'cuenta', jefe:'jefe', pagoHora:'pagoHora' };
+    banco:'banco', cuentaBanco:'cuentaBanco', fechaIngreso:'fechaIngreso', departamento:'departamento', cuenta:'cuenta', jefe:'jefe', pagoHora:'pagoHora', titulo:'titulo' };
   filas.forEach(f => {
     const nom = String(f.nombre || '').trim(); if(!nom) throw new Error('A new employee is missing the name.');
     let e;
@@ -8921,7 +9017,7 @@ async function demoApi(action, p){
     if(!x.usuario){ if(!em) throw new Error('Enter the employee\'s email. They\'ll use it to sign in.');
       let b = em.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 28), u = b, n = 1; while(DM.emps.some(e => e.usuario === u)) u = b + (++n); x.usuario = u; nuevo = true; }
     const i = DM.emps.findIndex(e => e.usuario === x.usuario);
-    if(i >= 0){ cambio = (DM.emps[i].email || '') !== em && !!(DM.cuentas || {})[x.usuario]; demoBancoLog(x.usuario, DM.emps[i], x, 'carloshtl75', 'admin'); DM.emps[i] = x; } else DM.emps.push(x);
+    if(i >= 0){ cambio = (DM.emps[i].email || '') !== em && !!(DM.cuentas || {})[x.usuario]; demoBancoLog(x.usuario, DM.emps[i], x, 'carloshtl75', 'admin'); DM.emps[i] = Object.assign({}, DM.emps[i], x); } else DM.emps.push(x);
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
