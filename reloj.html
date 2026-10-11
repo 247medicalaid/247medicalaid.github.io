@@ -1157,6 +1157,20 @@ ul.iv-lista li:last-child{border-bottom:0}
 .iv-l-a .iv-borrar{color:var(--accent-600)}
 ul.iv-hist li.iv-pend-li{background:#FFFBFB}
 @media (max-width:640px){ ul.iv-lista li{grid-template-columns:1fr} .iv-l-a{justify-content:flex-start} .id-aviso{flex-wrap:wrap} }
+/* Users → Import from Connecteam (v59) */
+.pill.pill-arch{background:#4A4F57;color:#fff}
+.ventana.ventana-uimp{max-width:1040px}
+.ui-barra{display:flex;gap:8px;margin:4px 0 10px}
+.ui-arch{border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;font-size:14px}
+.ui-arch small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:3px}
+.ui-resumen{margin:8px 0;font-size:14px}.ui-resumen .nota{display:block;margin-top:2px}
+#uiTabla{max-height:52vh;overflow:auto}
+table.ui-t td{vertical-align:top}
+table.ui-t td small{display:block;color:var(--text-muted);font-size:12px}
+table.ui-t small.ui-nota{color:var(--warn);font-weight:600}
+table.ui-t select{max-width:230px;font-size:13px}
+.ui-chip{display:inline-block;font-size:11.5px;padding:1px 7px;margin:1px 3px 1px 0;border-radius:999px;background:var(--brand-50, #E8F1F8);color:var(--brand-700, #1F4E79);white-space:nowrap}
+@media (max-width:640px){ table.ui-t select{max-width:150px} }
 /* My profile como panel de la app (v50) */
 body.aw[data-aw="perfil"] .aw-panel > [data-aw="perfil"]{display:block}
 body.aw .aw-panel > .ventana{width:auto;max-height:none;overflow:visible;box-shadow:none;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 16px}
@@ -1523,13 +1537,14 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="cabecera">
       <h1>Users</h1>
       <span class="esp"></span>
+      <button class="btn btn-ghost btn-sm" id="uImportar" type="button">Import from Connecteam</button>
       <button class="btn btn-ink btn-sm" id="eNuevo">Add user</button>
     </div>
     <p class="nota" style="margin:-6px 0 12px;max-width:80ch">Agents sign in to the Time Clock with their email: add them here and they get an email to create their password. They only see their own Time Clock. Administrative staff are created in the portal.</p>
     <div class="users-barra">
       <input id="uBuscar" type="search" placeholder="Search name, phone, email…" autocomplete="off" aria-label="Search users">
       <select id="uCuenta" aria-label="Account"><option value="">All accounts</option></select>
-      <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="inact">Inactive</option></select>
+      <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="inact">Inactive</option><option value="arch">Archived (former)</option></select>
     </div>
     <div class="tabla-wrap" id="empsTabla"></div>
   </section>
@@ -1839,6 +1854,22 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div id="ivCuerpo"></div>
     <div class="err" id="ivErr" role="alert"></div>
     <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Close</button></div>
+  </div>
+</div>
+
+<!-- Users: importar la lista de Connecteam (v59) -->
+<div class="overlay hidden" id="ovUImp" role="dialog" aria-modal="true" aria-labelledby="uiTitulo">
+  <div class="ventana ventana-ancha ventana-uimp">
+    <h2 id="uiTitulo">Import users from Connecteam</h2>
+    <div class="sub">In Connecteam open Users, show the columns you want to bring (email, phone, birthday, address, ID, bank…) and export the active list and the archived list. Choose both files here, check the list and confirm. Nobody is activated, and nothing that's already in the Time Clock changes: only empty data is filled in. Archived users stay inactive and marked «Archived».</div>
+    <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="uiElegir" type="button">Choose files…</button>
+      <input type="file" id="uiArchivo" multiple class="hidden" accept=".xls,.xlsx,.csv"></div>
+    <div id="uiArchivos"></div>
+    <p id="uiResumen" class="ui-resumen"></p>
+    <div class="tabla-wrap" id="uiTabla"></div>
+    <div class="err" id="uiErr" role="alert"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button>
+      <button class="btn btn-ink hidden" id="uiImportar" type="button">Import</button></div>
   </div>
 </div>
 
@@ -2319,6 +2350,7 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede revisar este historial\.$/, 'Only an administrator can review this history.'],
   [/^Este documento es parte del perfil: no se puede quitar\.$/, 'This document is part of My profile: it can\'t be removed.'],
   [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, 'The bank history needs SQL step 37 in Supabase.'],
+  [/^.*(reloj_importar_usuarios).*$/, 'Importing users needs SQL step 40 in Supabase.'],
   [/^Solo un administrador puede manejar el inventario\.$/, 'Only an administrator can manage the inventory.'],
   [/^Elige el tipo de equipo\.$/, 'Choose the type of equipment.'],
   [/^Escribe al menos la marca, el modelo o el número de serie\.$/, 'Write at least the brand, model or serial number.'],
@@ -2429,7 +2461,7 @@ const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.pars
 const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
-  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '',
+  cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null,
   pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
@@ -2548,6 +2580,7 @@ async function api(action, p){
   if(action === 'corregir'){ await q(sb.rpc('reloj_corregir', { p_usuario:p.usuario, p_fecha:p.fecha, p_marcas:p.marcas, p_motivo:p.motivo })); return { ok:true }; }
   if(action === 'aprobar' || action === 'desaprobar') return q(sb.rpc('reloj_aprobar', { p_items:p.items, p_aprobar: action === 'aprobar' }));
   if(action === 'empleados') return empleadosSB();
+  if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
     const ses = await sesionSB();
@@ -4465,13 +4498,13 @@ function pintarEmps(){
   const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
   const fc = $('uCuenta').value; $('uCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === fc ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
   const busca = normal($('uBuscar').value), est = $('uEstado').value;
-  const l = todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : !e.activo)) &&
+  const l = todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : est === 'arch' ? !e.activo && !!e.archivadoEn : !e.activo && !e.archivadoEn)) &&
       (!busca || normal([e.nombre, e.usuario, e.telefono, e.email, e.cuenta, e.departamento].join(' ')).indexOf(busca) >= 0))
-    .sort((a, b) => (b.activo - a.activo) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
+    .sort((a, b) => (b.activo - a.activo) || (!!a.archivadoEn - !!b.archivadoEn) || (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || a.nombre.localeCompare(b.nombre, 'en'));
   if(!todos.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users yet</h2><p>Add the first one with their email.</p></div>'; return; }
   if(!l.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users match</h2><p>Try another search or filter.</p></div>'; return; }
   $('empsTabla').innerHTML = '<table class="emps"><thead><tr><th>Name</th><th>Account</th><th>Contact</th><th>Start date</th><th>Schedule</th><th>Pay rate</th><th>Monitor</th><th></th></tr></thead><tbody>' +
-    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') + '<small>' + esc(e.email || e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
+    l.map(e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') + '<small>' + esc(e.email || e.usuario) + (e.departamento ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
       '<td>' + (e.cuenta ? (colorCuenta(e.cuenta) ? '<i class="punto-cta" style="background:' + colorCuenta(e.cuenta) + '"></i>' : '') + esc(e.cuenta) : '<span class="pill no">No account</span>') + difMonitor(e) + '</td>' +
       '<td>' + esc(e.telefono || '—') + (e.email ? '<small>' + esc(e.email) + '</small>' : '') + '</td>' +
       '<td class="num">' + (e.fechaIngreso ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(e.fechaIngreso + 'T12:00:00Z'))) : '—') + '</td>' +
@@ -4616,7 +4649,7 @@ async function invitarDesdeLista(u, b){
 }
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
-  $('eTitulo').textContent = e ? 'Edit user' : 'Add user';
+  $('eTitulo').innerHTML = e ? 'Edit user' + (e.archivadoEn && !e.activo ? ' <span class="pill pill-arch">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : '') : 'Add user';
   S.empEdit = e ? e.usuario : null;
   $('eBancoHist').classList.toggle('hidden', !e);
   const mon = S.emps.monitor.map(m => m.agente);
@@ -6660,6 +6693,156 @@ async function invAccion(f, b){
   catch(e){ $('ivErr').textContent = e.message; if(b) b.disabled = false; }
 }
 
+/* ── Users → Import from Connecteam (v59): la lista de usuarios activos y archivados ──
+   El administrador sube los archivos que exporta Connecteam (Users → Export; .xls o .xlsx). Se leen en el navegador,
+   se muestran para revisar (a quién encontró, a quién crea, qué datos llena) y solo al confirmar se guardan (paso 40).
+   Nunca cambia lo que ya hay en el Time Clock: solo llena lo vacío. Los datos sensibles no se muestran (solo el nombre del campo). */
+const UIMP_CAMPOS = {   // encabezado de Connecteam (en minúsculas, sin tildes) → campo
+  'first name':'nombre', 'last name':'apellidos',
+  'email':'email', 'e-mail':'email', 'email address':'email', 'correo':'email', 'correo electronico':'email',
+  'mobile phone':'telefono', 'phone':'telefono', 'phone number':'telefono', 'mobile':'telefono', 'cell phone':'telefono', 'telefono':'telefono', 'celular':'telefono',
+  'birthday':'cumpleanos', 'date of birth':'cumpleanos', 'birth date':'cumpleanos', 'birthdate':'cumpleanos', 'fecha de nacimiento':'cumpleanos', 'cumpleanos':'cumpleanos',
+  'address':'direccion', 'home address':'direccion', 'street address':'direccion', 'direccion':'direccion',
+  'city':'ciudad', 'ciudad':'ciudad',
+  'id type':'tipoId', 'document type':'tipoId', 'tipo de documento':'tipoId', 'tipo id':'tipoId', 'type of id':'tipoId',
+  'id number':'numId', 'document number':'numId', 'national id':'numId', 'identification number':'numId', 'cedula':'numId', 'numero de documento':'numId', 'documento':'numId', 'id':'numId',
+  'bank':'banco', 'bank name':'banco', 'banco':'banco', 'nombre del banco':'banco',
+  'account number':'cuentaBanco', 'account_number':'cuentaBanco', 'bank_account':'cuentaBanco', 'bank account':'cuentaBanco', 'bank account number':'cuentaBanco', 'numero de cuenta':'cuentaBanco', 'cuenta bancaria':'cuentaBanco', 'numero de cuenta bancaria':'cuentaBanco',
+  'country code':'codPais', 'branch':'branch', 'direct manager':'jefe', 'manager':'jefe', 'jefe directo':'jefe',
+  'default rate':'pagoHora', 'pay rate':'pagoHora', 'hourly rate':'pagoHora', 'pay rate type':'tipoPago',
+  'employment start date':'fechaIngreso', 'start date':'fechaIngreso', 'hire date':'fechaIngreso',
+  'department':'departamento', 'title':'titulo', 'archived at':'archivadoEn'
+};
+const UIMP_IGNORAR = ['kiosk code', 'last login', 'date added', 'added by', 'archived by'];
+const UIMP_NOMBRE = { apellidos:'Last name', email:'Email', telefono:'Phone', cumpleanos:'Birthday', direccion:'Address', ciudad:'City', tipoId:'ID type', numId:'ID number',
+  banco:'Bank', cuentaBanco:'Account number', fechaIngreso:'Start date', departamento:'Department', cuenta:'Account', jefe:'Direct manager', pagoHora:'Pay rate' };
+const UIMP_CUENTA = { 'total sleep':'Total Sleep', 'gastro':'Gastroenterology', 'cardio':'Cardiovascular', 'mab pulmonary':'Pulmonary', 'pulmonary':'Pulmonary',
+  'white':'White Wilson', 'white wilson':'White Wilson', '24/7 medical':'24/7 Call Center', 'access':'Access Medical', 'access medical':'Access Medical',
+  'access campaign':'Access Medical', 'cardiovascular':'Cardiovascular', 'gastroenterology':'Gastroenterology' };
+const uimpTitulo = s => /[a-z]/.test(s) ? s : s.toLowerCase().replace(/(^|[\s'-])([a-zñáéíóú])/g, (m, a, b) => a + b.toUpperCase());
+// fecha de Connecteam: «08/20/2026», número de Excel o «2026-08-20» → AAAA-MM-DD
+function uimpFecha(v){
+  if(v === '' || v == null) return '';
+  if(typeof v === 'number' && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000).toISOString().slice(0, 10);
+  const s = String(v).trim(); let m;
+  if((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
+  if((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s))) return m[0];
+  return '';
+}
+// la cuenta oficial (lista del Monitor) a partir del «Title» de Connecteam
+function uimpCuenta(t){
+  const n = normal(t); if(!n) return '';
+  const lista = (listas().cuentas || []), por = x => lista.find(c => normal(c) === normal(x));
+  return por(t) || (UIMP_CUENTA[n] && por(UIMP_CUENTA[n])) || lista.find(c => normal(c).startsWith(n + ' ') || normal(c).startsWith(n)) || '';
+}
+// leer un archivo: el .xls de Connecteam es una tabla HTML; también acepta .xlsx y .csv
+async function uimpLeer(file){
+  const buf = await file.arrayBuffer(), ini = new TextDecoder('utf-8').decode(buf.slice(0, 600)).replace(/^﻿/, '').trim().toLowerCase();
+  let filas;
+  if(ini.startsWith('<')){
+    const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), 'text/html');
+    const t = doc.querySelector('table'); if(!t) throw new Error(file.name + ': no table found in the file.');
+    filas = [...t.rows].map(r => [...r.cells].map(c => c.textContent.replace(/\s+/g, ' ').trim()));
+  } else if(/\.xlsx$/i.test(file.name)) filas = (await ctLeerXlsx(buf)).map(f => Array.from(f || [], v => v == null ? '' : v));
+  else if(/\.csv$/i.test(file.name)){
+    filas = new TextDecoder('utf-8').decode(buf).replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).map(l => { const out = []; let c = '', q = false;
+      for(let i = 0; i < l.length; i++){ const ch = l[i]; if(q){ if(ch === '"' && l[i + 1] === '"'){ c += '"'; i++; } else if(ch === '"') q = false; else c += ch; }
+        else if(ch === '"') q = true; else if(ch === ','){ out.push(c); c = ''; } else c += ch; } out.push(c); return out; });
+  } else throw new Error(file.name + ': use the .xls / .xlsx file exported from Connecteam.');
+  const h = filas.findIndex(f => f.some(c => normal(String(c)) === 'first name'));
+  if(h < 0) throw new Error(file.name + ': it doesn\'t look like the Connecteam users list (no «First name» column).');
+  const cab = filas[h].map(c => normal(String(c))), mapa = {}, otras = [];
+  cab.forEach((c, i) => { if(!c) return; if(UIMP_CAMPOS[c]) mapa[UIMP_CAMPOS[c]] = i; else if(!UIMP_IGNORAR.includes(c)) otras.push(String(filas[h][i])); });
+  const val = (f, k) => mapa[k] == null ? '' : (f[mapa[k]] == null ? '' : f[mapa[k]]);
+  const gente = filas.slice(h + 1).filter(f => String(val(f, 'nombre')).trim()).map(f => {
+    const nom = uimpTitulo(String(val(f, 'nombre')).trim()), ape = uimpTitulo(String(val(f, 'apellidos')).trim()), tit = String(val(f, 'titulo')).trim(), br = String(val(f, 'branch')).trim();
+    // la cuenta: primero «Branch» (Connecteam la tiene con el nombre completo), si no «Title»
+    const x = { nombre:(nom + ' ' + ape).trim(), apellidos:ape, archivadoEn:uimpFecha(val(f, 'archivadoEn')), titulo:br || tit, cuenta:uimpCuenta(br) || uimpCuenta(tit) };
+    ['email', 'telefono', 'direccion', 'ciudad', 'tipoId', 'numId', 'banco', 'cuentaBanco', 'departamento'].forEach(k => { x[k] = String(val(f, k)).trim(); });
+    const cp = String(val(f, 'codPais')).replace(/\D/g, '');   // «57» + «3001234567» → «+57 3001234567»
+    if(cp && x.telefono && !/^\+/.test(x.telefono)) x.telefono = '+' + cp + ' ' + x.telefono;
+    x.jefe = uimpTitulo(String(val(f, 'jefe')).trim());
+    const tp = normal(String(val(f, 'tipoPago'))), pr = Number(String(val(f, 'pagoHora')).replace(/[^0-9.]/g, ''));   // «$9.5», solo si es por hora
+    x.pagoHora = (!tp || /hour/.test(tp)) && String(val(f, 'pagoHora')).trim() && pr > 0 && pr < 1000 ? String(pr) : '';
+    x.cumpleanos = uimpFecha(val(f, 'cumpleanos')); x.fechaIngreso = uimpFecha(val(f, 'fechaIngreso'));
+    return x; });
+  return { archivo:file.name, archivados:mapa.archivadoEn != null, gente, otras, campos:Object.keys(mapa).filter(k => UIMP_NOMBRE[k] || k === 'telefono') };
+}
+const uimpNoPersona = n => /^zz\b/i.test(n) || /\bconsults?\b/i.test(n);
+// qué datos llenaría en un empleado (solo lo vacío)
+function uimpCampos(x, e){
+  const vacio = v => v == null || String(v).trim() === '';
+  return Object.keys(UIMP_NOMBRE).filter(k => !vacio(x[k]) && (!e || vacio(e[k])));
+}
+function abrirUImp(){ S.uimp = { archivos:[], filas:[] }; $('uiArchivo').value = ''; $('uiErr').textContent = ''; pintarUImp(); abrir('ovUImp'); }
+$('uImportar').addEventListener('click', abrirUImp);
+$('uiElegir').addEventListener('click', () => { $('uiArchivo').value = ''; $('uiArchivo').click(); });
+$('uiArchivo').addEventListener('change', async () => {
+  const fs = [...$('uiArchivo').files]; if(!fs.length) return;
+  $('uiErr').textContent = '';
+  for(const f of fs){
+    try{ const a = await uimpLeer(f); S.uimp.archivos = S.uimp.archivos.filter(x => x.archivo !== a.archivo).concat([a]); }
+    catch(e){ $('uiErr').textContent = e.message; }
+  }
+  $('uiArchivo').value = '';   // para poder elegir otra vez los mismos archivos
+  uimpArmar(); pintarUImp();
+});
+// junta los archivos y empareja con los empleados del Time Clock (por nombre o por correo)
+function uimpArmar(){
+  const emps = S.emps.empleados, filas = [], vistos = {};
+  // primero los activos: si alguien sale en los dos archivos, cuenta como activo
+  S.uimp.archivos.slice().sort((a, b) => a.archivados - b.archivados).forEach(a => a.gente.forEach(x => {
+    const k = normal(x.nombre);
+    if(vistos[k]){ vistos[k].nota = 'Also in ' + a.archivo + ' (uses the active one)'; return; }
+    const cands = emps.filter(e => normal(e.nombre) === k || (x.email && normal(e.email) === normal(x.email)));
+    const r = { x, archivo:a.archivo, archivado:!!(a.archivados && x.archivadoEn), usuario:cands.length === 1 ? cands[0].usuario : '', incluir:!uimpNoPersona(x.nombre),
+      nota:uimpNoPersona(x.nombre) ? 'Doesn\'t look like a person' : cands.length > 1 ? 'Several employees with this name: choose one' : '' };
+    vistos[k] = r; filas.push(r); }));
+  S.uimp.filas = filas.sort((a, b) => (a.archivado - b.archivado) || a.x.nombre.localeCompare(b.x.nombre));
+}
+function pintarUImp(){
+  const u = S.uimp, emps = S.emps.empleados.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  $('uiArchivos').innerHTML = u.archivos.length ? u.archivos.map(a => '<div class="ui-arch"><b>' + esc(a.archivo) + '</b> · ' + a.gente.length + ' users · ' +
+      (a.archivados ? '<span class="pill pill-arch">Archived list</span>' : '<span class="pill">Active list</span>') +
+      (a.campos.length ? '<small>Data in the file: ' + esc(a.campos.map(k => UIMP_NOMBRE[k]).filter(Boolean).join(', ')) + '</small>' : '') +
+      (a.otras.length ? '<small>Not imported: ' + esc(a.otras.join(', ')) + '</small>' : '') + '</div>').join('')
+    : '<p class="nota">Choose the Users files exported from Connecteam (active and archived). You can choose both at once.</p>';
+  if(!u.filas.length){ $('uiTabla').innerHTML = ''; $('uiImportar').classList.add('hidden'); $('uiResumen').textContent = ''; return; }
+  const n = u.filas.filter(r => r.incluir), nuevos = n.filter(r => !r.usuario).length, arch = n.filter(r => r.archivado).length;
+  $('uiResumen').innerHTML = '<b>' + n.length + '</b> to import · ' + (n.length - nuevos) + ' already in the Time Clock · ' + nuevos + ' new · ' + arch + ' archived. ' +
+    '<span class="nota">Nobody is activated. Only empty data is filled in; nothing that\'s already in the Time Clock changes.</span>';
+  $('uiTabla').innerHTML = '<table class="emps ui-t"><thead><tr><th></th><th>Connecteam</th><th>In the Time Clock</th><th>Data to fill in</th></tr></thead><tbody>' + u.filas.map((r, i) => {
+    const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario), cs = uimpCampos(r.x, e);
+    return '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-ui-i="' + i + '"' + (r.incluir ? ' checked' : '') + ' aria-label="Import ' + esc(r.x.nombre) + '"></td>' +
+      '<td><b>' + esc(r.x.nombre) + '</b>' + (r.archivado ? ' <span class="pill pill-arch">Archived ' + esc(fechaUS(r.x.archivadoEn)) + '</span>' : '') +
+        '<small>' + esc([r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
+      '<td><select data-ui-u="' + i + '"><option value="">+ Create new (inactive)</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
+        esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? ' (active)' : '')) + '</option>').join('') + '</select></td>' +
+      '<td>' + (cs.length ? cs.map(k => '<span class="ui-chip">' + esc(UIMP_NOMBRE[k]) + '</span>').join('') : '<span class="muted">Nothing new</span>') + '</td></tr>'; }).join('') + '</tbody></table>';
+  $('uiImportar').classList.remove('hidden'); $('uiImportar').disabled = !n.length; $('uiImportar').textContent = 'Import ' + n.length + (n.length === 1 ? ' user' : ' users');
+}
+$('uiTabla').addEventListener('change', ev => {
+  const c = ev.target.closest('[data-ui-i]'), s = ev.target.closest('[data-ui-u]');
+  if(c) S.uimp.filas[Number(c.dataset.uiI)].incluir = c.checked;
+  if(s){ const r = S.uimp.filas[Number(s.dataset.uiU)]; r.usuario = s.value; if(/choose one/.test(r.nota)) r.nota = ''; }
+  pintarUImp();
+});
+$('uiImportar').addEventListener('click', async () => {
+  const rs = S.uimp.filas.filter(r => r.incluir), b = $('uiImportar');
+  const dup = {}; for(const r of rs){ if(r.usuario){ if(dup[r.usuario]) return $('uiErr').textContent = 'Two rows point to the same employee (' + ((S.emps.empleados.find(e => e.usuario === r.usuario) || {}).nombre || r.usuario) + '). Choose another one or uncheck one.'; dup[r.usuario] = 1; } }
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Importing…'; $('uiErr').textContent = '';
+  try{
+    let tot = { creados:0, actualizados:0, archivados:0, avisos:[] };
+    for(let i = 0; i < rs.length; i += 100){
+      const r = await api('importarUsuarios', { archivo:S.uimp.archivos.map(a => a.archivo).join(', '), filas:rs.slice(i, i + 100).map(r => Object.assign({}, r.x, { usuario:r.usuario || null,
+        archivadoEn:r.archivado ? r.x.archivadoEn : '' })) });
+      tot.creados += r.creados; tot.actualizados += r.actualizados; tot.archivados += r.archivados; tot.avisos = tot.avisos.concat(r.avisos || []);
+    }
+    S.emps = await api('empleados'); pintarEmps(); cerrar('ovUImp');
+    toast('Imported: ' + tot.creados + ' new, ' + tot.actualizados + ' updated, ' + tot.archivados + ' archived.' + (tot.avisos.length ? ' ' + tot.avisos.length + ' email(s) were already used by someone else and were skipped.' : ''));
+  }catch(e){ $('uiErr').textContent = e.message; b.disabled = false; b.textContent = 'Import'; }
+});
+
 /* ── agente: pedir ── */
 document.querySelectorAll('[data-sol]').forEach(b => b.addEventListener('click', () => abrirSolicitud(b.dataset.sol)));
 function abrirSolicitud(tipo){
@@ -8412,10 +8595,37 @@ function demoIdEstado(){
     const est = idEstadoDe(ds), ult = ds.slice().sort((a, b) => b.id - a.id)[0];
     return { usuario:e.usuario, nombre:e.nombre, cuenta:e.cuenta || '', estado:!t.obligatorio && est === 'falta' ? 'ok' : est, nota:est === 'rechazado' && ult ? ult.nota : '' }; }) };
 }
+// v59: el modo de ejemplo imita al paso 40 (importar la lista de usuarios de Connecteam)
+function demoImportarUsuarios(p){
+  const filas = (p && p.filas) || []; if(!filas.length || filas.length > 500) throw new Error('Invalid batch.');
+  const vacio = v => v == null || String(v).trim() === '', out = { ok:true, creados:0, actualizados:0, archivados:0, filas:[], avisos:[] };
+  const MAPA = { apellidos:'apellidos', email:'email', telefono:'telefono', cumpleanos:'cumpleanos', direccion:'direccion', ciudad:'ciudad', tipoId:'tipoId', numId:'numId',
+    banco:'banco', cuentaBanco:'cuentaBanco', fechaIngreso:'fechaIngreso', departamento:'departamento', cuenta:'cuenta', jefe:'jefe', pagoHora:'pagoHora' };
+  filas.forEach(f => {
+    const nom = String(f.nombre || '').trim(); if(!nom) throw new Error('A new employee is missing the name.');
+    let e;
+    if(f.usuario){ e = DM.emps.find(x => x.usuario === f.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); }
+    else {
+      const base = normal(nom.split(' ')[0] + '.' + ((f.apellidos || nom.split(' ')[1] || '').split(' ')[0])).replace(/[^a-z0-9.]/g, '').replace(/\.$/, '') || 'empleado';
+      let u = base, k = 1; while(DM.emps.some(x => x.usuario === u)) u = base + (++k);
+      e = { usuario:u, nombre:nom, apellidos:'', agenteMonitor:'', nombreNomina:'', horasDia:8, activo:false, cuenta:'', departamento:'', telefono:'', email:'', notas:'Imported from Connecteam (users list)' };
+      DM.emps.push(e); out.creados++;
+    }
+    let em = String(f.email || '').trim().toLowerCase(); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) em = '';
+    if(em && vacio(e.email) && DM.emps.some(x => x !== e && (x.email || '').toLowerCase() === em)){ out.avisos.push({ usuario:e.usuario, nombre:e.nombre, aviso:'email' }); em = ''; }
+    const campos = [];
+    Object.keys(MAPA).forEach(k => { const v = k === 'email' ? em : String(f[k] == null ? '' : f[k]).trim(); if(v && vacio(e[MAPA[k]])){ e[MAPA[k]] = v; campos.push(k); } });
+    if(f.archivadoEn){ e.archivadoEn = f.archivadoEn; e.activo = false; out.archivados++; } else e.archivadoEn = null;
+    if(campos.length && f.usuario) out.actualizados++;
+    out.filas.push({ usuario:e.usuario, creado:!f.usuario, campos, archivado:!!f.archivadoEn });
+  });
+  return out;
+}
 async function demoApi(action, p){
   demoInit();
   if(action.startsWith('doc')){ await new Promise(r => setTimeout(r, 200)); return demoDocs(action, p || {}); }
   if(action.startsWith('banco')){ await new Promise(r => setTimeout(r, 150)); return demoBanco(action, p || {}); }
+  if(action === 'importarUsuarios'){ await new Promise(r => setTimeout(r, 150)); return demoImportarUsuarios(p || {}); }
   if(/^inv[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 150)); return demoInv(action, p || {}); }   // (no «invitar»)
   if(action === 'idEstado') return demoIdEstado();
   await new Promise(s => setTimeout(s, 250));
@@ -8689,7 +8899,7 @@ async function demoApi(action, p){
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
-  if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; return { ok:true }; }
+  if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; if(p.activo) e.archivadoEn = null; return { ok:true }; }
   if(action === 'borrarEmpleado'){
     const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.');
     const tiene = Object.keys(DM.marcas).some(k => k.startsWith(p.usuario + '|') && DM.marcas[k].length) || DM.sols.some(x => x.usuario === p.usuario);
