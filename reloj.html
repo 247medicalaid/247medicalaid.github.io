@@ -1160,7 +1160,10 @@ ul.iv-hist li.iv-pend-li{background:#FFFBFB}
 /* Users → Import from Connecteam (v59) */
 .pill.pill-arch{background:#4A4F57;color:#fff}
 .ventana.ventana-uimp{max-width:1040px}
-.ui-barra{display:flex;gap:8px;margin:4px 0 10px}
+.ui-barra{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 10px}
+.ui-tipo{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-muted)}
+.ui-tipo select{font-size:13.5px}
+.ui-falta{color:var(--warn)}
 .ui-arch{border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;font-size:14px}
 .ui-arch small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:3px}
 .ui-resumen{margin:8px 0;font-size:14px}.ui-resumen .nota{display:block;margin-top:2px}
@@ -1861,8 +1864,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <div class="overlay hidden" id="ovUImp" role="dialog" aria-modal="true" aria-labelledby="uiTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="uiTitulo">Import users from Connecteam</h2>
-    <div class="sub">In Connecteam open Users, show the columns you want to bring (email, phone, birthday, address, ID, bank…) and export the active list and the archived list. Choose both files here, check the list and confirm. Nobody is activated, and nothing that's already in the Time Clock changes: only empty data is filled in. Archived users stay inactive and marked «Archived».</div>
+    <div class="sub">In Connecteam open Users, show the columns you want to bring (email, phone, birthday, address, ID, bank…) and export the active list and the archived list. Choose both files here, check the list and confirm. Nobody is activated, and nothing that's already in the Time Clock changes: only empty data is filled in. Archived users stay inactive and marked «Archived». Connecteam doesn't export the ID type: choose it below and it's set for everyone who has an ID number and no type yet (you can import the same files again to complete it).</div>
     <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="uiElegir" type="button">Choose files…</button>
+      <label class="ui-tipo"><span>ID type for rows without one</span><select id="uiTipoId" aria-label="ID type for rows without one"></select></label>
       <input type="file" id="uiArchivo" multiple class="hidden" accept=".xls,.xlsx,.csv"></div>
     <div id="uiArchivos"></div>
     <p id="uiResumen" class="ui-resumen"></p>
@@ -6704,7 +6708,8 @@ const UIMP_CAMPOS = {   // encabezado de Connecteam (en minúsculas, sin tildes)
   'birthday':'cumpleanos', 'date of birth':'cumpleanos', 'birth date':'cumpleanos', 'birthdate':'cumpleanos', 'fecha de nacimiento':'cumpleanos', 'cumpleanos':'cumpleanos',
   'address':'direccion', 'home address':'direccion', 'street address':'direccion', 'direccion':'direccion',
   'city':'ciudad', 'ciudad':'ciudad',
-  'id type':'tipoId', 'document type':'tipoId', 'tipo de documento':'tipoId', 'tipo id':'tipoId', 'type of id':'tipoId',
+  'id type':'tipoId', 'document type':'tipoId', 'tipo de documento':'tipoId', 'tipo id':'tipoId', 'type of id':'tipoId', 'id_type':'tipoId',
+  'identification type':'tipoId', 'type of identification':'tipoId', 'id document type':'tipoId', 'tipo de identificacion':'tipoId', 'tipo de id':'tipoId',
   'id number':'numId', 'document number':'numId', 'national id':'numId', 'identification number':'numId', 'cedula':'numId', 'numero de documento':'numId', 'documento':'numId', 'id':'numId',
   'bank':'banco', 'bank name':'banco', 'banco':'banco', 'nombre del banco':'banco',
   'account number':'cuentaBanco', 'account_number':'cuentaBanco', 'bank_account':'cuentaBanco', 'bank account':'cuentaBanco', 'bank account number':'cuentaBanco', 'numero de cuenta':'cuentaBanco', 'cuenta bancaria':'cuentaBanco', 'numero de cuenta bancaria':'cuentaBanco',
@@ -6765,8 +6770,23 @@ async function uimpLeer(file){
     const tp = normal(String(val(f, 'tipoPago'))), pr = Number(String(val(f, 'pagoHora')).replace(/[^0-9.]/g, ''));   // «$9.5», solo si es por hora
     x.pagoHora = (!tp || /hour/.test(tp)) && String(val(f, 'pagoHora')).trim() && pr > 0 && pr < 1000 ? String(pr) : '';
     x.cumpleanos = uimpFecha(val(f, 'cumpleanos')); x.fechaIngreso = uimpFecha(val(f, 'fechaIngreso'));
+    x.tipoId = uimpTipo(x.tipoId);
     return x; });
   return { archivo:file.name, archivados:mapa.archivadoEn != null, gente, otras, campos:Object.keys(mapa).filter(k => UIMP_NOMBRE[k] || k === 'telefono') };
+}
+// tipo de documento → el nombre de la lista (Settings → ID type)
+const UIMP_TIPO = { 'cc':'CC', 'cedula':'CC', 'cedula de ciudadania':'CC', 'c.c.':'CC', 'citizenship card':'CC', 'national id':'CC',
+  'ce':'CE', 'cedula de extranjeria':'CE', 'c.e.':'CE', 'foreign id':'CE', 'pasaporte':'Passport', 'passport':'Passport', 'pp':'Passport',
+  'ssn':'SSN', 'social security':'SSN', 'social security number':'SSN', 'ppt':'PPT', 'permiso por proteccion temporal':'PPT', 'pep':'PEP', 'ti':'TI', 'tarjeta de identidad':'TI' };
+function uimpTipo(t){
+  const n = normal(t); if(!n) return '';
+  const lista = listas().tiposId || [], por = x => lista.find(c => normal(c) === normal(x));
+  return por(t) || (UIMP_TIPO[n] && (por(UIMP_TIPO[n]) || UIMP_TIPO[n])) || String(t).trim();
+}
+// la fila como se manda: con el tipo por omisión si trae número y no trae tipo
+function uimpDatos(r){
+  const def = $('uiTipoId') ? $('uiTipoId').value : '';
+  return Object.assign({}, r.x, { tipoId:r.x.tipoId || (r.x.numId && def) || '' });
 }
 const uimpNoPersona = n => /^zz\b/i.test(n) || /\bconsults?\b/i.test(n);
 // qué datos llenaría en un empleado (solo lo vacío)
@@ -6774,7 +6794,9 @@ function uimpCampos(x, e){
   const vacio = v => v == null || String(v).trim() === '';
   return Object.keys(UIMP_NOMBRE).filter(k => !vacio(x[k]) && (!e || vacio(e[k])));
 }
-function abrirUImp(){ S.uimp = { archivos:[], filas:[] }; $('uiArchivo').value = ''; $('uiErr').textContent = ''; pintarUImp(); abrir('ovUImp'); }
+function abrirUImp(){ S.uimp = { archivos:[], filas:[] };
+  const tv = $('uiTipoId').value; llenarSelect('uiTipoId', listas().tiposId || [], ''); $('uiTipoId').value = tv && (listas().tiposId || []).includes(tv) ? tv : '';
+  $('uiTipoId').options[0].textContent = '— (leave empty)'; $('uiArchivo').value = ''; $('uiErr').textContent = ''; pintarUImp(); abrir('ovUImp'); }
 $('uImportar').addEventListener('click', abrirUImp);
 $('uiElegir').addEventListener('click', () => { $('uiArchivo').value = ''; $('uiArchivo').click(); });
 $('uiArchivo').addEventListener('change', async () => {
@@ -6810,9 +6832,12 @@ function pintarUImp(){
   if(!u.filas.length){ $('uiTabla').innerHTML = ''; $('uiImportar').classList.add('hidden'); $('uiResumen').textContent = ''; return; }
   const n = u.filas.filter(r => r.incluir), nuevos = n.filter(r => !r.usuario).length, arch = n.filter(r => r.archivado).length;
   $('uiResumen').innerHTML = '<b>' + n.length + '</b> to import · ' + (n.length - nuevos) + ' already in the Time Clock · ' + nuevos + ' new · ' + arch + ' archived. ' +
+    (function(){ const t = n.filter(r => { const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario); return uimpCampos(uimpDatos(r), e).includes('tipoId'); }).length,
+        sin = n.filter(r => r.x.numId && !uimpDatos(r).tipoId).length;
+      return (t ? t + ' get an ID type. ' : '') + (sin ? '<b class="ui-falta">' + sin + ' with an ID number and no ID type: choose one above.</b> ' : ''); })() +
     '<span class="nota">Nobody is activated. Only empty data is filled in; nothing that\'s already in the Time Clock changes.</span>';
   $('uiTabla').innerHTML = '<table class="emps ui-t"><thead><tr><th></th><th>Connecteam</th><th>In the Time Clock</th><th>Data to fill in</th></tr></thead><tbody>' + u.filas.map((r, i) => {
-    const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario), cs = uimpCampos(r.x, e);
+    const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario), cs = uimpCampos(uimpDatos(r), e);
     return '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-ui-i="' + i + '"' + (r.incluir ? ' checked' : '') + ' aria-label="Import ' + esc(r.x.nombre) + '"></td>' +
       '<td><b>' + esc(r.x.nombre) + '</b>' + (r.archivado ? ' <span class="pill pill-arch">Archived ' + esc(fechaUS(r.x.archivadoEn)) + '</span>' : '') +
         '<small>' + esc([r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
@@ -6821,6 +6846,7 @@ function pintarUImp(){
       '<td>' + (cs.length ? cs.map(k => '<span class="ui-chip">' + esc(UIMP_NOMBRE[k]) + '</span>').join('') : '<span class="muted">Nothing new</span>') + '</td></tr>'; }).join('') + '</tbody></table>';
   $('uiImportar').classList.remove('hidden'); $('uiImportar').disabled = !n.length; $('uiImportar').textContent = 'Import ' + n.length + (n.length === 1 ? ' user' : ' users');
 }
+$('uiTipoId').addEventListener('change', () => { if(S.uimp && S.uimp.filas.length) pintarUImp(); });
 $('uiTabla').addEventListener('change', ev => {
   const c = ev.target.closest('[data-ui-i]'), s = ev.target.closest('[data-ui-u]');
   if(c) S.uimp.filas[Number(c.dataset.uiI)].incluir = c.checked;
@@ -6834,7 +6860,7 @@ $('uiImportar').addEventListener('click', async () => {
   try{
     let tot = { creados:0, actualizados:0, archivados:0, avisos:[] };
     for(let i = 0; i < rs.length; i += 100){
-      const r = await api('importarUsuarios', { archivo:S.uimp.archivos.map(a => a.archivo).join(', '), filas:rs.slice(i, i + 100).map(r => Object.assign({}, r.x, { usuario:r.usuario || null,
+      const r = await api('importarUsuarios', { archivo:S.uimp.archivos.map(a => a.archivo).join(', '), filas:rs.slice(i, i + 100).map(r => Object.assign(uimpDatos(r), { usuario:r.usuario || null,
         archivadoEn:r.archivado ? r.x.archivadoEn : '' })) });
       tot.creados += r.creados; tot.actualizados += r.actualizados; tot.archivados += r.archivados; tot.avisos = tot.avisos.concat(r.avisos || []);
     }
