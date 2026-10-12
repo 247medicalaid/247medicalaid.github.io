@@ -1291,6 +1291,11 @@ body.aw.aw-app .aw-marca small{font-size:9px;letter-spacing:.05em;white-space:no
 .chat-tag{display:inline-block !important;margin-top:3px;font-size:11px !important;font-weight:600;color:#9B2C2C !important;background:#FDECEC;border-radius:999px;padding:0 7px}
 .chat-tag.visto{color:var(--text-muted) !important;background:var(--sand)}
 .chat-rev-n{background:#E53935;color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-left:3px}
+/* Monitor dentro del Time Clock (v68) */
+.mon-cab{display:flex;align-items:center;gap:10px;margin-bottom:10px}.mon-cab h1{margin:0}.mon-cab .esp{flex:1}
+.mon-marco{position:relative;height:calc(100vh - 160px);min-height:420px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--paper)}
+.mon-marco iframe{display:block;width:100%;height:100%;border:0}
+.mon-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);font-size:14px;background:var(--paper)}
 /* Updates (v62) */
 .upd-lista{display:flex;flex-direction:column;gap:12px;max-width:760px}
 .upd-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative}
@@ -1470,6 +1475,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <div class="grupo">Admin</div>
   <span class="sep-riel" aria-hidden="true"></span>
   <button class="tab" role="tab" data-v="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Today</span></button>
+  <button class="tab" role="tab" data-v="mon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg><span>Monitor</span></button>
   <button class="tab" role="tab" data-v="sols"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span>Requests</span><b class="badge hidden" id="solBadge"></b></button>
   <button class="tab" role="tab" data-v="hoja"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg><span>Timesheet</span></button>
   <button class="tab" role="tab" data-v="pago"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 10v4M18 10v4"/></svg><span>Pay run</span></button>
@@ -1688,6 +1694,14 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="dc-resumen" id="dcResumen"></div>
     <div class="tabla-wrap dc-wrap" id="dcTabla"></div>
+  </section>
+
+  <!-- ADMIN: MONITOR (el mismo monitor.html, dentro de la app) -->
+  <section id="vMon" class="hidden">
+    <div class="mon-cab"><h1>Monitor</h1><span class="esp"></span>
+      <a class="btn btn-ghost btn-sm" id="monNueva" href="monitor.html" target="_blank" rel="noopener">Open in a new tab</a></div>
+    <div class="mon-marco" id="monMarco"><div class="mon-cargando" id="monCargando"><span class="spin dark"></span> Loading the Monitor…</div>
+      <iframe id="monFrame" title="Agent activity monitor"></iframe></div>
   </section>
 
   <!-- ADMIN: UPDATES (comunicados) -->
@@ -3621,7 +3635,7 @@ async function inicio(){
       actualizarInvBadgeSolo(); setInterval(() => { if(!document.hidden && S.vista !== 'inv') actualizarInvBadgeSolo(); }, 60000);
       chatArrancar();
       const pedida = location.hash.slice(1);
-      irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+      irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
     } else if(yo.empleado) irA('reloj');
     else irA('sin');
   }catch(e){
@@ -3805,7 +3819,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S.v
 
 function irA(v){
   S.vista = v; document.body.dataset.vista = v;
-  ['reloj','sin','hoy','sols','hoja','pago','aus','docs','upd','chat','inv','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
+  ['reloj','sin','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
   if(S.yo && S.yo.esAdmin){ try{ history.replaceState(null, '', '#' + v); }catch(e){} }
   clearInterval(S.timerReloj); clearInterval(S.timerHoy);
@@ -3819,6 +3833,7 @@ function irA(v){
   if(v === 'docs') cargarDocs();
   if(v === 'inv') cargarInv();
   if(v === 'upd') cargarUpd();
+  if(v === 'mon') abrirMonitor();
   if(v === 'chat'){ cargarChat(); chatArrancar(); }
   setTimeout(chatAjustar, 0);   // (v64) alto del chat y lugar de los avisos
   if(v === 'pago') cargarPago(S.periodo ? quinDe(S.periodo.desde) : S.pr ? S.pr.desde : null);
@@ -8080,6 +8095,27 @@ function popPermiso(){
   const puede = !appWin() && 'Notification' in window && Notification.permission === 'default';
   b.classList.toggle('hidden', !puede);
 }
+
+/* ── Monitor dentro del Time Clock (v68) ── */
+function abrirMonitor(){
+  const f = $('monFrame');
+  if(!f.dataset.cargado){
+    f.dataset.cargado = '1';
+    f.addEventListener('load', () => { $('monCargando').classList.add('hidden'); });
+    f.src = 'monitor.html?embed=1' + (DEMO ? '&demo=1' : '');
+    if(DEMO) $('monNueva').href = 'monitor.html?demo=1';
+  }
+  setTimeout(monAjustar, 0);
+}
+// el alto: lo que queda de la pantalla (los avisos de arriba cambian ese espacio)
+function monAjustar(){
+  const el = $('monMarco'); if(!el || !el.offsetParent) return;
+  let top = el.getBoundingClientRect().top;
+  for(let x = el.parentElement; x; x = x.parentElement) top += x.scrollTop || 0;
+  el.style.height = Math.max(420, Math.round(window.innerHeight - top - 14)) + 'px';
+}
+window.addEventListener('resize', () => { if(S.vista === 'mon') monAjustar(); });
+setInterval(() => { if(S.vista === 'mon' && !document.hidden) monAjustar(); }, 3000);
 
 /* ── agente: pedir ── */
 document.querySelectorAll('[data-sol]').forEach(b => b.addEventListener('click', () => abrirSolicitud(b.dataset.sol)));

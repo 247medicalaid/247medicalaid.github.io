@@ -98,6 +98,11 @@ button.sincuenta:disabled{cursor:default;opacity:.75}
 .aj-op .t span{display:block;color:var(--muted);font-size:12px;margin-top:1px}
 .aj-op .cnt{font-size:12px;font-weight:700;border:1px solid var(--warning);background:var(--warning-bg);border-radius:6px;padding:2px 7px}
 header .btn.alerta{color:var(--text)}
+/* dentro del Time Clock */
+html.embed header{padding:8px 16px}
+html.embed header picture,html.embed #volver{display:none}
+html.embed header h1{font-size:15px}
+html.embed body{background:var(--bg)}
 .modal.ubic{max-width:620px}
 #uLista{max-height:58vh;overflow:auto;padding-right:2px}
 #uResumen .banner{margin:0}
@@ -345,6 +350,11 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 </style>
 </head>
 <body>
+<script>
+// Dentro del Time Clock (Monitor en el menú del admin): sin logo ni «Portal», en modo claro como el Time Clock.
+window.EMBED = /[?&]embed=1\b/.test(location.search) && window.top !== window;
+if (window.EMBED) { document.documentElement.classList.add('embed'); document.documentElement.dataset.theme = 'light'; }
+</script>
 <header>
   <picture>
     <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical Aid" onerror="this.style.display='none'">
@@ -392,7 +402,7 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 <div id="denegado" hidden>
   <h2 style="margin-top:0">Sin acceso</h2>
   <p>Tu usuario no tiene asignada la aplicación <b>Monitor de Agentes</b>. Pídele acceso a un administrador del portal.</p>
-  <a class="btn primary" href="index.html">Volver al portal</a>
+  <a class="btn primary" href="index.html" target="_top">Volver al portal</a>
 </div>
 <div id="setup" hidden>
   <h2 style="margin-top:0">Conectar el panel</h2>
@@ -2744,7 +2754,7 @@ $('verDemo').addEventListener('click', () => { S.demo = true; cargar(); });
 if (/[?&]demo=1/.test(location.search)) S.demo = true;
 if (!S.demo) {
   const u = portalAutoriza();
-  if (u === null) { location.replace('index.html'); }
+  if (u === null) { (window.EMBED ? window.top : window).location.replace('index.html'); }
   else if (u === false) {
     document.getElementById('app').hidden = true;
     document.getElementById('setup').hidden = true;
