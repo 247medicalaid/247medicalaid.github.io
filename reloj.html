@@ -575,6 +575,23 @@ tr.cerrado td{background:#F6FAFC}
   .ventana-ficha .ficha-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 .ventana-ficha .ficha-grid .fila4{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 14px}
+/* v76: ficha angosta; cada campo con el ancho que necesita */
+@media (min-width:900px){
+  .ventana.ventana-ficha{max-width:880px}
+  .ventana-ficha .ficha-grid{grid-template-columns:repeat(12,minmax(0,1fr))}
+  .ventana-ficha .ficha-grid > .c3{grid-column:span 3} .ventana-ficha .ficha-grid > .c4{grid-column:span 4}
+  .ventana-ficha .ficha-grid > .c5{grid-column:span 5} .ventana-ficha .ficha-grid > .c6{grid-column:span 6}
+  .ventana-ficha .ficha-grid > .c12{grid-column:1/-1}
+  .ventana-ficha .ficha-grid .fila-banco{grid-template-columns:minmax(0,2fr) minmax(0,3fr) minmax(0,4fr) minmax(0,3fr)}
+}
+.nom-aviso{color:var(--warn) !important;font-weight:600}
+/* v77: cada campo con el ancho de su contenido */
+@media (min-width:820px){
+  .ventana.ventana-ficha{max-width:780px}
+  .ventana-ficha .ficha-grid{display:flex;flex-wrap:wrap;gap:0 14px;align-items:flex-start}
+  .ventana-ficha .ficha-grid .fila4{display:contents}
+  .ventana-ficha .ficha-grid .campo[style*="--w"]{flex:0 0 var(--w);width:var(--w);max-width:100%}
+}
 @media (max-width:640px){ .ventana-ficha .ficha-grid .fila4{grid-template-columns:1fr 1fr} }
 .ventana-ficha .acc-emp{margin:2px 0 10px}
 .ventana-ficha #eNotas{min-height:52px}
@@ -2038,42 +2055,42 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <h2 id="eTitulo">Add user</h2>
     <div class="sub">Their sign-in email, account, Monitor and Payroll links, and personal details.</div>
     <div class="ficha-grid">
-      <label class="campo"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
-      <label class="campo"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
-      <label class="campo"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
+      <label class="campo c6" style="--w:300px"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
+      <label class="campo c3" style="--w:200px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
+      <label class="campo c3" style="--w:200px"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
     <div class="ficha-sec"><h3>Work</h3>
       <div class="ficha-grid">
-        <label class="campo"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
-        <label class="campo"><span>Department</span><select id="eDepto"></select></label>
-        <label class="campo"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
-        <label class="campo campo-mon"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
-        <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
-        <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
+        <label class="campo c4" style="--w:230px"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
+        <label class="campo c4" style="--w:230px"><span>Department</span><select id="eDepto"></select></label>
+        <label class="campo c4" style="--w:240px"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
+        <label class="campo campo-mon c4" style="--w:230px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
+        <label class="campo c5" style="--w:270px"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"><small class="nom-aviso hidden" id="eNominaAviso"></small></label>
+        <label class="campo c3" style="--w:200px"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
         <div class="fila4">
-        <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
-        <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
-        <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
-        <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="campo" style="--w:160px"><span>Employment start date</span><input id="eIngreso" type="date"></label>
+        <label class="campo" style="--w:140px"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
+        <label class="campo" style="--w:100px"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
+        <label class="campo" style="--w:110px"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
         </div>
       </div>
     </div>
     <div class="ficha-sec"><h3>Personal</h3>
       <div class="ficha-grid">
-        <label class="campo"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
-        <label class="campo"><span>Birthday</span><input id="eCumple" type="date"></label>
-        <label class="campo"><span>City</span><input id="eCiudad" autocomplete="off"></label>
-        <label class="campo ancho"><span>Home address</span><input id="eDir" autocomplete="off"></label>
+        <label class="campo c4" style="--w:180px"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
+        <label class="campo c4" style="--w:160px"><span>Birthday</span><input id="eCumple" type="date"></label>
+        <label class="campo c4" style="--w:200px"><span>City</span><input id="eCiudad" autocomplete="off"></label>
+        <label class="campo ancho c12" style="--w:100%"><span>Home address</span><input id="eDir" autocomplete="off"></label>
       </div>
     </div>
     <div class="ficha-sec"><h3>Bank information</h3>
-      <div class="ficha-grid"><div class="fila4">
-        <label class="campo"><span>ID type</span><select id="eTipoId"></select></label>
-        <label class="campo"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
-        <label class="campo"><span>Bank name</span><select id="eBanco"></select></label>
-        <label class="campo"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
+      <div class="ficha-grid"><div class="fila4 fila-banco">
+        <label class="campo" style="--w:100px"><span>ID type</span><select id="eTipoId"></select></label>
+        <label class="campo" style="--w:170px"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
+        <label class="campo" style="--w:200px"><span>Bank name</span><select id="eBanco"></select></label>
+        <label class="campo" style="--w:200px"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
       </div></div>
       <p class="nota" style="margin:-4px 0 4px">Edit the options of Account, Department, ID type and Bank name in <b>Settings → Lists</b>.</p>
       <button class="btn-link bh-enlace" type="button" id="eBancoHist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>View change history</button>
@@ -5390,6 +5407,14 @@ function partirNombre(e){
   if(w.length === 3) return [w[0], w[1] + ' ' + w[2]];
   return [w.slice(0, 2).join(' '), w.slice(2).join(' ')];
 }
+// (v76) ¿el Last name está dentro de «Name in Payroll»? (si no, la exportación de payroll partiría mal el nombre)
+function pintarNominaAviso(){
+  const n = sinTildes($('eNomina').value), ap = sinTildes($('eApellidos').value), el = $('eNominaAviso');
+  const mal = !!(n && ap && (' ' + n + ' ').indexOf(' ' + ap + ' ') < 0);
+  el.classList.toggle('hidden', !mal);
+  el.textContent = mal ? '⚠ The last name “' + $('eApellidos').value.trim() + '” isn\'t in this name, so the payroll export may split it wrong.' : '';
+}
+['eNomina', 'eApellidos'].forEach(id => $(id).addEventListener('input', pintarNominaAviso));
 const nombreFicha = () => ($('eNombre').value.trim() + ' ' + $('eApellidos').value.trim()).replace(/\s+/g, ' ').trim();
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
@@ -5414,6 +5439,7 @@ function abrirEmp(usuario){
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
+  pintarNominaAviso();
   $('eErr').textContent = '';
   pintarAccesoEmp(e);
   pintarCuentaMon();
@@ -5439,6 +5465,7 @@ $('eNuevo').addEventListener('click', () => abrirEmp(null));
   if(m && !$('eMonitor').value && !monDueno(m.agente, null)){ $('eMonitor').value = m.agente; proponerCuenta(m.cuenta); pintarMonNota(); }
   // el nombre en nómina se propone (y se actualiza mientras no lo cambien a mano)
   if(!$('eNomina').value || $('eNomina').value === S.nomProp){ $('eNomina').value = S.nomProp = nom.toUpperCase(); }
+  pintarNominaAviso();
 }));
 // Al elegir el agente del Monitor, se propone su cuenta.
 // El Monitor manda: al vincular a un agente, el empleado toma la cuenta que tiene allá.
