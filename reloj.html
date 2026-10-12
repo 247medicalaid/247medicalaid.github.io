@@ -2039,8 +2039,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="sub">Their sign-in email, account, Monitor and Payroll links, and personal details.</div>
     <div class="ficha-grid">
       <label class="campo"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
-      <label class="campo"><span>Full name</span><input id="eNombre" autocomplete="off"></label>
-      <label class="campo"><span>Last name(s) <i class="opc" style="font-style:normal;font-weight:400">(for the payroll export)</i></span><input id="eApellidos" autocomplete="off" placeholder="Leave empty to take it from the full name"></label>
+      <label class="campo"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
+      <label class="campo"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
@@ -5374,6 +5374,23 @@ $('slSeguir').addEventListener('click', () => cerrar('ovSalir'));
 $('slDescartar').addEventListener('click', () => { cerrar('ovSalir'); cerrar('ovEmp'); S.empFoto = null; });
 $('slGuardar').addEventListener('click', () => { cerrar('ovSalir'); $('eGuardar').click(); });
 $('ovSalir').addEventListener('click', e => { if(e.target === $('ovSalir')) cerrar('ovSalir'); });
+// (v75) nombre completo guardado → [First name, Last name]
+function partirNombre(e){
+  const full = String((e && e.nombre) || '').replace(/\s+/g, ' ').trim(), ap = String((e && e.apellidos) || '').replace(/\s+/g, ' ').trim();
+  if(ap){
+    const lf = full.toLowerCase(), la = ap.toLowerCase();
+    if(lf === la) return ['', ap];
+    if(lf.endsWith(' ' + la)) return [full.slice(0, full.length - ap.length).trim(), ap];
+    const quita = la.split(' ');
+    return [full.split(' ').filter(w => quita.indexOf(w.toLowerCase()) < 0).join(' '), ap];
+  }
+  const w = full.split(' ').filter(Boolean);
+  if(w.length <= 1) return [w[0] || '', ''];
+  if(w.length === 2) return [w[0], w[1]];
+  if(w.length === 3) return [w[0], w[1] + ' ' + w[2]];
+  return [w.slice(0, 2).join(' '), w.slice(2).join(' ')];
+}
+const nombreFicha = () => ($('eNombre').value.trim() + ' ' + $('eApellidos').value.trim()).replace(/\s+/g, ' ').trim();
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
   $('eTitulo').innerHTML = e ? 'Edit user' + (e.archivadoEn && !e.activo ? ' <span class="pill pill-arch">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : '') : 'Add user';
@@ -5396,6 +5413,7 @@ function abrirEmp(usuario){
     const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
+  { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
   $('eErr').textContent = '';
   pintarAccesoEmp(e);
   pintarCuentaMon();
@@ -5414,13 +5432,14 @@ function abrirEmp(usuario){
 }
 $('eNuevo').addEventListener('click', () => abrirEmp(null));
 // Al escribir el nombre de alguien nuevo se proponen su agente del Monitor y su nombre en la nómina.
-$('eNombre').addEventListener('change', () => {
+['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('change', () => {
   if(S.empEdit) return;
-  const nom = $('eNombre').value.trim(); if(!nom) return;
+  const nom = nombreFicha(); if(!$('eNombre').value.trim() || !$('eApellidos').value.trim()) return;
   const m = S.emps.monitor.find(x => x.agente.toLowerCase() === nom.toLowerCase());
   if(m && !$('eMonitor').value && !monDueno(m.agente, null)){ $('eMonitor').value = m.agente; proponerCuenta(m.cuenta); pintarMonNota(); }
-  if(!$('eNomina').value) $('eNomina').value = nom.toUpperCase();
-});
+  // el nombre en nómina se propone (y se actualiza mientras no lo cambien a mano)
+  if(!$('eNomina').value || $('eNomina').value === S.nomProp){ $('eNomina').value = S.nomProp = nom.toUpperCase(); }
+}));
 // Al elegir el agente del Monitor, se propone su cuenta.
 // El Monitor manda: al vincular a un agente, el empleado toma la cuenta que tiene allá.
 function proponerCuenta(c){
@@ -5450,13 +5469,14 @@ $('eMonitor').addEventListener('change', pintarMonNota);
 $('eMonitor').addEventListener('change', () => { const m = monAgente($('eMonitor').value); if(m && m.cuenta) proponerCuenta(m.cuenta); else pintarCuentaMon(); });
 $('eCuenta').addEventListener('change', pintarCuentaMon);
 $('eGuardar').addEventListener('click', async () => {
-  const datos = { usuario:S.empEdit || '', nombre:$('eNombre').value.trim(), agenteMonitor:$('eMonitor').value,
+  const datos = { usuario:S.empEdit || '', nombre:nombreFicha(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:S.empEdit ? !!(S.emps.empleados.find(x => x.usuario === S.empEdit) || {}).activo : true };
   Object.keys(CAMPOS_FICHA).forEach(k => { datos[k] = $(CAMPOS_FICHA[k]).value.trim(); });
   datos.email = datos.email.toLowerCase();
   const antes = S.empEdit ? S.emps.empleados.find(x => x.usuario === S.empEdit) : null, acc = accesoDe(antes);
   if(!datos.email && (!antes || acc.k !== 'portal')) return $('eErr').textContent = 'Enter the email. They\'ll use it to sign in.';
-  if(!datos.nombre) return $('eErr').textContent = 'Enter the name.';
+  if(!$('eNombre').value.trim()) return $('eErr').textContent = 'Enter the first name.';
+  if(!$('eApellidos').value.trim()) return $('eErr').textContent = 'Enter the last name.';
   if(datos.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) return $('eErr').textContent = 'Invalid email.';
   if(datos.pagoHora !== '' && !(Number(datos.pagoHora) >= 0)) return $('eErr').textContent = 'Invalid pay rate.';
   const b = $('eGuardar'); b.disabled = true;
