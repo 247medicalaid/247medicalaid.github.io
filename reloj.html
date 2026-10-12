@@ -1278,6 +1278,19 @@ body.aw.aw-app .aw-marca small{font-size:9px;letter-spacing:.05em;white-space:no
     .chat-form{padding:8px}.chat-form-f{gap:6px}.chat-clip{padding:6px}
   }
 }
+/* v66: comunicado al que se llega desde el aviso */
+.upd-card.upd-foco{box-shadow:0 0 0 3px #17A9DE;transition:box-shadow .3s}
+/* Borrar chats (v67) */
+.chat-del{color:var(--accent-600, #C62828)}
+.chat-borr-aviso{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px;background:#FDECEC;border-bottom:1px solid #F4B9BB;font-size:13.5px;color:#7A1F1F}
+.chat-borr-aviso > span{flex:1;min-width:200px}
+.chat-borr-aviso.visto{background:var(--sand);border-bottom-color:var(--line);color:var(--text-muted)}
+.chat-elim{background:var(--accent-600, #C62828);color:#fff;border:0}.chat-elim:hover{filter:brightness(.92)}
+.chat-borr{display:block;font-size:11.5px;color:#9B2C2C;font-weight:600;margin-bottom:2px}
+.chat-msg.borrado .chat-burbuja:has(.chat-borr){background:#FFF6F6;border:1px dashed #E5A3A3;color:var(--text);font-size:14px}
+.chat-tag{display:inline-block !important;margin-top:3px;font-size:11px !important;font-weight:600;color:#9B2C2C !important;background:#FDECEC;border-radius:999px;padding:0 7px}
+.chat-tag.visto{color:var(--text-muted) !important;background:var(--sand)}
+.chat-rev-n{background:#E53935;color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-left:3px}
 /* Updates (v62) */
 .upd-lista{display:flex;flex-direction:column;gap:12px;max-width:760px}
 .upd-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative}
@@ -1693,7 +1706,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="chat" id="chatApp">
       <aside class="chat-lado">
         <div class="chat-lado-cab"><h2>Chat</h2><button class="btn btn-ink btn-sm" id="chatNuevo" type="button" aria-label="New chat"><span class="cn-mas" aria-hidden="true">+</span><span class="cn-txt"> New chat</span></button></div>
-        <div class="chat-modo hidden" id="chatModo" role="group" aria-label="Which conversations"><button type="button" data-chat-modo="mios" aria-pressed="true">My chats</button><button type="button" data-chat-modo="todos" aria-pressed="false">Review all</button></div>
+        <div class="chat-modo hidden" id="chatModo" role="group" aria-label="Which conversations"><button type="button" data-chat-modo="mios" aria-pressed="true">My chats</button><button type="button" data-chat-modo="todos" aria-pressed="false">Review all <b class="chat-rev-n hidden" id="chatRevN"></b></button></div>
         <p class="chat-aviso hidden" id="chatAvisoRev">The administrator can review the chats. Don't share patient information here.</p>
         <button class="btn-link chat-notif hidden" id="chatNotif" type="button">🔔 Turn on desktop alerts for new messages</button>
         <input id="chatBuscar" type="search" placeholder="Search…" autocomplete="off" aria-label="Search conversations">
@@ -1701,6 +1714,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       </aside>
       <section class="chat-conv vacia" id="chatConv" aria-label="Conversation">
         <header class="chat-conv-cab" id="chatConvCab"></header>
+        <div id="chatBorrAviso"></div>
         <div class="chat-msgs" id="chatMsgs"></div>
         <form class="chat-form hidden" id="chatForm">
           <div class="chat-adj hidden" id="chatAdj"></div>
@@ -2716,6 +2730,8 @@ const SERVIDOR_EN = [
   [/^Escribe el mensaje\.$/, 'Write the message.'],
   [/^Ese mensaje ya no existe\.$/, 'That message no longer exists.'],
   [/^Solo un administrador puede revisar los chats\.$/, 'Only an administrator can review the chats.'],
+  [/^Solo un administrador puede borrar conversaciones\.$/, 'Only an administrator can delete conversations.'],
+  [/^.*(reloj_chat_ocultar|reloj_chat_conservar|reloj_chat_eliminar|reloj_chat_msg_borrado).*$/, 'Deleting chats needs SQL step 44 in Supabase.'],
   [/^.*(reloj_chat).*$/, 'Chat needs SQL step 43 in Supabase.'],
   [/^.*(reloj_doc_|reloj_docs|reloj_doc_tipos|reloj_paystubs).*$/, 'Documents need SQL step 36 in Supabase.'],
   [/^La fecha debe ser de hoy o de los últimos 31 días\.$/, 'The date must be today or within the last 31 days.'],
@@ -2938,13 +2954,17 @@ async function chatSB(action, p){
   if(action === 'chatTodos') return ((await q(sb.rpc('reloj_chat_todos'))) || []).map(x => Object.assign({}, x, { id:Number(x.id), mensajes:Number(x.mensajes) || 0 }));
   if(action === 'chatContactos') return (await q(sb.rpc('reloj_chat_contactos'))) || [];
   if(action === 'chatMsgs'){
-    const id = p.id, desde = Number(p.desde) || 0;
-    const [ms, mb, bor] = await Promise.all([
-      desde ? q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).gt('id', desde).order('id').limit(500))
-            : q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).order('id', { ascending:false }).limit(200)).then(l => l.reverse()),
+    const id = p.id, min = Number(p.min) || 0, desde = Math.max(Number(p.desde) || 0, min), adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
+    const [ms, mb, bor, cop] = await Promise.all([
+      Number(p.desde) ? q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).gt('id', desde).order('id').limit(500))
+            : q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).gt('id', min).order('id', { ascending:false }).limit(200)).then(l => l.reverse()),
       q(sb.from('reloj_chat_miembro').select('usuario,nombre,rol,salio').eq('chat_id', id)),
-      desde ? q(sb.from('reloj_chat_msg').select('id,usuario,nombre,creado,borrado').eq('chat_id', id).eq('borrado', true).lte('id', desde).gt('id', Math.max(0, desde - 400))) : []]);
-    return { msgs:await chatFirmar(ms.map(chatMsgJS)), miembros:mb, cambios:bor.map(m => Object.assign(chatMsgJS(m), { texto:'', adjunto:null })) };
+      Number(p.desde) ? q(sb.from('reloj_chat_msg').select('id,usuario,nombre,creado,borrado').eq('chat_id', id).eq('borrado', true).lte('id', desde).gt('id', Math.max(min, desde - 400))) : [],
+      adm ? q(sb.from('reloj_chat_msg_borrado').select('*').eq('chat_id', id)).catch(() => []) : null]);
+    let copias = null;
+    if(cop){ copias = {}; const fs = await chatFirmar(cop.map(x => ({ adjunto:x.adjunto })));
+      cop.forEach((x, i) => { copias[Number(x.msg_id)] = { texto:x.texto || '', adjunto:fs[i].adjunto || null, por:x.borrado_por, en:Date.parse(x.borrado_en) }; }); }
+    return { msgs:await chatFirmar(ms.map(chatMsgJS)), miembros:mb, cambios:bor.map(m => Object.assign(chatMsgJS(m), { texto:'', adjunto:null })), copias };
   }
   if(action === 'chatEnviar'){
     let adj = null;
@@ -2961,6 +2981,11 @@ async function chatSB(action, p){
   if(action === 'chatGrupo') return Number(await q(sb.rpc('reloj_chat_grupo', { p:p.grupo })));
   if(action === 'chatSalir') return q(sb.rpc('reloj_chat_salir', { p_id:p.id }));
   if(action === 'chatLeido') return q(sb.rpc('reloj_chat_leido', { p_id:p.id, p_hasta:p.hasta }));
+  if(action === 'chatOcultar') return q(sb.rpc('reloj_chat_ocultar', { p_id:p.id }));
+  if(action === 'chatConservar') return q(sb.rpc('reloj_chat_conservar', { p_id:p.id }));
+  if(action === 'chatEliminar'){ const r = await q(sb.rpc('reloj_chat_eliminar', { p_id:p.id }));
+    if((r.archivos || []).length) try{ await sb.storage.from(BUCKET_CHAT).remove(r.archivos); }catch(e){}
+    return r; }
   if(action === 'chatBorrar'){ const r = await q(sb.rpc('reloj_chat_borrar_msg', { p_id:p.id }));
     if(r.archivo && S.yo && S.yo.esAdmin && !S.agente) try{ await sb.storage.from(BUCKET_CHAT).remove([r.archivo]); }catch(e){}
     return r; }
@@ -7523,7 +7548,7 @@ async function updMarcarLeido(id){
   u.leido = Date.now();
   const card = document.querySelector('#updAgLista [data-upd="' + id + '"]');
   if(card){ card.classList.remove('nuevo'); const n = card.querySelector('.upd-nuevo'); if(n) setTimeout(() => n.remove(), 1500); }
-  S.updPend = (S.updPend || []).filter(x => x.id !== id); updContar(); popQuitar('upd|' + id); popTitulo();
+  S.updPend = (S.updPend || []).filter(x => x.id !== id); updContar(); popTitulo();   // (v66) el aviso emergente se queda hasta cerrarlo
   try{ await api('updLeido', { ids:[id] }); }catch(e){}
 }
 function updContar(){
@@ -7688,7 +7713,7 @@ async function cargarChat(callado){
   if(!callado && !c.resumen.length) $('chatLista').innerHTML = '<div style="padding:18px"><span class="spin dark"></span> Loading…</div>';
   try{
     const r = await api('chatResumen'); c.yo = r.yo; c.resumen = r.chats; c.err = '';
-    if(c.modo === 'todos') c.todos = await api('chatTodos');
+    if(c.modo === 'todos'){ c.todos = await api('chatTodos'); c.todosEn = Date.now(); }
   }catch(e){ c.err = e.message; }
   pintarChatLista(); chatContar(); popChat(); popPermiso(); chatAjustar();
   if(c.abierto && chatVisible()) cargarChatMsgs(c.abierto, true);
@@ -7697,13 +7722,16 @@ function pintarChatLista(){
   const c = chatS(), busca = normal($('chatBuscar').value), adm = !!(S.yo && S.yo.esAdmin) && !S.agente && !S.demoAgente;
   $('chatModo').classList.toggle('hidden', !adm); $('chatAvisoRev').classList.toggle('hidden', adm);
   $('chatModo').querySelectorAll('[data-chat-modo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.chatModo === c.modo));
+  if(adm) chatRevContar();
   $('chatNuevo').classList.toggle('hidden', c.modo === 'todos');
   if(c.err){ $('chatLista').innerHTML = '<div class="err" style="padding:14px">' + esc(c.err) + '</div>'; return; }
   if(c.modo === 'todos'){
     const l = (c.todos || []).filter(x => !busca || normal(x.nombre + ' ' + x.miembros.map(m => m.nombre).join(' ')).includes(busca));
     $('chatLista').innerHTML = l.length ? l.map(x => { const nom = x.tipo === 'grupo' ? x.nombre : x.miembros.map(m => m.nombre).join(' ↔ ');
       return '<button type="button" class="chat-item' + (c.abierto === x.id ? ' on' : '') + '" data-chat="' + x.id + '">' + chatAvatar(x.id, nom, x.tipo === 'grupo') +
-        '<span class="chat-item-t"><b>' + esc(nom) + '</b><small>' + x.mensajes + (x.mensajes === 1 ? ' message' : ' messages') + (x.tipo === 'grupo' ? ' · ' + x.miembros.filter(m => !m.salio).length + ' members' : '') + '</small></span>' +
+        '<span class="chat-item-t"><b>' + esc(nom) + '</b><small>' + x.mensajes + (x.mensajes === 1 ? ' message' : ' messages') + (x.tipo === 'grupo' ? ' · ' + x.miembros.filter(m => !m.salio).length + ' members' : '') + '</small>' +
+          ((x.borradoPor || []).length ? '<small class="chat-tag' + (x.borradoPor.some(b => !b.revisado) ? '' : ' visto') + '">🗑 Deleted by ' + esc(x.borradoPor.map(b => b.nombre.split(' ')[0]).join(', ')) + '</small>' : '') +
+          (x.msgBorrados ? '<small class="chat-tag visto">' + x.msgBorrados + ' deleted message' + (x.msgBorrados === 1 ? '' : 's') + '</small>' : '') + '</span>' +
         '<span class="chat-item-h">' + esc(chatHora(Date.parse(x.ultimo))) + '</span></button>'; }).join('') : '<p class="nota" style="padding:14px">No conversations yet.</p>';
     return;
   }
@@ -7731,20 +7759,23 @@ async function abrirChat(id){
 async function cargarChatMsgs(id, callado){
   const c = chatS(), l = c.msgs[id] || [], desde = l.length ? l[l.length - 1].id : 0;
   try{
-    const r = await api('chatMsgs', { id, desde });
+    const inf0 = c.resumen.find(z => z.id === id), min = c.modo === 'todos' || !inf0 ? 0 : Number(inf0.desde) || 0;
+    const r = await api('chatMsgs', { id, desde, min });
     if(c.abierto !== id) return;
     c.miembros[id] = r.miembros;
     const nuevos = r.msgs.filter(m => !l.some(x => x.id === m.id));
     // también los cambios (borrados) de los que ya estaban
     const cambios = (r.cambios || []);
     c.msgs[id] = l.map(m => cambios.find(x => x.id === m.id) || m).concat(nuevos);
+    if(r.copias){ const antes = JSON.stringify(c.msgs[id].map(m => !!m.copia)); c.msgs[id].forEach(m => { m.copia = r.copias[m.id] || null; });
+      if(callado && antes !== JSON.stringify(c.msgs[id].map(m => !!m.copia))) cambios.push(1); }
     if(!callado || nuevos.length || cambios.length) pintarChatConv(nuevos.length > 0);
     const ult = c.msgs[id].length ? c.msgs[id][c.msgs[id].length - 1].id : 0, x = c.resumen.find(z => z.id === id);
     if(ult && x && x.noLeidos && chatVisible() && !document.hidden){ x.noLeidos = 0; chatContar(); pintarChatLista(); popQuitar('chat|' + id + '|'); popTitulo(); api('chatLeido', { id, hasta:ult }).catch(() => {}); }
   }catch(e){ if(!callado) $('chatMsgs').innerHTML = '<div class="err" style="padding:14px">' + esc(e.message) + '</div>'; }
 }
 function chatInfo(id){
-  const c = chatS(), x = c.resumen.find(z => z.id === id) || (c.todos || []).find(z => z.id === id);
+  const c = chatS(), x = (c.modo === 'todos' && (c.todos || []).find(z => z.id === id)) || c.resumen.find(z => z.id === id) || (c.todos || []).find(z => z.id === id);
   if(!x) return null;
   const mios = c.resumen.some(z => z.id === id), nom = x.tipo === 'grupo' ? x.nombre : x.otro ? x.nombre : (x.miembros || []).map(m => m.nombre).join(' ↔ ');
   return { x, mios, nom, grupo:x.tipo === 'grupo', rol:x.rol };
@@ -7764,11 +7795,16 @@ function pintarChatConv(bajar){
   setTimeout(chatAjustar, 0);
   const c = chatS(), id = c.abierto, inf = id && chatInfo(id);
   $('chatConv').classList.toggle('vacia', !inf);
-  if(!inf){ $('chatConvCab').innerHTML = ''; $('chatMsgs').innerHTML = '<div class="chat-vacio"><span>' + IC_CHAT + '</span><p>Choose a conversation or start a new one.</p></div>'; $('chatForm').classList.add('hidden'); return; }
+  if(!inf){ $('chatBorrAviso').innerHTML = ''; $('chatConvCab').innerHTML = ''; $('chatMsgs').innerHTML = '<div class="chat-vacio"><span>' + IC_CHAT + '</span><p>Choose a conversation or start a new one.</p></div>'; $('chatForm').classList.add('hidden'); return; }
   const mb = (c.miembros[id] || []).filter(m => !m.salio), adm = !!(S.yo && S.yo.esAdmin) && !S.agente && !S.demoAgente;
   $('chatConvCab').innerHTML = '<button type="button" class="chat-atras" id="chatAtras" aria-label="Back to the conversations">‹</button>' + chatAvatar(inf.x.otro || id, inf.nom, inf.grupo) +
     '<div class="chat-cab-t"><b>' + esc(inf.nom) + '</b><small>' + (inf.grupo ? mb.length + ' members: ' + esc(mb.map(m => m.nombre.split(' ')[0]).join(', ')) : 'Private chat') + (!inf.mios ? ' · reviewing (you\'re not in this chat)' : '') + '</small></div>' +
-    (inf.grupo && inf.mios ? '<button type="button" class="btn btn-ghost btn-sm" id="chatGrupoEd">' + (inf.rol === 'admin' || adm ? 'Edit group' : 'Group') + '</button>' : '');
+    (inf.grupo && inf.mios ? '<button type="button" class="btn btn-ghost btn-sm" id="chatGrupoEd">' + (inf.rol === 'admin' || adm ? 'Edit group' : 'Group') + '</button>' : '') +
+    (adm || inf.mios ? '<button type="button" class="btn btn-ghost btn-sm chat-del" id="chatDel" title="' + (adm ? 'Delete this conversation for everyone' : 'Remove this chat from your list') + '">Delete chat</button>' : '');
+  const bp = adm && inf.x.borradoPor ? inf.x.borradoPor : [], pend = bp.filter(b => !b.revisado);
+  $('chatBorrAviso').innerHTML = !bp.length ? '' : '<div class="chat-borr-aviso' + (pend.length ? '' : ' visto') + '"><span>🗑 <b>' + esc(bp.map(b => b.nombre).join(', ')) + '</b> deleted this chat · ' +
+    esc(bp.map(b => chatHora(Date.parse(b.en))).join(', ')) + (pend.length ? '' : ' · kept') + '</span>' +
+    (pend.length ? '<button type="button" class="btn btn-sm btn-ghost" id="chatKeep">Keep</button>' : '') + '<button type="button" class="btn btn-sm chat-elim" id="chatElim">Delete permanently</button></div>';
   const l = c.msgs[id] || [], caja = $('chatMsgs'), abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 80;
   let dia = '', html = '';
   l.forEach((m, i) => {
@@ -7777,12 +7813,16 @@ function pintarChatConv(bajar){
     const a = m.adjunto, img = a && updEsImg(a);
     html += '<div class="chat-msg' + (mio ? ' mio' : '') + (seguido ? ' seguido' : '') + (m.borrado ? ' borrado' : '') + '" data-msg="' + m.id + '">' +
       (!mio && !seguido && (inf.grupo || !inf.mios) ? '<b class="chat-quien" style="color:' + chatColor(m.usuario) + '">' + esc(m.nombre || m.usuario) + '</b>' : '') +
-      '<div class="chat-burbuja">' + (m.borrado ? '<i>Message deleted</i>' :
+      '<div class="chat-burbuja">' + (m.borrado && m.copia ? '<small class="chat-borr">Deleted by ' + esc(chatNomDe(m.copia.por)) + ' · ' + esc(chatHora(m.copia.en)) + '</small>' +
+          (m.copia.adjunto ? '<span class="chat-txt">📎 ' + (m.copia.adjunto.url ? '<a href="' + esc(m.copia.adjunto.url) + '" target="_blank" rel="noopener">' + esc(m.copia.adjunto.nombre) + '</a>' : esc(m.copia.adjunto.nombre)) + '</span><br>' : '') +
+          (m.copia.texto ? '<span class="chat-txt">' + updTexto(m.copia.texto) + '</span>' : '') :
+        m.borrado ? '<i>Message deleted</i>' :
         (a ? (img && a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" class="chat-img"><img src="' + esc(a.url) + '" alt="' + esc(a.nombre) + '" loading="lazy"></a>' :
           '<a class="upd-file chat-file"' + (a.url ? ' href="' + esc(a.url) + '" target="_blank" rel="noopener"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span>' + esc(a.nombre) + '<small>' + updBytes(a.bytes) + '</small></span></a>') : '') +
         (m.texto ? '<span class="chat-txt">' + updTexto(m.texto) + '</span>' : '')) +
         '<small class="chat-h">' + esc(hora(m.creado)) + '</small></div>' +
-      (!m.borrado && (mio || adm) ? '<button type="button" class="chat-x" data-msg-x="' + m.id + '" aria-label="Delete message" title="Delete">×</button>' : '') + '</div>';
+      (!m.borrado && (mio || adm) ? '<button type="button" class="chat-x" data-msg-x="' + m.id + '" aria-label="Delete message" title="Delete">×</button>'
+        : m.borrado && m.copia && adm ? '<button type="button" class="chat-x" data-msg-x="' + m.id + '" aria-label="Delete permanently" title="Delete permanently">×</button>' : '') + '</div>';
   });
   caja.innerHTML = html || '<div class="chat-vacio"><p>No messages yet. Say hi!</p></div>';
   if(bajar === undefined || bajar === true || abajo) caja.scrollTop = caja.scrollHeight;
@@ -7820,7 +7860,8 @@ $('chatApp').addEventListener('click', async ev => {
   if(m){ const c = chatS(); c.modo = m.dataset.chatModo; c.abierto = null; document.body.classList.remove('chat-dentro'); pintarChatConv(); await cargarChat(); return; }
   if(x){
     if(x.dataset.seguro !== '1'){ x.dataset.seguro = '1'; x.textContent = 'Delete?'; x.classList.add('seguro'); setTimeout(() => { if(x.isConnected){ x.dataset.seguro = ''; x.textContent = '×'; x.classList.remove('seguro'); } }, 3000); return; }
-    try{ await api('chatBorrar', { id:Number(x.dataset.msgX) }); const c = chatS(), mm = (c.msgs[c.abierto] || []).find(z => z.id === Number(x.dataset.msgX)); if(mm){ mm.borrado = true; mm.texto = ''; mm.adjunto = null; } pintarChatConv(false); cargarChat(true); }
+    try{ await api('chatBorrar', { id:Number(x.dataset.msgX) }); const c = chatS(), mm = (c.msgs[c.abierto] || []).find(z => z.id === Number(x.dataset.msgX));
+      if(mm){ const adm = !!(S.yo && S.yo.esAdmin) && !S.agente && !S.demoAgente; if(adm) mm.copia = null; else if(!mm.borrado) mm.copia = null; mm.borrado = true; mm.texto = ''; mm.adjunto = null; } pintarChatConv(false); cargarChat(true); }
     catch(e){ toast(e.message, 'err'); }
   }
 });
@@ -7828,6 +7869,36 @@ $('chatBuscar').addEventListener('input', pintarChatLista);
 $('chatNotif').addEventListener('click', async () => { try{ await Notification.requestPermission(); }catch(e){} popPermiso();
   if('Notification' in window && Notification.permission === 'granted') toast('Desktop alerts are on.'); });
 
+// (admin) cuántas conversaciones borradas por agentes faltan por decidir (Keep / Delete permanently)
+async function chatRevContar(forzar){
+  const c = chatS();
+  if(forzar || !c.todos || Date.now() - (c.todosEn || 0) > 60000){ try{ c.todos = await api('chatTodos'); c.todosEn = Date.now(); }catch(e){ return; } }
+  const n = (c.todos || []).filter(x => (x.borradoPor || []).some(b => !b.revisado)).length, b = $('chatRevN');
+  if(b){ b.textContent = n; b.classList.toggle('hidden', !n); }
+}
+const chatNomDe = u => { const c = chatS(), x = (c.todos || []).flatMap(t => t.miembros || []).find(m => m.usuario === u) || Object.values(c.miembros).flat().find(m => m && m.usuario === u); return x ? x.nombre : u; };
+// borrar la conversación: el agente la quita de su lista; el admin la borra para todos
+async function chatBorrarConv(b, permanente){
+  const c = chatS(), id = c.abierto;
+  if(b.dataset.seguro !== '1'){ b.dataset.seguro = '1'; const t0 = b.textContent; b.textContent = permanente ? 'Click again: delete for everyone' : 'Click again to delete';
+    setTimeout(() => { if(b.isConnected){ b.dataset.seguro = ''; b.textContent = t0; } }, 4000); return; }
+  b.disabled = true;
+  try{
+    await api(permanente ? 'chatEliminar' : 'chatOcultar', { id });
+    delete c.msgs[id]; c.abierto = null; document.body.classList.remove('chat-dentro');
+    c.resumen = c.resumen.filter(x => x.id !== id); if(permanente && c.todos) c.todos = c.todos.filter(x => x.id !== id);
+    pintarChatConv(); await cargarChat(true); if(permanente) chatRevContar(true);
+    toast(permanente ? 'Conversation deleted for everyone.' : 'Chat deleted from your list.');
+  }catch(e){ toast(e.message, 'err'); b.disabled = false; }
+}
+$('chatApp').addEventListener('click', async ev => {
+  const d = ev.target.closest('#chatDel'), e2 = ev.target.closest('#chatElim'), k = ev.target.closest('#chatKeep');
+  const adm = !!(S.yo && S.yo.esAdmin) && !S.agente && !S.demoAgente;
+  if(d) return chatBorrarConv(d, adm);
+  if(e2) return chatBorrarConv(e2, true);
+  if(k){ k.disabled = true; try{ await api('chatConservar', { id:chatS().abierto }); await chatRevContar(true); pintarChatLista(); pintarChatConv(false); toast('Kept. It stays for review.'); }
+    catch(x){ toast(x.message, 'err'); k.disabled = false; } }
+});
 /* nueva conversación: una persona o un grupo */
 async function chatContactos(){ const c = chatS(); if(!c.contactos) c.contactos = await api('chatContactos'); return c.contactos.filter(x => x.usuario !== c.yo); }
 async function abrirChatNuevo(){
@@ -7983,6 +8054,16 @@ function popChat(){
   });
   popTitulo();
 }
+// «Read»: abre Updates y lleva hasta ese comunicado (resaltado un momento)
+function popIrUpd(id){
+  if(!S.awListo) return;
+  if(document.body.dataset.aw !== 'upd') appPanel('upd');
+  let n = 0;
+  const ir = () => { const c = document.querySelector('#updAgLista [data-upd="' + id + '"]');
+    if(c){ c.scrollIntoView({ behavior:'smooth', block:'start' }); c.classList.add('upd-foco'); setTimeout(() => c.classList.remove('upd-foco'), 2500); }
+    else if(++n < 20) setTimeout(ir, 250); };
+  setTimeout(ir, 150);
+}
 function popIrChat(id){
   if(S.awListo) appPanel('chat'); else if(S.yo && S.yo.esAdmin) irA('chat');
   chatS().modo = 'mios';
@@ -7990,7 +8071,7 @@ function popIrChat(id){
 }
 function popUpd(){
   (S.updPend || []).slice(0, 3).forEach(u => popMostrar('upd|' + u.id, { icono:'<span class="pop-ic">' + IC_UPD + '</span>', titulo:'New update: ' + u.titulo,
-    texto:(u.cuerpo || '').replace(/\s+/g, ' ').trim().slice(0, 140), boton:'Read', abrir:() => { if(S.awListo) appPanel('upd'); } }));
+    texto:(u.cuerpo || '').replace(/\s+/g, ' ').trim().slice(0, 140), boton:'Read', abrir:() => popIrUpd(u.id) }));
   popTitulo();
 }
 // en el navegador (no en la app de Windows): ofrecer las notificaciones del sistema
@@ -9905,10 +9986,45 @@ function demoChat(action, p){
   if(action === 'chatBorrar'){ const m = DM.chatMsgs.find(x => x.id === p.id && !x.borrado && (x.usuario === yo || admin)); if(!m) throw new Error('That message no longer exists.');
     m.borrado = true; m.texto = ''; m.adjunto = null; return { ok:true }; }
 }
+// v67: borrar chats en el modo de ejemplo (imita al paso 44)
+function demoChat2(action, p){
+  demoChatIni(); DM.chatCop = DM.chatCop || {};
+  const admin = !S.demoAgente, yo = admin ? 'carloshtl75' : 'laura.a', mb = c => DM.chatMb.find(m => m.c === c && m.usuario === yo);
+  if(action === 'chatResumen'){
+    const r = demoChat(action, p);
+    r.chats = r.chats.filter(x => { const m = mb(x.id), d = m.desde || 0; x.desde = d; if(!d) return true;
+      const ms = DM.chatMsgs.filter(g => g.c === x.id && g.id > d); if(!ms.length) return false;
+      const u = ms[ms.length - 1]; x.ultimoMsg = { id:u.id, usuario:u.usuario, nombre:u.nombre, texto:u.texto.slice(0, 140), adjunto:!!u.adjunto, borrado:u.borrado, creado:new Date(u.creado).toISOString() };
+      x.noLeidos = ms.filter(g => g.id > m.leido && g.usuario !== yo && !g.borrado).length; return true; });
+    return r;
+  }
+  if(action === 'chatTodos'){
+    return demoChat(action, p).map(x => Object.assign(x, { msgBorrados:Object.values(DM.chatCop).filter(k => k.c === x.id).length,
+      borradoPor:DM.chatMb.filter(m => m.c === x.id && m.borradoEn).map(m => ({ usuario:m.usuario, nombre:m.nombre, en:new Date(m.borradoEn).toISOString(), revisado:!!m.revisado })) }));
+  }
+  if(action === 'chatMsgs'){
+    const r = demoChat(action, Object.assign({}, p, { desde:Math.max(Number(p.desde) || 0, Number(p.min) || 0) }));
+    if(admin){ r.copias = {}; Object.entries(DM.chatCop).forEach(([k, v]) => { if(v.c === p.id) r.copias[k] = { texto:v.texto, adjunto:v.adjunto, por:v.por, en:v.en }; }); }
+    return r;
+  }
+  if(action === 'chatBorrar'){
+    const m = DM.chatMsgs.find(x => x.id === p.id); if(!m) throw new Error('That message no longer exists.');
+    if(admin){ if(m.borrado && !DM.chatCop[p.id]) throw new Error('That message no longer exists.'); delete DM.chatCop[p.id]; m.borrado = true; m.texto = ''; m.adjunto = null; return { ok:true }; }
+    if(m.borrado || m.usuario !== yo) throw new Error('That message no longer exists.');
+    DM.chatCop[p.id] = { c:m.c, texto:m.texto, adjunto:m.adjunto, por:yo, en:Date.now() }; m.borrado = true; m.texto = ''; m.adjunto = null; return { ok:true };
+  }
+  if(action === 'chatOcultar'){ const m = mb(p.id); if(!m || m.salio) throw new Error('That conversation no longer exists.');
+    const ult = Math.max(0, ...DM.chatMsgs.filter(g => g.c === p.id).map(g => g.id)); m.desde = ult; m.leido = Math.max(m.leido, ult); m.borradoEn = Date.now(); m.revisado = !ult; return { ok:true }; }
+  if(action === 'chatConservar'){ if(!admin) throw new Error('Only an administrator can review the chats.'); DM.chatMb.forEach(m => { if(m.c === p.id) m.revisado = true; }); return { ok:true }; }
+  if(action === 'chatEliminar'){ if(!admin) throw new Error('Only an administrator can delete conversations.');
+    DM.chats = DM.chats.filter(c => c.id !== p.id); DM.chatMb = DM.chatMb.filter(m => m.c !== p.id); DM.chatMsgs = DM.chatMsgs.filter(m => m.c !== p.id);
+    Object.keys(DM.chatCop).forEach(k => { if(DM.chatCop[k].c === p.id) delete DM.chatCop[k]; }); return { ok:true, archivos:[] }; }
+  return demoChat(action, p);
+}
 async function demoApi(action, p){
   demoInit();
   if(/^upd[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 150)); return demoUpd(action, p || {}); }
-  if(/^chat[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 80)); return demoChat(action, p || {}); }
+  if(/^chat[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 80)); return demoChat2(action, p || {}); }
   if(action.startsWith('doc')){ await new Promise(r => setTimeout(r, 200)); return demoDocs(action, p || {}); }
   if(action.startsWith('banco')){ await new Promise(r => setTimeout(r, 150)); return demoBanco(action, p || {}); }
   if(action === 'importarUsuarios'){ await new Promise(r => setTimeout(r, 150)); return demoImportarUsuarios(p || {}); }
