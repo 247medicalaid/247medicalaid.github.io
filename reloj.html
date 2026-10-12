@@ -5313,16 +5313,35 @@ function recordarRenombre(viejo, nuevo){ try{ const o = renombresMon(); o[viejo.
 // la copia del Monitor en Supabase tarda hasta 5 min: mientras tanto se muestra ya con el nombre nuevo
 function aplicarRenombres(lista){ const o = renombresMon(); (lista || []).forEach(m => { const x = o[String(m.agente).toLowerCase()];
   if(x && !(lista || []).some(y => String(y.agente).toLowerCase() === x.nuevo.toLowerCase())) m.agente = x.nuevo; }); return lista; }
+// (v81) El Monitor en Supabase: devuelve la respuesta de monitor-accion, o null si todavía manda Google.
+async function monAccionSB(params){
+  let modo = ''; try{ modo = localStorage.getItem('mon247_modo') || ''; }catch(e){}
+  if(modo === 'google' || !window.sb || !window.SB_URL) return null;
+  let j = null;
+  try{
+    const ses = (await window.sb.auth.getSession()).data.session;
+    if(!ses) return null;
+    const r = await fetch(window.SB_URL + '/functions/v1/monitor-accion', { method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey:window.SB_KEY, Authorization:'Bearer ' + ses.access_token }, body:JSON.stringify(params) });
+    try{ j = await r.json(); }catch(e){}
+    if(j && j.modo === 'google'){ try{ localStorage.setItem('mon247_modo', 'google'); }catch(e){} return null; }
+    if(j && (modo === 'supabase' || r.status === 200)){ try{ localStorage.setItem('mon247_modo', 'supabase'); }catch(e){} return j; }
+  }catch(e){ /* sin conexión */ }
+  if(modo === 'supabase') return { ok:false, error:(j && j.error) || 'Supabase didn\'t answer. Check your internet and save again.' };
+  return null;
+}
 async function renombrarAgenteMonitor(agente, nuevo, cuenta){
   if(DEMO){ const m = demoMonAg().find(x => mismaCuenta(x.agente, agente)); if(!m) throw new Error('the Monitor has no agent named "' + agente + '".');
     if(demoMonAg().some(x => x !== m && mismaCuenta(x.agente, nuevo))) throw new Error(errorMonitor('Ya hay un agente llamado "' + nuevo + '"'));
     m.agente = nuevo; if(cuenta) m.cuenta = cuenta; DM.emps.forEach(e => { if(mismaCuenta(e.agenteMonitor, agente)) e.agenteMonitor = nuevo; }); return { agente:nuevo, cuenta:m.cuenta }; }
-  const cfg = monCfg();
-  if(!cfg) throw new Error('this browser isn\'t connected to the Monitor panel, so the Monitor agent keeps the name "' + agente + '". Open Monitor once here, or rename it there (✎ on the card).');
-  const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) +
-    '&accion=agente&agente=' + encodeURIComponent(agente) + '&nuevo=' + encodeURIComponent(nuevo) + '&cuenta=' + encodeURIComponent(cuenta || '');
-  let j;
-  try{ j = await (await fetch(u, { redirect:'follow' })).json(); }catch(e){ throw new Error('the Monitor didn\'t answer, so the agent keeps the name "' + agente + '". Try saving again.'); }
+  let j = await monAccionSB({ accion:'agente', agente, nuevo, cuenta:cuenta || '' });
+  if(!j){
+    const cfg = monCfg();
+    if(!cfg) throw new Error('this browser isn\'t connected to the Monitor panel, so the Monitor agent keeps the name "' + agente + '". Open Monitor once here, or rename it there (✎ on the card).');
+    const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) +
+      '&accion=agente&agente=' + encodeURIComponent(agente) + '&nuevo=' + encodeURIComponent(nuevo) + '&cuenta=' + encodeURIComponent(cuenta || '');
+    try{ j = await (await fetch(u, { redirect:'follow' })).json(); }catch(e){ throw new Error('the Monitor didn\'t answer, so the agent keeps the name "' + agente + '". Try saving again.'); }
+  }
   if(!j || !j.ok) throw new Error(errorMonitor(j && j.error));
   const nv = j.agente || nuevo;
   recordarRenombre(agente, nv); if(j.cuenta || cuenta) recordarPush(nv, j.cuenta || cuenta);
@@ -5333,12 +5352,14 @@ async function renombrarAgenteMonitor(agente, nuevo, cuenta){
 // Cambia la cuenta del agente en el Monitor (la misma acción que el botón ✎ del panel).
 async function enviarCuentaMonitor(agente, cuenta){
   if(DEMO){ const m = demoMonAg().find(x => mismaCuenta(x.agente, agente)); if(m) m.cuenta = cuenta; recordarPush(agente, cuenta); return; }
-  const cfg = monCfg();
-  if(!cfg) throw new Error('this browser isn\'t connected to the Monitor panel, so the Monitor still has the old account. Change it in the Monitor too (✎ on the agent\'s card).');
-  const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) +
-    '&accion=agente&agente=' + encodeURIComponent(agente) + '&cuenta=' + encodeURIComponent(cuenta);
-  let j;
-  try{ j = await (await fetch(u, { redirect:'follow' })).json(); }catch(e){ throw new Error('the Monitor didn\'t answer. Try again, or change it in the Monitor.'); }
+  let j = await monAccionSB({ accion:'agente', agente, cuenta });
+  if(!j){
+    const cfg = monCfg();
+    if(!cfg) throw new Error('this browser isn\'t connected to the Monitor panel, so the Monitor still has the old account. Change it in the Monitor too (✎ on the agent\'s card).');
+    const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) +
+      '&accion=agente&agente=' + encodeURIComponent(agente) + '&cuenta=' + encodeURIComponent(cuenta);
+    try{ j = await (await fetch(u, { redirect:'follow' })).json(); }catch(e){ throw new Error('the Monitor didn\'t answer. Try again, or change it in the Monitor.'); }
+  }
   if(!j || !j.ok) throw new Error(errorMonitor(j && j.error));
   recordarPush(agente, cuenta);
 }

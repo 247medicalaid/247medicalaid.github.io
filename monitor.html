@@ -606,6 +606,54 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./sb.js?v=3"></script>
 <script>
+/* (v27) El Monitor en Supabase: las acciones del panel van a monitor-accion.
+   Mientras Supabase diga «google», todo sigue yendo al Apps Script como antes. */
+(function(){
+  const fetchOrig = window.fetch.bind(window);
+  const MODO_CLAVE = 'mon247_modo';
+  let modo = ''; try { modo = localStorage.getItem(MODO_CLAVE) || ''; } catch(e){}
+  const ponerModo = m => { modo = m; try { localStorage.setItem(MODO_CLAVE, m); } catch(e){} };
+  window.__monFuente = () => modo;
+  const jsonResp = o => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  async function pedirSB(params){
+    if (!window.sb || !window.SB_URL) return null;
+    const ses = await window.sb.auth.getSession();
+    const t = ses && ses.data && ses.data.session;
+    if (!t) return null;
+    const r = await fetchOrig(window.SB_URL + '/functions/v1/monitor-accion', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t.access_token, apikey: window.SB_KEY },
+      body: JSON.stringify(params) });
+    let j = null; try { j = await r.json(); } catch(e){}
+    return { status: r.status, j };
+  }
+  window.__monPedirSB = pedirSB;
+  window.fetch = async function(url, opts){
+    const u = typeof url === 'string' ? url : (url && url.url) || '';
+    if (!/^https:\/\/script\.google\.com\/macros\//.test(u) || (opts && opts.method && opts.method !== 'GET')) return fetchOrig(url, opts);
+    let q; try { q = new URL(u).searchParams; } catch(e){ return fetchOrig(url, opts); }
+    const accion = q.get('accion');
+    if (!accion || modo === 'google') return fetchOrig(url, opts);
+    const params = {}; q.forEach((v, k) => { if (k !== 'token') params[k] = v; });
+    let x = null;
+    try { x = await pedirSB(params); } catch(e){ x = null; }
+    if (x && x.j && x.j.modo === 'google') { ponerModo('google'); return fetchOrig(url, opts); }
+    if (x && x.j && (modo === 'supabase' || x.status === 200)) { ponerModo('supabase'); return jsonResp(x.j); }
+    // Ya manda Supabase y no respondió: no se escribe en Google (ahí se perdería el cambio)
+    if (modo === 'supabase') return jsonResp({ ok: false, error: x && x.j && x.j.error ? x.j.error
+      : 'No se pudo conectar con Supabase. Revisa el internet y vuelve a intentar.' });
+    return fetchOrig(url, opts);
+  };
+  // Al abrir: ¿quién manda?
+  (async () => {
+    try {
+      for (let i = 0; i < 40 && !window.sb; i++) await new Promise(r => setTimeout(r, 250));
+      const x = await pedirSB({ accion: 'modo' });
+      if (x && x.j && (x.j.modo === 'google' || x.j.modo === 'supabase')) ponerModo(x.j.modo);
+    } catch(e){}
+  })();
+})();
+</script>
+<script>
 // Opcional: pegue aquí la URL de la aplicación web para no tener que escribirla en cada navegador.
 const API_URL = '';
 
@@ -718,7 +766,8 @@ async function pedirEstado(fecha, url, tok){
   const t0 = performance.now();
   let usarSB = false;
   try { usarSB = !!window.sb && localStorage.getItem('mon247_fuente') !== 'google' &&
-                 (Date.now() - Number(localStorage.getItem('mon247_escrito') || 0)) > 6 * 60000; } catch(e){}
+                 ((window.__monFuente && window.__monFuente() === 'supabase') ||
+                  (Date.now() - Number(localStorage.getItem('mon247_escrito') || 0)) > 6 * 60000); } catch(e){}
   if (usarSB) {
     try {
       const ses = await window.sb.auth.getSession();
