@@ -831,6 +831,13 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 @media (min-width:700px){ .overlay{align-items:center;padding:20px} .ventana{border-radius:var(--radius-lg)} }
 .ventana h2{font-size:21px}
 .ventana .sub{color:var(--text-muted);font-size:14px;margin:2px 0 14px}
+/* v80: el nombre del usuario en grande al lado de «Edit user» */
+#eTitulo{display:flex;align-items:center;flex-wrap:wrap;gap:4px 14px}
+#eTitulo .e-accion{color:var(--text-muted);font-weight:600}
+#eTitulo .e-quien{font-family:var(--font-display);font-size:28px;font-weight:800;line-height:1.15;color:var(--ink-900);letter-spacing:-.01em;
+  padding-left:14px;border-left:3px solid var(--brand-500);overflow-wrap:anywhere;min-width:0}
+#eTitulo .e-quien:empty{display:none}
+@media (max-width:560px){ #eTitulo .e-quien{font-size:23px} }
 .ventana .sub::first-letter{text-transform:uppercase}
 .ventana .pie{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:18px}
 .ventana .pie .esp{flex:1}
@@ -5486,10 +5493,14 @@ function pintarNominaAviso(){   // (v78) «Name in Payroll» ya no está en la f
   el.textContent = mal ? '⚠ The last name “' + $('eApellidos').value.trim() + '” isn\'t in this name, so the payroll export may split it wrong.' : '';
 }
 ['eNomina', 'eApellidos'].forEach(id => $(id).addEventListener('input', pintarNominaAviso));
+// (v80) el nombre en grande arriba, al lado de «Edit user»
+function pintarQuien(){ const q = $('eQuien'); if(q) q.textContent = ($('eNombre').value.trim() + ' ' + $('eApellidos').value.trim()).replace(/\s+/g, ' ').trim(); }
+['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('input', pintarQuien));
 const nombreFicha = () => ($('eNombre').value.trim() + ' ' + $('eApellidos').value.trim()).replace(/\s+/g, ' ').trim();
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
-  $('eTitulo').innerHTML = e ? 'Edit user' + (e.archivadoEn && !e.activo ? ' <span class="pill pill-arch">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : '') : 'Add user';
+  $('eTitulo').innerHTML = '<span class="e-accion">' + (e ? 'Edit user' : 'Add user') + '</span><span class="e-quien" id="eQuien"></span>' +
+    (e && e.archivadoEn && !e.activo ? '<span class="pill pill-arch">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : '');
   S.empEdit = e ? e.usuario : null;
   $('eBancoHist').classList.toggle('hidden', !e);
   const mon = S.emps.monitor.map(m => m.agente);
@@ -5510,7 +5521,7 @@ function abrirEmp(usuario){
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
-  pintarNominaAviso(); pintarMonNota();
+  pintarNominaAviso(); pintarMonNota(); pintarQuien();
   $('eErr').textContent = '';
   pintarAccesoEmp(e);
   pintarCuentaMon();
