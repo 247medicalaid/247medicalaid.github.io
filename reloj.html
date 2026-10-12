@@ -590,6 +590,7 @@ tr.cerrado td{background:#F6FAFC}
   .ventana.ventana-ficha{max-width:780px}
   .ventana-ficha .ficha-grid{display:flex;flex-wrap:wrap;gap:0 14px;align-items:flex-start}
   .ventana-ficha .ficha-grid .fila4{display:contents}
+  .ventana-ficha .ficha-grid .fila4::before{content:'';flex:0 0 100%;height:0}
   .ventana-ficha .ficha-grid .campo[style*="--w"]{flex:0 0 var(--w);width:var(--w);max-width:100%}
 }
 @media (max-width:640px){ .ventana-ficha .ficha-grid .fila4{grid-template-columns:1fr 1fr} }
@@ -2067,7 +2068,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo c4" style="--w:230px"><span>Department</span><select id="eDepto"></select></label>
         <label class="campo c4" style="--w:240px"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
         <label class="campo campo-mon c4" style="--w:230px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
-        <label class="campo c5" style="--w:270px"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"><small class="nom-aviso hidden" id="eNominaAviso"></small></label>
+        <input id="eNomina" type="hidden">
         <label class="campo c3" style="--w:200px"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
         <div class="fila4">
         <label class="campo" style="--w:160px"><span>Employment start date</span><input id="eIngreso" type="date"></label>
@@ -4948,7 +4949,7 @@ const horasDec = min => (min / 60).toFixed(2);
    tarifa × horas pagadas (redondeo bancario a centavos, como Connecteam). */
 const sinTildes = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 function partesNombre(e){
-  const full = sinTildes(e.nombreNomina || e.nombre), ap = sinTildes(e.apellidos);
+  const full = sinTildes(e.nombre), ap = sinTildes(e.apellidos);   // (v78) el nombre de la ficha manda
   if(ap){
     if(full.endsWith(' ' + ap)) return [full.slice(0, full.length - ap.length).trim(), ap];
     const quita = ap.split(' '), resto = full.split(' ').filter(w => quita.indexOf(w) < 0);
@@ -5070,25 +5071,25 @@ $('hExpNomina').addEventListener('click', async () => {
 });
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','Name in Payroll','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
+  const filas = [['Employee','Account','First name','Last name','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
   empsVisibles().forEach(e => {
     const t = e.totales;
-    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(otEmp(e)), horasDec(t.minAprob), t.diasAprob,
-      horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]);
+    filas.push([e.nombre, e.cuenta || ''].concat(partirNombre(e)).concat([e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(otEmp(e)), horasDec(t.minAprob), t.diasAprob,
+      horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]));
   });
   descargarCSV('timeclock_summary_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 $('hExpDetalle').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','Name in Payroll','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Overtime hours','Lunch minutes','Approved','Approved hours','Issues','Absence']];
+  const filas = [['Employee','Account','First name','Last name','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Overtime hours','Lunch minutes','Approved','Approved hours','Issues','Absence']];
   empsVisibles().forEach(e => h.fechas.forEach(f => {
     const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
     const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
     const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
-    filas.push([e.nombre, e.cuenta || '', e.nombreNomina, f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
+    filas.push([e.nombre, e.cuenta || ''].concat(partirNombre(e)).concat([f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
       d.incompleto ? '' : horasDec(d.min), d.incompleto ? '' : horasDec(otDia(e, d)), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
       d.banderas.map(b => b.t).join(' | '),
-      d.ausencia ? CLASE_TXT[d.ausencia.clase] + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '']);
+      d.ausencia ? CLASE_TXT[d.ausencia.clase] + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '']));
   }));
   descargarCSV('timeclock_detail_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
@@ -5237,7 +5238,7 @@ function monAgente(nombre){ return nombre && S.emps && S.emps.monitor ? S.emps.m
 async function monitorSB(){
   if(DEMO) return { agentes:aplicarPushes(demoMonAg().map(m => Object.assign({}, m))), cuentas:DEMO_CUENTAS_MON.slice() };
   const [a, c] = await Promise.all([q(sb.rpc('monitor_agentes_lista')), q(sb.rpc('monitor_cuentas_lista'))]);
-  return { agentes:aplicarPushes(Array.isArray(a) ? a : []), cuentas:Array.isArray(c) ? c : [] };
+  return { agentes:aplicarPushes(aplicarRenombres(Array.isArray(a) ? a : [])), cuentas:Array.isArray(c) ? c : [] };
 }
 const DEMO_CUENTAS_MON = ['24/7 Medical', 'CARDIO', 'GASTRO', 'MAB Pulmonary', 'Total Sleep'];
 function demoMonAg(){
@@ -5248,10 +5249,36 @@ function demoMonAg(){
 // Errores del Apps Script del Monitor (en español) para la interfaz en inglés.
 function errorMonitor(t){
   t = String(t || '');
-  let m = t.match(/la cuenta "(.*)" no está en la lista/i); if(m) return 'the account "' + m[1] + '" isn\'t in the Monitor\'s list.';
+  let m = t.match(/ya hay un agente llamado "(.*)"/i); if(m) return 'the Monitor already has another agent called "' + m[1] + '". Merge the two in the Monitor (✎ on the card), then save again.';
+  m = t.match(/la cuenta "(.*)" no está en la lista/i); if(m) return 'the account "' + m[1] + '" isn\'t in the Monitor\'s list.';
   m = t.match(/no se encontró el agente "(.*)"/i); if(m) return 'the Monitor has no agent named "' + m[1] + '".';
   if(/token/i.test(t)) return 'the Monitor rejected this browser\'s connection.';
   return t || 'the Monitor didn\'t accept the change.';
+}
+// (v78) Renombra el agente del Monitor con el nombre del usuario (y le deja la cuenta). Devuelve { agente, cuenta }.
+const REN_CLAVE = 'reloj_mon_renombres';
+function renombresMon(){ try{ const o = JSON.parse(localStorage.getItem(REN_CLAVE) || '{}'), lim = Date.now() - 2 * 3600000;
+  Object.keys(o).forEach(k => { if(o[k].en < lim) delete o[k]; }); return o; }catch(e){ return {}; } }
+function recordarRenombre(viejo, nuevo){ try{ const o = renombresMon(); o[viejo.toLowerCase()] = { nuevo, en:Date.now() }; localStorage.setItem(REN_CLAVE, JSON.stringify(o)); }catch(e){} }
+// la copia del Monitor en Supabase tarda hasta 5 min: mientras tanto se muestra ya con el nombre nuevo
+function aplicarRenombres(lista){ const o = renombresMon(); (lista || []).forEach(m => { const x = o[String(m.agente).toLowerCase()];
+  if(x && !(lista || []).some(y => String(y.agente).toLowerCase() === x.nuevo.toLowerCase())) m.agente = x.nuevo; }); return lista; }
+async function renombrarAgenteMonitor(agente, nuevo, cuenta){
+  if(DEMO){ const m = demoMonAg().find(x => mismaCuenta(x.agente, agente)); if(!m) throw new Error('the Monitor has no agent named "' + agente + '".');
+    if(demoMonAg().some(x => x !== m && mismaCuenta(x.agente, nuevo))) throw new Error(errorMonitor('Ya hay un agente llamado "' + nuevo + '"'));
+    m.agente = nuevo; if(cuenta) m.cuenta = cuenta; DM.emps.forEach(e => { if(mismaCuenta(e.agenteMonitor, agente)) e.agenteMonitor = nuevo; }); return { agente:nuevo, cuenta:m.cuenta }; }
+  const cfg = monCfg();
+  if(!cfg) throw new Error('this browser isn\'t connected to the Monitor panel, so the Monitor agent keeps the name "' + agente + '". Open Monitor once here, or rename it there (✎ on the card).');
+  const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) +
+    '&accion=agente&agente=' + encodeURIComponent(agente) + '&nuevo=' + encodeURIComponent(nuevo) + '&cuenta=' + encodeURIComponent(cuenta || '');
+  let j;
+  try{ j = await (await fetch(u, { redirect:'follow' })).json(); }catch(e){ throw new Error('the Monitor didn\'t answer, so the agent keeps the name "' + agente + '". Try saving again.'); }
+  if(!j || !j.ok) throw new Error(errorMonitor(j && j.error));
+  const nv = j.agente || nuevo;
+  recordarRenombre(agente, nv); if(j.cuenta || cuenta) recordarPush(nv, j.cuenta || cuenta);
+  // el vínculo del Time Clock (y de cualquier otro usuario con ese agente) pasa al nombre nuevo ya mismo
+  try{ await q(sb.rpc('reloj_sync_desde_monitor', { p_agente:agente, p_nuevo:nv, p_cuenta:j.cuenta || cuenta || '' })); }catch(e){ /* la copia del Monitor lo hace en unos minutos */ }
+  return { agente:nv, cuenta:j.cuenta || cuenta || '' };
 }
 // Cambia la cuenta del agente en el Monitor (la misma acción que el botón ✎ del panel).
 async function enviarCuentaMonitor(agente, cuenta){
@@ -5408,8 +5435,9 @@ function partirNombre(e){
   return [w.slice(0, 2).join(' '), w.slice(2).join(' ')];
 }
 // (v76) ¿el Last name está dentro de «Name in Payroll»? (si no, la exportación de payroll partiría mal el nombre)
-function pintarNominaAviso(){
-  const n = sinTildes($('eNomina').value), ap = sinTildes($('eApellidos').value), el = $('eNominaAviso');
+function pintarNominaAviso(){   // (v78) «Name in Payroll» ya no está en la ficha: el nombre de la ficha es el que manda
+  const el = $('eNominaAviso'); if(!el) return;
+  const n = sinTildes($('eNomina').value), ap = sinTildes($('eApellidos').value);
   const mal = !!(n && ap && (' ' + n + ' ').indexOf(' ' + ap + ' ') < 0);
   el.classList.toggle('hidden', !mal);
   el.textContent = mal ? '⚠ The last name “' + $('eApellidos').value.trim() + '” isn\'t in this name, so the payroll export may split it wrong.' : '';
@@ -5509,10 +5537,19 @@ $('eGuardar').addEventListener('click', async () => {
   const b = $('eGuardar'); b.disabled = true;
   const monAntes = monAgente(datos.agenteMonitor);
   try{
-    const r = await api('guardarEmpleado', { empleado:datos });
+    let r = await api('guardarEmpleado', { empleado:datos });
     // Time Clock → Monitor: la misma cuenta en los dos lados.
-    let avisoMon = '';
-    if(monAntes && datos.cuenta && !mismaCuenta(monAntes.cuenta, datos.cuenta)){
+    let avisoMon = '', renombrado = null;
+    // (v78) el agente del Monitor toma el nombre del usuario (el nombre de la ficha es el que manda)
+    if(monAntes && monClave(monAntes.agente) !== monClave(datos.nombre)){
+      try{
+        const x = await renombrarAgenteMonitor(monAntes.agente, datos.nombre, datos.cuenta || monAntes.cuenta || '');
+        renombrado = x.agente;
+        if(datos.cuenta && !mismaCuenta(monAntes.cuenta, datos.cuenta)) avisoMon = 'ok';
+        const res0 = r.res; r = await api('empleados'); r.res = res0;
+      }catch(x){ avisoMon = x.message; }
+    }
+    if(!renombrado && monAntes && datos.cuenta && !mismaCuenta(monAntes.cuenta, datos.cuenta)){
       try{
         await enviarCuentaMonitor(monAntes.agente, datos.cuenta);
         (r.monitor || []).forEach(m => { if(mismaCuenta(m.agente, monAntes.agente)) m.cuenta = datos.cuenta; });
@@ -5532,7 +5569,8 @@ $('eGuardar').addEventListener('click', async () => {
           : 'User saved. Invitation sent to ' + x.email + '.');
         S.emps = await api('empleados'); pintarEmps();
       }catch(x){ toast('User saved, but the invitation wasn\'t sent: ' + x.message + ' Open the user to send it again.', 'err'); }
-    } else toast(avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.' : 'User saved.');
+    } else toast(renombrado ? 'User saved. The Monitor agent is now called “' + renombrado + '”' + (avisoMon === 'ok' ? ', in ' + datos.cuenta : '') + '.'
+      : avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.' : 'User saved.');
     if(avisoMon && avisoMon !== 'ok') toast('User saved, but ' + avisoMon, 'err');
   }catch(e){ $('eErr').textContent = e.message; }
   b.disabled = false;
