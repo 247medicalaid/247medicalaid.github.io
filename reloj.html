@@ -755,6 +755,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sand-2);color:var(--text-muted)}
 .pill.no{background:var(--warn-50);color:var(--warn)}
 .pill.dif{background:var(--warn-50);color:var(--warn);cursor:help}
+.pill.dup-mon{background:var(--accent-50);color:var(--accent-600);cursor:help}
 .cta-mon{display:block;font-size:12px;line-height:1.35;margin-top:5px;color:var(--text-muted);font-weight:400}
 .cta-mon.dif{color:#6B3A00}
 .cta-mon button{font:inherit;font-weight:600;color:var(--ink,#0B2233);background:none;border:0;padding:0;margin-left:4px;text-decoration:underline;cursor:pointer}
@@ -823,6 +824,14 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .campo{display:block;margin-bottom:12px}
 .campo span{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
 .campo small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:4px}
+/* v73: «Agent in the Monitor» destacado */
+.campo.campo-mon{background:var(--brand-50);border:1px solid var(--brand-100);border-left:4px solid var(--brand-500);border-radius:12px;padding:9px 11px 10px}
+.campo.campo-mon>span{display:flex;align-items:center;gap:6px;color:var(--brand-700)}
+.campo.campo-mon>span svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.campo.campo-mon select{border-color:var(--brand-500);background-color:#fff;font-weight:600}
+.campo.campo-mon small{color:var(--brand-700)}
+.campo.campo-mon.dup{background:var(--warn-50);border-color:#F5D9AF;border-left-color:var(--warn)}
+.campo.campo-mon.dup small{color:var(--warn);font-weight:600}
 .err{color:var(--accent-600);font-size:14px;margin-top:8px;min-height:1px}
 
 #toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
@@ -2018,7 +2027,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="ficha-grid">
         <label class="campo"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
         <label class="campo"><span>Department</span><select id="eDepto"></select></label>
-        <label class="campo"><span>Agent in the Monitor</span><select id="eMonitor"></select></label>
+        <label class="campo campo-mon"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
         <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
         <label class="campo"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
         <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
@@ -2840,6 +2849,7 @@ const SERVIDOR_EN = [
   [/^Elige una opción de la lista\.$/, 'Choose an option from the list.'],
   [/^Escribe el correo del empleado\.$/, 'Enter the employee\'s email. They\'ll use it to sign in.'],
   [/^Ese correo ya lo tiene otro empleado\.$/, 'Another employee already has that email.'],
+  [/^Ese agente del Monitor ya está vinculado a (.+)\.$/, 'That Monitor agent is already linked to $1. Each agent can be linked to only one user.'],
   [/^Usuario no válido\.$/, 'Invalid user.'],
   [/^Esta persona entra por el portal; no necesita invitación\.$/, 'This person signs in through the portal; no invitation needed.'],
   [/^Ese empleado está inactivo\.$/, 'That employee is inactive.'],
@@ -5033,6 +5043,16 @@ function botonInvitar(e){
     : k === 'invitada' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Send the invitation email again">Resend invite</button>'
     : k === 'sin' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Email them the link to create their password">Send invite</button>' : '';
 }
+// (v73) otro usuario ACTIVO con el mismo agente del Monitor (la regla: un agente = un usuario)
+const monClave = a => String(a || '').trim().toLowerCase();
+function monDueno(agente, excepto){
+  const k = monClave(agente); if(!k || !S.emps) return null;
+  return S.emps.empleados.find(x => x.activo && x.usuario !== excepto && monClave(x.agenteMonitor) === k) || null;
+}
+function monDupPill(e){
+  const o = e.activo ? monDueno(e.agenteMonitor, e.usuario) : null;
+  return o ? ' <span class="pill dup-mon" title="' + esc(e.nombre) + ' and ' + esc(o.nombre) + ' are linked to the same Monitor agent (' + esc(e.agenteMonitor) + '). Each agent can be linked to only one user: open the user to fix it.">Same Monitor as ' + esc(o.nombre) + '</span>' : '';
+}
 function difMonitor(e){
   const m = monAgente(e.agenteMonitor);
   return m && m.cuenta && !mismaCuenta(m.cuenta, e.cuenta) ? ' <span class="pill dif" title="In the Monitor this agent is in ' + esc(m.cuenta) + '. Open the user to fix it.">≠ Monitor</span>' : '';
@@ -5093,7 +5113,7 @@ function pintarEmps(){
   const cols = uColsVer(), o = S.uOrden || {};
   const th = (k, t, num) => '<th' + (num ? ' class="num"' : '') + ' aria-sort="' + (o.k === k ? (o.dir === 'desc' ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="u-orden' + (o.k === k ? ' on' : '') + '" data-orden="' + k + '">' + t +
     '<i aria-hidden="true">' + (o.k === k ? (o.dir === 'desc' ? '▼' : '▲') : '↕') + '</i></button></th>';
-  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) : '') +
+  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
       '<small>' + esc(e.email || e.usuario) + (e.departamento && !cols.some(c => c.k === 'departamento') ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
     cols.map(c => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(e) + '</td>').join('') +
     '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
@@ -5297,9 +5317,11 @@ function abrirEmp(usuario){
   $('eBancoHist').classList.toggle('hidden', !e);
   const mon = S.emps.monitor.map(m => m.agente);
   if(e && e.agenteMonitor && mon.indexOf(e.agenteMonitor) < 0) mon.push(e.agenteMonitor);
-  $('eMonitor').innerHTML = '<option value="">Not linked</option>' + mon.map(m => '<option>' + esc(m) + '</option>').join('');
+  $('eMonitor').innerHTML = '<option value="">Not linked</option>' + mon.map(m => { const o = monDueno(m, e ? e.usuario : null);
+    return '<option value="' + esc(m) + '"' + (o && !(e && monClave(e.agenteMonitor) === monClave(m)) ? ' disabled' : '') + '>' + esc(m) + (o ? ' — linked to ' + esc(o.nombre) : '') + '</option>'; }).join('');
   $('eNombre').value = e ? e.nombre : '';
   $('eMonitor').value = e ? e.agenteMonitor : '';
+  pintarMonNota();
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
   pintarLugarEmp(e);
@@ -5328,7 +5350,7 @@ $('eNombre').addEventListener('change', () => {
   if(S.empEdit) return;
   const nom = $('eNombre').value.trim(); if(!nom) return;
   const m = S.emps.monitor.find(x => x.agente.toLowerCase() === nom.toLowerCase());
-  if(m && !$('eMonitor').value){ $('eMonitor').value = m.agente; proponerCuenta(m.cuenta); }
+  if(m && !$('eMonitor').value && !monDueno(m.agente, null)){ $('eMonitor').value = m.agente; proponerCuenta(m.cuenta); pintarMonNota(); }
   if(!$('eNomina').value) $('eNomina').value = nom.toUpperCase();
 });
 // Al elegir el agente del Monitor, se propone su cuenta.
@@ -5350,6 +5372,13 @@ function pintarCuentaMon(){
   el.innerHTML = '⚠ In the Monitor: <b>' + esc(m.cuenta) + '</b>.' + (c ? ' Saving changes it there too.' : '') + ' <button type="button" id="eUsarMon">Use ' + esc(m.cuenta) + '</button>';
   $('eUsarMon').addEventListener('click', ev => { ev.preventDefault(); proponerCuenta(m.cuenta); });
 }
+// nota bajo el campo: avisa si el agente elegido ya lo tiene otro usuario
+function pintarMonNota(){
+  const o = monDueno($('eMonitor').value, S.empEdit), lab = $('eMonitor').closest('.campo-mon');
+  lab.classList.toggle('dup', !!o);
+  $('eMonitorNota').textContent = o ? 'Also linked to ' + o.nombre + '. Each Monitor agent can be linked to only one user.' : 'One Monitor agent per user.';
+}
+$('eMonitor').addEventListener('change', pintarMonNota);
 $('eMonitor').addEventListener('change', () => { const m = monAgente($('eMonitor').value); if(m && m.cuenta) proponerCuenta(m.cuenta); else pintarCuentaMon(); });
 $('eCuenta').addEventListener('change', pintarCuentaMon);
 $('eGuardar').addEventListener('click', async () => {
@@ -10397,6 +10426,8 @@ async function demoApi(action, p){
   if(action === 'guardarEmpleado'){
     const x = Object.assign({}, p.empleado), em = (x.email || '').toLowerCase();
     if(em && DM.emps.some(e => (e.email || '').toLowerCase() === em && e.usuario !== x.usuario)) throw new Error('Another employee already has that email.');
+    { const k = String(x.agenteMonitor || '').trim().toLowerCase(), o = k && x.activo !== false ? DM.emps.find(e => e.activo && e.usuario !== x.usuario && String(e.agenteMonitor || '').trim().toLowerCase() === k) : null;
+      if(o) throw new Error('That Monitor agent is already linked to ' + o.nombre + '. Each agent can be linked to only one user.'); }
     let nuevo = false, cambio = false;
     if(!x.usuario){ if(!em) throw new Error('Enter the employee\'s email. They\'ll use it to sign in.');
       let b = em.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 28), u = b, n = 1; while(DM.emps.some(e => e.usuario === u)) u = b + (++n); x.usuario = u; nuevo = true; }
