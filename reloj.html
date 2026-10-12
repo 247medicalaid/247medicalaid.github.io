@@ -865,6 +865,11 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .acc-emp{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--sand);border-radius:var(--radius-sm);padding:10px 12px;margin:2px 0 14px;font-size:14px}
 .acc-emp .t{flex:1;min-width:200px}
 .acc-emp b{font-weight:600}
+/* v71: correos de contraseña desde Users */
+.acc-emp .acc-btns{display:inline-flex;gap:6px;flex-wrap:wrap}
+.acc-emp .btn svg,.emps .btn-llave svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.acc-emp .btn svg{margin-right:5px}
+.emps .btn-llave{padding-left:8px;padding-right:8px}
 .acc-emp.activa{background:#EAF9F5}
 .acc-emp.invitada{background:var(--warn-50)}
 .pill.inv{background:var(--warn-50);color:var(--warn)}
@@ -2839,6 +2844,9 @@ const SERVIDOR_EN = [
   [/^Esta persona entra por el portal; no necesita invitación\.$/, 'This person signs in through the portal; no invitation needed.'],
   [/^Ese empleado está inactivo\.$/, 'That employee is inactive.'],
   [/^Ese correo ya tiene una cuenta\.$/, 'That email already has an account.'],
+  [/^Todavía no creó su contraseña: mándale la invitación\.$/, 'They haven\'t created their password yet: send them the invitation instead.'],
+  [/^Ya se mandaron 3 correos para cambiar la contraseña en la última hora\..*$/, '3 password emails were already sent in the last hour. Wait a while and try again.'],
+  [/^Solo un administrador puede hacer esto\.$/, 'Only an administrator can do this.'],
   [/^Falta configurar el envío de correos \(Brevo\)\.$/, 'Email sending isn\'t set up yet (Brevo).'],
   [/^No se pudo enviar el correo \(Brevo HTTP (\d+)\)\.$/, 'Couldn\'t send the email (Brevo HTTP $1).'],
   [/^Solo un administrador puede invitar\.$/, 'Only an administrator can send invitations.'],
@@ -3106,7 +3114,8 @@ async function api(action, p){
   }
   if(action === 'activarEmpleado') return q(sb.rpc('reloj_activar_empleado', { p_usuario:p.usuario, p_activo:p.activo }));
   if(action === 'borrarEmpleado'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('borrar', { usuario:p.usuario }, ses.access_token)); }
-  if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false }, ses.access_token)); }
+  if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false, forzar:p.forzar === true }, ses.access_token)); }
+  if(action === 'resetClave'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('clave', { usuario:p.usuario }, ses.access_token)); }
   if(action === 'solicitar'){ const r = await q(sb.rpc('reloj_solicitar', { p:p.sol })); avisarSolicitud(r.id); return r; }
   if(action === 'misSolicitudes'){
     const ses = await sesionSB(), u = usuarioDe(ses);
@@ -5017,7 +5026,8 @@ function estadoPill(e){ const k = accesoDe(e).k; return k === 'invitada' ? ' <sp
 function botonInvitar(e){
   if(!e.activo || !e.email) return '';
   const k = accesoDe(e).k;
-  return k === 'invitada' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Send the invitation email again">Resend invite</button>'
+  return k === 'activa' ? '<button class="btn btn-ghost btn-sm btn-llave" data-rst="' + esc(e.usuario) + '" title="Send a password reset email" aria-label="Send ' + esc(e.nombre) + ' a password reset email">' + IC_LLAVE + '</button>'
+    : k === 'invitada' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Send the invitation email again">Resend invite</button>'
     : k === 'sin' ? '<button class="btn btn-ghost btn-sm" data-inv="' + esc(e.usuario) + '" title="Email them the link to create their password">Send invite</button>' : '';
 }
 function difMonitor(e){
@@ -5094,6 +5104,7 @@ function pintarEmps(){
     '<p class="nota u-cuenta">' + l.length + (l.length === 1 ? ' user' : ' users') + (por && UGRUPOS[por] ? ' · ' + uGrupos(l, por).length + ' groups by ' + UGRUPOS[por].t.toLowerCase() : '') + '</p>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
   $('empsTabla').querySelectorAll('[data-inv]').forEach(b => b.addEventListener('click', () => invitarDesdeLista(b.dataset.inv, b)));
+  $('empsTabla').querySelectorAll('[data-rst]').forEach(b => b.addEventListener('click', () => { const e = S.emps.empleados.find(x => x.usuario === b.dataset.rst); if(e) resetClave(e, b); }));
 }
 // ordenar: clic en el encabezado
 $('empsTabla').addEventListener('click', ev => {
@@ -5190,7 +5201,15 @@ function pintarAccesoEmp(e){
   if(!e.activo){ el.className = 'acc-emp inactiva'; el.innerHTML = '<span class="t"><b>Inactive</b> · can\'t sign in to the Time Clock. Their hours stay for payroll. Use <b>Reactivate</b> to give access back.</span>'; return; }
   el.className = 'acc-emp ' + a.k;
   if(a.k === 'portal'){ el.innerHTML = '<span class="t"><b>Signs in through the portal</b> (administrative user <i>' + esc(e.usuario) + '</i>).</span>'; return; }
-  if(a.k === 'activa'){ el.innerHTML = '<span class="t"><b>Active</b> · signs in with ' + esc(e.email) + (a.p.activado ? ' · since ' + esc(fechaCorta(a.p.activado)) : '') + '</span>'; return; }
+  if(a.k === 'activa'){
+    el.innerHTML = '<span class="t"><b>Active</b> · signs in with ' + esc(e.email) + (a.p.activado ? ' · since ' + esc(fechaCorta(a.p.activado)) : '') + '</span>' +
+      '<span class="acc-btns"><button class="btn btn-ghost btn-sm" type="button" id="eReset" title="They forgot their password: email them a link to choose a new one">' + IC_LLAVE + 'Reset password</button>' +
+      '<button class="btn btn-ghost btn-sm" type="button" id="eSetup" title="Email them a link to set their password and sign in with this email (use it after changing their email)">' + IC_SOBRE + 'Send setup email</button></span>';
+    const cambiado = () => e.email !== $('eEmail').value.trim().toLowerCase();
+    $('eReset').addEventListener('click', () => { if(cambiado()) return $('eErr').textContent = 'Save the new email first.'; resetClave(e, $('eReset')); });
+    $('eSetup').addEventListener('click', () => { if(cambiado()) return $('eErr').textContent = 'Save the new email first: the setup email goes out when you save.'; setupClave(e, $('eSetup')); });
+    return;
+  }
   el.innerHTML = '<span class="t">' + (a.k === 'invitada' ? '<b>Invitation sent</b> ' + esc(fechaCorta(a.p.invitado)) + ' · waiting for them to create their password.'
       : '<b>No Time Clock access yet.</b>') + '</span>' +
     '<button class="btn btn-ghost btn-sm" type="button" id="eInvitar">' + (a.k === 'invitada' ? 'Resend invitation' : 'Send invitation') + '</button>';
@@ -5243,6 +5262,25 @@ $('eBorrar').addEventListener('click', async () => {
   }catch(x){ $('eErr').textContent = x.message; }
   b.disabled = false;
 });
+// (v71) Correo para cambiar la contraseña (la olvidó) y correo para ponerla con el email nuevo
+const IC_LLAVE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14.5 8.5l2 2"/></svg>';
+const IC_SOBRE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></svg>';
+async function correoCuenta(b, accion, datos, aviso){
+  const html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spin dark"></span>' + (b.classList.contains('btn-llave') ? '' : ' Sending…');
+  if($('eErr')) $('eErr').textContent = '';
+  try{ const r = await api(accion, datos); toast(aviso(r)); }
+  catch(x){ if(!$('ovEmp').classList.contains('hidden') && $('eErr')) $('eErr').textContent = x.message; else toast(x.message, 'err'); }
+  b.disabled = false; b.innerHTML = html;
+}
+async function resetClave(e, b){
+  const ok = await confirmar('Send a password reset email?', 'We\'ll email <b>' + esc(e.email) + '</b> a link to choose a new password. The link works for 2 hours. ' +
+    'Until ' + esc(String(e.nombre || '').split(/\s+/)[0] || 'they') + ' uses it, the current password keeps working.', 'Send email');
+  if(ok) correoCuenta(b, 'resetClave', { usuario:e.usuario }, r => 'Password reset email sent to ' + r.email + '.');
+}
+async function setupClave(e, b){
+  const ok = await confirmar('Send a setup email?', 'We\'ll email <b>' + esc(e.email) + '</b> a link to set a password and sign in with this email. The link works for 7 days.', 'Send email');
+  if(ok) correoCuenta(b, 'invitar', { usuario:e.usuario, forzar:true }, r => 'Setup email sent to ' + r.email + '.');
+}
 // Reenviar la invitación desde la lista
 async function invitarDesdeLista(u, b){
   b.disabled = true; const t = b.textContent; b.innerHTML = '<span class="spin dark"></span>';
@@ -5337,12 +5375,14 @@ $('eGuardar').addEventListener('click', async () => {
     S.emps = r; pintarEmps(); cerrar('ovEmp');
     S.hoja = null; S.hojaHoy = null;
     const res = r.res || {};
-    // Nuevo: se le manda la invitación. Si cambió el email de un agente con cuenta, la cuenta se pone al día
-    // (si aún no la activó, le llega la invitación al email nuevo).
+    // Nuevo: se le manda la invitación. Si cambió el email de un agente con cuenta, la cuenta se pone al día y le llega
+    // al email nuevo la invitación (si aún no la activó) o (v71) el correo para poner su contraseña (si ya la activó).
     if(res.nuevo || res.emailCambio){
       try{
-        const x = await api('invitar', { usuario:res.usuario });
-        toast(x.enviado ? 'User saved. Invitation sent to ' + x.email + '.' : 'User saved. They now sign in with ' + x.email + '.');
+        const x = await api('invitar', { usuario:res.usuario, forzar:!!res.emailCambio });
+        toast(!x.enviado ? 'User saved. They now sign in with ' + x.email + '.'
+          : x.activa ? 'User saved. They now sign in with ' + x.email + ': a setup email was sent there so they can set their password.'
+          : 'User saved. Invitation sent to ' + x.email + '.');
         S.emps = await api('empleados'); pintarEmps();
       }catch(x){ toast('User saved, but the invitation wasn\'t sent: ' + x.message + ' Open the user to send it again.', 'err'); }
     } else toast(avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.' : 'User saved.');
@@ -10352,6 +10392,7 @@ async function demoApi(action, p){
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
+  if(action === 'resetClave') return cuentasOk(await demoCuentas('clave', p));
   if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; if(p.activo) e.archivadoEn = null; return { ok:true }; }
   if(action === 'borrarEmpleado'){
     const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.');
@@ -10420,8 +10461,15 @@ async function demoCuentas(accion, p){
     const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) return { ok:false, msg:'Ese empleado no existe en el Reloj.' };
     if(!e.email) return { ok:false, msg:'Escribe el correo del empleado.' };
     const c = DM.cuentas[e.usuario] = DM.cuentas[e.usuario] || { invitado:null, activado:null };
-    if(c.activado || p.enviar === false) return { ok:true, enviado:false, activa:!!c.activado, email:e.email };
-    c.invitado = new Date().toISOString(); DM.correos.push({ tipo:'invitacion', email:e.email });
+    if(p.enviar === false || (c.activado && !p.forzar)) return { ok:true, enviado:false, activa:!!c.activado, email:e.email };
+    c.invitado = new Date().toISOString(); DM.correos.push({ tipo:c.activado ? 'nuevoEmail' : 'invitacion', email:e.email });
+    return { ok:true, enviado:true, activa:!!c.activado, email:e.email };
+  }
+  if(accion === 'clave'){
+    const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) return { ok:false, msg:'Ese empleado no existe en el Reloj.' };
+    const c = DM.cuentas[e.usuario];
+    if(!c || !c.activado) return { ok:false, msg:'Todavía no creó su contraseña: mándale la invitación.' };
+    DM.correos.push({ tipo:'claveAdmin', email:e.email });
     return { ok:true, enviado:true, email:e.email };
   }
   if(accion === 'ver') return p.token === 'demo' ? { ok:true, estado:'ok', tipo:'invitacion', email:'laura@example.com', nombre:'Laura Acevedo' }
