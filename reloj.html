@@ -1755,7 +1755,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           <div class="chat-form-f"><button type="button" class="chat-clip" id="chatAdjBtn" aria-label="Attach a photo or file" title="Attach a photo or file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg></button>
             <textarea id="chatTexto" rows="1" maxlength="4000" placeholder="Write a message…" aria-label="Write a message"></textarea>
             <button class="btn btn-ink" type="submit" id="chatEnviar">Send</button></div>
-          <input type="file" id="chatAdjIn" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+          <input type="file" id="chatAdjIn" class="hidden">
           <div class="err" id="chatErr" role="alert"></div>
         </form>
       </section>
@@ -3008,8 +3008,11 @@ async function chatSB(action, p){
     if(p.archivo){
       const f = p.archivo, ruta = 'c/' + p.id + '/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '/' +
         (String(f.name || 'file').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._ -]+/g, '').replace(/\s+/g, '_').replace(/^[._-]+/, '').slice(-90) || 'file');
-      const tipo = f.type || docMime(f.name), { error } = await sb.storage.from(BUCKET_CHAT).upload(ruta, f, { contentType:tipo, upsert:false });
-      if(error) throw new Error(/bucket not found/i.test(error.message || '') ? 'Chat needs SQL step 43 in Supabase.' : docErrStorage(error).replace('Use a PDF, a photo (JPG or PNG) or a Word file', 'Use a photo, PDF, Word or Excel file'));
+      const tipo = chatMime(f), { error } = await sb.storage.from(BUCKET_CHAT).upload(ruta, f, { contentType:tipo, upsert:false });
+      if(error) throw new Error(/bucket not found/i.test(error.message || '') ? 'Chat needs SQL step 43 in Supabase.'
+        : /mime|not supported|invalid_mime/i.test(error.message || '') ? 'This type of file needs SQL step 46 in Supabase. For now, send a photo, PDF, Word or Excel file.'
+        : /row-level|policy|403|unauthorized/i.test(error.message || '') && CHAT_BLOQ.test(f.name || '') ? 'For safety, programs and web pages can\'t be sent.'
+        : docErrStorage(error));
       adj = { archivo:ruta, nombre:f.name.slice(-160), mime:tipo, bytes:f.size };
     }
     return q(sb.rpc('reloj_chat_enviar', { p_id:p.id, p_texto:p.texto || '', p_adjunto:adj }));
@@ -7913,9 +7916,19 @@ $('chatForm').addEventListener('submit', async ev => {
 });
 $('chatTexto').addEventListener('keydown', ev => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); $('chatForm').requestSubmit(); } });
 $('chatTexto').addEventListener('input', () => { const t = $('chatTexto'); t.style.height = ''; t.style.height = Math.min(140, t.scrollHeight) + 'px'; t.classList.toggle('alto', t.scrollHeight > 140); });
+// (v72) cualquier archivo menos programas y páginas (la misma regla está en Supabase, paso 46)
+const CHAT_BLOQ = /\.(exe|msi|bat|cmd|com|scr|ps1|vbs|vbe|js|jse|wsf|jar|apk|dll|lnk|reg|hta|sh|html?|svg|xhtml)$/i;
+const CHAT_MIME = { zip:'application/zip', rar:'application/vnd.rar', '7z':'application/x-7z-compressed', csv:'text/csv', txt:'text/plain',
+  ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', mp3:'audio/mpeg', mp4:'video/mp4',
+  m4a:'audio/mp4', wav:'audio/wav', mov:'video/quicktime', gif:'image/gif' };
+const chatMime = f => { const ext = (String(f.name || '').split('.').pop() || '').toLowerCase();
+  return CHAT_MIME[ext] || (f.type && !/x-zip-compressed/.test(f.type) ? f.type : '') || docMime(f.name); };
 $('chatAdjBtn').addEventListener('click', () => { $('chatAdjIn').value = ''; $('chatAdjIn').click(); });
 $('chatAdjIn').addEventListener('change', () => { const f = $('chatAdjIn').files[0]; if(!f) return;
   if(f.size > 15 * 1048576){ $('chatErr').textContent = 'The file is too big. The limit is 15 MB.'; return; }
+  if(CHAT_BLOQ.test(f.name || '')){ $('chatErr').textContent = 'For safety, programs and web pages can\'t be sent (.exe, .bat, .js, .html…). Put it in a .zip or send another type of file.'; return; }
+  $('chatErr').textContent = '';
   chatS().adjunto = f; pintarChatAdj(); $('chatTexto').focus(); });
 function pintarChatAdj(){ const f = chatS().adjunto;
   $('chatAdj').innerHTML = f ? '<span>📎 ' + esc(f.name) + ' <small>' + updBytes(f.size) + '</small></span><button type="button" class="upd-com-x" id="chatAdjX" aria-label="Remove file">×</button>' : '';
