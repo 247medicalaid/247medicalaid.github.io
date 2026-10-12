@@ -569,6 +569,27 @@ tr.cerrado td{background:#F6FAFC}
 .ejemplo b{color:var(--text)}
 /* ── USERS (ficha) ── */
 .ventana.ventana-ficha{max-width:780px}
+/* v74: ficha en 3 columnas, barra de botones fija abajo */
+@media (min-width:900px){
+  .ventana.ventana-ficha{max-width:1060px}
+  .ventana-ficha .ficha-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.ventana-ficha .ficha-grid .fila4{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 14px}
+@media (max-width:640px){ .ventana-ficha .ficha-grid .fila4{grid-template-columns:1fr 1fr} }
+.ventana-ficha .acc-emp{margin:2px 0 10px}
+.ventana-ficha #eNotas{min-height:52px}
+.ventana-ficha .campo{margin-bottom:10px}
+.ventana-ficha .campo input,.ventana-ficha .campo select{padding:8px 11px;font-size:14.5px}
+.ventana-ficha .campo span{margin-bottom:4px}
+.ventana-ficha .ficha-sec{padding-top:10px;margin-top:4px}
+.ventana-ficha .ficha-sec h3{margin-bottom:8px}
+.ventana-ficha .pie{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom,0px));z-index:3;background:var(--paper);
+  margin:14px -22px calc(-22px - env(safe-area-inset-bottom,0px));padding:12px 22px calc(12px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--line);box-shadow:0 -6px 14px -10px rgba(4,20,31,.25);align-items:center}
+.e-sucio{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--warn);margin-right:4px}
+.e-sucio i{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+#ovSalir{z-index:62}
+.sl-descartar{color:var(--accent-600)}
 .ficha-sec{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
 .ficha-sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px}
 .ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
@@ -2027,31 +2048,33 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="ficha-grid">
         <label class="campo"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
         <label class="campo"><span>Department</span><select id="eDepto"></select></label>
+        <label class="campo"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
         <label class="campo campo-mon"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
         <label class="campo"><span>Name in Payroll</span><input id="eNomina" autocomplete="off" placeholder="As it appears in the Payroll Calculator"></label>
-        <label class="campo"><span>Title</span><input id="eCargo" autocomplete="off" list="eCargoLista" maxlength="80" placeholder="As in Connecteam"><datalist id="eCargoLista"></datalist></label>
         <label class="campo"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
+        <div class="fila4">
         <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
         <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
         <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
         <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        </div>
       </div>
     </div>
     <div class="ficha-sec"><h3>Personal</h3>
       <div class="ficha-grid">
         <label class="campo"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
         <label class="campo"><span>Birthday</span><input id="eCumple" type="date"></label>
-        <div class="dir-ciudad"><label class="campo"><span>Home address</span><input id="eDir" autocomplete="off"></label>
-        <label class="campo"><span>City</span><input id="eCiudad" autocomplete="off"></label></div>
+        <label class="campo"><span>City</span><input id="eCiudad" autocomplete="off"></label>
+        <label class="campo ancho"><span>Home address</span><input id="eDir" autocomplete="off"></label>
       </div>
     </div>
     <div class="ficha-sec"><h3>Bank information</h3>
-      <div class="ficha-grid">
+      <div class="ficha-grid"><div class="fila4">
         <label class="campo"><span>ID type</span><select id="eTipoId"></select></label>
         <label class="campo"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
         <label class="campo"><span>Bank name</span><select id="eBanco"></select></label>
         <label class="campo"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
-      </div>
+      </div></div>
       <p class="nota" style="margin:-4px 0 4px">Edit the options of Account, Department, ID type and Bank name in <b>Settings → Lists</b>.</p>
       <button class="btn-link bh-enlace" type="button" id="eBancoHist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>View change history</button>
     </div>
@@ -2061,8 +2084,23 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost hidden" id="eActivar" type="button">Deactivate</button>
       <button class="btn btn-peligro hidden" id="eBorrar" type="button">Delete</button>
       <span class="esp"></span>
+      <span class="e-sucio hidden" id="eSucio" role="status"><i></i>Unsaved changes</span>
       <button class="btn btn-ghost" data-cerrar>Cancel</button>
       <button class="btn btn-ink" id="eGuardar">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- (v74) cambios sin guardar en la ficha -->
+<div class="overlay hidden" id="ovSalir" role="dialog" aria-modal="true" aria-labelledby="slTitulo">
+  <div class="ventana" style="max-width:440px">
+    <h2 id="slTitulo">Save changes?</h2>
+    <p class="muted" id="slTexto" style="margin-top:6px">You changed this user's details. Do you want to save them before closing?</p>
+    <div class="pie">
+      <button class="btn btn-ghost" id="slSeguir" type="button">Keep editing</button>
+      <span class="esp"></span>
+      <button class="btn btn-ghost sl-descartar" id="slDescartar" type="button">Discard</button>
+      <button class="btn btn-ink" id="slGuardar" type="button">Save</button>
     </div>
   </div>
 </div>
@@ -2330,9 +2368,18 @@ function toast(msg, tipo){
 function abrir(id){ $(id).classList.remove('hidden'); }
 function cerrar(id){ $(id).classList.add('hidden'); }
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+  ov.addEventListener('click', e => { if(ov.id === 'ovEmp' && (e.target === ov || (e.target.closest && e.target.closest('[data-cerrar]')))){ e.stopPropagation(); return cerrarEmp(); }
+    if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
 });
-document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo)) o.classList.add('hidden'); }); });
+document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
+  // (v74) la ficha de usuario: Esc cierra lo que esté encima; si la ficha queda arriba, pregunta antes de cerrarla
+  if(!$('ovEmp').classList.contains('hidden')){
+    if(!$('ovSalir').classList.contains('hidden')) return cerrar('ovSalir');
+    const encima = [...document.querySelectorAll('.overlay')].filter(o => o.id !== 'ovEmp' && !o.classList.contains('hidden'));
+    if(encima.length){ encima.forEach(o => o.classList.add('hidden')); return; }
+    return cerrarEmp();
+  }
+  document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo)) o.classList.add('hidden'); }); });
 
 /* ── SESIÓN Y SERVIDOR ── */
 function alPortal(motivo){
@@ -5310,6 +5357,23 @@ async function invitarDesdeLista(u, b){
   try{ const r = await api('invitar', { usuario:u }); toast('Invitation sent to ' + r.email + '.'); S.emps = await api('empleados'); pintarEmps(); }
   catch(x){ toast(x.message, 'err'); b.disabled = false; b.textContent = t; }
 }
+// (v74) ¿hay cambios sin guardar en la ficha?
+const EMP_CAMPOS = () => [...$('ovEmp').querySelectorAll('.ventana input, .ventana select, .ventana textarea')].filter(x => x.id && !x.closest('#eLugar, #eAcceso'));   // lo de esos recuadros se guarda aparte
+const fotoEmp = () => EMP_CAMPOS().map(x => x.id + '=' + (x.type === 'checkbox' ? x.checked : x.value)).join('\n');
+function empSucio(){ return !$('ovEmp').classList.contains('hidden') && S.empFoto != null && fotoEmp() !== S.empFoto; }
+function pintarSucio(){ $('eSucio').classList.toggle('hidden', !empSucio()); }
+function empFotoNueva(){ S.empFoto = fotoEmp(); pintarSucio(); }
+$('ovEmp').addEventListener('input', pintarSucio);
+$('ovEmp').addEventListener('change', pintarSucio);
+// cerrar la ficha: si hay cambios, pregunta
+function cerrarEmp(){
+  if(!empSucio()){ cerrar('ovEmp'); S.empFoto = null; return; }
+  abrir('ovSalir'); setTimeout(() => $('slGuardar').focus(), 30);
+}
+$('slSeguir').addEventListener('click', () => cerrar('ovSalir'));
+$('slDescartar').addEventListener('click', () => { cerrar('ovSalir'); cerrar('ovEmp'); S.empFoto = null; });
+$('slGuardar').addEventListener('click', () => { cerrar('ovSalir'); $('eGuardar').click(); });
+$('ovSalir').addEventListener('click', e => { if(e.target === $('ovSalir')) cerrar('ovSalir'); });
 function abrirEmp(usuario){
   const e = usuario ? S.emps.empleados.find(x => x.usuario === usuario) : null;
   $('eTitulo').innerHTML = e ? 'Edit user' + (e.archivadoEn && !e.activo ? ' <span class="pill pill-arch">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : '') : 'Add user';
@@ -5336,12 +5400,16 @@ function abrirEmp(usuario){
   pintarAccesoEmp(e);
   pintarCuentaMon();
   abrir('ovEmp');
+  $('ovEmp').querySelector('.ventana').scrollTop = 0;
+  empFotoNueva();
   if(!e) setTimeout(() => $('eEmail').focus(), 60);
   // una cuenta recién creada en el Monitor aparece sin recargar la página
   const quien = S.empEdit;
   refrescarCuentasMon().then(cambio => {
     if(!cambio || S.empEdit !== quien || $('ovEmp').classList.contains('hidden')) return;
+    const limpio = !empSucio();
     llenarSelect('eCuenta', listas().cuentas || [], $('eCuenta').value); pintarCuentaMon();
+    if(limpio) empFotoNueva();
   });
 }
 $('eNuevo').addEventListener('click', () => abrirEmp(null));
