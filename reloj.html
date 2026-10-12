@@ -607,6 +607,28 @@ tr.cerrado td{background:#F6FAFC}
 .e-sucio{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--warn);margin-right:4px}
 .e-sucio i{width:8px;height:8px;border-radius:50%;background:var(--warn)}
 #ovSalir{z-index:62}
+/* v79: advertencia antes de renombrar un agente del Monitor con un nombre muy distinto */
+#ovMonRen{z-index:63}
+.mr-ventana{max-width:560px;border-top:6px solid var(--accent-500)}
+.mr-cabeza{display:flex;align-items:center;gap:12px}
+.mr-ico{flex:none;width:42px;height:42px;border-radius:50%;background:var(--accent-50);color:var(--accent-600);border:2px solid var(--accent-500);
+  display:grid;place-items:center;font-weight:800;font-size:22px}
+.mr-por{margin-top:10px;font-weight:700;color:var(--accent-600)}
+.mr-cambio{display:flex;align-items:stretch;gap:10px;margin:14px 0 10px}
+.mr-caja{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper)}
+.mr-caja small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.mr-caja b{display:block;font-size:18px;margin:3px 0 2px;overflow-wrap:anywhere}
+.mr-caja span{font-size:12px;color:var(--text-muted)}
+.mr-caja.nuevo{border-color:var(--accent-500);background:var(--accent-50)}
+.mr-flecha{align-self:center;font-size:24px;font-weight:700;color:var(--accent-600)}
+.mr-check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--warn-50);
+  border:1px solid #F5D9AF;cursor:pointer;font-size:14px}
+.mr-check input{margin-top:2px;width:18px;height:18px;flex:none}
+.btn.mr-si{background:var(--accent-600);border-color:var(--accent-600);color:#fff}
+.btn.mr-si:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:560px){ .mr-cambio{flex-direction:column} .mr-flecha{transform:rotate(90deg)} }
+.campo.campo-mon.lejos{background:var(--accent-50);border-color:#F3C3C5;border-left-color:var(--accent-500)}
+.campo.campo-mon.lejos small{color:var(--accent-600);font-weight:600}
 .sl-descartar{color:var(--accent-600)}
 .ficha-sec{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
 .ficha-sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px}
@@ -2110,6 +2132,26 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- (v74) cambios sin guardar en la ficha -->
+<!-- (v79) advertencia: renombrar un agente del Monitor con un nombre muy distinto al del usuario -->
+<div class="overlay hidden" id="ovMonRen" role="alertdialog" aria-modal="true" aria-labelledby="mrTitulo" aria-describedby="mrPor">
+  <div class="ventana mr-ventana">
+    <div class="mr-cabeza"><span class="mr-ico" aria-hidden="true">!</span><h2 id="mrTitulo">Is this the right Monitor agent?</h2></div>
+    <p class="mr-por" id="mrPor"></p>
+    <div class="mr-cambio">
+      <div class="mr-caja"><small>Monitor agent now</small><b id="mrViejo"></b><span id="mrCuenta"></span></div>
+      <div class="mr-flecha" aria-hidden="true">→</div>
+      <div class="mr-caja nuevo"><small>Will be renamed to</small><b id="mrNuevo"></b><span>Name in this profile</span></div>
+    </div>
+    <p class="muted">When you save, this Monitor agent and all its history (activity, screen time, breaks) take the name <b id="mrNuevo2"></b>.
+      If it's the wrong agent, that computer ends up under someone else's name and it's hard to tell later which one it was.</p>
+    <label class="mr-check"><input type="checkbox" id="mrSeguro"><span>I checked that <b id="mrViejo2"></b> is <b id="mrNuevo3"></b>'s computer.</span></label>
+    <div class="pie">
+      <button class="btn btn-ghost" id="mrNo" type="button">Go back</button>
+      <button class="btn mr-si" id="mrSi" type="button" disabled>Rename and save</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="ovSalir" role="dialog" aria-modal="true" aria-labelledby="slTitulo">
   <div class="ventana" style="max-width:440px">
     <h2 id="slTitulo">Save changes?</h2>
@@ -2393,6 +2435,7 @@ document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
   // (v74) la ficha de usuario: Esc cierra lo que esté encima; si la ficha queda arriba, pregunta antes de cerrarla
   if(!$('ovEmp').classList.contains('hidden')){
     if(!$('ovSalir').classList.contains('hidden')) return cerrar('ovSalir');
+    if(!$('ovMonRen').classList.contains('hidden')) return cerrarMonRen(false);
     const encima = [...document.querySelectorAll('.overlay')].filter(o => o.id !== 'ovEmp' && !o.classList.contains('hidden'));
     if(encima.length){ encima.forEach(o => o.classList.add('hidden')); return; }
     return cerrarEmp();
@@ -5467,7 +5510,7 @@ function abrirEmp(usuario){
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
-  pintarNominaAviso();
+  pintarNominaAviso(); pintarMonNota();
   $('eErr').textContent = '';
   pintarAccesoEmp(e);
   pintarCuentaMon();
@@ -5514,13 +5557,56 @@ function pintarCuentaMon(){
   el.innerHTML = '⚠ In the Monitor: <b>' + esc(m.cuenta) + '</b>.' + (c ? ' Saving changes it there too.' : '') + ' <button type="button" id="eUsarMon">Use ' + esc(m.cuenta) + '</button>';
   $('eUsarMon').addEventListener('click', ev => { ev.preventDefault(); proponerCuenta(m.cuenta); });
 }
-// nota bajo el campo: avisa si el agente elegido ya lo tiene otro usuario
+// (v79) ¿el nombre del agente del Monitor se parece al del usuario? nivel: 'parecido' | 'parcial' | 'distinto'
+//  parecido = todas las palabras del nombre más corto (al menos 2) están en el otro (sin tildes; abreviaturas como
+//  Kata/Katalina). «de», «del», «la»… no cuentan. Cualquier otra diferencia pide la advertencia: es mejor preguntar de más.
+const NOM_SOBRAN = { DE:1, DEL:1, LA:1, LAS:1, LOS:1, Y:1, E:1 };
+const tokNom = x => sinTildes(x).replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(t => t.length > 1 && !NOM_SOBRAN[t]);
+// misma palabra (sin tildes), o una abreviatura clara: Kata → Katalina. Juan/Juana o Gabriel/Gabriela NO cuentan (pueden ser hermanos).
+function tokIgual(a, b){
+  if(a === b) return true;
+  const c = a.length <= b.length ? a : b, l = c === a ? b : a;
+  return c.length >= 4 && l.length >= c.length + 3 && l.indexOf(c) === 0;
+}
+function compararNombres(agente, usuario){
+  const a = tokNom(agente), u = tokNom(usuario);
+  if(!a.length || !u.length) return { nivel:'distinto', comunes:[] };
+  const corto = a.length <= u.length ? a : u, largo = corto === a ? u : a, usados = [], comunes = [];
+  corto.forEach(t => { const i = largo.findIndex((x, j) => usados.indexOf(j) < 0 && tokIgual(t, x)); if(i >= 0){ usados.push(i); comunes.push(t); } });
+  return { nivel:comunes.length === corto.length && comunes.length >= 2 ? 'parecido' : comunes.length ? 'parcial' : 'distinto', comunes };
+}
+const parecidoNombres = (agente, usuario) => compararNombres(agente, usuario).nivel;
+const palabraBonita = t => t.charAt(0) + t.slice(1).toLowerCase();
+// La advertencia grande. Responde true solo si marcan «lo revisé» y aprietan «Rename and save».
+function avisoRenombreMon(m, nuevo){
+  const c = compararNombres(m.agente, nuevo);
+  $('mrPor').textContent = c.nivel === 'distinto' ? 'The Monitor agent\'s name and this user\'s name don\'t match at all.'
+    : 'The names only partly match (' + c.comunes.map(t => '“' + palabraBonita(t) + '”').join(', ') + ').';
+  $('mrViejo').textContent = $('mrViejo2').textContent = m.agente;
+  $('mrNuevo').textContent = $('mrNuevo2').textContent = $('mrNuevo3').textContent = nuevo;
+  $('mrCuenta').textContent = m.cuenta ? 'Account in the Monitor: ' + m.cuenta : 'No account in the Monitor';
+  $('mrSeguro').checked = false; $('mrSi').disabled = true;
+  abrir('ovMonRen'); setTimeout(() => $('mrNo').focus(), 30);
+  return new Promise(res => { S.mrRes = res; });
+}
+function cerrarMonRen(v){ cerrar('ovMonRen'); const r = S.mrRes; S.mrRes = null; if(r) r(v); }
+$('mrSeguro').addEventListener('change', () => { $('mrSi').disabled = !$('mrSeguro').checked; });
+$('mrSi').addEventListener('click', () => { if($('mrSeguro').checked) cerrarMonRen(true); });
+$('mrNo').addEventListener('click', () => cerrarMonRen(false));
+$('ovMonRen').addEventListener('click', e => { if(e.target === $('ovMonRen')) cerrarMonRen(false); });
+// nota bajo el campo: avisa si el agente elegido ya lo tiene otro usuario, y (v79) si al guardar se renombra
 function pintarMonNota(){
-  const o = monDueno($('eMonitor').value, S.empEdit), lab = $('eMonitor').closest('.campo-mon');
+  const ag = $('eMonitor').value, o = monDueno(ag, S.empEdit), lab = $('eMonitor').closest('.campo-mon'), nom = nombreFicha();
+  const nivel = !o && ag && $('eNombre').value.trim() && monClave(ag) !== monClave(nom) ? parecidoNombres(ag, nom) : '';
   lab.classList.toggle('dup', !!o);
-  $('eMonitorNota').textContent = o ? 'Also linked to ' + o.nombre + '. Each Monitor agent can be linked to only one user.' : 'One Monitor agent per user.';
+  lab.classList.toggle('lejos', nivel === 'parcial' || nivel === 'distinto');
+  $('eMonitorNota').textContent = o ? 'Also linked to ' + o.nombre + '. Each Monitor agent can be linked to only one user.'
+    : nivel === 'parecido' ? 'Saving renames it in the Monitor to “' + nom + '”.'
+    : nivel ? '⚠ ' + (nivel === 'parcial' ? 'Only partly matches' : 'Doesn\'t match') + ' this user\'s name. Saving renames it in the Monitor to “' + nom + '”: check it\'s the right computer.'
+    : 'One Monitor agent per user.';
 }
 $('eMonitor').addEventListener('change', pintarMonNota);
+['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('input', pintarMonNota));
 $('eMonitor').addEventListener('change', () => { const m = monAgente($('eMonitor').value); if(m && m.cuenta) proponerCuenta(m.cuenta); else pintarCuentaMon(); });
 $('eCuenta').addEventListener('change', pintarCuentaMon);
 $('eGuardar').addEventListener('click', async () => {
@@ -5534,6 +5620,11 @@ $('eGuardar').addEventListener('click', async () => {
   if(!$('eApellidos').value.trim()) return $('eErr').textContent = 'Enter the last name.';
   if(datos.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) return $('eErr').textContent = 'Invalid email.';
   if(datos.pagoHora !== '' && !(Number(datos.pagoHora) >= 0)) return $('eErr').textContent = 'Invalid pay rate.';
+  // (v79) renombrar un agente del Monitor con un nombre muy distinto: advertencia grande antes de guardar nada
+  { const m0 = monAgente(datos.agenteMonitor);
+    // (si el agente ya es de otro usuario, no se pregunta: el guardado lo frena con su propio mensaje)
+    if(m0 && !monDueno(m0.agente, S.empEdit) && monClave(m0.agente) !== monClave(datos.nombre) && parecidoNombres(m0.agente, datos.nombre) !== 'parecido'
+       && !(await avisoRenombreMon(m0, datos.nombre))) return; }
   const b = $('eGuardar'); b.disabled = true;
   const monAntes = monAgente(datos.agenteMonitor);
   try{
@@ -5569,7 +5660,7 @@ $('eGuardar').addEventListener('click', async () => {
           : 'User saved. Invitation sent to ' + x.email + '.');
         S.emps = await api('empleados'); pintarEmps();
       }catch(x){ toast('User saved, but the invitation wasn\'t sent: ' + x.message + ' Open the user to send it again.', 'err'); }
-    } else toast(renombrado ? 'User saved. The Monitor agent is now called “' + renombrado + '”' + (avisoMon === 'ok' ? ', in ' + datos.cuenta : '') + '.'
+    } else toast(renombrado ? 'User saved. The Monitor agent “' + monAntes.agente + '” is now called “' + renombrado + '”' + (avisoMon === 'ok' ? ', in ' + datos.cuenta : '') + '.'
       : avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.' : 'User saved.');
     if(avisoMon && avisoMon !== 'ok') toast('User saved, but ' + avisoMon, 'err');
   }catch(e){ $('eErr').textContent = e.message; }
