@@ -688,6 +688,9 @@
   .cu-ag.off{ opacity:.6; }
   .cu-ag .hr{ font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
   .cu-acciones{ display:flex; gap:8px; flex-wrap:wrap; }
+  .cu-desac-grupo{ margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; padding-left:16px; border-left:1px solid var(--border); }
+  .cu-acciones .btn.cu-btn-desac{ background:#FFEDD5; border:1.5px solid #EA580C; color:#C2410C; font-weight:700; }
+  .cu-acciones .btn.cu-btn-desac:hover{ background:#EA580C; border-color:#EA580C; color:#fff; }
   /* Los botones de la ficha son de papel blanco, no de la pagina oscura. */
   .cu-ficha .btn-ghost{ border-color:var(--border); color:var(--text2); background:#FFFFFF; }
   .cu-ficha .btn-ghost:hover{ background:var(--surface2); color:var(--text); }
@@ -745,6 +748,8 @@
   .modal.modal-cuenta { max-width: 860px; }
   .form-row.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-row.tres.dir { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .cu-titulo-nombre { font-size:15px; font-weight:700; letter-spacing:.02em; padding:4px 12px; border-radius:8px;
+    background:var(--c, #3FCFA0); color:#0b1b26; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cu-sec { font-size:11px; color:var(--text3); margin:4px 0 10px; text-transform:uppercase; letter-spacing:.06em; }
   @media (max-width: 760px) { .form-row.tres, .form-row.tres.dir { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 480px) { .form-row.tres, .form-row.tres.dir { grid-template-columns: 1fr; } }
@@ -3123,7 +3128,10 @@
 <div class="overlay" id="modal-cuenta">
   <div class="modal modal-cuenta">
     <div class="modal-header">
-      <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
+        <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
+        <span id="modal-cuenta-nombre" class="cu-titulo-nombre" hidden></span>
+      </div>
       <div style="display:flex;align-items:center;gap:14px">
         <label for="cu-color" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:pointer">Color de Cuenta
           <input type="color" id="cu-color" value="#3FCFA0" style="width:44px;height:28px;padding:2px;border-radius:6px;cursor:pointer"></label>
@@ -4519,8 +4527,8 @@ function renderCuentasFichas(){
             ${gr.map(c => `<button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️ ${
               varias ? esc(c.nombre) : 'Abrir el formulario completo'}</button>`).join('')}
             ${facturable ? `<button class="btn btn-ghost btn-sm" onclick="showPage('invoices')">Ver sus invoices</button>` : ''}
-            ${gr.map(c => `<button class="btn btn-ghost btn-sm" style="color:var(--accent3)" onclick="cuDesactivar('${c.id}')">⏸ Desactivar ${
-              varias ? esc(c.nombre) : 'cuenta'}</button>`).join('')}
+            <span class="cu-desac-grupo">${gr.map(c => `<button class="btn btn-sm cu-btn-desac" onclick="cuDesactivar('${c.id}')">⏸ Desactivar ${
+              varias ? esc(c.nombre) : 'cuenta'}</button>`).join('')}</span>
           </div>
           <!-- El cobro mensual de la cuenta es el respaldo de la pagina de nomina:
                lo que se usa ahi para un agente que no tenga tarifa propia. Puesto
@@ -5203,6 +5211,7 @@ function openModal(id, tipo){
   if(id==='modal-cuenta'){
     $('cuenta-edit-id').value = '';
     $('modal-cuenta-title').textContent = 'Nueva Cuenta';
+    $('modal-cuenta-nombre').hidden = true;
     $('cu-tarifa-inv').value = '';
     $('cu-tarifa-hint').textContent = 'La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.';
     $('cu-nombre').value = '';
@@ -6300,6 +6309,13 @@ function editCuenta(id){
   }
   if(btnElim) btnElim.style.display = isActiva ? '' : 'none'; // only show delete when active
   $('modal-cuenta-title').textContent = `Editar Cuenta${isActiva ? '' : ' (Inactiva)'}`;
+  // El nombre de la cuenta, con su color, al lado del título: para no editar la equivocada.
+  const tn = $('modal-cuenta-nombre');
+  tn.textContent = c.nombre; tn.title = c.nombre; tn.hidden = false;
+  const col = /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : '#3FCFA0';
+  tn.style.setProperty('--c', col);
+  const lum = ['1','3','5'].map(i => parseInt(col.substr(+i, 2), 16) / 255).reduce((t, v, i) => t + v * [0.299, 0.587, 0.114][i], 0);
+  tn.style.color = lum > 0.55 ? '#0b1b26' : '#ffffff';
   $('modal-cuenta').classList.add('open');
 }
 
