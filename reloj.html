@@ -1038,6 +1038,8 @@ body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 .dc-num b{font-family:var(--font-display);font-size:18px;line-height:1.2}.dc-num small{font-size:12px;color:var(--text-muted)}
 .dc-num.activo{border-color:var(--brand-600);box-shadow:inset 0 0 0 1px var(--brand-600)}
 .dc-n-rev b{color:#7A5A00}.dc-n-falta b{color:var(--text)}.dc-n-venc b,.dc-n-rech b{color:var(--accent-600)}
+.dc-periodo{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}.dc-periodo>span{font-size:13px;color:var(--text-muted);font-weight:600}
+.dc-periodo select{min-width:150px}.dc-periodo .btn-icon{min-width:34px;padding:0 8px}.dc-periodo .btn-icon:disabled{opacity:.35;cursor:default}
 .dc-resumen .esp{flex:1}.dc-todos{font-size:13px;color:var(--text-muted);display:flex;gap:6px;align-items:center}
 .dc-wrap{max-height:calc(100vh - 290px);overflow:auto}
 table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
@@ -1796,6 +1798,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <input id="dcBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="dcCuenta" aria-label="Account"><option value="">All accounts</option></select>
       <select id="dcFiltro" aria-label="Status"><option value="">Everyone</option><option value="rev">To review</option><option value="falta">Missing or overdue</option><option value="venc">Expired or expiring</option><option value="rech">Rejected</option></select>
+      <div class="dc-periodo hidden" id="dcPeriodo" role="group" aria-label="Period"></div>
     </div>
     <div class="dc-resumen" id="dcResumen"></div>
     <div class="tabla-wrap dc-wrap" id="dcTabla"></div>
@@ -6994,7 +6997,7 @@ async function cargarDocs(callado){
 const dcTiposActivos = () => S.dc.tipos.filter(t => t.activo);
 function dcPestana(){ const m = dcTiposActivos().filter(t => t.mensual); if(S.dcPest && S.dcPest !== 'docs' && S.dcPest !== 'pay' && !m.some(t => String(t.id) === S.dcPest)) S.dcPest = 'docs'; return S.dcPest || 'docs'; }
 // personas que se ven (búsqueda, cuenta, activos) y las celdas de cada una
-function dcFilas(){
+function dcFilas(){ // (v85) las columnas de los mensuales salen del periodo elegido
   const dc = S.dc, bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value, pest = dcPestana();
   const tm = pest === 'docs' ? null : dc.tipos.find(t => String(t.id) === pest);
   let emps = dc.emps.filter(e => e.activo || dc.docs.some(d => d.usuario === e.usuario));
@@ -7002,12 +7005,31 @@ function dcFilas(){
   if(tm && !S.dcTodosAp) emps = emps.filter(e => pe(e));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
   if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
-  const cols = tm ? docMeses(tm).slice(0, S.dcMesesTodos ? 240 : 6).reverse().map(m => ({ t:tm, per:m })) : dcTiposActivos().filter(t => !t.mensual).map(t => ({ t, per:null }));
+  const cols = tm ? dcColsPeriodo(pest, docMeses(tm), S.dcMesesTodos).map(m => ({ t:tm, per:m })) : dcTiposActivos().filter(t => !t.mensual).map(t => ({ t, per:null }));
   return { tm, cols, filas: emps.sort((a, b) => a.nombre.localeCompare(b.nombre, 'en')).map(e => ({ e,
     pe: pe(e), celdas: cols.map(c => (tm && (!pe(e) || c.per < pe(e).desdeMes) && !docsDe(dc.docs, e.usuario, c.t.id, c.per).length) ? { k:'vacio', sub:'', no:true }
       : docEstado(c.t, docsDe(dc.docs, e.usuario, c.t.id, c.per), c.per)) })) };
 }
 const DC_FILTROS = { rev:['pendiente'], falta:['falta', 'atrasado'], venc:['vencido', 'porVencer'], rech:['rechazado'] };
+// (v85) periodo elegido en cada pestaña (lista de periodos del más nuevo al más viejo): la tabla muestra ese y los 5 anteriores
+function dcIdxPeriodo(pest, lista){ const i = lista.indexOf((S.dcFin || {})[pest]); return i < 0 ? 0 : i; }
+function dcColsPeriodo(pest, lista, todos){ const i = dcIdxPeriodo(pest, lista); return (todos ? lista : lista.slice(i, i + 6)).slice().reverse(); }
+function pintarPeriodo(pest, lista, etiqueta, todos){
+  const b = $('dcPeriodo'); if(!b) return;
+  if(!pest || !lista || !lista.length){ b.classList.add('hidden'); b.innerHTML = ''; return; }
+  const i = dcIdxPeriodo(pest, lista);
+  b.classList.remove('hidden'); b.dataset.pest = pest;
+  b.innerHTML = '<span>Period</span><button type="button" class="btn btn-ghost btn-sm btn-icon" data-per-mover="1" title="Older period" aria-label="Older period"' + (todos || i >= lista.length - 1 ? ' disabled' : '') + '>◀</button>' +
+    '<select id="dcPerSel" aria-label="Period to show"' + (todos ? ' disabled title="Showing all periods"' : '') + '>' + lista.map((p, k) => '<option value="' + esc(p) + '"' + (k === i ? ' selected' : '') + '>' + esc(etiqueta(p)) + '</option>').join('') + '</select>' +
+    '<button type="button" class="btn btn-ghost btn-sm btn-icon" data-per-mover="-1" title="Newer period" aria-label="Newer period"' + (todos || i <= 0 ? ' disabled' : '') + '>▶</button>';
+  b._lista = lista;
+}
+$('dcPeriodo').addEventListener('change', ev => { if(ev.target.id !== 'dcPerSel') return; const b = $('dcPeriodo'); S.dcFin = Object.assign({}, S.dcFin, { [b.dataset.pest]:ev.target.value }); pintarDocs(); });
+$('dcPeriodo').addEventListener('click', ev => {
+  const bt = ev.target.closest('[data-per-mover]'); if(!bt || bt.disabled) return; const b = $('dcPeriodo'), l = b._lista || [];
+  const j = Math.min(l.length - 1, Math.max(0, dcIdxPeriodo(b.dataset.pest, l) + Number(bt.dataset.perMover)));
+  S.dcFin = Object.assign({}, S.dcFin, { [b.dataset.pest]:l[j] }); pintarDocs();
+});
 function pintarDocs(){
   const dc = S.dc, pest = dcPestana();
   // cuentas para el filtro (las de las personas que hay)
@@ -7021,6 +7043,7 @@ function pintarDocs(){
   $('dcFiltro').classList.toggle('hidden', pest === 'pay');
   if(pest === 'pay') return pintarPaystubs();
   const { tm, cols, filas } = dcFilas();
+  pintarPeriodo(tm ? pest : '', tm ? docMeses(tm) : [], m => mesTxt(m), S.dcMesesTodos);
   // resumen (cada número filtra la tabla)
   const cuenta = ks => filas.reduce((a, f) => a + f.celdas.filter(c => ks.includes(c.k)).length, 0);
   const fl = $('dcFiltro').value;
@@ -7032,7 +7055,7 @@ function pintarDocs(){
   const vis = fl ? filas.filter(f => f.celdas.some(c => DC_FILTROS[fl].includes(c.k))) : filas;
   if(!cols.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No documents yet. Use «Manage documents» to add one.</div>'; return; }
   if(!vis.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No one matches.</div>'; return; }
-  const cab = c => tm ? '<th class="dc-col">' + esc(mesTxt(c.per, true)) + '<small>due ' + esc(fechaUS(docLimite(tm, c.per)).replace(/, \d{4}$/, '')) + '</small></th>'
+  const cab = c => tm ? '<th class="dc-col">' + esc(mesTxt(c.per, true)) + '<small>due ' + esc(fechaUS(docLimite(tm, c.per))) + '</small></th>'
     : '<th class="dc-col">' + esc(c.t.nombre) + '<small>' + [c.t.obligatorio ? 'Required' : 'Optional', c.t.vence === 'meses' ? c.t.venceMeses + ' mo.' : c.t.vence === 'fecha' ? 'exp. ' + fechaUS(docVenceDefecto(c.t)).replace(/^(\w+ \d+), /, '$1 ') : ''].filter(Boolean).join(' · ') + '</small></th>';
   $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + (tm ? '<th class="dc-req" title="Must upload ' + esc(tm.nombre) + ' every month">Required</th>' : '') + cols.map(cab).join('') + '</tr></thead><tbody>' +
     vis.map(f => { const e = f.e, cc = colorCuenta(e.cuenta);
@@ -7080,12 +7103,13 @@ $('dcTabla').addEventListener('click', ev => { const b = ev.target.closest('.dc-
 /* Paystubs: los envía el módulo «Comprobantes» (botón «Send to Time Clock»). Personas × quincenas: enviado / visto. */
 function pintarPaystubs(){
   const dc = S.dc, pays = (dc.paystubs || []).filter(x => !x.reemplazado), bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value;
-  const periodos = [...new Set(pays.map(x => x.periodoFin))].sort().reverse(), cols = (S.dcPayTodos ? periodos : periodos.slice(0, 6)).slice().reverse();
+  const periodos = [...new Set(pays.map(x => x.periodoFin))].sort().reverse(), cols = dcColsPeriodo('pay', periodos, S.dcPayTodos);
+  pintarPeriodo('pay', periodos, f => fechaUS(f), S.dcPayTodos);
   let emps = dc.emps.filter(e => e.activo || pays.some(x => x.usuario === e.usuario));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
   if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
   emps.sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
-  const ult = periodos[0], deUlt = pays.filter(x => x.periodoFin === ult);
+  const ult = periodos[dcIdxPeriodo('pay', periodos)], deUlt = pays.filter(x => x.periodoFin === ult);
   $('dcResumen').innerHTML = (ult ? '<span class="dc-num dc-fijo"><b>' + deUlt.length + '</b><small>Sent for ' + esc(fechaUS(ult)) + '</small></span>' +
       '<span class="dc-num dc-fijo"><b>' + deUlt.filter(x => x.vistoEn).length + '</b><small>Opened</small></span>' +
       '<span class="dc-num dc-fijo dc-n-rev"><b>' + deUlt.filter(x => !x.vistoEn).length + '</b><small>Not opened yet</small></span>' : '') +
@@ -7093,7 +7117,7 @@ function pintarPaystubs(){
     (periodos.length > 6 ? '<button class="btn-link" type="button" id="dcPayMas">' + (S.dcPayTodos ? 'Last 6 pay periods' : 'All pay periods') + '</button>' : '');
   if(!periodos.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No paystubs sent yet.</div>'; return; }
   if(!emps.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No one matches.</div>'; return; }
-  $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + cols.map(f => '<th class="dc-col">' + esc(fechaUS(f).replace(/, \d{4}$/, '')) + '<small>pay period end</small></th>').join('') + '</tr></thead><tbody>' +
+  $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + cols.map(f => '<th class="dc-col">' + esc(fechaUS(f)) + '<small>pay period end</small></th>').join('') + '</tr></thead><tbody>' +
     emps.map(e => { const cc = colorCuenta(e.cuenta);
       return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
         cols.map(f => { const x = pays.find(y => y.usuario === e.usuario && y.periodoFin === f);
