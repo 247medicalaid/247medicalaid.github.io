@@ -3116,7 +3116,11 @@
 <div class="overlay" id="modal-cuenta">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
+        <label for="cu-color" title="Color Identificador" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:pointer">Color
+          <input type="color" id="cu-color" value="#3FCFA0" style="width:44px;height:28px;padding:2px;border-radius:6px;cursor:pointer"></label>
+      </div>
       <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('modal-cuenta')">✕</button>
     </div>
     <div class="modal-body">
@@ -3186,12 +3190,17 @@
             <div class="form-hint">Ej: $50 fijo para Cardio y Gastro</div>
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row" id="cu-fila-dr-tarifa">
           <div class="form-group">
             <label>Dollar Comp % — Callcenter Payroll</label>
             <input type="number" id="cu-dollar-real" value="10" min="0" max="30" step="0.5">
             <div class="form-hint">Cardio=7%, demás cuentas=10%</div>
           </div>
+      <div class="form-group" id="cu-tarifa-grupo">
+        <label>Tarifa que se Factura — USD/mes por Agente</label>
+        <input type="number" id="cu-tarifa-inv" min="0" step="50" placeholder="0">
+        <div class="form-hint" id="cu-tarifa-hint">La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.</div>
+      </div>
         </div>
       </div>
 
@@ -3211,7 +3220,7 @@
             <input type="number" id="cu-own-accountant" value="0" min="0">
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row" id="cu-fila-own-tarifa">
           <div class="form-group">
             <label>Días Laborables por Quincena</label>
             <input type="number" id="cu-qdays-own" value="" min="1" max="15" placeholder="Dejar vacío = usar días globales 🇺🇸">
@@ -3224,16 +3233,7 @@
            por nombre de cuenta normalizado, y la comparten las que facturan en
            un mismo invoice. Se escribe aqui porque es donde uno la busca: hasta
            ahora solo se podia cambiar desde dentro de un invoice abierto. -->
-      <div class="form-group">
-        <label>Tarifa que se Factura — USD/mes por Agente</label>
-        <input type="number" id="cu-tarifa-inv" min="0" step="50" placeholder="0">
-        <div class="form-hint" id="cu-tarifa-hint">La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.</div>
-      </div>
 
-      <div class="form-group">
-        <label>Color Identificador</label>
-        <input type="color" id="cu-color" value="#3FCFA0" style="width:60px;height:36px;padding:2px;border-radius:6px;cursor:pointer">
-      </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <div style="display:flex;gap:8px">
@@ -5220,6 +5220,10 @@ function toggleCuentaFields(){
   const tipo = $('cu-tipo').value;
   $('cu-dr-fields').classList.toggle('hidden', tipo!=='dr');
   $('cu-own-fields').classList.toggle('hidden', tipo!=='own');
+  // La tarifa es un solo campo: va en la fila que se está viendo, al lado del último dato.
+  const fila = $(tipo === 'own' ? 'cu-fila-own-tarifa' : 'cu-fila-dr-tarifa');
+  const t = $('cu-tarifa-grupo');
+  if (fila && t && t.parentNode !== fila) fila.appendChild(t);
 }
 
 // ═══════════════════════════════════════════════════════════════
