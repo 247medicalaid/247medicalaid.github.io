@@ -1490,6 +1490,13 @@ body.aw[data-aw="upd"] .aw-panel > [data-aw="upd"]{display:block}
 /* Users → Import from Connecteam (v59) */
 .pill.pill-arch{background:#4A4F57;color:#fff}
 .ventana.ventana-uimp{max-width:1040px}
+.di-tipos{display:grid;gap:8px;margin:6px 0 12px;padding:10px 12px;border:1px solid var(--line, #e2e6ea);border-radius:10px}
+.di-tipos b{font-size:12.5px}
+.di-tipo{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px}
+.di-tipo .di-ct{min-width:200px}
+.di-chip-pend{background:#FEF3C7;color:#92400E}
+.di-chip-no{background:#F1F5F9;color:#64748B;text-decoration:line-through}
+.di-prog{font-size:13px;margin:6px 0}
 .ui-barra{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 10px}
 .ui-tipo{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-muted)}
 .ui-tipo select{font-size:13.5px}
@@ -1781,6 +1788,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <h1>Documents</h1>
       <span class="esp"></span>
       <button class="btn btn-ghost btn-sm" id="dcRecargar" type="button">Reload</button>
+      <button class="btn btn-ghost btn-sm" id="dcImportCT" type="button">Import from Connecteam</button>
       <button class="btn btn-ink btn-sm" id="dcTipos" type="button">Manage documents</button>
     </div>
     <div class="dc-pestanas" id="dcPestanas" role="tablist" aria-label="Documents"></div>
@@ -2300,6 +2308,24 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="err" id="uiErr" role="alert"></div>
     <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button>
       <button class="btn btn-ink hidden" id="uiImportar" type="button">Import</button></div>
+  </div>
+</div>
+
+<!-- v82: Importar los documentos de Connecteam (paso 50) -->
+<div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
+  <div class="ventana ventana-ancha ventana-uimp">
+    <h2 id="diTitulo">Import documents from Connecteam</h2>
+    <div class="sub">Choose the ZIP made from Connecteam (<b>connecteam_documentos_….zip</b>). Each file goes to that employee's documents with its original date and status: approved, pending (you review it here) or rejected. Former employees keep their files too. Files already imported are skipped, so you can run it again safely. Nothing that's already in Time Track changes, and a newer file uploaded here keeps counting.</div>
+    <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="diElegir" type="button">Choose ZIP…</button>
+      <input type="file" id="diArchivo" class="hidden" accept=".zip,application/zip"></div>
+    <div id="diInfo"></div>
+    <div id="diTipos"></div>
+    <p id="diResumen" class="ui-resumen"></p>
+    <div class="di-prog" id="diProg" role="status"></div>
+    <div class="tabla-wrap" id="diTabla"></div>
+    <div class="err" id="diErr" role="alert"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Close</button>
+      <button class="btn btn-ink hidden" id="diImportar" type="button">Import</button></div>
   </div>
 </div>
 
@@ -3184,6 +3210,24 @@ async function docsSB(action, p){
     await docStorageSubir(ruta, f);
     return q(sb.rpc('reloj_doc_registrar', { p:{ tipoId:p.tipoId, usuario:p.usuario || null, periodo:p.periodo || null, archivo:ruta, nombre:f.name.slice(-160),
       bytes:f.size, mime:f.type || docMime(f.name), fechaDoc:p.fechaDoc || null } }));
+  }
+  // (v82) un archivo de Connecteam: ruta fija (ct<entrada>-<parte>-nombre) para que la segunda vez no se repita
+  if(action === 'docImportar'){
+    await sesionSB();
+    const ruta = p.usuario + '/' + p.tipoId + '/' + p.clave + '-' + dimpLimpio(p.nombre), tipo = p.mime;
+    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
+    const subio = !error;
+    if(error && !/exist|duplicate|409/i.test(String(error.message || '') + ' ' + String(error.statusCode || '') + ' ' + String(error.error || ''))) throw new Error(docErrStorage(error));
+    try{
+      const r = await q(sb.rpc('reloj_doc_importar', { p:{ tipoId:p.tipoId, usuario:p.usuario, clave:p.clave, archivo:ruta, nombre:String(p.nombre).slice(-160),
+        bytes:p.datos.length, mime:tipo, estado:p.estado, subido:p.subido, revisado:p.revisado } }));
+      if(r && r.ya && subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
+      return r;
+    }catch(e){
+      if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
+      if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing documents needs SQL step 50 in Supabase.');
+      throw e;
+    }
   }
   if(action === 'docDecidir') return q(sb.rpc('reloj_doc_decidir', { p_id:p.id, p_aprobar:!!p.aprobar, p_nota:p.nota || '', p_vence:p.vence || null }));
   if(action === 'docVence') return q(sb.rpc('reloj_doc_vence', { p_id:p.id, p_vence:p.vence || null }));
@@ -5816,6 +5860,14 @@ async function ctUnzip(buf){
       if(e.met !== 8) throw new Error('This Excel file uses a format the Time Clock can\'t read.');
       const s = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
       return dec.decode(await new Response(s).arrayBuffer());
+    },
+    // (v82) el archivo tal cual, para los documentos del ZIP de Connecteam
+    async bytes(nombre){
+      const e = ent[nombre]; if(!e) return null;
+      const ini = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true), datos = b.subarray(ini, ini + e.tam);
+      if(e.met === 0) return datos.slice();
+      if(e.met !== 8) throw new Error('This ZIP uses a format Time Track can\'t read.');
+      return new Uint8Array(await new Response(new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
     }
   };
 }
@@ -7095,6 +7147,124 @@ $('odArchivo').addEventListener('change', async () => {
 
 /* Manage documents: la lista de documentos que se piden y sus reglas */
 $('dcTipos').addEventListener('click', () => { S.dtEdit = null; pintarTipos(); abrir('ovDocTipos'); });
+
+/* ── v82: Import from Connecteam (documentos) ──
+   El ZIP lo arma Claude desde la pestaña de Connecteam: «<Persona>/<Documento>/<entrada>-<parte>-<archivo>» y
+   manifiesto.json (personas con correo y teléfono para emparejar, y cada archivo con su documento, estado y fecha).
+   Nada sale del navegador salvo los archivos, que van a la carpeta de cada empleado en Storage. */
+const dimpLimpio = n => String(n || 'file').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._ -]+/g, '').replace(/\s+/g, '_').replace(/^[._-]+/, '').slice(-90) || 'file';
+const DIMP_ESTADO = { approved:'aprobado', pending:'pendiente', rejected:'rechazado', expired:'aprobado' };
+const DIMP_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const dimpTitulo = s => String(s || '').toLowerCase().replace(/(^|[\s'-])\p{L}/gu, m => m.toUpperCase());
+function dimpTiposDestino(){ return S.dc.tipos.filter(t => t.activo && !t.mensual); }
+// el documento de Time Track que corresponde a uno de Connecteam (Contracto 2026 → Contrato 2026)
+function dimpTipoPara(nombre){
+  const base = x => normal(x).replace(/[0-9]/g, '').replace(/\s+/g, ' ').trim(), b = base(nombre), ts = dimpTiposDestino();
+  const t = ts.find(x => normal(x.nombre) === normal(nombre)) || ts.find(x => base(x.nombre) === b) || ts.find(x => base(x.nombre).slice(0, 5) === b.slice(0, 5) && b.length >= 4);
+  return t ? String(t.id) : '';
+}
+// el empleado de Time Track: por correo, por nombre, por teléfono y, si no, por todas las palabras del nombre
+function dimpEmparejar(x){
+  const emps = S.dc.emps, dig = v => String(v || '').replace(/\D/g, '').slice(-10), nom = normal(x.nombre + ' ' + x.apellido);
+  let c = x.email ? emps.filter(e => e.email && normal(e.email) === normal(x.email)) : [];
+  if(c.length !== 1) c = emps.filter(e => normal(e.nombre) === nom || normal((e.nombre || '') + ' ' + (e.apellidos || '')) === nom);
+  if(c.length !== 1 && dig(x.telefono).length >= 7) c = emps.filter(e => dig(e.telefono) === dig(x.telefono));
+  if(c.length !== 1){
+    const pal = v => normal(v).split(' ').filter(w => w.length > 1), a = pal(nom);
+    c = emps.filter(e => { const b = pal(e.nombre); const [p, q2] = a.length <= b.length ? [a, b] : [b, a]; return p.length >= 2 && p.every(w => q2.includes(w)); });
+  }
+  return c.length === 1 ? c[0].usuario : '';
+}
+async function abrirDImp(){
+  S.dimp = null; $('diArchivo').value = ''; $('diErr').textContent = ''; $('diProg').textContent = '';
+  if(!S.dc) await cargarDocs(true);
+  pintarDImp(); abrir('ovDImp');
+}
+$('dcImportCT').addEventListener('click', abrirDImp);
+$('diElegir').addEventListener('click', () => { $('diArchivo').value = ''; $('diArchivo').click(); });
+$('diArchivo').addEventListener('change', async () => {
+  const f = $('diArchivo').files[0]; if(!f) return;
+  $('diErr').textContent = ''; $('diProg').textContent = '';
+  try{
+    if(typeof DecompressionStream === 'undefined') throw new Error('This browser can\'t read ZIP files. Use an up-to-date Chrome or Edge.');
+    let z; try{ z = await ctUnzip(await f.arrayBuffer()); }catch(e){ throw new Error(f.name + ' is not the ZIP made from Connecteam.'); }
+    const txt = await z.texto('manifiesto.json'); if(!txt) throw new Error(f.name + ' is not the ZIP made from Connecteam (no manifiesto.json).');
+    const man = JSON.parse(txt); if(man.origen !== 'connecteam' || !Array.isArray(man.archivos)) throw new Error(f.name + ' is not the ZIP made from Connecteam.');
+    const tipos = {}; (man.documentos || []).forEach(d => { tipos[d.nombre] = dimpTipoPara(d.nombre); });
+    man.archivos.forEach(a => { if(!(a.documento in tipos)) tipos[a.documento] = dimpTipoPara(a.documento); });
+    const filas = (man.personas || []).map(x => {
+      const usuario = dimpEmparejar(x), arch = man.archivos.filter(a => String(a.ctUserId) === String(x.ctId));
+      return { x, nombre:dimpTitulo((x.nombre + ' ' + x.apellido).trim()), usuario, incluir:!!usuario && arch.length > 0, arch,
+        nota:usuario ? '' : 'Not found in Time Track: choose the employee' };
+    }).filter(r => r.arch.length).sort((a, b) => (a.x.suspendido - b.x.suspendido) || a.nombre.localeCompare(b.nombre, 'en'));
+    S.dimp = { z, man, archivo:f.name, tipos, filas, hecho:null };
+  }catch(e){ S.dimp = null; $('diErr').textContent = e.message; }
+  $('diArchivo').value = ''; pintarDImp();
+});
+const dimpEstado = a => DIMP_ESTADO[normal(a.estado)] || 'aprobado';
+function dimpPendientes(){
+  const d = S.dimp; if(!d) return [];
+  return d.filas.filter(r => r.incluir && r.usuario).flatMap(r => r.arch.filter(a => d.tipos[a.documento]).map(a => ({ r, a })));
+}
+function pintarDImp(){
+  const d = S.dimp;
+  if(!d){ $('diInfo').innerHTML = '<p class="nota">In Connecteam the documents were packed in one ZIP (in your Downloads folder). Choose it here.</p>';
+    ['diTipos', 'diTabla'].forEach(id => { $(id).innerHTML = ''; }); $('diResumen').textContent = ''; $('diImportar').classList.add('hidden'); return; }
+  const m = d.man, ts = dimpTiposDestino(), emps = S.dc.emps.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
+  $('diInfo').innerHTML = '<div class="ui-arch"><b>' + esc(d.archivo) + '</b> · ' + m.archivos.length + ' files · ' + d.filas.length + ' people' +
+    (m.generado ? ' · made ' + esc(fechaUS(String(m.generado).slice(0, 10))) : '') + '</div>';
+  const docsCT = Object.keys(d.tipos).sort((a, b) => a.localeCompare(b, 'en'));
+  $('diTipos').innerHTML = '<div class="di-tipos"><b>Where each Connecteam document goes</b>' + docsCT.map((n, i) => {
+    const k = m.archivos.filter(a => a.documento === n).length;
+    return '<label class="di-tipo"><span class="di-ct">' + esc(n) + ' <span class="muted">(' + k + ' file' + (k === 1 ? '' : 's') + ')</span></span><span aria-hidden="true">→</span>' +
+      '<select data-di-tipo="' + i + '" aria-label="Time Track document for ' + esc(n) + '"><option value="">— Don\'t import</option>' +
+      ts.map(t => '<option value="' + t.id + '"' + (String(t.id) === d.tipos[n] ? ' selected' : '') + '>' + esc(t.nombre) + '</option>').join('') + '</select></label>'; }).join('') + '</div>';
+  d.docsCT = docsCT;
+  const lista = dimpPendientes(), pend = lista.filter(x => dimpEstado(x.a) === 'pendiente').length, rech = lista.filter(x => dimpEstado(x.a) === 'rechazado').length;
+  const gente = new Set(lista.map(x => x.r.usuario)).size, sinEmp = d.filas.filter(r => !r.usuario).length, ex = d.filas.filter(r => r.incluir && r.x.suspendido).length;
+  $('diResumen').innerHTML = '<b>' + lista.length + '</b> files to import for <b>' + gente + '</b> people' + (ex ? ' (' + ex + ' former employees)' : '') + '. ' +
+    (pend ? pend + ' arrive <b>pending</b> for you to review. ' : '') + (rech ? rech + ' arrive rejected. ' : '') +
+    (sinEmp ? '<b class="ui-falta">' + sinEmp + ' not found in Time Track: choose the employee or leave them unchecked.</b> ' : '') +
+    '<span class="nota">Files already imported are skipped.</span>';
+  $('diTabla').innerHTML = '<table class="emps ui-t"><thead><tr><th></th><th>Connecteam</th><th>Time Track employee</th><th>Files</th></tr></thead><tbody>' + d.filas.map((r, i) =>
+    '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-di-i="' + i + '"' + (r.incluir ? ' checked' : '') + (r.usuario ? '' : ' disabled') + ' aria-label="Import ' + esc(r.nombre) + '"></td>' +
+    '<td><b>' + esc(r.nombre) + '</b>' + (r.x.suspendido ? ' <span class="pill pill-arch">Former</span>' : '') + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
+    '<td><select data-di-u="' + i + '" aria-label="Time Track employee for ' + esc(r.nombre) + '"><option value="">— Choose…</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
+      esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? '' : ' (inactive)')) + '</option>').join('') + '</select></td>' +
+    '<td>' + r.arch.map(a => { const no = !d.tipos[a.documento], es = dimpEstado(a);
+      return '<span class="ui-chip' + (no ? ' di-chip-no' : es === 'pendiente' ? ' di-chip-pend' : '') + '" title="' + esc(a.nombreArchivo + ' · uploaded ' + (a.subido ? fechaUS(new Date(a.subido * 1000).toISOString().slice(0, 10)) : '?')) + '">' +
+        esc(a.documento + (a.partes > 1 ? ' ' + a.parte + '/' + a.partes : '') + (es === 'pendiente' ? ' · pending' : es === 'rechazado' ? ' · rejected' : '')) + '</span>'; }).join('') + '</td></tr>').join('') + '</tbody></table>';
+  const b = $('diImportar'); b.classList.toggle('hidden', !!d.hecho); b.disabled = !lista.length; b.textContent = 'Import ' + lista.length + (lista.length === 1 ? ' file' : ' files');
+}
+$('diTipos').addEventListener('change', ev => { const s2 = ev.target.closest('[data-di-tipo]'); if(!s2 || !S.dimp) return; S.dimp.tipos[S.dimp.docsCT[Number(s2.dataset.diTipo)]] = s2.value; pintarDImp(); });
+$('diTabla').addEventListener('change', ev => {
+  const c = ev.target.closest('[data-di-i]'), s2 = ev.target.closest('[data-di-u]'); if(!S.dimp) return;
+  if(c) S.dimp.filas[Number(c.dataset.diI)].incluir = c.checked;
+  if(s2){ const r = S.dimp.filas[Number(s2.dataset.diU)]; r.usuario = s2.value; r.incluir = !!s2.value; r.nota = s2.value ? '' : 'Not found in Time Track: choose the employee'; }
+  pintarDImp();
+});
+$('diImportar').addEventListener('click', async () => {
+  const d = S.dimp, lista = dimpPendientes(); if(!d || !lista.length) return;
+  const b = $('diImportar'); b.disabled = true; $('diErr').textContent = '';
+  let nuevos = 0, ya = 0; const errores = [];
+  for(let i = 0; i < lista.length; i++){
+    const { r, a } = lista[i];
+    $('diProg').innerHTML = '<span class="spin dark"></span> Importing ' + (i + 1) + ' of ' + lista.length + '… ' + esc(r.nombre + ' · ' + a.documento);
+    try{
+      const datos = await d.z.bytes(a.ruta); if(!datos) throw new Error('the file is not in the ZIP');
+      const ext = String(a.nombreArchivo || '').split('.').pop(), mime = DIMP_MIMES.includes(a.mime) ? a.mime : docMime(a.nombreArchivo);
+      const x = await api('docImportar', { usuario:r.usuario, tipoId:Number(d.tipos[a.documento]), clave:'ct' + a.entrada + '-' + (a.parte || 1),
+        nombre:a.nombreArchivo || ('documento.' + ext), mime, datos, estado:dimpEstado(a), subido:a.subido || null, revisado:a.revisado || null });
+      if(x && x.ya) ya++; else nuevos++;
+    }catch(e){ errores.push(r.nombre + ' · ' + a.documento + ': ' + e.message); if(/SQL step 50/.test(e.message)) break; }
+  }
+  d.hecho = { nuevos, ya, errores };
+  $('diProg').innerHTML = '<b>Done.</b> ' + nuevos + ' file' + (nuevos === 1 ? '' : 's') + ' imported' + (ya ? ', ' + ya + ' were already in Time Track' : '') +
+    (errores.length ? ', <b class="ui-falta">' + errores.length + ' with problems</b>' : '') + '.';
+  if(errores.length) $('diErr').innerHTML = errores.map(esc).join('<br>');
+  b.disabled = false; pintarDImp(); cargarDocs(true);
+  toast(nuevos + ' documents imported from Connecteam.');
+});
 function pintarTipos(){
   const dc = S.dc; if(!dc) return;
   if(S.dtEdit !== null && S.dtEdit !== undefined) return pintarTipoForm();
@@ -10108,6 +10278,18 @@ async function demoDocs(action, p){
     return { ok:true, id, estado:est };
   }
   soloAdm();
+  if(action === 'docImportar'){
+    const t = DM.docTipos.find(x => x.id === Number(p.tipoId) && x.activo); if(!t || t.mensual) throw new Error('That document no longer exists in Time Track.');
+    if(!DM.emps.some(e => e.usuario === p.usuario)) throw new Error('That employee doesn\'t exist in Time Track.');
+    const pref = p.usuario + '/' + t.id + '/' + p.clave + '-';
+    if(DM.docs.some(d => d.usuario === p.usuario && d.tipoId === t.id && d.archivo.startsWith(pref))) return { ok:true, ya:true };
+    const id = ++DM.docId, ruta = pref + dimpLimpio(p.nombre), sub = p.subido ? p.subido * 1000 : Date.now(), fd = new Date(sub).toISOString().slice(0, 10);
+    DM.docFiles.set(ruta, new Blob([p.datos], { type:p.mime }));
+    DM.docs.push({ id, tipoId:t.id, usuario:p.usuario, periodo:null, archivo:ruta, nombre:p.nombre, bytes:p.datos.length, mime:p.mime, fechaDoc:fd,
+      estado:p.estado, subidoPor:yo, subidoEn:sub, revisadoPor:p.estado === 'pendiente' ? '' : yo, revisadoEn:p.estado === 'pendiente' ? null : (p.revisado ? p.revisado * 1000 : sub),
+      nota:'Imported from Connecteam', vence:p.estado === 'aprobado' ? docVenceDefecto(t, fd) : '' });
+    return { ok:true, id, estado:p.estado };
+  }
   if(action === 'docDecidir'){
     const d = DM.docs.find(x => x.id === p.id); if(!d) throw new Error('That document no longer exists. Reload the page.');
     if(!p.aprobar && (p.nota || '').trim().length < 3) throw new Error('Write why it is rejected.');
