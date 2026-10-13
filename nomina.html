@@ -3644,12 +3644,12 @@ function getResultadoOwn(c){
 }
 
 function renderKPIs(){
-  const drTotal  = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).reduce((s,c)=>{ const r=getResultadoDr(c); return s+r.totalDrCheck; },0);
-  const drCosto  = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).reduce((s,c)=>{ const r=getResultadoDr(c); return s+r.totalReal; },0);
+  const drTotal  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c)).reduce((s,c)=>{ const r=getResultadoDr(c); return s+r.totalDrCheck; },0);
+  const drCosto  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c)).reduce((s,c)=>{ const r=getResultadoDr(c); return s+r.totalReal; },0);
   const drUtil   = drTotal - drCosto;
 
-  const ownCobro = cuentas.filter(c=>c.tipo==='own' && c.activo!==false).reduce((s,c)=>{ const r=getResultadoOwn(c); return s+r.totalCobro; },0);
-  const ownCosto = cuentas.filter(c=>c.tipo==='own' && c.activo!==false).reduce((s,c)=>{ const r=getResultadoOwn(c); return s+r.totalCosto; },0);
+  const ownCobro = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c)).reduce((s,c)=>{ const r=getResultadoOwn(c); return s+r.totalCobro; },0);
+  const ownCosto = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c)).reduce((s,c)=>{ const r=getResultadoOwn(c); return s+r.totalCosto; },0);
   const ownUtil  = ownCobro - ownCosto;
 
   const totalUtil  = drUtil + ownUtil;
@@ -3698,7 +3698,7 @@ function renderKPIs(){
 }
 
 function renderCuadroDr(){
-  const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
+  const drs = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   const rows = drs.map(c=>{
     const r = getResultadoDr(c);
     const words = c.nombre.split(' ');
@@ -3722,7 +3722,7 @@ function renderCuadroDr(){
 }
 
 function renderCuadroReal(){
-  const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
+  const drs = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   const rows = drs.map(c=>{
     const r = getResultadoDr(c);
     const words = c.nombre.split(' ');
@@ -3746,7 +3746,7 @@ function renderCuadroReal(){
 }
 
 function renderCuadroOwn(){
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
   const rows = owns.map(c=>{
     const r = getResultadoOwn(c);
     const words = c.nombre.split(' ');
@@ -3770,7 +3770,7 @@ function renderCuadroOwn(){
 }
 
 function renderCuadroPendiente(){
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
   const rows = owns.map(c=>{
     const r = getResultadoOwn(c);
     const words = c.nombre.split(' ');
@@ -3795,7 +3795,7 @@ function renderCuadroPendiente(){
 
 function renderResumenDr(){
   const el = $('resumen-dr');
-  const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
+  const drs = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   if(!drs.length){ el.innerHTML = '<p class="empty">Sin cuentas con doctores</p>'; return; }
   el.innerHTML = drs.map(c=>{
     const r = getResultadoDr(c);
@@ -3817,7 +3817,7 @@ function renderResumenDr(){
 
 function renderResumenOwn(){
   const el = $('resumen-own');
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
   if(!owns.length){ el.innerHTML = '<p class="empty">Sin cuentas propias</p>'; return; }
   el.innerHTML = owns.map(c=>{
     const r = getResultadoOwn(c);
@@ -4562,7 +4562,7 @@ function renderCuentasFichas(){
 }
 function renderCuentasDr(){
   const el = $('cuentas-dr-list');
-  const drs = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
+  const drs = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   if(!drs.length){ el.innerHTML = '<p class="empty">Sin cuentas. Crea la primera.</p>'; return; }
 
 
@@ -4572,7 +4572,7 @@ function renderCuentasDr(){
     <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="nomcuenta">${c.nombre}</span>
+          <span class="nomcuenta">${c.nombre}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">Callcenter</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4805,7 +4805,7 @@ let _filasOwn = {};
 function renderCuentasOwn(){
   const el = $('cuentas-own-list');
   _filasOwn = {};
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
   if(!owns.length){ el.innerHTML = '<p class="empty">Sin cuentas propias. Crea la primera.</p>'; return; }
 
   // Update calendar reference panel
@@ -4891,7 +4891,7 @@ function renderCuentasOwn(){
              derecha encima de "Dias:". Su minimo es ahora la palabra mas larga
              del nombre; si no cabe, la banda pasa de renglon (flex-wrap). -->
         <div style="display:flex;align-items:center;gap:10px;flex:1">
-          <span class="nomcuenta">${c.nombre}</span>
+          <span class="nomcuenta">${c.nombre}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">24/7</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -5470,6 +5470,21 @@ function _checkAndInit(){
 let _snapshotActivo   = null; // snapshot del período aprobado actualmente visible
 let _snapshotAtUnlock = null; // keeps snapshot ref after unlocking for editing
 
+// ¿Se muestra (y se guarda) esta cuenta en el período que se está viendo?
+// Las activas, siempre. Una desactivada solo en las quincenas aprobadas que la
+// tenían: desactivarla hoy no debe borrarla de lo que ya pasó. En una quincena
+// re-abierta vale la foto con la que se aprobó, para que al volver a guardarla
+// la cuenta no se pierda.
+function registroDelPeriodoVisible(){
+  return _snapshotActivo || (_periodoDesbloqueado ? _snapshotAtUnlock : null);
+}
+function cuentaVisible(c){
+  if(!c) return false;
+  if(c.activo !== false) return true;
+  const reg = registroDelPeriodoVisible();
+  return !!(reg && (reg.cuentas || []).some(sc => sc.nombre === c.nombre && sc.tipo === c.tipo));
+}
+
 // ── QUINCENAS RE-ABIERTAS (estado PERSISTENTE) ────────────────
 // Una quincena aprobada que se re-abre queda abierta hasta que se cierre
 // explícitamente: sobrevive al cambio de período y al recargar la página.
@@ -5754,7 +5769,7 @@ function patchCalcValues(){
     if(nmEl) nmEl.textContent = fmt(nominaAgente(a));
   });
   // Patch account-level totals (subtotals, fees, totals)
-  cuentas.filter(c => c.tipo==='dr' && c.activo!==false).forEach(c => {
+  cuentas.filter(c => c.tipo==='dr' && cuentaVisible(c)).forEach(c => {
     const r = getResultadoDr(c);
     const patch = (key, val) => { const el = document.querySelector(`[data-calc="${key}"]`); if(el) el.textContent = val; };
     patch(`subtotal-dr-${c.id}`,  fmt((r.ags||r.agentes||[]).reduce((s,a)=>s+drCheck(a),0)));
@@ -5775,7 +5790,7 @@ function patchCalcValues(){
     if(elU) elU.innerHTML = `${fmt(r.utilidad)}&nbsp;<span style="font-size:11px">(${pct(r.utilidad/Math.max(r.totalDrCheck,1))})</span>`;
   });
   // Y las cuentas 24/7, que no se parcheaban en absoluto.
-  cuentas.filter(c => c.tipo!=='dr' && c.activo!==false).forEach(c => {
+  cuentas.filter(c => c.tipo!=='dr' && cuentaVisible(c)).forEach(c => {
     const r = getResultadoOwn(c);
     const patch = (key, val) => { const el = document.querySelector(`[data-calc="${key}"]`); if(el) el.textContent = val; };
     patch(`dollar-own-${c.id}`,      fmt(r.dollarComp));
@@ -7854,8 +7869,8 @@ function openAprobar(){
 }
 
 function renderApPreview(){
-  const drs  = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const drs  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
 
   const drRows  = drs.map(c=>{ const r=getResultadoDr(c);   return `<tr><td>${c.nombre}</td><td class="mono" style="color:var(--accent3)">${fmt(r.totalDrCheck)}</td><td class="mono">${fmt(r.totalReal)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
   const ownRows = owns.map(c=>{ const r=getResultadoOwn(c);  return `<tr><td>${c.nombre}</td><td class="mono" style="color:var(--accent2)">${fmt(r.totalCobro)}</td><td class="mono">${fmt(r.totalCosto)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
@@ -7890,8 +7905,8 @@ function construirRegistroActual(anio, mes, qNum, notas){
   const periodo  = `${qNum === 1 ? '1ª' : '2ª'} Quincena — ${meses[mes]} ${anio}`;
   const key      = `${anio}-${String(mes).padStart(2,'0')}-Q${qNum}`;
   // Build snapshot
-  const drs  = cuentas.filter(c=>c.tipo==='dr' && c.activo!==false);
-  const owns = cuentas.filter(c=>c.tipo==='own' && c.activo!==false);
+  const drs  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
+  const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
 
   const cuentasSnapshot = [
     ...drs.map(c=>{
