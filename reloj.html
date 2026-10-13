@@ -2311,7 +2311,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   </div>
 </div>
 
-<!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) -->
+<!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="diTitulo">Import documents from Connecteam</h2>
@@ -7292,6 +7292,21 @@ $('diImportar').addEventListener('click', async () => {
   const d = S.dimp, lista = dimpPendientes(); if(!d || !lista.length) return;
   const b = $('diImportar'); b.disabled = true; $('diErr').textContent = '';
   let nuevos = 0, ya = 0, sig = 0, listos = 0, parar = false; const errores = [];
+  // (v84) lo que ya está en Time Track se salta sin llamar a Supabase
+  $('diProg').innerHTML = '<span class="spin dark"></span> Checking what is already in Time Track…';
+  try{ S.dc = await api('docsAdmin'); }catch(e){}
+  const yaEsta = new Set();
+  (S.dc.docs || []).concat(S.dc.paystubs || []).forEach(x => { const m = String(x.archivo || '').match(/^([^/]+)\/([^/]+)\/(ct\d+-\d+|cf[0-9a-f]+-\d+|ctp\d+)-/); if(m) yaEsta.add(m[1] + '/' + m[2] + '/' + m[3]); });
+  const claveDe = ({ r, a }) => d.clase[a.documento] === 'pay' ? r.usuario + '/paystubs/' + (a.clave || ('ctp' + a.ctId))
+    : r.usuario + '/' + Number(d.tipos[a.documento]) + '/' + (a.clave || ('ct' + a.entrada + '-' + (a.parte || 1)));
+  // (v84) Supabase ocupado (demasiadas conexiones, error 5xx, red): esperar y reintentar
+  const pasajero = e => /too many connections|internal server error|bad gateway|service unavailable|gateway time|timeout|timed out|failed to fetch|network|load failed|rate limit|\b(429|500|502|503|504)\b/i.test(String(e && e.message || e));
+  const conReintentos = async it => {
+    for(let i = 0; ; i++){
+      try{ return await uno(it); }
+      catch(e){ if(i >= 4 || !pasajero(e)) throw e; await new Promise(r => setTimeout(r, [1500, 4000, 8000, 15000][i])); }
+    }
+  };
   const uno = async ({ r, a }) => {
     const datos = await d.z.bytes(a.ruta); if(!datos) throw new Error('the file is not in the ZIP');
     const ext = String(a.nombreArchivo || '').split('.').pop(), mime = DIMP_MIMES.includes(a.mime) ? a.mime : docMime(a.nombreArchivo);
@@ -7301,17 +7316,18 @@ $('diImportar').addEventListener('click', async () => {
     return api('docImportar', { usuario:r.usuario, tipoId:Number(d.tipos[a.documento]), clave:a.clave || ('ct' + a.entrada + '-' + (a.parte || 1)), periodo:a.periodo || null,
       nombre:a.nombreArchivo || ('documento.' + ext), mime, datos, estado:dimpEstado(a), subido:a.subido || null, revisado:a.revisado || null });
   };
-  // de a 4 a la vez (con ~1.100 archivos, uno por uno tardaría mucho)
+  // de a 2 a la vez (de a 4 saturaba las conexiones de Supabase)
   const trabajador = async () => {
     while(!parar && sig < lista.length){
       const it = lista[sig++];
-      try{ const x = await uno(it); if(x && x.ya) ya++; else nuevos++; }
+      if(yaEsta.has(claveDe(it))){ ya++; listos++; continue; }
+      try{ const x = await conReintentos(it); if(x && x.ya) ya++; else nuevos++; }
       catch(e){ errores.push(it.r.nombre + ' · ' + it.a.documento + (it.a.periodo ? ' ' + it.a.periodo : it.a.periodoFin ? ' ' + it.a.periodoFin : '') + ': ' + e.message); if(/SQL step 5[01]/.test(e.message)) parar = true; }
       listos++;
       $('diProg').innerHTML = '<span class="spin dark"></span> Importing ' + listos + ' of ' + lista.length + '… ' + esc(it.r.nombre + ' · ' + it.a.documento);
     }
   };
-  await Promise.all([1, 2, 3, 4].map(trabajador));
+  await Promise.all([1, 2].map(trabajador));
   d.hecho = { nuevos, ya, errores };
   $('diProg').innerHTML = '<b>Done.</b> ' + nuevos + ' file' + (nuevos === 1 ? '' : 's') + ' imported' + (ya ? ', ' + ya + ' were already in Time Track' : '') +
     (errores.length ? ', <b class="ui-falta">' + errores.length + ' with problems</b>' : '') + '.';
