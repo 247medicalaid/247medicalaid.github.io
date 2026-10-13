@@ -2311,11 +2311,11 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   </div>
 </div>
 
-<!-- v82: Importar los documentos de Connecteam (paso 50) -->
+<!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="diTitulo">Import documents from Connecteam</h2>
-    <div class="sub">Choose the ZIP made from Connecteam (<b>connecteam_documentos_….zip</b>). Each file goes to that employee's documents with its original date and status: approved, pending (you review it here) or rejected. Former employees keep their files too. Files already imported are skipped, so you can run it again safely. Nothing that's already in Time Track changes, and a newer file uploaded here keeps counting.</div>
+    <div class="sub">Choose a ZIP made from Connecteam (<b>connecteam_….zip</b>): documents, Forms (Aportes and Cuentas de Cobro) or Payslips. Each file goes to that employee with its original date: documents with their status (approved, pending for you to review, or rejected), Forms to their month, and Payslips to their pay period. Former employees keep their files too. Files already imported are skipped, so you can run it again safely. Nothing that's already in Time Track changes, and a newer file uploaded here keeps counting.</div>
     <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="diElegir" type="button">Choose ZIP…</button>
       <input type="file" id="diArchivo" class="hidden" accept=".zip,application/zip"></div>
     <div id="diInfo"></div>
@@ -2987,6 +2987,10 @@ const SERVIDOR_EN = [
   [/^Tiene registros de horas: desactívalo en vez de borrarlo\.$/, 'They have time records, so they can\'t be deleted. Deactivate them instead: their hours stay for payroll.'],
   [/^Esta persona entra por el portal; se maneja en el portal\.$/, 'This person signs in through the portal; manage them there.'],
   [/^Estado no válido\.$/, 'Invalid status.'],
+  [/^Falta el mes de ese documento\.$/, 'That document has no month.'],
+  [/^Usa un PDF o una foto \(JPG o PNG\)\.$/, 'Use a PDF or a photo (JPG or PNG).'],
+  [/^Archivo de Connecteam no válido\.$/, 'Invalid Connecteam file.'],
+  [/^Los documentos mensuales no se importan de Connecteam\.$/, 'Importing Aportes and Cuentas de Cobro needs SQL step 51 in Supabase.'],
   [/^Elige una opción de la lista\.$/, 'Choose an option from the list.'],
   [/^Escribe el correo del empleado\.$/, 'Enter the employee\'s email. They\'ll use it to sign in.'],
   [/^Ese correo ya lo tiene otro empleado\.$/, 'Another employee already has that email.'],
@@ -3220,12 +3224,30 @@ async function docsSB(action, p){
     if(error && !/exist|duplicate|409/i.test(String(error.message || '') + ' ' + String(error.statusCode || '') + ' ' + String(error.error || ''))) throw new Error(docErrStorage(error));
     try{
       const r = await q(sb.rpc('reloj_doc_importar', { p:{ tipoId:p.tipoId, usuario:p.usuario, clave:p.clave, archivo:ruta, nombre:String(p.nombre).slice(-160),
-        bytes:p.datos.length, mime:tipo, estado:p.estado, subido:p.subido, revisado:p.revisado } }));
+        bytes:p.datos.length, mime:tipo, estado:p.estado, subido:p.subido, revisado:p.revisado, periodo:p.periodo || null } }));
       if(r && r.ya && subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
       return r;
     }catch(e){
       if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
       if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing documents needs SQL step 50 in Supabase.');
+      throw e;
+    }
+  }
+  // (v83) un payslip de Connecteam: a los Paystubs de la persona (ruta fija ctp<id>-nombre: la segunda vez no se repite)
+  if(action === 'docPayImportar'){
+    await sesionSB();
+    const ruta = p.usuario + '/paystubs/' + p.clave + '-' + dimpLimpio(p.nombre), tipo = p.mime;
+    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
+    const subio = !error;
+    if(error && !/exist|duplicate|409/i.test(String(error.message || '') + ' ' + String(error.statusCode || '') + ' ' + String(error.error || ''))) throw new Error(docErrStorage(error));
+    try{
+      const r = await q(sb.rpc('reloj_paystub_importar', { p:{ usuario:p.usuario, clave:p.clave, archivo:ruta, nombre:String(p.nombre).slice(-160),
+        bytes:p.datos.length, periodoFin:p.periodoFin, enviado:p.enviado } }));
+      if(r && r.ya && subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
+      return r;
+    }catch(e){
+      if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
+      if(/reloj_paystub_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing paystubs needs SQL step 51 in Supabase.');
       throw e;
     }
   }
@@ -6942,11 +6964,14 @@ $('mdArchivo').addEventListener('change', () => {
   });
   if(fila) fila.scrollIntoView({ block:'nearest' });
 });
-const payComoDoc = x => ({ id:x.id, archivo:x.archivo, nombre:x.nombre, bytes:x.bytes, subidoEn:x.enviadoEn, periodo:null, mime:'application/pdf', pay:x });
+// (v83) un paystub puede ser foto (los de Connecteam); los importados de Connecteam llevan «ctp<id>-» en la ruta
+const payDeCT = x => /\/paystubs\/ctp\d+-/.test(String(x.archivo || ''));
+const payComoDoc = x => { const m = docMime(x.nombre); return { id:x.id, archivo:x.archivo, nombre:x.nombre, bytes:x.bytes, subidoEn:x.enviadoEn, periodo:null,
+  mime:m === 'application/octet-stream' ? 'application/pdf' : m, pay:x }; };
 // ver un archivo (agente o admin) en una ventana con descarga
 function verDoc(d){
   $('vdTitulo').textContent = d.nombre;
-  $('vdSub').textContent = d.pay ? 'Pay period ending ' + fechaUS(d.pay.periodoFin) + ' · sent ' + docEnMs(d.subidoEn) + (d.pay.vistoEn ? ' · seen ' + docEnMs(d.pay.vistoEn) : '')
+  $('vdSub').textContent = d.pay ? 'Pay period ending ' + fechaUS(d.pay.periodoFin) + (payDeCT(d.pay) ? ' · from Connecteam (' + docEnMs(d.subidoEn) + ')' : ' · sent ' + docEnMs(d.subidoEn) + (d.pay.vistoEn ? ' · seen ' + docEnMs(d.pay.vistoEn) : ''))
     : (d.periodo ? mesTxt(d.periodo) + ' · ' : '') + 'Uploaded ' + docEnMs(d.subidoEn) + (d.bytes ? ' · ' + tamTxt(d.bytes) : '');
   // el admin puede borrar un paystub enviado por error
   const bo = $('vdBorrar'); bo.classList.toggle('hidden', !(d.pay && S.dc)); delete bo.dataset.seguro; bo.textContent = 'Delete'; bo.disabled = false;
@@ -7072,8 +7097,9 @@ function pintarPaystubs(){
     emps.map(e => { const cc = colorCuenta(e.cuenta);
       return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
         cols.map(f => { const x = pays.find(y => y.usuario === e.usuario && y.periodoFin === f);
-          return '<td class="dc-c">' + (x ? '<button type="button" class="dc-celda dc-' + (x.vistoEn ? 'ok' : 'pend') + '" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>' + (x.vistoEn ? 'Opened' : 'Sent') + '</span><small>' +
-            esc(x.vistoEn ? docEnMs(x.vistoEn).replace(/, \d{4},/, ',') : 'not opened yet') + '</small></button>' : '<span class="dc-na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+          return '<td class="dc-c">' + (x ? (payDeCT(x) ? '<button type="button" class="dc-celda dc-ok" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>Connecteam</span><small>imported</small></button>'
+            : '<button type="button" class="dc-celda dc-' + (x.vistoEn ? 'ok' : 'pend') + '" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>' + (x.vistoEn ? 'Opened' : 'Sent') + '</span><small>' +
+            esc(x.vistoEn ? docEnMs(x.vistoEn).replace(/, \d{4},/, ',') : 'not opened yet') + '</small></button>') : '<span class="dc-na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
 }
 $('dcResumen').addEventListener('click', ev => { if(ev.target.id === 'dcPayMas'){ S.dcPayTodos = !S.dcPayTodos; pintarDocs(); } });
 
@@ -7156,10 +7182,12 @@ const dimpLimpio = n => String(n || 'file').normalize('NFD').replace(/[\u0300-\u
 const DIMP_ESTADO = { approved:'aprobado', pending:'pendiente', rejected:'rechazado', expired:'aprobado' };
 const DIMP_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const dimpTitulo = s => String(s || '').toLowerCase().replace(/(^|[\s'-])\p{L}/gu, m => m.toUpperCase());
-function dimpTiposDestino(){ return S.dc.tipos.filter(t => t.activo && !t.mensual); }
+// (v83) clase de cada documento del ZIP: 'doc' (de una vez), 'mes' (Forms: cada archivo con su mes) o 'pay' (Payslips)
+const dimpClaseDe = a => a.clase === 'paystub' ? 'pay' : a.periodo ? 'mes' : 'doc';
+function dimpTiposDestino(mensual){ return S.dc.tipos.filter(t => t.activo && !!t.mensual === !!mensual); }
 // el documento de Time Track que corresponde a uno de Connecteam (Contracto 2026 → Contrato 2026)
-function dimpTipoPara(nombre){
-  const base = x => normal(x).replace(/[0-9]/g, '').replace(/\s+/g, ' ').trim(), b = base(nombre), ts = dimpTiposDestino();
+function dimpTipoPara(nombre, mensual){
+  const base = x => normal(x).replace(/[0-9]/g, '').replace(/\s+/g, ' ').trim(), b = base(nombre), ts = dimpTiposDestino(mensual);
   const t = ts.find(x => normal(x.nombre) === normal(nombre)) || ts.find(x => base(x.nombre) === b) || ts.find(x => base(x.nombre).slice(0, 5) === b.slice(0, 5) && b.length >= 4);
   return t ? String(t.id) : '';
 }
@@ -7190,39 +7218,58 @@ $('diArchivo').addEventListener('change', async () => {
     let z; try{ z = await ctUnzip(await f.arrayBuffer()); }catch(e){ throw new Error(f.name + ' is not the ZIP made from Connecteam.'); }
     const txt = await z.texto('manifiesto.json'); if(!txt) throw new Error(f.name + ' is not the ZIP made from Connecteam (no manifiesto.json).');
     const man = JSON.parse(txt); if(man.origen !== 'connecteam' || !Array.isArray(man.archivos)) throw new Error(f.name + ' is not the ZIP made from Connecteam.');
-    const tipos = {}; (man.documentos || []).forEach(d => { tipos[d.nombre] = dimpTipoPara(d.nombre); });
-    man.archivos.forEach(a => { if(!(a.documento in tipos)) tipos[a.documento] = dimpTipoPara(a.documento); });
+    const clase = {}; man.archivos.forEach(a => { if(!(a.documento in clase)) clase[a.documento] = dimpClaseDe(a); });
+    (man.documentos || []).forEach(d => { if(!(d.nombre in clase)) clase[d.nombre] = d.clase === 'paystub' ? 'pay' : d.mensual ? 'mes' : 'doc'; });
+    const tipos = {}; Object.keys(clase).forEach(n => { tipos[n] = clase[n] === 'pay' ? 'pay' : dimpTipoPara(n, clase[n] === 'mes'); });
     const filas = (man.personas || []).map(x => {
       const usuario = dimpEmparejar(x), arch = man.archivos.filter(a => String(a.ctUserId) === String(x.ctId));
       return { x, nombre:dimpTitulo((x.nombre + ' ' + x.apellido).trim()), usuario, incluir:!!usuario && arch.length > 0, arch,
         nota:usuario ? '' : 'Not found in Time Track: choose the employee' };
     }).filter(r => r.arch.length).sort((a, b) => (a.x.suspendido - b.x.suspendido) || a.nombre.localeCompare(b.nombre, 'en'));
-    S.dimp = { z, man, archivo:f.name, tipos, filas, hecho:null };
+    S.dimp = { z, man, archivo:f.name, tipos, clase, filas, hecho:null };
   }catch(e){ S.dimp = null; $('diErr').textContent = e.message; }
   $('diArchivo').value = ''; pintarDImp();
 });
 const dimpEstado = a => DIMP_ESTADO[normal(a.estado)] || 'aprobado';
+// (v83) los archivos de una persona en la tabla: documentos uno por uno, Forms con su mes, paystubs en un solo recuadro por documento
+function dimpChips(arch, d){
+  const pays = {}, out = [];
+  arch.forEach(a => {
+    const cl = d.clase[a.documento] || dimpClaseDe(a), no = !d.tipos[a.documento];
+    if(cl === 'pay'){ (pays[a.documento] = pays[a.documento] || []).push(a); return; }
+    const es = cl === 'mes' ? 'aprobado' : dimpEstado(a);
+    out.push('<span class="ui-chip' + (no ? ' di-chip-no' : es === 'pendiente' ? ' di-chip-pend' : '') + '" title="' + esc(a.nombreArchivo + ' · uploaded ' + (a.subido ? fechaUS(new Date(a.subido * 1000).toISOString().slice(0, 10)) : '?')) + '">' +
+      esc(a.documento + (cl === 'mes' && a.periodo ? ' · ' + mesTxt(a.periodo, true) : '') + (a.partes > 1 ? ' ' + a.parte + '/' + a.partes : '') + (es === 'pendiente' ? ' · pending' : es === 'rechazado' ? ' · rejected' : '')) + '</span>');
+  });
+  Object.keys(pays).forEach(n => { const l = pays[n].map(a => a.periodoFin).filter(Boolean).sort(), no = !d.tipos[n];
+    out.push('<span class="ui-chip' + (no ? ' di-chip-no' : '') + '" title="' + esc(l.length ? 'Pay periods ' + fechaUS(l[0]) + ' – ' + fechaUS(l[l.length - 1]) : '') + '">' +
+      esc(n + ' ×' + pays[n].length + (l.length ? ' · ' + mesTxt(l[0].slice(0, 7), true) + (l[l.length - 1].slice(0, 7) !== l[0].slice(0, 7) ? ' – ' + mesTxt(l[l.length - 1].slice(0, 7), true) : '') : '')) + '</span>'); });
+  return out.join('');
+}
 function dimpPendientes(){
   const d = S.dimp; if(!d) return [];
   return d.filas.filter(r => r.incluir && r.usuario).flatMap(r => r.arch.filter(a => d.tipos[a.documento]).map(a => ({ r, a })));
 }
 function pintarDImp(){
   const d = S.dimp;
-  if(!d){ $('diInfo').innerHTML = '<p class="nota">In Connecteam the documents were packed in one ZIP (in your Downloads folder). Choose it here.</p>';
+  if(!d){ $('diInfo').innerHTML = '<p class="nota">In Connecteam the files were packed in a ZIP (in your Downloads folder). Choose it here.</p>';
     ['diTipos', 'diTabla'].forEach(id => { $(id).innerHTML = ''; }); $('diResumen').textContent = ''; $('diImportar').classList.add('hidden'); return; }
-  const m = d.man, ts = dimpTiposDestino(), emps = S.dc.emps.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
+  const m = d.man, emps = S.dc.emps.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
   $('diInfo').innerHTML = '<div class="ui-arch"><b>' + esc(d.archivo) + '</b> · ' + m.archivos.length + ' files · ' + d.filas.length + ' people' +
     (m.generado ? ' · made ' + esc(fechaUS(String(m.generado).slice(0, 10))) : '') + '</div>';
   const docsCT = Object.keys(d.tipos).sort((a, b) => a.localeCompare(b, 'en'));
   $('diTipos').innerHTML = '<div class="di-tipos"><b>Where each Connecteam document goes</b>' + docsCT.map((n, i) => {
-    const k = m.archivos.filter(a => a.documento === n).length;
-    return '<label class="di-tipo"><span class="di-ct">' + esc(n) + ' <span class="muted">(' + k + ' file' + (k === 1 ? '' : 's') + ')</span></span><span aria-hidden="true">→</span>' +
+    const k = m.archivos.filter(a => a.documento === n).length, cl = d.clase[n] || 'doc';
+    const ops = cl === 'pay' ? [{ v:'pay', n:'Paystubs' }] : dimpTiposDestino(cl === 'mes').map(t => ({ v:String(t.id), n:t.nombre + (cl === 'mes' ? ' (monthly)' : '') }));
+    return '<label class="di-tipo"><span class="di-ct">' + esc(n) + ' <span class="muted">(' + k + ' file' + (k === 1 ? '' : 's') + (cl === 'mes' ? ', each to its month' : cl === 'pay' ? ', each to its pay period' : '') + ')</span></span><span aria-hidden="true">→</span>' +
       '<select data-di-tipo="' + i + '" aria-label="Time Track document for ' + esc(n) + '"><option value="">— Don\'t import</option>' +
-      ts.map(t => '<option value="' + t.id + '"' + (String(t.id) === d.tipos[n] ? ' selected' : '') + '>' + esc(t.nombre) + '</option>').join('') + '</select></label>'; }).join('') + '</div>';
+      ops.map(o => '<option value="' + o.v + '"' + (o.v === d.tipos[n] ? ' selected' : '') + '>' + esc(o.n) + '</option>').join('') + '</select></label>'; }).join('') + '</div>';
   d.docsCT = docsCT;
   const lista = dimpPendientes(), pend = lista.filter(x => dimpEstado(x.a) === 'pendiente').length, rech = lista.filter(x => dimpEstado(x.a) === 'rechazado').length;
   const gente = new Set(lista.map(x => x.r.usuario)).size, sinEmp = d.filas.filter(r => !r.usuario).length, ex = d.filas.filter(r => r.incluir && r.x.suspendido).length;
+  const nPay = lista.filter(x => d.clase[x.a.documento] === 'pay').length, nMes = lista.filter(x => d.clase[x.a.documento] === 'mes').length;
   $('diResumen').innerHTML = '<b>' + lista.length + '</b> files to import for <b>' + gente + '</b> people' + (ex ? ' (' + ex + ' former employees)' : '') + '. ' +
+    (nMes || nPay ? [nMes ? nMes + ' from Forms, each to its month' : '', nPay ? nPay + ' paystubs' : ''].filter(Boolean).join(' · ') + '. ' : '') +
     (pend ? pend + ' arrive <b>pending</b> for you to review. ' : '') + (rech ? rech + ' arrive rejected. ' : '') +
     (sinEmp ? '<b class="ui-falta">' + sinEmp + ' not found in Time Track: choose the employee or leave them unchecked.</b> ' : '') +
     '<span class="nota">Files already imported are skipped.</span>';
@@ -7231,9 +7278,7 @@ function pintarDImp(){
     '<td><b>' + esc(r.nombre) + '</b>' + (r.x.suspendido ? ' <span class="pill pill-arch">Former</span>' : '') + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
     '<td><select data-di-u="' + i + '" aria-label="Time Track employee for ' + esc(r.nombre) + '"><option value="">— Choose…</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
       esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? '' : ' (inactive)')) + '</option>').join('') + '</select></td>' +
-    '<td>' + r.arch.map(a => { const no = !d.tipos[a.documento], es = dimpEstado(a);
-      return '<span class="ui-chip' + (no ? ' di-chip-no' : es === 'pendiente' ? ' di-chip-pend' : '') + '" title="' + esc(a.nombreArchivo + ' · uploaded ' + (a.subido ? fechaUS(new Date(a.subido * 1000).toISOString().slice(0, 10)) : '?')) + '">' +
-        esc(a.documento + (a.partes > 1 ? ' ' + a.parte + '/' + a.partes : '') + (es === 'pendiente' ? ' · pending' : es === 'rechazado' ? ' · rejected' : '')) + '</span>'; }).join('') + '</td></tr>').join('') + '</tbody></table>';
+    '<td>' + dimpChips(r.arch, d) + '</td></tr>').join('') + '</tbody></table>';
   const b = $('diImportar'); b.classList.toggle('hidden', !!d.hecho); b.disabled = !lista.length; b.textContent = 'Import ' + lista.length + (lista.length === 1 ? ' file' : ' files');
 }
 $('diTipos').addEventListener('change', ev => { const s2 = ev.target.closest('[data-di-tipo]'); if(!s2 || !S.dimp) return; S.dimp.tipos[S.dimp.docsCT[Number(s2.dataset.diTipo)]] = s2.value; pintarDImp(); });
@@ -7246,24 +7291,33 @@ $('diTabla').addEventListener('change', ev => {
 $('diImportar').addEventListener('click', async () => {
   const d = S.dimp, lista = dimpPendientes(); if(!d || !lista.length) return;
   const b = $('diImportar'); b.disabled = true; $('diErr').textContent = '';
-  let nuevos = 0, ya = 0; const errores = [];
-  for(let i = 0; i < lista.length; i++){
-    const { r, a } = lista[i];
-    $('diProg').innerHTML = '<span class="spin dark"></span> Importing ' + (i + 1) + ' of ' + lista.length + '… ' + esc(r.nombre + ' · ' + a.documento);
-    try{
-      const datos = await d.z.bytes(a.ruta); if(!datos) throw new Error('the file is not in the ZIP');
-      const ext = String(a.nombreArchivo || '').split('.').pop(), mime = DIMP_MIMES.includes(a.mime) ? a.mime : docMime(a.nombreArchivo);
-      const x = await api('docImportar', { usuario:r.usuario, tipoId:Number(d.tipos[a.documento]), clave:'ct' + a.entrada + '-' + (a.parte || 1),
-        nombre:a.nombreArchivo || ('documento.' + ext), mime, datos, estado:dimpEstado(a), subido:a.subido || null, revisado:a.revisado || null });
-      if(x && x.ya) ya++; else nuevos++;
-    }catch(e){ errores.push(r.nombre + ' · ' + a.documento + ': ' + e.message); if(/SQL step 50/.test(e.message)) break; }
-  }
+  let nuevos = 0, ya = 0, sig = 0, listos = 0, parar = false; const errores = [];
+  const uno = async ({ r, a }) => {
+    const datos = await d.z.bytes(a.ruta); if(!datos) throw new Error('the file is not in the ZIP');
+    const ext = String(a.nombreArchivo || '').split('.').pop(), mime = DIMP_MIMES.includes(a.mime) ? a.mime : docMime(a.nombreArchivo);
+    if(d.clase[a.documento] === 'pay')
+      return api('docPayImportar', { usuario:r.usuario, clave:a.clave || ('ctp' + a.ctId), nombre:a.nombreArchivo || ('paystub.' + ext), mime, datos,
+        periodoFin:a.periodoFin, enviado:a.subido || null });
+    return api('docImportar', { usuario:r.usuario, tipoId:Number(d.tipos[a.documento]), clave:a.clave || ('ct' + a.entrada + '-' + (a.parte || 1)), periodo:a.periodo || null,
+      nombre:a.nombreArchivo || ('documento.' + ext), mime, datos, estado:dimpEstado(a), subido:a.subido || null, revisado:a.revisado || null });
+  };
+  // de a 4 a la vez (con ~1.100 archivos, uno por uno tardaría mucho)
+  const trabajador = async () => {
+    while(!parar && sig < lista.length){
+      const it = lista[sig++];
+      try{ const x = await uno(it); if(x && x.ya) ya++; else nuevos++; }
+      catch(e){ errores.push(it.r.nombre + ' · ' + it.a.documento + (it.a.periodo ? ' ' + it.a.periodo : it.a.periodoFin ? ' ' + it.a.periodoFin : '') + ': ' + e.message); if(/SQL step 5[01]/.test(e.message)) parar = true; }
+      listos++;
+      $('diProg').innerHTML = '<span class="spin dark"></span> Importing ' + listos + ' of ' + lista.length + '… ' + esc(it.r.nombre + ' · ' + it.a.documento);
+    }
+  };
+  await Promise.all([1, 2, 3, 4].map(trabajador));
   d.hecho = { nuevos, ya, errores };
   $('diProg').innerHTML = '<b>Done.</b> ' + nuevos + ' file' + (nuevos === 1 ? '' : 's') + ' imported' + (ya ? ', ' + ya + ' were already in Time Track' : '') +
     (errores.length ? ', <b class="ui-falta">' + errores.length + ' with problems</b>' : '') + '.';
   if(errores.length) $('diErr').innerHTML = errores.map(esc).join('<br>');
   b.disabled = false; pintarDImp(); cargarDocs(true);
-  toast(nuevos + ' documents imported from Connecteam.');
+  toast(nuevos + ' files imported from Connecteam.');
 });
 function pintarTipos(){
   const dc = S.dc; if(!dc) return;
@@ -10279,16 +10333,29 @@ async function demoDocs(action, p){
   }
   soloAdm();
   if(action === 'docImportar'){
-    const t = DM.docTipos.find(x => x.id === Number(p.tipoId) && x.activo); if(!t || t.mensual) throw new Error('That document no longer exists in Time Track.');
+    const t = DM.docTipos.find(x => x.id === Number(p.tipoId) && x.activo); if(!t) throw new Error('That document no longer exists in Time Track.');
+    if(t.mensual && !/^\d{4}-(0[1-9]|1[0-2])$/.test(p.periodo || '')) throw new Error('That document has no month.');
+    if(t.mensual && p.periodo < t.desdeMes) t.desdeMes = p.periodo;
     if(!DM.emps.some(e => e.usuario === p.usuario)) throw new Error('That employee doesn\'t exist in Time Track.');
     const pref = p.usuario + '/' + t.id + '/' + p.clave + '-';
     if(DM.docs.some(d => d.usuario === p.usuario && d.tipoId === t.id && d.archivo.startsWith(pref))) return { ok:true, ya:true };
     const id = ++DM.docId, ruta = pref + dimpLimpio(p.nombre), sub = p.subido ? p.subido * 1000 : Date.now(), fd = new Date(sub).toISOString().slice(0, 10);
     DM.docFiles.set(ruta, new Blob([p.datos], { type:p.mime }));
-    DM.docs.push({ id, tipoId:t.id, usuario:p.usuario, periodo:null, archivo:ruta, nombre:p.nombre, bytes:p.datos.length, mime:p.mime, fechaDoc:fd,
+    DM.docs.push({ id, tipoId:t.id, usuario:p.usuario, periodo:t.mensual ? p.periodo : null, archivo:ruta, nombre:p.nombre, bytes:p.datos.length, mime:p.mime, fechaDoc:fd,
       estado:p.estado, subidoPor:yo, subidoEn:sub, revisadoPor:p.estado === 'pendiente' ? '' : yo, revisadoEn:p.estado === 'pendiente' ? null : (p.revisado ? p.revisado * 1000 : sub),
       nota:'Imported from Connecteam', vence:p.estado === 'aprobado' ? docVenceDefecto(t, fd) : '' });
     return { ok:true, id, estado:p.estado };
+  }
+  if(action === 'docPayImportar'){
+    if(!DM.emps.some(e => e.usuario === p.usuario)) throw new Error('That employee doesn\'t exist in Time Track.');
+    const pref = p.usuario + '/paystubs/' + p.clave + '-';
+    if(DM.paystubs.some(x => x.usuario === p.usuario && x.archivo.startsWith(pref))) return { ok:true, ya:true };
+    const id = ++DM.payId, ruta = pref + dimpLimpio(p.nombre), env = p.enviado ? p.enviado * 1000 : Date.now();
+    DM.docFiles.set(ruta, new Blob([p.datos], { type:p.mime }));
+    DM.paystubs.push({ id, usuario:p.usuario, periodoFin:p.periodoFin, periodo:'', archivo:ruta, nombre:p.nombre, bytes:p.datos.length, neto:null, enviadoPor:yo, enviadoEn:env, vistoEn:env, reemplazado:false });
+    const mismos = DM.paystubs.filter(x => x.usuario === p.usuario && x.periodoFin === p.periodoFin).sort((a, b) => b.enviadoEn - a.enviadoEn || b.id - a.id);
+    mismos.forEach((x, i) => { x.reemplazado = i > 0; });
+    return { ok:true, id, vigente:mismos[0].id === id };
   }
   if(action === 'docDecidir'){
     const d = DM.docs.find(x => x.id === p.id); if(!d) throw new Error('That document no longer exists. Reload the page.');
