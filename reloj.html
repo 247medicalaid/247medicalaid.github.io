@@ -1039,7 +1039,7 @@ body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 .dc-num.activo{border-color:var(--brand-600);box-shadow:inset 0 0 0 1px var(--brand-600)}
 .dc-n-rev b{color:#7A5A00}.dc-n-falta b{color:var(--text)}.dc-n-venc b,.dc-n-rech b{color:var(--accent-600)}
 .dc-periodo{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}.dc-periodo>span{font-size:13px;color:var(--text-muted);font-weight:600}
-.dc-periodo select{min-width:150px}.dc-periodo .btn-icon{min-width:34px;padding:0 8px}.dc-periodo .btn-icon:disabled{opacity:.35;cursor:default}
+.dc-periodo select{min-width:190px}.dc-periodo .btn-icon{min-width:34px;padding:0 8px}.dc-periodo .btn-icon:disabled{opacity:.35;cursor:default}
 .dc-resumen .esp{flex:1}.dc-todos{font-size:13px;color:var(--text-muted);display:flex;gap:6px;align-items:center}
 .dc-wrap{max-height:calc(100vh - 290px);overflow:auto}
 table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
@@ -7014,13 +7014,20 @@ const DC_FILTROS = { rev:['pendiente'], falta:['falta', 'atrasado'], venc:['venc
 // (v85) periodo elegido en cada pestaña (lista de periodos del más nuevo al más viejo): la tabla muestra ese y los 5 anteriores
 function dcIdxPeriodo(pest, lista){ const i = lista.indexOf((S.dcFin || {})[pest]); return i < 0 ? 0 : i; }
 function dcColsPeriodo(pest, lista, todos){ const i = dcIdxPeriodo(pest, lista); return (todos ? lista : lista.slice(i, i + 6)).slice().reverse(); }
+// (v86) «de … a …»: del periodo más viejo de la tabla al elegido; el año una sola vez si es el mismo
+function dcRangoTxt(desde, hasta, tipo){
+  if(tipo === 'mes'){ const [a, b] = [mesTxt(desde, true), mesTxt(hasta, true)]; if(desde === hasta) return b;
+    return desde.slice(0, 4) === hasta.slice(0, 4) ? a.replace(/ \d{4}$/, '') + ' – ' + b : a + ' – ' + b; }
+  const [a, b] = [fechaUS(desde), fechaUS(hasta)]; if(desde === hasta) return b;
+  return desde.slice(0, 4) === hasta.slice(0, 4) ? a.replace(/, \d{4}$/, '') + ' – ' + b : a + ' – ' + b;
+}
 function pintarPeriodo(pest, lista, etiqueta, todos){
   const b = $('dcPeriodo'); if(!b) return;
   if(!pest || !lista || !lista.length){ b.classList.add('hidden'); b.innerHTML = ''; return; }
   const i = dcIdxPeriodo(pest, lista);
   b.classList.remove('hidden'); b.dataset.pest = pest;
   b.innerHTML = '<span>Period</span><button type="button" class="btn btn-ghost btn-sm btn-icon" data-per-mover="1" title="Older period" aria-label="Older period"' + (todos || i >= lista.length - 1 ? ' disabled' : '') + '>◀</button>' +
-    '<select id="dcPerSel" aria-label="Period to show"' + (todos ? ' disabled title="Showing all periods"' : '') + '>' + lista.map((p, k) => '<option value="' + esc(p) + '"' + (k === i ? ' selected' : '') + '>' + esc(etiqueta(p)) + '</option>').join('') + '</select>' +
+    '<select id="dcPerSel" aria-label="Period to show"' + (todos ? ' disabled title="Showing all periods"' : '') + '>' + lista.map((p, k) => '<option value="' + esc(p) + '"' + (k === i ? ' selected' : '') + '>' + esc(dcRangoTxt(lista[Math.min(k + 5, lista.length - 1)], p, etiqueta)) + '</option>').join('') + '</select>' +
     '<button type="button" class="btn btn-ghost btn-sm btn-icon" data-per-mover="-1" title="Newer period" aria-label="Newer period"' + (todos || i <= 0 ? ' disabled' : '') + '>▶</button>';
   b._lista = lista;
 }
@@ -7043,7 +7050,7 @@ function pintarDocs(){
   $('dcFiltro').classList.toggle('hidden', pest === 'pay');
   if(pest === 'pay') return pintarPaystubs();
   const { tm, cols, filas } = dcFilas();
-  pintarPeriodo(tm ? pest : '', tm ? docMeses(tm) : [], m => mesTxt(m), S.dcMesesTodos);
+  pintarPeriodo(tm ? pest : '', tm ? docMeses(tm) : [], 'mes', S.dcMesesTodos);
   // resumen (cada número filtra la tabla)
   const cuenta = ks => filas.reduce((a, f) => a + f.celdas.filter(c => ks.includes(c.k)).length, 0);
   const fl = $('dcFiltro').value;
@@ -7104,7 +7111,7 @@ $('dcTabla').addEventListener('click', ev => { const b = ev.target.closest('.dc-
 function pintarPaystubs(){
   const dc = S.dc, pays = (dc.paystubs || []).filter(x => !x.reemplazado), bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value;
   const periodos = [...new Set(pays.map(x => x.periodoFin))].sort().reverse(), cols = dcColsPeriodo('pay', periodos, S.dcPayTodos);
-  pintarPeriodo('pay', periodos, f => fechaUS(f), S.dcPayTodos);
+  pintarPeriodo('pay', periodos, 'q', S.dcPayTodos);
   let emps = dc.emps.filter(e => e.activo || pays.some(x => x.usuario === e.usuario));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
   if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
