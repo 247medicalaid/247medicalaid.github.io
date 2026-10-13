@@ -1797,6 +1797,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="users-barra">
       <input id="dcBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="dcCuenta" aria-label="Account"><option value="">All accounts</option></select>
+      <select id="dcActivos" aria-label="People"><option value="activos">Active people</option><option value="inactivos">Inactive people (archived)</option><option value="todos">All people</option></select>
       <select id="dcFiltro" aria-label="Status"><option value="">Everyone</option><option value="rev">To review</option><option value="falta">Missing or overdue</option><option value="venc">Expired or expiring</option><option value="rech">Rejected</option></select>
       <div class="dc-periodo hidden" id="dcPeriodo" role="group" aria-label="Period"></div>
     </div>
@@ -7000,7 +7001,7 @@ function dcPestana(){ const m = dcTiposActivos().filter(t => t.mensual); if(S.dc
 function dcFilas(){ // (v85) las columnas de los mensuales salen del periodo elegido
   const dc = S.dc, bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value, pest = dcPestana();
   const tm = pest === 'docs' ? null : dc.tipos.find(t => String(t.id) === pest);
-  let emps = dc.emps.filter(e => e.activo || dc.docs.some(d => d.usuario === e.usuario));
+  let emps = dc.emps.filter(e => (e.activo || dc.docs.some(d => d.usuario === e.usuario)) && dcEstadoOk(e));
   const pe = e => tm ? docPersona(dc.personas, tm.id, e.usuario) : null;
   if(tm && !S.dcTodosAp) emps = emps.filter(e => pe(e));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
@@ -7010,6 +7011,8 @@ function dcFilas(){ // (v85) las columnas de los mensuales salen del periodo ele
     pe: pe(e), celdas: cols.map(c => (tm && (!pe(e) || c.per < pe(e).desdeMes) && !docsDe(dc.docs, e.usuario, c.t.id, c.per).length) ? { k:'vacio', sub:'', no:true }
       : docEstado(c.t, docsDe(dc.docs, e.usuario, c.t.id, c.per), c.per)) })) };
 }
+// (v87) personas que se ven: activas, inactivas (desactivadas o archivadas) o todas
+const dcEstadoOk = e => { const v = ($('dcActivos') || {}).value || 'activos'; return v === 'todos' || (v === 'activos' ? !!e.activo : !e.activo); };
 const DC_FILTROS = { rev:['pendiente'], falta:['falta', 'atrasado'], venc:['vencido', 'porVencer'], rech:['rechazado'] };
 // (v85) periodo elegido en cada pestaña (lista de periodos del más nuevo al más viejo): la tabla muestra ese y los 5 anteriores
 function dcIdxPeriodo(pest, lista){ const i = lista.indexOf((S.dcFin || {})[pest]); return i < 0 ? 0 : i; }
@@ -7081,7 +7084,7 @@ $('dcResumen').addEventListener('click', ev => {
   if(ev.target.id === 'dcMasMeses'){ S.dcMesesTodos = !S.dcMesesTodos; return pintarDocs(); }
   const b = ev.target.closest('[data-filtro]'); if(!b) return; $('dcFiltro').value = $('dcFiltro').value === b.dataset.filtro ? '' : b.dataset.filtro; pintarDocs(); });
 $('dcResumen').addEventListener('change', ev => { if(ev.target.id === 'dcTodosAp'){ S.dcTodosAp = ev.target.checked; pintarDocs(); } });
-['dcCuenta', 'dcFiltro'].forEach(id => $(id).addEventListener('change', pintarDocs));
+['dcCuenta', 'dcFiltro', 'dcActivos'].forEach(id => $(id).addEventListener('change', pintarDocs));
 $('dcBuscar').addEventListener('input', pintarDocs);
 $('dcTabla').addEventListener('change', async ev => {
   // desde qué mes debe presentar el documento mensual
@@ -7112,7 +7115,7 @@ function pintarPaystubs(){
   const dc = S.dc, pays = (dc.paystubs || []).filter(x => !x.reemplazado), bus = $('dcBuscar').value.trim().toLowerCase(), cta = $('dcCuenta').value;
   const periodos = [...new Set(pays.map(x => x.periodoFin))].sort().reverse(), cols = dcColsPeriodo('pay', periodos, S.dcPayTodos);
   pintarPeriodo('pay', periodos, 'q', S.dcPayTodos);
-  let emps = dc.emps.filter(e => e.activo || pays.some(x => x.usuario === e.usuario));
+  let emps = dc.emps.filter(e => (e.activo || pays.some(x => x.usuario === e.usuario)) && dcEstadoOk(e));
   if(bus) emps = emps.filter(e => (e.nombre + ' ' + e.usuario).toLowerCase().includes(bus));
   if(cta) emps = emps.filter(e => (e.cuenta || '') === cta);
   emps.sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
