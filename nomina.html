@@ -3491,6 +3491,19 @@ function drCheck(ag){
   return ag.horas * (ag.valor + qmgmt()) * std;
 }
 
+// Horas que paga el Doctor en una cuenta Callcenter, para el costo promedio por hora.
+// Se cuentan igual que el cheque (drCheck): un agente con 0 días aporta 0 horas, y los
+// dados de baja no cuentan. Antes `diasStd || qdays()` convertía el 0 de los inactivos
+// guardados en la foto de la quincena en los días de la quincena.
+function horasDrCuenta(r){
+  return (r.ags || r.agentes || [])
+    .filter(a => a.estadoQuincena !== 'inactive_perm')
+    .reduce((s, a) => {
+      const std = (a.diasStd !== undefined && a.diasStd !== null && a.diasStd !== '') ? Number(a.diasStd) : qdays();
+      return s + (std || 0) * (Number(a.horas) || 0);
+    }, 0);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CÁLCULOS POR CUENTA
 // ═══════════════════════════════════════════════════════════════
@@ -4751,12 +4764,12 @@ function renderCuentasDr(){
             <td colspan="5" style="color:var(--text2);font-size:12px">
               <span class="etq-fija">Costo promedio / hora</span>
               <span style="font-size:10px;color:var(--text3)" data-calc="costohr-sub-${c.id}">
-                &nbsp;(${fmt(r.totalDrCheck)} ÷ ${(r.ags||r.agentes||[]).reduce((s,a)=>s+(a.diasStd||qdays())*a.horas,0)} hrs)
+                &nbsp;(${fmt(r.totalDrCheck)} ÷ ${horasDrCuenta(r)} hrs)
               </span>
             </td>
             <td class="mono" style="color:var(--accent2);font-weight:700" data-calc="costohr-${c.id}">
               ${(()=>{
-                const totalHrs = (r.ags||r.agentes||[]).reduce((s,a)=>s+(a.diasStd||qdays())*a.horas, 0);
+                const totalHrs = horasDrCuenta(r);
                 return totalHrs > 0 ? fmt(r.totalDrCheck / totalHrs) : '—';
               })()}/hr
             </td>
@@ -5754,7 +5767,7 @@ function patchCalcValues(){
     // El costo por hora y la utilidad tambien cambian al tocar cualquier campo
     // del pie: sin esto se quedaban con la cifra vieja hasta salir del campo,
     // que es justo el problema que se venia a arreglar.
-    const hrs = (r.ags||r.agentes||[]).reduce((s2,a)=>s2+(a.diasStd||qdays())*a.horas, 0);
+    const hrs = horasDrCuenta(r);
     patch(`costohr-${c.id}`, (hrs > 0 ? fmt(r.totalDrCheck/hrs) : '—') + '/hr');
     patch(`costohr-sub-${c.id}`, `\u00a0(${fmt(r.totalDrCheck)} ÷ ${hrs} hrs)`);
     const elU = document.querySelector(`[data-calc="utilidad-dr-${c.id}"]`);
