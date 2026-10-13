@@ -295,6 +295,13 @@ details.progs li span:last-child{color:var(--text-2);font-variant-numeric:tabula
 .btn-mini:hover{border-color:var(--accent);color:var(--text)}
 .trow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .trow .opc{font-weight:400;color:var(--text-2)}
+.mimarca{margin:0 0 14px;padding:10px 12px;border:1px solid var(--warning);background:var(--warning-bg);border-radius:10px;font-size:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mimarca .txt{flex:1;min-width:200px}
+.mimarca .txt span{display:block;color:var(--text-2);font-size:12px;margin-top:2px}
+details.auCaja{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
+details.auCaja>summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text-2)}
+details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
+.tlista .quitaraut{white-space:nowrap}
 .tlista{margin-top:14px;border-top:1px solid var(--border);padding-top:10px;max-height:190px;overflow:auto}
 .tlista .tit{font-size:12.5px;font-weight:600;margin-bottom:6px}
 .tlista .fila{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border)}
@@ -494,6 +501,10 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
 <div class="modal-bg" id="modalAut">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="auTitulo">
     <h3 id="auTitulo">Este periodo de <span id="auAgente"></span></h3>
+    <div class="mimarca" id="auMarca" hidden>
+      <div class="txt"><b id="auMarcaQue">Este tramo lo marcaste tú</b><span>Si lo quitas, el sistema lo vuelve a calcular solo. No toca las autorizaciones.</span></div>
+      <button class="btn" id="auAuto" type="button">Quitar mi marca</button>
+    </div>
     <label>¿Qué fue este periodo?</label>
     <div class="seg" role="radiogroup" aria-label="Qué fue este periodo" id="auQue">
       <label><input type="radio" name="auQue" value="perdido"><span>Tiempo perdido</span></label>
@@ -516,9 +527,10 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
       <label for="auNota">Nota <span class="opc">(opcional)</span></label>
       <input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad">
     </div>
-    <button class="enlace" id="auAuto" type="button" hidden>Volver a lo automático (quitar mi marca)</button>
     <div class="hint" id="auAviso">Para vacaciones o incapacidad puedes poner un rango de varios días.</div>
-    <div id="auLista" class="tlista"></div>
+    <details class="auCaja" id="auCaja"><summary id="auCajaTit">Ver autorizaciones de este agente (todas las fechas)</summary>
+      <div id="auLista" class="tlista"></div>
+    </details>
     <div class="acc">
       <button class="btn" id="auCancelar" type="button">Cerrar</button>
       <button class="btn primary" id="auGuardar" type="button">Guardar</button>
@@ -1227,7 +1239,7 @@ function fila(a, d){
                 : (al.faltanteMin ? ' \u00b7 ' + al.faltanteMin + ' min menos de lo asignado' : '');
     const tipAlm = 'Almuerzo|' + hora(a.almuerzoMs[0]) + ' – ' + hora(a.almuerzoMs[0] + (al.tomadoMin || 0) * 60000) + '|' +
       dur(al.tomadoMin || 0) + ' de ' + dur(al.duracionMin || 0) + ' asignados|' +
-      'Descanso detectado a partir de la pausa más larga cerca de la hora del horario' + extra + '.';
+      'Detectado solo: la pausa a la hora del almuerzo del horario o, si no cuadra, la pausa del día que más se parece en duración' + extra + '.';
     tl += '<div class="lunch" data-tip="' + esc(tipAlm) + '" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' +
       (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
   }
@@ -2076,14 +2088,15 @@ async function pintarAutorizaciones(){
     const j = await apiTurno({ accion: 'autorizaciones', agente: autAgente });
     if (!j.ok) throw new Error(j.error || 'no se pudo leer');
     if (!Array.isArray(j.autorizaciones)) throw new Error('el servidor aún no tiene las autorizaciones (falta publicar la nueva versión del script)');
-    if (!j.autorizaciones.length) { cont.innerHTML = '<div class="vacia">Sin autorizaciones registradas para ' + esc(autAgente) + '.</div>'; return; }
-    cont.innerHTML = '<div class="tit">Autorizaciones de este agente</div>' + j.autorizaciones.map(t => {
+    if (!j.autorizaciones.length) { $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (ninguna)'; cont.innerHTML = '<div class="vacia">Sin autorizaciones registradas para ' + esc(autAgente) + '.</div>'; return; }
+    $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (' + j.autorizaciones.length + ', todas las fechas)';
+    cont.innerHTML = j.autorizaciones.map(t => {
       const mismoDia = t.desde.slice(0,10) === t.hasta.slice(0,10);
       const txt = mismoDia ? fCortaISO(t.desde.slice(0,10)) + ' ' + t.desde.slice(11) + '–' + t.hasta.slice(11)
                            : fCortaISO(t.desde.slice(0,10)) + ' – ' + fCortaISO(t.hasta.slice(0,10));
       return '<div class="fila"><span class="fechas">' + esc(txt) + '</span>' +
              '<span class="det">' + esc(t.motivo) + (t.nota ? ' · ' + esc(t.nota) : '') + '</span>' +
-             '<button class="enlace" data-quitaraut="' + t.fila + '" type="button">Quitar</button></div>';
+             '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + t.motivo) + '" type="button">Quitar autorización</button></div>';
     }).join('');
   } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
 }
@@ -2117,15 +2130,25 @@ function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
   $('auNota').value = '';
   const inicial = autFila ? 'autorizado' : (autEraDesc ? 'descanso' : 'perdido');
   document.querySelectorAll('input[name="auQue"]').forEach(r => { r.checked = (r.value === inicial); });
-  $('auAuto').hidden = !autMarca;
+  pintarMiMarca(ag);
+  $('auCaja').open = !!autFila;
   $('auAviso').textContent = autFila
     ? 'Este periodo ya está autorizado. Si guardas, se reemplaza la autorización.'
-    : (autMarca ? 'Este tramo lo marcaste tú a mano.'
-                : 'Para vacaciones o incapacidad puedes poner un rango de varios días.');
+    : 'Para vacaciones o incapacidad puedes poner un rango de varios días.';
   $('auAviso').classList.remove('mal');
   pintarAuQue();
   $('modalAut').classList.add('show');
   pintarAutorizaciones();
+}
+
+// (v28) Qué marcó Carlos en este tramo, con su hora, para que el botón diga lo que hace.
+function pintarMiMarca(ag){
+  $('auMarca').hidden = !autMarca;
+  if (!autMarca) return;
+  const a = ((S.data && S.data.agentes) || []).find(x => x.agente === ag) || {};
+  const m = (a.marcasDesc || []).find(x => Number(x.fila) === autMarca);
+  const como = m && m.accion === 'no' ? 'como tiempo perdido' : 'como descanso';
+  $('auMarcaQue').textContent = 'Este tramo lo marcaste tú ' + como + (m ? ' (' + hora(m.ini) + ' – ' + hora(m.fin) + ')' : '') + '.';
 }
 
 const MOTIVOS_AUT = ['Conectado desde otro equipo', 'Sin la aplicación instalada', 'Permiso autorizado',
@@ -2187,7 +2210,7 @@ $('auAuto').addEventListener('click', async () => {
   try {
     const j = await apiTurno({ accion: 'descanso_borrar', fila: autMarca });
     if (j.agentes) toast('El servidor todavía no tiene esta opción: falta publicar la nueva versión del script.', 'err');
-    else if (j.ok) { toast('Listo: ese tramo vuelve a calcularse solo.', 'ok'); autMarca = 0; $('auAuto').hidden = true; cargar(); }
+    else if (j.ok) { toast('Listo: quitaste tu marca y ese tramo vuelve a calcularse solo.', 'ok'); autMarca = 0; $('auMarca').hidden = true; cargar(); }
     else toast(j.error || 'No se pudo quitar la marca.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
@@ -2196,7 +2219,7 @@ $('auAuto').addEventListener('click', async () => {
 $('auLista').addEventListener('click', async ev => {
   const b = ev.target.closest('[data-quitaraut]');
   if (!b) return;
-  if (!confirm('¿Quitar esta autorización? Ese periodo volverá a contar como tiempo perdido.')) return;
+  if (!confirm('¿Quitar la autorización de ' + autAgente + ' del ' + (b.dataset.quitartxt || '') + '?\n\nEse periodo volverá a contar como tiempo perdido. (Esto no quita marcas de descanso.)')) return;
   b.disabled = true;
   try {
     const j = await apiTurno({ accion: 'autorizar_borrar', fila: b.dataset.quitaraut });
