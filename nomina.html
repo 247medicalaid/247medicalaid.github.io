@@ -741,6 +741,13 @@
   }
   .form-group { margin-bottom: 16px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* Ventana de cuenta: ancha y en 3 columnas, para que quepa sin bajar tanto */
+  .modal.modal-cuenta { max-width: 860px; }
+  .form-row.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .form-row.tres.dir { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .cu-sec { font-size:11px; color:var(--text3); margin:4px 0 10px; text-transform:uppercase; letter-spacing:.06em; }
+  @media (max-width: 760px) { .form-row.tres, .form-row.tres.dir { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .form-row.tres, .form-row.tres.dir { grid-template-columns: 1fr; } }
   label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
   input, select {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
@@ -3114,18 +3121,18 @@
 
 <!-- ══════════ MODAL: NUEVA CUENTA ══════════ -->
 <div class="overlay" id="modal-cuenta">
-  <div class="modal">
+  <div class="modal modal-cuenta">
     <div class="modal-header">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
-        <label for="cu-color" title="Color Identificador" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:pointer">Color
+      <span class="modal-title" id="modal-cuenta-title">Nueva Cuenta</span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <label for="cu-color" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:pointer">Color de Cuenta
           <input type="color" id="cu-color" value="#3FCFA0" style="width:44px;height:28px;padding:2px;border-radius:6px;cursor:pointer"></label>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('modal-cuenta')">✕</button>
       </div>
-      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('modal-cuenta')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="cuenta-edit-id">
-      <div class="form-row">
+      <div class="form-row tres">
         <div class="form-group">
           <label>Nombre de la Cuenta</label>
           <input type="text" id="cu-nombre" placeholder="Ej: Cardiology Group">
@@ -3137,20 +3144,20 @@
             <option value="own">24/7 (Independiente)</option>
           </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label>Billed To — Nombre del Contacto (por defecto en Invoices)</label>
-        <input type="text" id="cu-billed-to" placeholder="Ej: Mandy Railing">
-        <div class="form-hint">Aparecerá pre-llenado al generar el invoice de esta cuenta</div>
+        <div class="form-group">
+          <label>Billed To — Contacto</label>
+          <input type="text" id="cu-billed-to" placeholder="Ej: Mandy Railing">
+          <div class="form-hint">Sale pre-llenado en el invoice</div>
+        </div>
       </div>
       <!-- Datos que salen impresos en el bloque "To:" del invoice. Se escriben
            una vez por cuenta; si se dejan vacíos simplemente no se imprimen,
            que es como se veían los invoices antes de tenerlos. -->
-      <div class="form-group">
-        <label>Dirección del Cliente (sale en el PDF)</label>
-        <input type="text" id="cu-dir" placeholder="Ej: 1005 Marwalt Dr, Fort Walton Beach, FL, 32547, United States">
-      </div>
-      <div class="form-row">
+      <div class="form-row tres dir">
+        <div class="form-group">
+          <label>Dirección del Cliente (sale en el PDF)</label>
+          <input type="text" id="cu-dir" placeholder="Ej: 1005 Marwalt Dr, Fort Walton Beach, FL, 32547, United States">
+        </div>
         <div class="form-group">
           <label>Teléfono del Cliente</label>
           <input type="text" id="cu-tel" placeholder="Ej: 4073745194">
@@ -3166,21 +3173,30 @@
         <div class="alert alert-info">
           El Doctor paga al Call Center. Calcularemos cuánto debe pagar y cuánto es la callcenter payroll.
         </div>
-        <p style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Valores para Callcenter Check (lo que cobra el Doctor)</p>
-        <div class="form-row">
+        <p class="cu-sec">Valores para Callcenter Check (lo que cobra el Doctor)</p>
+        <div class="form-row tres" id="cu-fila-dr-tarifa">
           <div class="form-group">
-            <label>Colombian IT — Callcenter Check (USD)</label>
+            <label>Colombian IT (USD)</label>
             <input type="number" id="cu-colombian" value="150" min="0">
           </div>
           <div class="form-group">
-            <label>Accountant + Nómina — Callcenter Check (USD)</label>
+            <label>Accountant + Nómina (USD)</label>
             <input type="number" id="cu-accountant" value="200" min="0">
           </div>
+          <!-- La tarifa del invoice no vive en la cuenta sino en una tabla aparte,
+               por nombre de cuenta normalizado, y la comparten las que facturan en
+               un mismo invoice. Es un solo campo: toggleCuentaFields lo pone en la
+               fila del tipo de cuenta que se está viendo. -->
+          <div class="form-group" id="cu-tarifa-grupo">
+            <label>Tarifa que se Factura — USD/mes por Agente</label>
+            <input type="number" id="cu-tarifa-inv" min="0" step="50" placeholder="0">
+            <div class="form-hint" id="cu-tarifa-hint">La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.</div>
+          </div>
         </div>
-        <p style="font-size:11px;color:var(--text3);margin-bottom:10px;margin-top:4px;text-transform:uppercase;letter-spacing:.06em">Valores para Callcenter Payroll (costo real)</p>
-        <div class="form-row">
+        <p class="cu-sec">Valores para Callcenter Payroll (costo real)</p>
+        <div class="form-row tres">
           <div class="form-group">
-            <label>Accountant — Callcenter Payroll (USD)</label>
+            <label>Accountant (USD)</label>
             <input type="number" id="cu-accountant-real" value="150" min="0">
             <div class="form-hint">Colombian IT en real siempre = $0</div>
           </div>
@@ -3189,18 +3205,11 @@
             <input type="number" id="cu-transfer-real" value="0" min="0">
             <div class="form-hint">Ej: $50 fijo para Cardio y Gastro</div>
           </div>
-        </div>
-        <div class="form-row" id="cu-fila-dr-tarifa">
           <div class="form-group">
-            <label>Dollar Comp % — Callcenter Payroll</label>
+            <label>Dollar Comp %</label>
             <input type="number" id="cu-dollar-real" value="10" min="0" max="30" step="0.5">
             <div class="form-hint">Cardio=7%, demás cuentas=10%</div>
           </div>
-      <div class="form-group" id="cu-tarifa-grupo">
-        <label>Tarifa que se Factura — USD/mes por Agente</label>
-        <input type="number" id="cu-tarifa-inv" min="0" step="50" placeholder="0">
-        <div class="form-hint" id="cu-tarifa-hint">La usan los invoices nuevos. Los ya cerrados guardan su propia tarifa y no cambian.</div>
-      </div>
         </div>
       </div>
 
@@ -3209,7 +3218,7 @@
         <div class="alert alert-info">
           Cuenta propia: nosotros facturamos directamente y pagamos la nómina.
         </div>
-        <div class="form-row">
+        <div class="form-row tres" id="cu-fila-own-tarifa">
           <div class="form-group">
             <label>Cobro Mensual por Agente (USD)</label>
             <input type="number" id="cu-cobro-agente" value="1350" min="0">
@@ -3220,23 +3229,17 @@
             <input type="number" id="cu-own-accountant" value="0" min="0">
           </div>
         </div>
-        <div class="form-row" id="cu-fila-own-tarifa">
+        <div class="form-row tres">
           <div class="form-group">
             <label>Días Laborables por Quincena</label>
-            <input type="number" id="cu-qdays-own" value="" min="1" max="15" placeholder="Dejar vacío = usar días globales 🇺🇸">
+            <input type="number" id="cu-qdays-own" value="" min="1" max="15" placeholder="Vacío = días globales 🇺🇸">
             <div class="form-hint">Si esta cuenta tiene calendario propio, ponlo aquí. Si no, usa el calendario USA global.</div>
           </div>
         </div>
       </div>
-
-      <!-- La tarifa del invoice no vive en la cuenta sino en una tabla aparte,
-           por nombre de cuenta normalizado, y la comparten las que facturan en
-           un mismo invoice. Se escribe aqui porque es donde uno la busca: hasta
-           ahora solo se podia cambiar desde dentro de un invoice abierto. -->
-
     </div>
-    <div class="modal-footer" style="justify-content:space-between">
-      <div style="display:flex;gap:8px">
+    <div class="modal-footer" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost" id="btn-desactivar-cuenta" onclick="toggleCuentaActiva()" style="font-size:12px;color:var(--accent3)"></button>
         <button class="btn btn-danger" id="btn-eliminar-cuenta" onclick="confirmarEliminarCuenta()" style="font-size:12px;display:none">🗑 Eliminar</button>
       </div>
@@ -4516,6 +4519,8 @@ function renderCuentasFichas(){
             ${gr.map(c => `<button class="btn btn-ghost btn-sm" onclick="editCuenta('${c.id}')">✏️ ${
               varias ? esc(c.nombre) : 'Abrir el formulario completo'}</button>`).join('')}
             ${facturable ? `<button class="btn btn-ghost btn-sm" onclick="showPage('invoices')">Ver sus invoices</button>` : ''}
+            ${gr.map(c => `<button class="btn btn-ghost btn-sm" style="color:var(--accent3)" onclick="cuDesactivar('${c.id}')">⏸ Desactivar ${
+              varias ? esc(c.nombre) : 'cuenta'}</button>`).join('')}
           </div>
           <!-- El cobro mensual de la cuenta es el respaldo de la pagina de nomina:
                lo que se usa ahi para un agente que no tenga tarifa propia. Puesto
@@ -4529,7 +4534,7 @@ function renderCuentasFichas(){
               para los que no tengan la suya.</div>
           </div>` : ''}
           <div class="pista" style="margin-top:9px">
-            Para desactivar o eliminar, usa el formulario completo.
+            Para desactivar, la cuenta no puede tener agentes activos. Para eliminarla, usa el formulario completo.
           </div>
         </div>
       </details>
@@ -5403,6 +5408,33 @@ function onSelectAgenteExistente(){
 }
 
 // ─── Deactivate / reactivate cuenta ───
+// Una cuenta solo se puede desactivar cuando ya no tiene agentes activos: sus
+// nóminas quedarían fuera de todo cálculo. Los inactivos (dados de baja) no
+// cuentan: ya no trabajan y sus quincenas viejas guardan su propia copia.
+function agentesQueImpidenDesactivar(c){
+  return agentes.filter(a => a.cuenta === c.id && a.estado === 'active');
+}
+function puedeDesactivarCuenta(c){
+  const ags = agentesQueImpidenDesactivar(c);
+  if(!ags.length) return true;
+  const nombres = ags.map(a => '• ' + a.nombre).slice(0, 12).join('\n') + (ags.length > 12 ? '\n• …y ' + (ags.length - 12) + ' más' : '');
+  alert(`No se puede desactivar "${c.nombre}": todavía tiene ${ags.length} agente${ags.length !== 1 ? 's' : ''} activo${ags.length !== 1 ? 's' : ''}:\n\n${nombres}\n\nPrimero pásalos a otra cuenta o inactívalos en Agentes.`);
+  return false;
+}
+function confirmarDesactivarCuenta(c){
+  if(!puedeDesactivarCuenta(c)) return false;
+  return confirm(`¿Desactivar la cuenta "${c.nombre}"?\n\nNo aparecerá en los cálculos de las quincenas nuevas, pero sus datos se conservan y se sigue viendo en las quincenas aprobadas que la tenían. Puedes reactivarla cuando quieras.`);
+}
+// Desde la sección Cuentas («Ajustes de la cuenta»)
+function cuDesactivar(id){
+  const c = cuentas.find(x => x.id === id);
+  if(!c || c.activo === false) return;
+  if(!confirmarDesactivarCuenta(c)) return;
+  c.activo = false;
+  guardarCuentasSiempre();
+  recalcAll();
+}
+
 function toggleCuentaActiva(){
   const editId = $('cuenta-edit-id').value;
   if(!editId) return;
@@ -5410,7 +5442,7 @@ function toggleCuentaActiva(){
   if(!c) return;
   const deactivating = c.activo !== false;
   if(deactivating){
-    if(!confirm(`¿Desactivar la cuenta "${c.nombre}"?\n\nNo aparecerá en los cálculos pero sus datos se conservan. Puedes reactivarla cuando quieras.`)) return;
+    if(!confirmarDesactivarCuenta(c)) return;
     c.activo = false;
   } else {
     c.activo = true;
@@ -5441,6 +5473,12 @@ function toggleAgente(id, active){
   if(isPeriodoAprobado()){ alertReadOnly(); return; }
   const ag = agentes.find(a=>a.id===id);
   if(!ag) return;
+  const cuAg = cuentas.find(c => c.id === ag.cuenta);
+  if(active && cuAg && cuAg.activo === false){
+    alert(`${ag.nombre} está en la cuenta "${cuAg.nombre}", que está desactivada.\n\nPrimero pásalo a una cuenta activa (✏️) o reactiva la cuenta.`);
+    renderAgentes();
+    return;
+  }
   ag.estado = active ? 'active' : 'inactive';
   if(active && ag.dias === 0){
     ag.dias    = parseInt($('qdays').value) || 12;
