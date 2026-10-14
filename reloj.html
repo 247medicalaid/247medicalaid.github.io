@@ -1085,6 +1085,16 @@ body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 .dc-mas svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .dc-marco.hay-mas .dc-mas{display:inline-flex}
 .dc-mas:hover{background:var(--brand-700, #0E6E93)}
+/* v96: Timesheet y Pay run — botón fijo «N more people below» y barra visible */
+#hojaTabla,#pyTabla{scrollbar-width:auto;scrollbar-color:#9DB3BF var(--sand)}
+#hojaTabla::-webkit-scrollbar,#pyTabla::-webkit-scrollbar{width:12px;height:12px}
+#hojaTabla::-webkit-scrollbar-track,#pyTabla::-webkit-scrollbar-track{background:var(--sand)}
+#hojaTabla::-webkit-scrollbar-thumb,#pyTabla::-webkit-scrollbar-thumb{background:#9DB3BF;border-radius:999px;border:3px solid var(--sand)}
+#hojaTabla::-webkit-scrollbar-thumb:hover,#pyTabla::-webkit-scrollbar-thumb:hover{background:#6F8C9B}
+.mas-filas{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--ink-900, #04141F);color:#fff;font:inherit;font-size:13px;font-weight:700;padding:7px 14px 7px 12px;box-shadow:0 6px 18px rgba(4,20,31,.32);cursor:pointer;white-space:nowrap}
+.mas-filas svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.mas-filas.ver{display:inline-flex}
+.mas-filas:hover{background:var(--brand-700, #0A6A90)}
 .dc-cuantos{font-size:13px;color:var(--text-muted);font-weight:600;margin:-4px 0 8px}
 table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
 .dc-mat th{position:sticky;top:0;z-index:2;background:var(--sand);border-bottom:1px solid var(--line);text-align:left;font-size:12.5px;padding:9px 8px;vertical-align:bottom}
@@ -1801,6 +1811,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="hSelQuitar" type="button">Remove approval</button>
       <button class="btn btn-ghost btn-sm" id="hSelLimpiar" type="button">Clear</button>
     </div>
+    <p class="dc-cuantos" id="hojaCuantos"></p>
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
@@ -1828,6 +1839,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pr-param" id="pyParam"></div>
     <div class="res-hoja hidden" id="pyResumen" aria-label="Pay run totals"></div>
     <div id="pyAvisos"></div>
+    <p class="dc-cuantos" id="pyCuantos"></p>
     <div class="tabla-wrap" id="pyTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-ink btn-sm" id="pyGuardar" type="button">Save draft</button>
@@ -2420,6 +2432,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v96: Timesheet y Pay run — «N people» y botón fijo «N more people below» al pie de la ventana -->
 <!-- v95: Documents — cuántas personas hay, sombra y botón «N more people below» mientras queden filas abajo -->
 <!-- v94: también en timeclock.247medical-aid.com (cargador en cPanel); rutas completas a sb.js, monitor y paystubs -->
 <!-- v93: usuario de prueba (paso 55): Settings → Test user copia los datos de un agente; TEST fuera del Pay run y de las exportaciones -->
@@ -7351,6 +7364,44 @@ $('dcResumen').addEventListener('click', ev => {
 $('dcResumen').addEventListener('change', ev => { if(ev.target.id === 'dcTodosAp'){ S.dcTodosAp = ev.target.checked; pintarDocs(); } });
 ['dcCuenta', 'dcFiltro', 'dcActivos'].forEach(id => $(id).addEventListener('change', pintarDocs));
 $('dcBuscar').addEventListener('input', pintarDocs);
+// (v96) Timesheet y Pay run: «N people» arriba y botón fijo al pie de la ventana «▾ N more people below» mientras queden filas
+// sin ver (más abajo del borde de la ventana o del de la tabla). Clic: primero baja la página hasta el final de la tabla; después,
+// baja dentro de la tabla.
+function masFilas(vista, idTabla, selFilas, idCuantos){
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'mas-filas';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><span></span>';
+  document.body.appendChild(btn);
+  const act = () => {
+    const w = $(idTabla);
+    if(!w || document.body.dataset.vista !== vista || !w.offsetParent){ btn.classList.remove('ver'); return; }
+    const filas = [...w.querySelectorAll(selFilas)], total = filas.length;
+    $(idCuantos).textContent = total ? total + (total === 1 ? ' person' : ' people') : '';
+    const rw = w.getBoundingClientRect(), borde = Math.min(rw.bottom, window.innerHeight) - 4;
+    const abajo = rw.top > window.innerHeight - 20 ? 0 : filas.filter(f => { const r = f.getBoundingClientRect(); return r.top + r.height / 2 > borde; }).length;
+    btn.classList.toggle('ver', abajo > 0);
+    if(!abajo) return;
+    btn.querySelector('span').textContent = abajo + ' more ' + (abajo === 1 ? 'person' : 'people') + ' below';
+    btn.style.left = Math.round((Math.max(rw.left, 0) + Math.min(rw.right, window.innerWidth)) / 2) + 'px';
+  };
+  btn.addEventListener('click', () => {
+    const w = $(idTabla), rw = w.getBoundingClientRect();
+    if(rw.bottom > window.innerHeight + 2){   // la tabla todavía se sale por abajo: baja la página hasta su final
+      const r = $(vista === 'hoja' ? 'hojaResumen' : 'pyResumen'), tope = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-h')) || 57) + (r && r.offsetParent ? r.offsetHeight + 12 : 0);
+      window.scrollBy({ top: Math.min(rw.bottom - window.innerHeight + 10, Math.max(0, rw.top - tope)), behavior:'smooth' });
+      if(rw.top - tope > 4) return;
+    }
+    w.scrollBy({ top: Math.max(120, w.clientHeight - 90), behavior:'smooth' });
+  });
+  const pedir = () => requestAnimationFrame(act);
+  window.addEventListener('scroll', pedir, { passive:true });
+  window.addEventListener('resize', pedir);
+  $(idTabla).addEventListener('scroll', pedir, { passive:true });
+  new MutationObserver(pedir).observe($(idTabla), { childList:true, subtree:true });
+  new MutationObserver(pedir).observe(document.body, { attributes:true, attributeFilter:['data-vista'] });
+  return act;
+}
+masFilas('hoja', 'hojaTabla', 'tbody tr .nom-btn[data-editar]', 'hojaCuantos');
+masFilas('pago', 'pyTabla', 'tbody tr[data-pf]', 'pyCuantos');
 // (v95) Cuántas personas hay y cuántas quedan abajo (sombra + botón «▾ N more people»)
 function dcMasActualizar(){
   const w = $('dcTabla'), m = $('dcMarco'); if(!w || !m) return;
