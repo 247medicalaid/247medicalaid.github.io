@@ -1158,6 +1158,49 @@ body.aw.aw-web #vReloj .reloj-grid{grid-template-columns:230px minmax(0,1fr)}
 body.aw.aw-app #vReloj .reloj-grid{grid-template-columns:206px minmax(0,1fr)}
 body.aw.aw-web .aw-fijo{grid-template-columns:minmax(0,430px) 220px;justify-content:start}
 body.aw .aw-item{white-space:nowrap}
+/* ── v90: el agente en el NAVEGADOR se reparte como el administrador (la app de Windows, body.aw-app, no cambia) ── */
+.aw-grupo{display:none}
+body.aw-web .aw-grupo{display:block;padding:14px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#7FA6B6}
+body.aw-web .aw-grupo.g1{padding-top:2px}
+body.aw-web .aw-menu > .aw-marca{order:0}
+body.aw-web .aw-menu > .g1{order:1}
+body.aw-web .aw-menu > [data-awi="dia"]{order:2}
+body.aw-web .aw-menu > [data-awi="per"]{order:3}
+body.aw-web .aw-menu > [data-awi="sol"]{order:4}
+body.aw-web .aw-menu > .g2{order:5}
+body.aw-web .aw-menu > [data-awi="upd"]{order:6}
+body.aw-web .aw-menu > [data-awi="chat"]{order:7}
+body.aw-web .aw-menu > [data-awi="docs"]{order:8}
+body.aw-web .aw-menu > #awDocsSub{order:9}
+body.aw-web .aw-menu > .g3{order:10}
+body.aw-web .aw-menu > [data-awi="perfil"]{order:11}
+body.aw-web .aw-menu > .aw-sep{order:12}
+body.aw-web .aw-menu > .aw-yo{order:13}
+@media (min-width:1180px){
+  /* todas las secciones: centradas y más anchas, el reloj alineado con el contenido */
+  body.aw.aw-web{--aw-borde:max(28px, calc((100% - 1180px) / 2))}
+  body.aw.aw-web .aw-fijo{padding:18px var(--aw-borde) 14px;grid-template-columns:minmax(0,460px) 250px minmax(0,1fr);align-items:center}
+  body.aw.aw-web .aw-fijo .nota-ubic{grid-column:3;grid-row:1;align-self:center;max-width:300px}
+  body.aw.aw-web .aw-panel{padding:6px var(--aw-borde) 28px}
+  body.aw.aw-web .aw-panel > [data-aw],body.aw.aw-web .aw-panel > #idAvisoAg:not(:empty),body.aw.aw-web .aw-panel > #updAvisoAg:not(:empty){max-width:none}
+  body.aw.aw-web .aw-panel > [data-aw="perfil"]{max-width:1000px}
+  /* Today: dos columnas, como «My clock» del administrador */
+  body.aw.aw-web[data-aw="dia"] .aw-main{display:grid;grid-template-columns:minmax(360px,410px) minmax(0,1fr);grid-template-rows:auto auto auto auto auto auto 1fr;
+    column-gap:20px;align-content:start;overflow:auto;padding:22px var(--aw-borde) 28px}
+  body.aw.aw-web[data-aw="dia"] .aw-panel{display:contents}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > #avisosAgente{grid-column:1 / -1;grid-row:1}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > #idAvisoAg{grid-column:1 / -1;grid-row:2}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > #updAvisoAg{grid-column:1 / -1;grid-row:3}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > #avisosAgente:not(:empty){margin-top:0;margin-bottom:6px}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > #idAvisoAg:not(.hidden),body.aw.aw-web[data-aw="dia"] .aw-panel > #updAvisoAg:not(.hidden){margin:0 0 14px}
+  body.aw.aw-web[data-aw="dia"] .aw-fijo{grid-column:1;grid-row:4;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:0;border:0;background:none;align-self:start}
+  body.aw.aw-web[data-aw="dia"] .aw-fijo .acciones{flex-direction:column;gap:10px}
+  body.aw.aw-web[data-aw="dia"] .aw-fijo .nota-ubic{max-width:none}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > [data-aw="dia"]{grid-column:1;grid-row:5;margin-top:14px;align-self:start}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > [data-aw="sol"]{display:block;grid-column:1;grid-row:6;margin-top:14px;align-self:start}
+  body.aw.aw-web[data-aw="dia"] .aw-panel > [data-aw="per"]{display:block;grid-column:2;grid-row:4 / 8;margin-top:0;align-self:start}
+}
+
 @media (max-width:760px){
   body.aw.aw-web{overflow:auto;height:auto}
   body.aw.aw-web #vReloj .reloj-grid{display:block !important;height:auto}
@@ -2335,6 +2378,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v90: el agente en el navegador se reparte como el administrador (Today en dos columnas, menú agrupado); la app de Windows no cambia -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="diTitulo">Import documents from Connecteam</h2>
@@ -3941,6 +3985,8 @@ function appLayout(){
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span>Agent</span>' +
     '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
+  // (v90) títulos de grupo como en el menú del administrador; solo se ven en el navegador (la app los oculta)
+  [['g1', 'My day'], ['g2', 'Communication'], ['g3', 'Me']].forEach(([c, tx]) => { const g = document.createElement('div'); g.className = 'aw-grupo ' + c; g.textContent = tx; nav.querySelector('.aw-sep').before(g); });
   const main = document.createElement('div'); main.className = 'aw-main';
   main.append(fijo, panel);
   // en el celular: barra con ☰ que abre el menú
