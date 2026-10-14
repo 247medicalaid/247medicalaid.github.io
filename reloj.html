@@ -1327,6 +1327,36 @@ body.aw.aw-web.aw-chatlado .aw-menu > [data-awi="chat"]{display:none}
   body.aw.aw-web .md-res{flex-wrap:wrap}
 }
 /* Información bancaria e ID document (v56) */
+.notif{position:relative;display:flex}
+.notif-btn{position:relative;border:0;background:none;color:var(--ink-700);cursor:pointer;padding:6px;border-radius:10px;display:inline-flex}
+.notif-btn:hover,.notif-btn[aria-expanded="true"]{background:var(--sand)}
+.notif-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.notif-pt{position:absolute;top:1px;right:1px;background:var(--accent-500);color:#fff;border-radius:999px;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;border:2px solid var(--paper)}
+.notif-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(384px,92vw);background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.notif-cab{padding:8px 10px 0;border-bottom:1px solid var(--line)}
+.notif-tabs{display:flex;gap:4px}
+.notif-tab{border:0;background:none;color:var(--text-muted);font:600 13.5px var(--font-body);cursor:pointer;padding:8px 12px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.notif-tab:hover{color:var(--text)}
+.notif-tab.on{color:var(--brand-700);border-bottom-color:var(--brand-600)}
+.notif-tab:focus-visible{outline:2px solid var(--brand-500);outline-offset:-2px;border-radius:6px}
+.nh-item{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.nh-item:last-child{border-bottom:0}
+.nh-ic{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
+.nh-ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nh-ic.banco{background:var(--accent-50);color:var(--accent-600)}
+.nh-ic.id{background:var(--warn-50);color:var(--warn)}
+.nh-item > div{flex:1;min-width:0}
+.nh-item b{font-size:13.5px;font-weight:600;display:block}
+.nh-item small{font-size:12px;color:var(--text-muted);display:block;margin-top:1px}
+.nh-chip{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;margin-top:1px}
+.nh-chip.ok{background:#E3F4EC;color:#14653F}
+.nh-chip.pend{background:var(--warn-50);color:var(--warn)}
+.nh-chip.no{background:var(--accent-50);color:var(--accent-600)}
+.notif-cargando{padding:18px;text-align:center;color:var(--text-muted);font-size:13px}
+.notif-cuerpo{padding:12px;max-height:min(70vh,520px);overflow:auto;display:flex;flex-direction:column;gap:10px}
+.notif-cuerpo .banco-aviso,.notif-cuerpo .id-aviso{margin:0}
+.notif-vacio{color:var(--text-muted);font-size:13.5px;text-align:center;padding:20px 8px}
+@media (max-width:560px){ .notif{position:static} .notif-panel{position:fixed;left:8px;right:8px;top:calc(var(--top-h,57px) + 6px);width:auto} }
 .banco-aviso{display:flex;align-items:center;gap:12px;background:var(--accent-50);border:1px solid #F4B9BB;color:var(--accent-600);border-radius:var(--radius);padding:10px 14px;margin:0 0 16px}
 .banco-aviso > svg{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .banco-aviso > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -1549,7 +1579,7 @@ body.aw.aw-app .aw-marca small{font-size:9px;letter-spacing:.05em;white-space:no
 .mon-marco iframe{display:block;width:100%;height:100%;border:0}
 .mon-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);font-size:14px;background:var(--paper)}
 /* Monitor a pantalla completa (v69) */
-body[data-vista="mon"] #bancoAviso,body[data-vista="mon"] #idAviso{display:none !important}
+/* v105: los avisos viven en el centro de notificaciones (campana), no en el cuerpo */
 body[data-vista="mon"] main{max-width:none;padding:10px 16px 0}
 body[data-vista="mon"] .mon-cab{margin-bottom:8px}
 body[data-vista="mon"] .mon-cab h1{font-size:24px}
@@ -1730,6 +1760,26 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <span class="demo-tag hidden" id="demoTag">Demo mode</span>
   <span class="esp"></span>
   <div class="quien"><b id="quienNom"></b><span id="quienRol"></span></div>
+  <div class="notif hidden" id="notifWrap">
+    <button class="notif-btn" id="btnNotif" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notifications" title="Notifications">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <b class="notif-pt hidden" id="notifBadge">0</b>
+    </button>
+    <div class="notif-panel hidden" id="notifPanel" role="dialog" aria-label="Notifications">
+      <div class="notif-cab">
+        <div class="notif-tabs" role="tablist">
+          <button class="notif-tab on" id="ntPend" type="button" role="tab" aria-selected="true">Pending</button>
+          <button class="notif-tab" id="ntHist" type="button" role="tab" aria-selected="false">History</button>
+        </div>
+      </div>
+      <div class="notif-cuerpo" id="notifCuerpo">
+        <div class="banco-aviso hidden" id="bancoAviso" role="alert"></div>
+        <div class="id-aviso hidden" id="idAviso" role="status"></div>
+        <div class="notif-vacio" id="notifVacio">You're all caught up.</div>
+      </div>
+      <div class="notif-cuerpo hidden" id="notifHist"></div>
+    </div>
+  </div>
   <a class="btn btn-ghost btn-sm" href="https://247medicalaid.github.io/" id="btnPortal">Portal</a>
   <button class="btn btn-ghost btn-sm btn-perfil hidden" id="btnDocs" type="button" aria-label="My documents"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span class="tx">My documents</span><b class="badge hidden" id="docsN"></b></button>
   <button class="btn btn-ghost btn-sm btn-perfil hidden" id="btnPerfil" type="button" aria-label="My profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span class="tx">My profile</span></button>
@@ -1764,8 +1814,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </nav>
 
 <main>
-  <div class="banco-aviso hidden" id="bancoAviso" role="alert"></div>
-  <div class="id-aviso hidden" id="idAviso" role="status"></div>
   <!-- RELOJ DEL AGENTE -->
   <section id="vReloj" class="hidden">
    <div class="reloj-grid">
@@ -2511,6 +2559,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v106: centro de notificaciones con pestaña History -->
+<!-- v105: centro de notificaciones (campana) para los avisos del administrador -->
 <!-- v104: Users — columna «Windows app» (quién ya entró desde la app de Windows; paso 56) -->
 <!-- v103: Today — títulos fijos, ordenar con clic en el título y cambiar el ancho de las columnas -->
 <!-- v102: Today como tabla (estilo Connecteam) con botón «Columns» para elegir columnas -->
@@ -4124,6 +4174,7 @@ async function inicio(){
       $('grpMio').classList.toggle('hidden', !yo.empleado);
       actualizarBadge(); setInterval(() => { if(!document.hidden) actualizarBadge(); }, 60000);
       actualizarDocBadge(); setInterval(() => { if(!document.hidden) actualizarDocBadge(); }, 60000);
+      $('notifWrap').classList.remove('hidden');
       actualizarBancoAviso(); setInterval(() => { if(!document.hidden) actualizarBancoAviso(); }, 60000);
       actualizarIdAviso(); setInterval(() => { if(!document.hidden) actualizarIdAviso(); }, 60000);
       actualizarInvBadgeSolo(); setInterval(() => { if(!document.hidden && S.vista !== 'inv') actualizarInvBadgeSolo(); }, 60000);
@@ -8162,19 +8213,86 @@ function bancoGrupos(filas){
 }
 const bancoNombre = u => (S.bh && S.bh.nombres[u]) || u;
 const bancoQue = filas => { const c = filas.map(h => h.campo); return c.includes('cuenta_banco') ? 'their bank account' : c.includes('banco') ? 'their bank' : 'their ID'; };
+// v105: centro de notificaciones (campana)
+function refrescarCampana(){
+  const total = (S.nBanco || 0) + (S.nId || 0), b = $('notifBadge'), v = $('notifVacio');
+  if(b){ b.textContent = total > 9 ? '9+' : total; b.classList.toggle('hidden', !total); }
+  if(v) v.classList.toggle('hidden', !!total);
+}
+function abrirNotif(abrir){
+  const p = $('notifPanel'), btn = $('btnNotif'); if(!p) return;
+  const mostrar = abrir === undefined ? p.classList.contains('hidden') : abrir;
+  p.classList.toggle('hidden', !mostrar);
+  btn.setAttribute('aria-expanded', mostrar);
+  if(mostrar) notifTab('pend');
+}
+function notifTab(cual){
+  const pend = cual !== 'hist';
+  $('ntPend').classList.toggle('on', pend); $('ntPend').setAttribute('aria-selected', pend);
+  $('ntHist').classList.toggle('on', !pend); $('ntHist').setAttribute('aria-selected', !pend);
+  $('notifCuerpo').classList.toggle('hidden', !pend);
+  $('notifHist').classList.toggle('hidden', pend);
+  if(!pend) cargarNotifHist();
+}
+// Historial: eventos con fecha real de los últimos 30 días (cambios de banco/ID y fotos de ID enviadas).
+async function cargarNotifHist(){
+  const cont = $('notifHist'); if(!cont) return;
+  if(S.notifHistMs && Date.now() - S.notifHistMs < 60000 && cont.dataset.listo) return;   // cache 1 min
+  cont.innerHTML = '<div class="notif-cargando"><span class="spin dark"></span> Loading…</div>';
+  const desde = Date.now() - 30 * 86400000, ev = [];
+  try{
+    const r = await api('bancoHist');
+    (r.filas || []).forEach(h => { if(!(h.en >= desde)) return;
+      ev.push({ ms:h.en, clase:'banco', txt:(r.nombres[h.usuario] || h.usuario) + ' changed ' + bancoQue([h]),
+        chip: h.revisadoEn ? { k:'ok', t:'Reviewed' } : { k:'pend', t:'Pending' },
+        sub: h.revisadoEn ? 'Reviewed by ' + (h.revisadoPor || '—') + ' · ' + docEnMs(h.revisadoEn) : '' }); });
+  }catch(e){}
+  try{
+    const tid = S.idEst && S.idEst.tipoId;
+    if(tid){
+      if(!S.dc) S.dc = await api('docsAdmin');
+      const nom = u => (S.dc.emps.find(e => e.usuario === u) || {}).nombre || u;
+      S.dc.docs.filter(d => d.tipoId === tid).forEach(d => {
+        const ms = d.revisadoEn || d.subidoEn; if(!(ms >= desde)) return;
+        const chip = d.estado === 'aprobado' ? { k:'ok', t:'Approved' } : d.estado === 'rechazado' ? { k:'no', t:'Rejected' } : { k:'pend', t:'Pending' };
+        ev.push({ ms, clase:'id', txt:nom(d.usuario) + ' · ID photo',
+          chip, sub: d.estado === 'rechazado' && d.nota ? esc(d.nota) : (d.revisadoEn ? (d.estado === 'aprobado' ? 'Approved' : 'Reviewed') + ' by ' + (d.revisadoPor || '—') + ' · ' + docEnMs(d.revisadoEn) : 'Sent for approval') });
+      });
+    }
+  }catch(e){}
+  ev.sort((a, b) => b.ms - a.ms);
+  cont.dataset.listo = '1'; S.notifHistMs = Date.now();
+  if(!ev.length){ cont.innerHTML = '<div class="notif-vacio">No notifications in the last 30 days.</div>'; return; }
+  const ic = { banco:IC_BANCO, id:IC_ID };
+  cont.innerHTML = ev.slice(0, 60).map(x =>
+    '<div class="nh-item"><span class="nh-ic ' + x.clase + '">' + ic[x.clase] + '</span>' +
+    '<div><b>' + esc(x.txt) + '</b><small>' + esc(docEnMs(x.ms)) + (x.sub ? ' · ' + x.sub : '') + '</small></div>' +
+    '<span class="nh-chip ' + x.chip.k + '">' + x.chip.t + '</span></div>').join('');
+}
+(function(){ const a = $('ntPend'), h = $('ntHist'); if(a){ a.addEventListener('click', () => notifTab('pend')); h.addEventListener('click', () => notifTab('hist')); } })();
+(function(){
+  const btn = $('btnNotif'); if(!btn) return;
+  btn.addEventListener('click', e => { e.stopPropagation(); abrirNotif(); });
+  // al abrir un aviso (Review / See who) se cierra el panel para que se vea la ventana
+  $('notifCuerpo').addEventListener('click', e => { if(e.target.closest('.btn')) abrirNotif(false); });
+  document.addEventListener('click', e => { if(!$('notifWrap').contains(e.target)) abrirNotif(false); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('notifPanel').classList.contains('hidden')){ abrirNotif(false); btn.focus(); } });
+})();
 async function actualizarBancoAviso(){
   let r; try{ r = await api('bancoPend'); }catch(e){ return; }
   S.bhPend = r;
   const gs = bancoGrupos(r.filas), caja = $('bancoAviso'), b = $('bancoBadge');
   if(b){ b.textContent = gs.length; b.classList.toggle('hidden', !gs.length); }
-  if(!caja) return;
-  if(!gs.length){ caja.classList.add('hidden'); caja.innerHTML = ''; return; }
+  S.nBanco = gs.length;
+  if(!caja){ refrescarCampana(); return; }
+  if(!gs.length){ caja.classList.add('hidden'); caja.innerHTML = ''; refrescarCampana(); return; }
   const nom = u => r.nombres[u] || u, x = gs[0];
   caja.innerHTML = IC_ALERTA + '<div><b>' + (gs.length === 1 ? 'Bank information changed' : gs.length + ' bank information changes to review') + '</b><span>' +
     (gs.length === 1 ? esc(nom(x.usuario)) + ' changed ' + bancoQue(x.filas) + ' · ' + esc(docEnMs(x.en)) :
       gs.slice(0, 3).map(g => esc(nom(g.usuario))).join(', ') + (gs.length > 3 ? '…' : '') + ' · last ' + esc(docEnMs(x.en))) +
     '</span></div><button class="btn btn-sm" type="button" id="bancoAvisoVer">Review</button>';
   caja.classList.remove('hidden');
+  refrescarCampana();
   $('bancoAvisoVer').onclick = () => abrirBanco(null, true);
   // uno nuevo mientras la página está abierta: también un aviso flotante
   const ids = r.filas.map(h => h.id), nuevos = S.bhVistos ? ids.filter(i => !S.bhVistos.has(i)) : [];
@@ -8338,19 +8456,21 @@ function idEstadoDe(docs){
 async function actualizarIdAviso(){
   let r; try{ r = await api('idEstado'); }catch(e){ return; }
   S.idEst = r;
-  const caja = $('idAviso'); if(!caja) return;
-  if(!r || !r.tipoId){ caja.classList.add('hidden'); return; }
+  const caja = $('idAviso'); if(!caja){ refrescarCampana(); return; }
+  if(!r || !r.tipoId){ caja.classList.add('hidden'); S.nId = 0; refrescarCampana(); return; }
   const yo = S.yo && S.yo.empleado && S.yo.empleado.usuario;
   const gente = r.personas.filter(x => x.usuario !== yo && x.estado !== 'ok');
   const n = k => gente.filter(x => x.estado === k).length, nf = n('falta') + n('rechazado'), np = n('pendiente');
-  if(!gente.length){ caja.classList.add('hidden'); caja.innerHTML = ''; return; }
+  if(!gente.length){ caja.classList.add('hidden'); caja.innerHTML = ''; S.nId = 0; refrescarCampana(); return; }
   const firma = fechaHoy() + '|' + np;
   let oculto = ''; try{ oculto = localStorage.getItem('idAvisoOculto') || ''; }catch(e){}
-  if(oculto === firma){ caja.classList.add('hidden'); return; }   // «Hide for today» (vuelve si llega otra para aprobar)
+  if(oculto === firma){ caja.classList.add('hidden'); S.nId = 0; refrescarCampana(); return; }   // «Hide for today» (vuelve si llega otra para aprobar)
+  S.nId = gente.length;
   caja.innerHTML = IC_ID + '<div><b>ID photos</b><span>' +
     [nf ? nf + (nf === 1 ? ' agent hasn\'t' : ' agents haven\'t') + ' sent theirs' : '', np ? np + ' waiting for your approval' : ''].filter(Boolean).join(' · ') +
     '</span></div><button class="btn btn-sm" type="button" id="idAvisoVer">See who</button><button class="id-aviso-x" type="button" id="idAvisoX" aria-label="Hide for today" title="Hide for today">×</button>';
   caja.classList.remove('hidden');
+  refrescarCampana();
   $('idAvisoVer').onclick = abrirIdLista;
   $('idAvisoX').onclick = () => { try{ localStorage.setItem('idAvisoOculto', firma); }catch(e){} caja.classList.add('hidden'); };
 }
