@@ -1072,6 +1072,20 @@ body.aw .aw-panel #avisosAgente .aviso{margin-bottom:8px}
 .dc-periodo select{min-width:190px}.dc-periodo .btn-icon{min-width:34px;padding:0 8px}.dc-periodo .btn-icon:disabled{opacity:.35;cursor:default}
 .dc-resumen .esp{flex:1}.dc-todos{font-size:13px;color:var(--text-muted);display:flex;gap:6px;align-items:center}
 .dc-wrap{max-height:calc(100vh - 290px);overflow:auto}
+/* v95: que se note que la tabla sigue hacia abajo */
+.dc-marco{position:relative}
+.dc-wrap{scrollbar-width:auto;scrollbar-color:#9DB3BF var(--sand)}
+.dc-wrap::-webkit-scrollbar{width:12px;height:12px}
+.dc-wrap::-webkit-scrollbar-track{background:var(--sand);border-radius:0 var(--radius) var(--radius) 0}
+.dc-wrap::-webkit-scrollbar-thumb{background:#9DB3BF;border-radius:999px;border:3px solid var(--sand)}
+.dc-wrap::-webkit-scrollbar-thumb:hover{background:#6F8C9B}
+.dc-sombra{position:absolute;z-index:4;left:1px;right:13px;bottom:1px;height:56px;pointer-events:none;border-radius:0 0 var(--radius) var(--radius);background:linear-gradient(to bottom,rgba(244,247,249,0),rgba(4,20,31,.10));opacity:0;transition:opacity .2s}
+.dc-marco.hay-mas .dc-sombra{opacity:1}
+.dc-mas{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--ink-900, #04141F);color:#fff;font:inherit;font-size:13px;font-weight:700;padding:7px 14px 7px 12px;box-shadow:0 6px 18px rgba(4,20,31,.28);cursor:pointer}
+.dc-mas svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.dc-marco.hay-mas .dc-mas{display:inline-flex}
+.dc-mas:hover{background:var(--brand-700, #0E6E93)}
+.dc-cuantos{font-size:13px;color:var(--text-muted);font-weight:600;margin:-4px 0 8px}
 table.dc-mat{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
 .dc-mat th{position:sticky;top:0;z-index:2;background:var(--sand);border-bottom:1px solid var(--line);text-align:left;font-size:12.5px;padding:9px 8px;vertical-align:bottom}
 .dc-mat th small{display:block;font-weight:500;color:var(--text-muted);font-size:11px;margin-top:2px;white-space:nowrap}
@@ -1871,7 +1885,12 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="dc-periodo hidden" id="dcPeriodo" role="group" aria-label="Period"></div>
     </div>
     <div class="dc-resumen" id="dcResumen"></div>
-    <div class="tabla-wrap dc-wrap" id="dcTabla"></div>
+    <p class="dc-cuantos" id="dcCuantos"></p>
+    <div class="dc-marco" id="dcMarco">
+      <div class="tabla-wrap dc-wrap" id="dcTabla"></div>
+      <div class="dc-sombra" aria-hidden="true"></div>
+      <button class="dc-mas" id="dcMas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><span></span></button>
+    </div>
   </section>
 
   <!-- ADMIN: MONITOR (el mismo monitor.html, dentro de la app) -->
@@ -2401,6 +2420,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v95: Documents — cuántas personas hay, sombra y botón «N more people below» mientras queden filas abajo -->
 <!-- v94: también en timeclock.247medical-aid.com (cargador en cPanel); rutas completas a sb.js, monitor y paystubs -->
 <!-- v93: usuario de prueba (paso 55): Settings → Test user copia los datos de un agente; TEST fuera del Pay run y de las exportaciones -->
 <!-- v92: clock out automático (paso 54): Settings → Automatic clock out; la salida del sistema queda marcada AUTO en el Timesheet -->
@@ -7331,6 +7351,24 @@ $('dcResumen').addEventListener('click', ev => {
 $('dcResumen').addEventListener('change', ev => { if(ev.target.id === 'dcTodosAp'){ S.dcTodosAp = ev.target.checked; pintarDocs(); } });
 ['dcCuenta', 'dcFiltro', 'dcActivos'].forEach(id => $(id).addEventListener('change', pintarDocs));
 $('dcBuscar').addEventListener('input', pintarDocs);
+// (v95) Cuántas personas hay y cuántas quedan abajo (sombra + botón «▾ N more people»)
+function dcMasActualizar(){
+  const w = $('dcTabla'), m = $('dcMarco'); if(!w || !m) return;
+  // la tabla ocupa lo que queda de pantalla (con avisos arriba, antes quedaba cortada por debajo del borde de la ventana)
+  if(w.offsetParent) w.style.maxHeight = Math.max(220, Math.round(window.innerHeight - Math.max(0, w.getBoundingClientRect().top) - 18)) + 'px';
+  const filas = [...w.querySelectorAll('tbody tr')], total = filas.length;
+  $('dcCuantos').textContent = total ? total + (total === 1 ? ' person' : ' people') : '';
+  const borde = w.scrollTop + w.clientHeight - 4;
+  const abajo = filas.filter(f => f.offsetTop + f.offsetHeight / 2 > borde).length;
+  m.classList.toggle('hay-mas', abajo > 0);
+  $('dcMas').querySelector('span').textContent = abajo + ' more ' + (abajo === 1 ? 'person' : 'people') + ' below';
+}
+$('dcTabla').addEventListener('scroll', dcMasActualizar, { passive:true });
+window.addEventListener('resize', dcMasActualizar);
+new MutationObserver(() => requestAnimationFrame(dcMasActualizar)).observe($('dcTabla'), { childList:true });
+// si arriba aparecen o se van avisos (banco, fotos del ID…), la tabla se vuelve a ajustar a la pantalla
+if(window.ResizeObserver){ const ro = new ResizeObserver(() => requestAnimationFrame(dcMasActualizar)); ro.observe(document.querySelector('main') || document.body); ro.observe($('vDocs')); }
+$('dcMas').addEventListener('click', () => { const w = $('dcTabla'); w.scrollBy({ top: Math.max(120, w.clientHeight - 90), behavior:'smooth' }); });
 $('dcTabla').addEventListener('change', async ev => {
   // desde qué mes debe presentar el documento mensual
   const dm = ev.target.closest('.dc-desde');
