@@ -757,6 +757,16 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .cifra{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;min-width:140px}
 .cifra b{font-family:var(--font-display);font-size:26px;font-weight:800;display:block;line-height:1.1}
 .cifra .st{font-size:13px;color:var(--text-muted);font-weight:500}
+/* v100: filtro de Today */
+.hoy-filtro{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 12px}
+.hoy-filtro .rot{font-size:13px;color:var(--text-muted);font-weight:600;margin-right:4px}
+.hoy-filtro button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--paper);color:var(--text);
+  border-radius:999px;padding:6px 13px;font:600 13px var(--font-body);cursor:pointer}
+.hoy-filtro button:hover{border-color:var(--brand-500)}
+.hoy-filtro button .n{font-variant-numeric:tabular-nums;color:var(--text-muted);font-weight:700}
+.hoy-filtro button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:#fff}
+.hoy-filtro button[aria-pressed="true"] .n{color:#fff;opacity:.75}
+.hoy-filtro button:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
 .cabecera{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:16px}
 .cabecera h1{font-size:clamp(22px,3vw,28px)}
 .cabecera .esp{flex:1}
@@ -1760,6 +1770,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="resumen" id="hoyResumen"></div>
     <div id="hoyAvisos"></div>
+    <div class="hoy-filtro" id="hoyFiltro" role="group" aria-label="Filter by status"></div>
     <div class="lista-hoy" id="hoyLista"></div>
   </section>
 
@@ -2434,6 +2445,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v100: Today — filtro por estado (Clocked in · Clocked out · Not clocked in · Time off · With alerts) -->
 <!-- v99: Edit hours — «Edit day» ya no se traba por un día que venía incompleto; al cerrar el día vuelve a Edit hours -->
 <!-- v98: Timesheet congelado con la tabla más larga (sin el margen de 80 px al final) -->
 <!-- v97: Timesheet congelado — la página se detiene con el título arriba y solo baja la tabla -->
@@ -4677,10 +4689,30 @@ function pintarHoy(){
     ({ trabajando:0, almuerzo:1, sin:2, fuera:3 })[x.estado];
   filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'en'));
   if(!filas.length){
+    $('hoyFiltro').innerHTML = '';
     $('hoyLista').innerHTML = '<div class="vacio"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
   }
-  $('hoyLista').innerHTML = filas.map(x => {
+  // v100: filtro por estado (Clocked in / Clocked out / Not clocked in / Time off / With alerts)
+  const grupo = x => { const d = x.d;
+    if(!d || !d.marcas.length) return d && d.ausencia ? 'aus' : 'sin';
+    return d.estado === 'trabajando' || d.estado === 'almuerzo' ? 'dentro' : 'salio'; };
+  const FILTROS = [['todos', 'All', () => true], ['dentro', 'Clocked in', x => grupo(x) === 'dentro'], ['salio', 'Clocked out', x => grupo(x) === 'salio'],
+    ['sin', 'Not clocked in', x => grupo(x) === 'sin'], ['aus', 'Time off', x => grupo(x) === 'aus'], ['alerta', 'With alerts', x => nivelMax(x.fl) === 'alerta']];
+  const nF = Object.fromEntries(FILTROS.map(([k, , fn]) => [k, filas.filter(fn).length]));
+  if(!FILTROS.some(([k]) => k === S.hoyFiltro)) S.hoyFiltro = 'todos';
+  const visibles = FILTROS.filter(([k]) => k !== 'aus' || nF.aus || S.hoyFiltro === 'aus');
+  $('hoyFiltro').innerHTML = '<span class="rot">Show</span>' + visibles.map(([k, txt]) =>
+    '<button type="button" data-hf="' + k + '" aria-pressed="' + (S.hoyFiltro === k) + '">' + txt + ' <span class="n">' + nF[k] + '</span></button>').join('');
+  $('hoyFiltro').querySelectorAll('[data-hf]').forEach(b => b.addEventListener('click', () => { S.hoyFiltro = b.dataset.hf; pintarHoy(); }));
+  const fnF = FILTROS.find(([k]) => k === S.hoyFiltro)[2], lista = filas.filter(fnF);
+  if(!lista.length){
+    const nada = { dentro:'Nobody is clocked in right now.', salio:'Nobody has clocked out yet today.', sin:'Everyone has clocked in today.',
+      aus:'Nobody is on time off today.', alerta:'No alerts today.' }[S.hoyFiltro];
+    $('hoyLista').innerHTML = '<div class="vacio"><p>' + nada + '</p></div>';
+    return;
+  }
+  $('hoyLista').innerHTML = lista.map(x => {
     const d = x.d;
     const ent = d && d.marcas.find(m => m.tipo === 'entrada');
     const sal = d && d.marcas.filter(m => m.tipo === 'salida').pop();
