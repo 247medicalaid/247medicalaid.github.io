@@ -936,6 +936,23 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .datos-ro small{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:1px}
 @media (max-width:640px){ .datos-ro{grid-template-columns:1fr} }
 .mp-clave{background:var(--sand);border-radius:var(--radius-sm);padding:12px 12px 4px;margin-top:8px}
+/* v89: My profile con color — cada sección en su tarjeta (fondo suave, borde de color e ícono; el ícono y el título la distinguen sin depender del color) */
+#mpCuerpo .ficha-sec.mp-sec{background:var(--mp-fondo);border:1px solid var(--mp-borde);border-left:5px solid var(--mp-tinta);border-radius:var(--radius-sm);padding:14px 16px 12px;margin-top:12px}
+#mpCuerpo .ficha-sec.mp-sec:first-child{margin-top:6px}
+#mpCuerpo .mp-sec h3{display:flex;align-items:center;gap:8px;color:var(--mp-tinta);margin-bottom:10px}
+#mpCuerpo .mp-sec h3 svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#mpCuerpo .mp-sec .datos-ro small{color:var(--mp-tinta)}
+#mpCuerpo .mp-sec .btn-link{color:var(--mp-tinta)}
+#mpCuerpo .mp-sec .mp-clave{background:rgba(255,255,255,.8);border:1px solid var(--mp-borde)}
+#mpCuerpo .mp-sec .campo input,#mpCuerpo .mp-sec .campo select{border-color:var(--mp-borde)}
+#mpCuerpo .mp-sec .nota{color:var(--ink-700, #33475B)}
+.mp-cuenta{--mp-fondo:#EEF6FD;--mp-borde:#C9E0F4;--mp-tinta:#1D5F96}
+.mp-trabajo{--mp-fondo:#FFF6E6;--mp-borde:#F2D7A6;--mp-tinta:#8A4B00}
+.mp-personal{--mp-fondo:#EAF7F3;--mp-borde:#BFE3D7;--mp-tinta:#1C6B5C}
+.mp-banco{--mp-fondo:#F3F0FB;--mp-borde:#D8CEF0;--mp-tinta:#5A43A0}
+.mp-iddoc{--mp-fondo:#EFF2F5;--mp-borde:#D2DAE3;--mp-tinta:#43546A}
+#mpCuerpo .mp-iddoc .id-foto,#mpCuerpo .mp-iddoc .dc-chip{background:#fff}
+@media (max-width:640px){ #mpCuerpo .ficha-sec.mp-sec{padding:12px 12px 10px} }
 .btn-perfil svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:600px){ .btn-perfil .tx{display:none} }
 /* acceso del empleado en su ficha (Users) */
@@ -2317,6 +2334,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
+<!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="diTitulo">Import documents from Connecteam</h2>
@@ -3736,30 +3754,38 @@ async function abrirPerfil(){
   try{ S.mp = await api('miFicha'); pintarPerfil(); $('mpGuardar').disabled = false; idCargar(); }
   catch(e){ $('mpCuerpo').innerHTML = ''; $('mpErr').textContent = e.message; }
 }
+// (v89) íconos de las secciones de My profile
+const MP_ICO = {
+  cuenta:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>',
+  trabajo:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>',
+  personal:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+  banco:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></svg>',
+  iddoc:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16a3.4 3.4 0 0 1 6.4 0M14.5 10h4M14.5 13.5h3"/></svg>'
+};
 function pintarPerfil(){
   const f = S.mp.ficha, L = listas(), ro = (t, v) => '<div><small>' + t + '</small>' + (v ? esc(v) : '<span class="muted">—</span>') + '</div>';
   const fecha = d => d ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(d + 'T12:00:00Z')) : '';
   $('mpCuerpo').innerHTML =
-    '<div class="ficha-sec" style="border-top:0;padding-top:0"><h3>Account</h3><div class="datos-ro">' + ro('Name', f.nombre) + ro('Sign-in email', S.mp.email) + '</div>' +
+    '<div class="ficha-sec mp-sec mp-cuenta"><h3>' + MP_ICO.cuenta + 'Account</h3><div class="datos-ro">' + ro('Name', f.nombre) + ro('Sign-in email', S.mp.email) + '</div>' +
       (S.agente || S.demoAgente ? '<button class="btn-link" type="button" id="mpClaveAbrir">Change password</button><div class="mp-clave hidden" id="mpClaveCaja">' +
         '<div class="ficha-grid"><label class="campo"><span>New password</span><input id="mpClave" type="password" autocomplete="new-password"></label>' +
         '<label class="campo"><span>Confirm password</span><input id="mpClave2" type="password" autocomplete="new-password"></label></div>' +
         '<p class="nota" style="margin:-6px 0 10px">At least 8 characters, with letters and numbers.</p>' +
         '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Update password</button></div></div>' : '') + '</div>' +
-    '<div class="ficha-sec"><h3>Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Title', f.titulo) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
+    '<div class="ficha-sec mp-sec mp-trabajo"><h3>' + MP_ICO.trabajo + 'Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Title', f.titulo) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
       ro('Employment start date', fecha(f.fechaIngreso)) + ro('Scheduled start', f.horaEntrada ? h12(f.horaEntrada) : '') + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
-    '<div class="ficha-sec"><h3>Personal</h3><div class="ficha-grid">' +
+    '<div class="ficha-sec mp-sec mp-personal"><h3>' + MP_ICO.personal + 'Personal</h3><div class="ficha-grid">' +
       '<label class="campo"><span>Mobile phone</span><input id="mpTel" type="tel" autocomplete="tel" maxlength="40"></label>' +
       '<label class="campo"><span>Birthday</span><input id="mpCumple" type="date"></label>' +
       '<div class="dir-ciudad"><label class="campo"><span>Home address</span><input id="mpDir" autocomplete="street-address" maxlength="200"></label>' +
       '<label class="campo"><span>City</span><input id="mpCiudad" autocomplete="address-level2" maxlength="80"></label></div></div></div>' +
-    '<div class="ficha-sec"><h3>Bank information</h3><div class="ficha-grid">' +
+    '<div class="ficha-sec mp-sec mp-banco"><h3>' + MP_ICO.banco + 'Bank information</h3><div class="ficha-grid">' +
       '<label class="campo"><span>ID type</span><select id="mpTipoId"></select></label>' +
       '<label class="campo"><span>ID number</span><input id="mpNumId" autocomplete="off" maxlength="40"></label>' +
       '<label class="campo"><span>Bank name</span><select id="mpBanco"></select></label>' +
       '<label class="campo"><span>Account number</span><input id="mpCta" autocomplete="off" maxlength="60"></label></div>' +
       '<p class="nota" style="margin:-4px 0 0">Used for your payroll. If you change it, you\'ll be asked to confirm; the change is saved in a history and your administrator is notified.</p></div>' +
-    '<div class="ficha-sec hidden" id="mpIdSec"><h3>ID document</h3><div id="mpId"></div></div>';
+    '<div class="ficha-sec mp-sec mp-iddoc hidden" id="mpIdSec"><h3>' + MP_ICO.iddoc + 'ID document</h3><div id="mpId"></div></div>';
   if(S.md) pintarIdPerfil();
   $('mpTel').value = f.telefono; $('mpCumple').value = f.cumpleanos; $('mpCiudad').value = f.ciudad; $('mpDir').value = f.direccion;
   $('mpNumId').value = f.numId; $('mpCta').value = f.cuentaBanco;
