@@ -574,6 +574,7 @@ table.au tr.au-det > td{background:var(--sand);padding:4px 14px 14px}
 .candado svg,.imp-cand svg,.ph-cand svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .imp-cand{display:flex;gap:8px;align-items:flex-start;margin:2px 0 12px;color:var(--brand-700)}
 .imp-cand svg{margin-top:2px}
+.imp-aprob .imp-cand svg{width:15px;height:15px;flex:none}
 .ph-cand{display:inline-flex;gap:6px;align-items:center;color:var(--brand-700)}
 tr.cerrado td{background:#F6FAFC}
 .opciones{display:grid;gap:6px;margin-bottom:12px}
@@ -2445,6 +2446,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v101: Import from Connecteam — elegir si los días entran aprobados o sin aprobar -->
 <!-- v100: Today — filtro por estado (Clocked in · Clocked out · Not clocked in · Time off · With alerts) -->
 <!-- v99: Edit hours — «Edit day» ya no se traba por un día que venía incompleto; al cerrar el día vuelve a Edit hours -->
 <!-- v98: Timesheet congelado con la tabla más larga (sin el margen de 80 px al final) -->
@@ -6445,7 +6447,9 @@ async function prepararImport(file){
         (ex || []).forEach(x => { exist[x.u + '|' + x.f] = { m:(x.m || []).map(y => [y[0], Date.parse(y[1])]), h: x.h == null ? null : Number(x.h), prot:!!x.prot, aus:x.aus || [] }; });
       }
     }catch(e){ exist = null; existFalla = true; }
-    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:true, exist, existFalla, actualizar:true };
+    // v101: la quincena en curso entra sin aprobar (para revisarla antes de pagar); lo anterior, aprobado como siempre
+    const aprobarDef = !(datos.hasta >= rangoPreset('q0').desde);
+    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:aprobarDef, exist, existFalla, actualizar:true };
     pintarImport(); $('iErr').textContent = ''; abrir('ovImp'); $('impEstado').textContent = '';
     detectarZonaImp();
   }catch(e){ $('impEstado').textContent = e.message; }
@@ -6514,7 +6518,12 @@ function pintarImport(){
     '<div class="imp-zona"><b>The times in the file are in:</b><div class="opciones">' +
       Object.keys(IMP_ZONAS).map(z => '<label><input type="radio" name="impZona" value="' + z + '"' + (I.zona === z ? ' checked' : '') + '> ' + IMP_ZONAS[z] + '</label>').join('') +
       '</div><div class="nota" id="iZonaNota">' + zonaNotaImp() + '</div></div>' +
-    '<p class="nota imp-cand">' + IC_CANDADO + '<span>Each imported day is <b>approved</b> with the hours Connecteam paid, so it\'s locked. To change one later, remove its approval first.</span></p>' +
+    '<div class="imp-zona imp-aprob"><b>How should the days come in?</b><div class="opciones">' +
+      '<label><input type="radio" name="impAprob" value="si"' + (I.aprobar ? ' checked' : '') + '> Approved, with the hours Connecteam paid (locked)</label>' +
+      '<label><input type="radio" name="impAprob" value="no"' + (I.aprobar ? '' : ' checked') + '> Not approved — I\'ll review them before paying</label></div>' +
+      '<p class="nota imp-cand" style="margin:6px 0 0">' + (I.aprobar
+        ? IC_CANDADO + '<span>Each imported day is <b>approved</b> with the hours Connecteam paid, so it\'s locked. To change one later, remove its approval first. Use this for pay periods already paid.</span>'
+        : IC.info + '<span>The days come in <b>unapproved</b>: hours are counted from the punches, you can edit them, and you approve them in the Timesheet when you\'re done reviewing.</span>') + '</p></div>' +
     bloqueC +
     '<div class="imp-scroll"><table class="imp-tab"><thead><tr><th>In Connecteam</th><th class="num">Days</th><th class="num">Hours</th><th>Dates</th><th>Time Clock user</th><th class="num" title="Things to review">⚠</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
     (avisos ? '<details class="imp-avisos"><summary>' + D.avisos.length + ' things to review (they\'re imported anyway)</summary><ul>' + avisos + '</ul></details>' : '') +
@@ -6527,6 +6536,7 @@ function pintarImport(){
   $('iCancelar').textContent = 'Cancel';
   $('iCuerpo').querySelectorAll('select[data-imp]').forEach(s => s.addEventListener('change', () => { I.sel[s.dataset.imp] = s.value; pintarImport(); }));
   $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; pintarImport(); }));
+  $('iCuerpo').querySelectorAll('input[name=impAprob]').forEach(r => r.addEventListener('change', () => { I.aprobar = r.value === 'si'; pintarImport(); }));
   if($('iActualizar')) $('iActualizar').addEventListener('change', ev => { I.actualizar = ev.target.checked; pintarImport(); });
 }
 
