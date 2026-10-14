@@ -2434,6 +2434,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v99: Edit hours — «Edit day» ya no se traba por un día que venía incompleto; al cerrar el día vuelve a Edit hours -->
 <!-- v98: Timesheet congelado con la tabla más larga (sin el margen de 80 px al final) -->
 <!-- v97: Timesheet congelado — la página se detiene con el título arriba y solo baja la tabla -->
 <!-- v96: Timesheet y Pay run — «N people» y botón fijo «N more people below» al pie de la ventana -->
@@ -9541,8 +9542,9 @@ function abrirPeriodo(usuario){
     revisarFilaPH(tr);
   });
   $('phTabla').querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
-    if(S.ph.sucio){ $('phErr').textContent = 'Save or undo your changes first.'; return; }
-    cerrar('ovHoras'); abrirDia(usuario, b.dataset.dia, S.hoja); editarDia();
+    if(S.ph.sucio){ $('phErr').textContent = 'Save or undo your changes first.'; toast('Save or undo your changes first.'); return; }
+    if(!S.hoja.empleados.some(x => x.usuario === usuario)) return;
+    cerrar('ovHoras'); S.volverPH = usuario; abrirDia(usuario, b.dataset.dia, S.hoja); editarDia();
   }));
   $('phTabla').querySelectorAll('[data-aus]').forEach(b => b.addEventListener('click', () => abrirAusPH(b.dataset.aus)));
   $('phTabla').querySelectorAll('[data-desap]').forEach(b => b.addEventListener('click', async () => {
@@ -9556,6 +9558,12 @@ function abrirPeriodo(usuario){
   abrir('ovHoras');
   const prim = $('phTabla').querySelector('tr[data-orig] input'); if(prim) setTimeout(() => prim.focus(), 60);
 }
+// v99: el día abierto con «Edit day» vuelve a Edit hours al cerrarse (Close, Cancel, Esc o clic afuera)
+new MutationObserver(() => {
+  if(!$('ovDia').classList.contains('hidden') || !S.volverPH) return;
+  const u = S.volverPH; S.volverPH = null;
+  setTimeout(() => { if(S.hoja && S.hoja.empleados.some(x => x.usuario === u) && $('ovHoras').classList.contains('hidden')) abrirPeriodo(u); }, 0);
+}).observe($('ovDia'), { attributes:true, attributeFilter:['class'] });
 /* ── Anotar / quitar una ausencia desde «Edit hours» (paso 27) ── */
 function abrirAusPH(f){
   const viejo = $('phTabla').querySelector('tr.ph-aus'); if(viejo){ const ya = viejo.dataset.f === f; viejo.remove(); if(ya) return; }
@@ -9623,6 +9631,7 @@ function revisarFilaPH(tr){
   const ahora = CAMPOS_PH.map(k => val[k] || '').join('|');
   tr.classList.toggle('cambio', ahora !== tr.dataset.orig && !err);
   tr.classList.toggle('malo', !!err);
+  tr.classList.toggle('tocado', ahora !== tr.dataset.orig);   // v99: un error que ya venía así no es un cambio
   let msg = tr.querySelector('.msg');
   if(err){ if(!msg){ msg = document.createElement('div'); msg.className = 'msg'; tr.querySelector('.hrs').appendChild(msg); } msg.textContent = err; }
   else if(msg) msg.remove();
@@ -9630,9 +9639,11 @@ function revisarFilaPH(tr){
   contarPH();
 }
 function contarPH(){
-  const n = $('phTabla').querySelectorAll('tr.cambio').length, m = $('phTabla').querySelectorAll('tr.malo').length;
+  const n = $('phTabla').querySelectorAll('tr.cambio').length, m = $('phTabla').querySelectorAll('tr.malo.tocado').length,
+        v = $('phTabla').querySelectorAll('tr.malo:not(.tocado)').length;
   S.ph.sucio = n > 0 || m > 0;
-  $('phCambios').textContent = (n ? n + (n === 1 ? ' day changed' : ' days changed') : 'No changes') + (m ? ' · ' + m + ' with errors' : '') + (n ? ' · edited days lose their approval' : '');
+  $('phCambios').textContent = (n ? n + (n === 1 ? ' day changed' : ' days changed') : 'No changes') + (m ? ' · ' + m + ' with errors' : '') +
+    (v ? ' · ' + v + (v === 1 ? ' day to fix' : ' days to fix') : '') + (n ? ' · edited days lose their approval' : '');
   $('phGuardar').disabled = !n || m > 0; $('phGuardarSig').disabled = m > 0;
   if(n || m) S.ph.avisoSalir = false;
 }
@@ -9657,7 +9668,7 @@ function cambiosPH(){
 }
 async function guardarPH(siguiente){
   const dias = cambiosPH();
-  if($('phTabla').querySelector('tr.malo')){ $('phErr').textContent = 'Fix the days marked in red first.'; return; }
+  if($('phTabla').querySelector('tr.malo.tocado')){ $('phErr').textContent = 'Fix the days marked in red first.'; return; }
   const btns = [$('phGuardar'), $('phGuardarSig')]; btns.forEach(b => { b.disabled = true; });
   $('phErr').textContent = '';
   try{
