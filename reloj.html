@@ -1775,7 +1775,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="users-barra">
       <input id="auBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="auCuenta" aria-label="Account"><option value="">All accounts</option></select>
-      <select id="auEstado" aria-label="Status"><option value="">Active and inactive</option><option value="act">Active</option><option value="inact">Inactive</option></select>
+      <select id="auEstado" aria-label="Status"><option value="">Active and archived</option><option value="act">Active</option><option value="inact">Archived</option></select>
       <select id="auOrden" aria-label="Sort"><option value="nombre">Sort: Name</option><option value="mas">Sort: Most days</option></select>
       <span class="esp" style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" id="auTodos" type="button">Expand all</button>
@@ -1797,7 +1797,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="users-barra">
       <input id="dcBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="dcCuenta" aria-label="Account"><option value="">All accounts</option></select>
-      <select id="dcActivos" aria-label="People"><option value="activos">Active people</option><option value="inactivos">Inactive people (archived)</option><option value="todos">All people</option></select>
+      <select id="dcActivos" aria-label="People"><option value="activos">Active people</option><option value="inactivos">Archived people</option><option value="todos">All people</option></select>
       <select id="dcFiltro" aria-label="Status"><option value="">Everyone</option><option value="rev">To review</option><option value="falta">Missing or overdue</option><option value="venc">Expired or expiring</option><option value="rech">Rejected</option></select>
       <div class="dc-periodo hidden" id="dcPeriodo" role="group" aria-label="Period"></div>
     </div>
@@ -1943,7 +1943,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="users-barra">
       <input id="uBuscar" type="search" placeholder="Search name, phone, email…" autocomplete="off" aria-label="Search users">
       <select id="uCuenta" aria-label="Account"><option value="">All accounts</option></select>
-      <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="inact">Inactive</option><option value="arch">Archived (former)</option></select>
+      <select id="uEstado" aria-label="Status"><option value="act">Active</option><option value="">All</option><option value="arch">Archived (former employees)</option></select>
       <select id="uGrupo" aria-label="Group by"><option value="">No groups</option><option value="cuenta">Group by account</option><option value="titulo">Group by title</option><option value="ciudad">Group by city</option></select>
       <div class="u-cols"><button class="btn btn-ghost btn-sm" id="uCols" type="button" aria-expanded="false" aria-controls="uColsPanel">Columns</button>
         <div class="u-cols-panel hidden" id="uColsPanel" role="group" aria-label="Columns to show"><b>Columns to show</b><div id="uColsLista"></div>
@@ -2140,7 +2140,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
     <div class="err" id="eErr"></div>
     <div class="pie">
-      <button class="btn btn-ghost hidden" id="eActivar" type="button">Deactivate</button>
+      <button class="btn btn-ghost hidden" id="eActivar" type="button">Archive</button>
       <button class="btn btn-peligro hidden" id="eBorrar" type="button">Delete</button>
       <span class="esp"></span>
       <span class="e-sucio hidden" id="eSucio" role="status"><i></i>Unsaved changes</span>
@@ -2316,6 +2316,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
+<!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
     <h2 id="diTitulo">Import documents from Connecteam</h2>
@@ -2887,6 +2888,7 @@ const SERVIDOR_EN = [
   [/^Este documento es parte del perfil: no se puede quitar\.$/, 'This document is part of My profile: it can\'t be removed.'],
   [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, 'The bank history needs SQL step 37 in Supabase.'],
   [/^.*(reloj_importar_usuarios).*$/, 'Importing users needs SQL step 40 in Supabase.'],
+  [/^.*(reloj_archivar_empleado).*$/, 'Archiving needs SQL step 53 in Supabase.'],
   [/^Solo un administrador puede manejar el inventario\.$/, 'Only an administrator can manage the inventory.'],
   [/^Elige el tipo de equipo\.$/, 'Choose the type of equipment.'],
   [/^Escribe al menos la marca, el modelo o el número de serie\.$/, 'Write at least the brand, model or serial number.'],
@@ -2988,7 +2990,7 @@ const SERVIDOR_EN = [
   [/^Solo se puede modificar una solicitud aprobada\.$/, 'Only an approved request can be edited.'],
   [/^La fecha debe ser de hoy o de los últimos 62 días\.$/, 'The date must be today or within the last 62 days.'],
   [/^No hay cambios en ese día\.$/, 'There are no changes for that day.'],
-  [/^Tiene registros de horas: desactívalo en vez de borrarlo\.$/, 'They have time records, so they can\'t be deleted. Deactivate them instead: their hours stay for payroll.'],
+  [/^Tiene registros de horas: desactívalo en vez de borrarlo\.$/, 'They have time records, so they can\'t be deleted. Archive them instead: their hours stay for payroll.'],
   [/^Esta persona entra por el portal; se maneja en el portal\.$/, 'This person signs in through the portal; manage them there.'],
   [/^Estado no válido\.$/, 'Invalid status.'],
   [/^Falta el mes de ese documento\.$/, 'That document has no month.'],
@@ -3001,7 +3003,7 @@ const SERVIDOR_EN = [
   [/^Ese agente del Monitor ya está vinculado a (.+)\.$/, 'That Monitor agent is already linked to $1. Each agent can be linked to only one user.'],
   [/^Usuario no válido\.$/, 'Invalid user.'],
   [/^Esta persona entra por el portal; no necesita invitación\.$/, 'This person signs in through the portal; no invitation needed.'],
-  [/^Ese empleado está inactivo\.$/, 'That employee is inactive.'],
+  [/^Ese empleado está inactivo\.$/, 'That employee is archived.'],
   [/^Ese correo ya tiene una cuenta\.$/, 'That email already has an account.'],
   [/^Todavía no creó su contraseña: mándale la invitación\.$/, 'They haven\'t created their password yet: send them the invitation instead.'],
   [/^Ya se mandaron 3 correos para cambiar la contraseña en la última hora\..*$/, '3 password emails were already sent in the last hour. Wait a while and try again.'],
@@ -3311,6 +3313,7 @@ async function api(action, p){
     return { ok:true };
   }
   if(action === 'activarEmpleado') return q(sb.rpc('reloj_activar_empleado', { p_usuario:p.usuario, p_activo:p.activo }));
+  if(action === 'archivarEmpleado') return q(sb.rpc('reloj_archivar_empleado', { p_usuario:p.usuario }));   // (v88) paso 53
   if(action === 'borrarEmpleado'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('borrar', { usuario:p.usuario }, ses.access_token)); }
   if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false, forzar:p.forzar === true }, ses.access_token)); }
   if(action === 'resetClave'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('clave', { usuario:p.usuario }, ses.access_token)); }
@@ -4729,7 +4732,7 @@ function pintarHoja(){
     }
     const estN = estadoPeriodo(e, h);
     t += '<tr' + (S.selHoja.has(e.usuario) ? ' class="sel"' : '') + ' data-fila="' + esc(e.usuario) + '"><td class="nombre"><label class="selq"><input type="checkbox" data-sel="' + esc(e.usuario) + '"' + (S.selHoja.has(e.usuario) ? ' checked' : '') + ' aria-label="Select ' + esc(e.nombre) + '"></label>' +
-      '<button class="nom-btn' + (e.activo === false ? ' inact' : '') + '" type="button" data-editar="' + esc(e.usuario) + '" title="' + esc(e.nombre) + ' — edit hours' + (e.activo === false ? ' (inactive)' : '') + '"><span>' + esc(e.nombre) + '</span>' +
+      '<button class="nom-btn' + (e.activo === false ? ' inact' : '') + '" type="button" data-editar="' + esc(e.usuario) + '" title="' + esc(e.nombre) + ' — edit hours' + (e.activo === false ? ' (archived)' : '') + '"><span>' + esc(e.nombre) + '</span>' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       (estN.todo ? '<span class="ap-ok" title="Whole pay period approved (' + estN.aprobados + ' days)" aria-label="Whole pay period approved">✓</span>' : '') + '</td>';
     h.fechas.forEach(f => {
@@ -5290,7 +5293,7 @@ function pintarEmps(){
   const cuentas = Array.from(new Set(todos.map(e => e.cuenta).filter(Boolean))).sort();
   const fc = $('uCuenta').value; $('uCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === fc ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
   const busca = normal($('uBuscar').value), est = $('uEstado').value, por = $('uGrupo').value;
-  const l = uOrdenar(todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : est === 'arch' ? !e.activo && !!e.archivadoEn : !e.activo && !e.archivadoEn)) &&
+  const l = uOrdenar(todos.filter(e => (!fc || e.cuenta === fc) && (est === '' || (est === 'act' ? e.activo : !e.activo)) &&
       (!busca || normal([e.nombre, e.usuario, e.telefono, e.email, e.cuenta, e.departamento, e.titulo, e.ciudad, e.jefe].join(' ')).indexOf(busca) >= 0)));
   pintarUCols();
   if(!todos.length){ $('empsTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No users yet</h2><p>Add the first one with their email.</p></div>'; return; }
@@ -5298,7 +5301,7 @@ function pintarEmps(){
   const cols = uColsVer(), o = S.uOrden || {};
   const th = (k, t, num) => '<th' + (num ? ' class="num"' : '') + ' aria-sort="' + (o.k === k ? (o.dir === 'desc' ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="u-orden' + (o.k === k ? ' on' : '') + '" data-orden="' + k + '">' + t +
     '<i aria-hidden="true">' + (o.k === k ? (o.dir === 'desc' ? '▼' : '▲') : '↕') + '</i></button></th>';
-  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : e.archivadoEn ? ' <span class="pill pill-arch" title="Archived in Connecteam: former employee">Archived · ' + esc(fechaUS(e.archivadoEn)) + '</span>' : ' <span class="pill">Inactive</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
+  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill pill-arch" title="Former employee">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
       '<small>' + esc(e.email || e.usuario) + (e.departamento && !cols.some(c => c.k === 'departamento') ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
     cols.map(c => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(e) + '</td>').join('') +
     '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
@@ -5453,7 +5456,7 @@ function pintarAccesoEmp(e){
   const el = $('eAcceso');
   if(!e){ el.className = 'acc-emp'; el.innerHTML = '<span class="t">When you save, they get an email to <b>create their password</b>. Then they sign in to the Time Clock with this email.</span>'; return; }
   const a = accesoDe(e);
-  if(!e.activo){ el.className = 'acc-emp inactiva'; el.innerHTML = '<span class="t"><b>Inactive</b> · can\'t sign in to the Time Clock. Their hours stay for payroll. Use <b>Reactivate</b> to give access back.</span>'; return; }
+  if(!e.activo){ el.className = 'acc-emp inactiva'; el.innerHTML = '<span class="t"><b>Archived</b>' + (e.archivadoEn ? ' on ' + esc(fechaUS(e.archivadoEn)) : '') + ' · former employee: can\'t sign in to the Time Clock. Their hours, documents and pay runs stay. Use <b>Reactivate</b> if they come back.</span>'; return; }
   el.className = 'acc-emp ' + a.k;
   if(a.k === 'portal'){ el.innerHTML = '<span class="t"><b>Signs in through the portal</b> (administrative user <i>' + esc(e.usuario) + '</i>).</span>'; return; }
   if(a.k === 'activa'){
@@ -5492,15 +5495,15 @@ function confirmar(titulo, texto, boton, peligro){
 $('eActivar').addEventListener('click', async () => {
   const e = S.emps.empleados.find(x => x.usuario === S.empEdit); if(!e) return;
   const desact = e.activo;
-  const ok = await confirmar(desact ? 'Deactivate ' + e.nombre + '?' : 'Reactivate ' + e.nombre + '?',
-    desact ? 'They won\'t be able to sign in to the Time Clock, and any invitation link they have stops working. Their hours and requests stay for payroll. You can reactivate them anytime.'
-           : 'They\'ll be able to sign in to the Time Clock again with their email and password.', desact ? 'Deactivate' : 'Reactivate', desact);
+  const ok = await confirmar(desact ? 'Archive ' + e.nombre + '?' : 'Reactivate ' + e.nombre + '?',
+    desact ? 'Use this for someone who no longer works with you. They move to <b>Archived</b> with today\'s date, can\'t sign in to the Time Clock, and any invitation link they have stops working. Their hours, requests, documents and pay runs stay. If they come back, use Reactivate.'
+           : 'They\'ll be able to sign in to the Time Clock again with their email and password, and they leave Archived.', desact ? 'Archive' : 'Reactivate', desact);
   if(!ok) return;
   const b = $('eActivar'); b.disabled = true; $('eErr').textContent = '';
   try{
-    await api('activarEmpleado', { usuario:e.usuario, activo:!desact });
+    if(desact) await api('archivarEmpleado', { usuario:e.usuario }); else await api('activarEmpleado', { usuario:e.usuario, activo:true });
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
-    toast(desact ? e.nombre + ' was deactivated.' : e.nombre + ' was reactivated.');
+    toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
     S.hoja = null; S.hojaHoy = null;
   }catch(x){ $('eErr').textContent = x.message; }
   b.disabled = false;
@@ -5508,7 +5511,7 @@ $('eActivar').addEventListener('click', async () => {
 $('eBorrar').addEventListener('click', async () => {
   const e = S.emps.empleados.find(x => x.usuario === S.empEdit); if(!e) return;
   const ok = await confirmar('Delete ' + e.nombre + '?', 'Use this only for someone added by mistake: their account and profile are removed and <b>this can\'t be undone</b>. ' +
-    'If they already have hours or requests, they can\'t be deleted — deactivate them instead.', 'Delete', true);
+    'If they already have hours or requests, they can\'t be deleted — archive them instead.', 'Delete', true);
   if(!ok) return;
   const b = $('eBorrar'); b.disabled = true; $('eErr').textContent = '';
   try{
@@ -5604,9 +5607,9 @@ function abrirEmp(usuario){
   $('eNomina').value = e ? e.nombreNomina : '';
   $('eHoras').value = e ? e.horasDia : 8;
   pintarLugarEmp(e);
-  // Deactivate / Reactivate y Delete (Delete no aplica a quien entra por el portal)
+  // (v88) Archive / Reactivate y Delete (Delete no aplica a quien entra por el portal)
   $('eActivar').classList.toggle('hidden', !e); $('eBorrar').classList.toggle('hidden', !e || accesoDe(e).k === 'portal');
-  if(e) $('eActivar').textContent = e.activo ? 'Deactivate' : 'Reactivate';
+  if(e) $('eActivar').textContent = e.activo ? 'Archive' : 'Reactivate';
   Object.keys(CAMPOS_FICHA).forEach(k => {
     const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
@@ -6180,8 +6183,8 @@ function pintarImport(){
     '</div>' : '';
   $('iSub').textContent = rangoImp(D.desde, D.hasta) + ' · ' + I.archivo;
   const opc = sel => '<option value=""' + (sel === '' ? ' selected' : '') + '>Don\'t import</option>' +
-    '<option value="+"' + (sel === '+' ? ' selected' : '') + '>+ New former employee (inactive)</option>' +
-    I.emps.map(e => '<option value="' + esc(e.usuario) + '"' + (sel === e.usuario ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' · inactive') + '</option>').join('');
+    '<option value="+"' + (sel === '+' ? ' selected' : '') + '>+ New former employee (archived)</option>' +
+    I.emps.map(e => '<option value="' + esc(e.usuario) + '"' + (sel === e.usuario ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' · archived') + '</option>').join('');
   const filas = D.personas.map(p => {
     const dm = p.dias.filter(d => d.marcas.length), min = dm.reduce((s, d) => s + Math.round((d.horas || 0) * 60), 0), na = p.dias.reduce((s, d) => s + d.avisos.length, 0);
     return '<tr' + (I.sel[p.clave] ? '' : ' class="no"') + '><td><b>' + esc(p.nombre + ' ' + p.apellidos) + '</b><small>' + esc(p.cuenta || '') + (p.tarifa != null ? ' · $' + p.tarifa + '/h' : '') + '</small></td>' +
@@ -6294,7 +6297,7 @@ function pintarFinImport(res, nuevos, error){
     '<div class="imp-res"><span><b>' + nImp(res.hechos) + '</b>days imported</span>' + (res.actualizados ? '<span><b>' + nImp(res.actualizados) + '</b>updated</span>' : '') + '<span><b>' + nImp(res.aprobados) + '</b>approved</span><span><b>' + res.ausencias + '</b>time off</span>' +
     (nuevos ? '<span><b>' + nuevos + '</b>former employees added</span>' : '') + '<span><b>' + res.saltados.length + '</b>skipped</span></div>' +
     (salt ? '<details class="imp-avisos"' + (res.saltados.length <= 20 ? ' open' : '') + '><summary>Skipped</summary><ul>' + salt + '</ul></details>' : '') +
-    (nuevos ? '<p class="nota" style="margin-top:10px">Former employees are added as <b>inactive</b> and can\'t sign in. They show in the Timesheet only for periods where they have hours.</p>' : '');
+    (nuevos ? '<p class="nota" style="margin-top:10px">Former employees are added as <b>archived</b> and can\'t sign in. They show in the Timesheet only for periods where they have hours.</p>' : '');
   $('iImportar').classList.add('hidden'); $('iCancelar').textContent = 'Close';
 }
 
@@ -6580,7 +6583,7 @@ function pintarAus(){
     l.map(p => { const e = p.e, ab = abiertos.has(e.usuario), cc = colorCuenta(e.cuenta);
       return '<tr class="au-fila' + (ab ? ' abierta' : '') + '" data-u="' + esc(e.usuario) + '" tabindex="0" role="button" aria-expanded="' + ab + '">' +
         '<td class="au-sel"><label class="selq"><input type="checkbox" class="au-chk" data-u="' + esc(e.usuario) + '" aria-label="Select ' + esc(e.nombre) + '"' + (sel.has(e.usuario) ? ' checked' : '') + '></label></td>' +
-        '<td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '</td>' +
+        '<td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill pill-arch">Archived</span>') + '</td>' +
         '<td>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</td>' +
         AU_TIPOS.map(k => '<td class="num">' + auNum(p.t[k]) + '</td>').join('') +
         '<td class="num tot"><b>' + auNum(p.total) + '</b></td><td class="num">' + auNum(p.pag) + '</td><td class="num">' + auNum(p.sinPag) + '</td>' +
@@ -6662,7 +6665,7 @@ $('auExportar').addEventListener('click', () => {
   const titulo = ['Time off ' + au.anio + (fc ? ' · ' + fc : '') + ' — taken from Jan 1 to ' + diaS(hasta) + ', ' + hasta.slice(0, 4),
     'Days: a full day = 1; time off by the hour = hours ÷ hours per day. Weekends inside a multi-day time off are not counted.'];
   const z = n => n || 0;
-  const filas = l.map(p => [p.e.nombre, p.e.cuenta || '', p.e.activo ? 'Active' : 'Inactive', z(p.t.vacaciones), z(p.t.enfermedad), z(p.t.personal), z(p.t.otro), z(p.total), z(p.pag), z(p.sinPag), z(p.horasPag), z(p.prox)]);
+  const filas = l.map(p => [p.e.nombre, p.e.cuenta || '', p.e.activo ? 'Active' : 'Archived', z(p.t.vacaciones), z(p.t.enfermedad), z(p.t.personal), z(p.t.otro), z(p.total), z(p.pag), z(p.sinPag), z(p.horasPag), z(p.prox)]);
   const tot = ['Total', '', ''].concat([3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => auRed(filas.reduce((a, f) => a + f[i], 0)))); tot.negrita = true;
   const det = [];
   l.forEach(p => p.items.forEach(x => det.push([p.e.nombre, p.e.cuenta || '', { fecha:x.desde }, { fecha:x.hasta }, CLASE_TXT[x.tipo], x.pagada ? 'Paid' : 'Unpaid', z(x.dias), z(x.prox), z(x.horasPag), x.horas, x.nota, x.origen])));
@@ -7011,7 +7014,7 @@ function dcFilas(){ // (v85) las columnas de los mensuales salen del periodo ele
     pe: pe(e), celdas: cols.map(c => (tm && (!pe(e) || c.per < pe(e).desdeMes) && !docsDe(dc.docs, e.usuario, c.t.id, c.per).length) ? { k:'vacio', sub:'', no:true }
       : docEstado(c.t, docsDe(dc.docs, e.usuario, c.t.id, c.per), c.per)) })) };
 }
-// (v87) personas que se ven: activas, inactivas (desactivadas o archivadas) o todas
+// (v87) personas que se ven: activas, archivadas (v88: ya no hay «inactivas») o todas
 const dcEstadoOk = e => { const v = ($('dcActivos') || {}).value || 'activos'; return v === 'todos' || (v === 'activos' ? !!e.activo : !e.activo); };
 const DC_FILTROS = { rev:['pendiente'], falta:['falta', 'atrasado'], venc:['vencido', 'porVencer'], rech:['rechazado'] };
 // (v85) periodo elegido en cada pestaña (lista de periodos del más nuevo al más viejo): la tabla muestra ese y los 5 anteriores
@@ -7069,7 +7072,7 @@ function pintarDocs(){
     : '<th class="dc-col">' + esc(c.t.nombre) + '<small>' + [c.t.obligatorio ? 'Required' : 'Optional', c.t.vence === 'meses' ? c.t.venceMeses + ' mo.' : c.t.vence === 'fecha' ? 'exp. ' + fechaUS(docVenceDefecto(c.t)).replace(/^(\w+ \d+), /, '$1 ') : ''].filter(Boolean).join(' · ') + '</small></th>';
   $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + (tm ? '<th class="dc-req" title="Must upload ' + esc(tm.nombre) + ' every month">Required</th>' : '') + cols.map(cab).join('') + '</tr></thead><tbody>' +
     vis.map(f => { const e = f.e, cc = colorCuenta(e.cuenta);
-      return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') +
+      return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill pill-arch">Archived</span>') +
         '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
         (tm ? '<td class="dc-req"><input type="checkbox" class="dc-ap" data-u="' + esc(e.usuario) + '" data-t="' + tm.id + '" aria-label="' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '"' + (f.pe ? ' checked' : '') + '>' +
           (f.pe ? '<label class="dc-desde-l">since <select class="dc-desde" data-u="' + esc(e.usuario) + '" data-t="' + tm.id + '" title="From which month ' + esc(e.nombre) + ' must upload ' + esc(tm.nombre) + '" aria-label="' + esc(e.nombre) + ': since month">' +
@@ -7129,7 +7132,7 @@ function pintarPaystubs(){
   if(!emps.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No one matches.</div>'; return; }
   $('dcTabla').innerHTML = '<table class="dc-mat"><thead><tr><th class="dc-quien">Employee</th>' + cols.map(f => '<th class="dc-col">' + esc(fechaUS(f)) + '<small>pay period end</small></th>').join('') + '</tr></thead><tbody>' +
     emps.map(e => { const cc = colorCuenta(e.cuenta);
-      return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill">Inactive</span>') + '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
+      return '<tr><td class="dc-quien"><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill pill-arch">Archived</span>') + '<small>' + (e.cuenta ? (cc ? '<i class="punto-cta" style="background:' + cc + '"></i>' : '') + esc(e.cuenta) : '—') + '</small></td>' +
         cols.map(f => { const x = pays.find(y => y.usuario === e.usuario && y.periodoFin === f);
           return '<td class="dc-c">' + (x ? (payDeCT(x) ? '<button type="button" class="dc-celda dc-ok" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>Connecteam</span><small>imported</small></button>'
             : '<button type="button" class="dc-celda dc-' + (x.vistoEn ? 'ok' : 'pend') + '" data-pay="' + x.id + '" title="' + esc(x.nombre) + '"><span>' + (x.vistoEn ? 'Opened' : 'Sent') + '</span><small>' +
@@ -7311,7 +7314,7 @@ function pintarDImp(){
     '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-di-i="' + i + '"' + (r.incluir ? ' checked' : '') + (r.usuario ? '' : ' disabled') + ' aria-label="Import ' + esc(r.nombre) + '"></td>' +
     '<td><b>' + esc(r.nombre) + '</b>' + (r.x.suspendido ? ' <span class="pill pill-arch">Former</span>' : '') + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
     '<td><select data-di-u="' + i + '" aria-label="Time Track employee for ' + esc(r.nombre) + '"><option value="">— Choose…</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
-      esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? '' : ' (inactive)')) + '</option>').join('') + '</select></td>' +
+      esc(x.nombre + (x.activo ? '' : ' (archived)')) + '</option>').join('') + '</select></td>' +
     '<td>' + dimpChips(r.arch, d) + '</td></tr>').join('') + '</tbody></table>';
   const b = $('diImportar'); b.classList.toggle('hidden', !!d.hecho); b.disabled = !lista.length; b.textContent = 'Import ' + lista.length + (lista.length === 1 ? ' file' : ' files');
 }
@@ -8061,8 +8064,8 @@ function pintarUImp(){
     return '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-ui-i="' + i + '"' + (r.incluir ? ' checked' : '') + ' aria-label="Import ' + esc(r.x.nombre) + '"></td>' +
       '<td><b>' + esc(r.x.nombre) + '</b>' + (r.archivado ? ' <span class="pill pill-arch">Archived ' + esc(fechaUS(r.x.archivadoEn)) + '</span>' : '') +
         '<small>' + esc([r.x.branch || r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
-      '<td><select data-ui-u="' + i + '"><option value="">+ Create new (inactive)</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
-        esc(x.nombre + (x.archivadoEn ? ' (archived)' : x.activo ? ' (active)' : '')) + '</option>').join('') + '</select></td>' +
+      '<td><select data-ui-u="' + i + '"><option value="">+ Create new (archived until you activate them)</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
+        esc(x.nombre + (x.activo ? ' (active)' : ' (archived)')) + '</option>').join('') + '</select></td>' +
       '<td>' + (cs.length ? cs.map(k => '<span class="ui-chip">' + esc(UIMP_NOMBRE[k]) + '</span>').join('') : '<span class="muted">Nothing new</span>') + '</td></tr>'; }).join('') + '</tbody></table>';
   $('uiImportar').classList.remove('hidden'); $('uiImportar').disabled = !n.length; $('uiImportar').textContent = 'Import ' + n.length + (n.length === 1 ? ' user' : ' users');
 }
@@ -11013,10 +11016,11 @@ async function demoApi(action, p){
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
   if(action === 'resetClave') return cuentasOk(await demoCuentas('clave', p));
   if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; if(p.activo) e.archivadoEn = null; return { ok:true }; }
+  if(action === 'archivarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = false; e.archivadoEn = e.archivadoEn || fechaHoy(); return { ok:true, archivadoEn:e.archivadoEn }; }
   if(action === 'borrarEmpleado'){
     const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.');
     const tiene = Object.keys(DM.marcas).some(k => k.startsWith(p.usuario + '|') && DM.marcas[k].length) || DM.sols.some(x => x.usuario === p.usuario);
-    if(tiene) throw new Error('They have time records, so they can\'t be deleted. Deactivate them instead: their hours stay for payroll.');
+    if(tiene) throw new Error('They have time records, so they can\'t be deleted. Archive them instead: their hours stay for payroll.');
     DM.emps = DM.emps.filter(x => x.usuario !== p.usuario); if(DM.cuentas) delete DM.cuentas[p.usuario]; return { ok:true };
   }
   if(action === 'miFicha'){ demoPortal(); return { ficha:Object.assign({ telefono:'', cumpleanos:'', ciudad:'', direccion:'', tipoId:'', numId:'', banco:'', cuentaBanco:'', jefe:'' }, DM.emps[0]), email:DM.emps[0].email }; }
