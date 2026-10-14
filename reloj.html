@@ -8,7 +8,7 @@
 <title>Time Clock · 24/7 Medical Aid</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304141F'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%2317A9DE' stroke-width='2.6'/%3E%3Cpath d='M16 11v5l3.5 2.5' stroke='%23ED3237' stroke-width='2.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./sb.js?v=3"></script>
+<script src="https://247medicalaid.github.io/sb.js?v=3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -1877,7 +1877,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <!-- ADMIN: MONITOR (el mismo monitor.html, dentro de la app) -->
   <section id="vMon" class="hidden">
     <div class="mon-cab"><h1>Monitor</h1><span class="esp"></span>
-      <a class="btn btn-ghost btn-sm" id="monNueva" href="monitor.html" target="_blank" rel="noopener">Open in a new tab</a></div>
+      <a class="btn btn-ghost btn-sm" id="monNueva" href="https://247medicalaid.github.io/monitor.html" target="_blank" rel="noopener">Open in a new tab</a></div>
     <div class="mon-marco" id="monMarco"><div class="mon-cargando" id="monCargando"><span class="spin dark"></span> Loading the Monitor…</div>
       <iframe id="monFrame" title="Agent activity monitor"></iframe></div>
   </section>
@@ -2401,6 +2401,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v94: también en timeclock.247medical-aid.com (cargador en cPanel); rutas completas a sb.js, monitor y paystubs -->
 <!-- v93: usuario de prueba (paso 55): Settings → Test user copia los datos de un agente; TEST fuera del Pay run y de las exportaciones -->
 <!-- v92: clock out automático (paso 54): Settings → Automatic clock out; la salida del sistema queda marcada AUTO en el Timesheet -->
 <!-- v91: menú agrupado también en la app; la web con la distribución de la app y, en ventana ancha, el chat fijo a la derecha (reemplaza v90) -->
@@ -2501,7 +2502,9 @@ const PORTAL = 'https://247medicalaid.github.io/';
 const CLAVE  = 'portal247.sesion';
 // Fuera del portal (archivo descargado, vista previa) no hay sesión ni
 // servidor: se abre directamente el modo de ejemplo.
-const DEMO   = new URLSearchParams(location.search).has('demo') || location.hostname !== '247medicalaid.github.io';
+// (v94) el Time Clock real vive en github.io (portal y administradores) y en timeclock.247medical-aid.com (agentes)
+const HOSTS_RELOJ = ['247medicalaid.github.io', 'timeclock.247medical-aid.com'];
+const DEMO   = new URLSearchParams(location.search).has('demo') || HOSTS_RELOJ.indexOf(location.hostname) < 0;
 
 const NOMBRE_TIPO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
 const S = { token:null, yo:null, offset:0, zona:'America/New_York', vista:null, hoja:null, emps:null,
@@ -7365,7 +7368,7 @@ function pintarPaystubs(){
   $('dcResumen').innerHTML = (ult ? '<span class="dc-num dc-fijo"><b>' + deUlt.length + '</b><small>Sent for ' + esc(fechaUS(ult)) + '</small></span>' +
       '<span class="dc-num dc-fijo"><b>' + deUlt.filter(x => x.vistoEn).length + '</b><small>Opened</small></span>' +
       '<span class="dc-num dc-fijo dc-n-rev"><b>' + deUlt.filter(x => !x.vistoEn).length + '</b><small>Not opened yet</small></span>' : '') +
-    '<span class="esp"></span><span class="nota" style="max-width:52ch">Paystubs are sent from <a href="paystubs.html" target="_blank" rel="noopener">Comprobantes</a>: generate them and press «Enviar al Time Clock».</span>' +
+    '<span class="esp"></span><span class="nota" style="max-width:52ch">Paystubs are sent from <a href="https://247medicalaid.github.io/paystubs.html" target="_blank" rel="noopener">Comprobantes</a>: generate them and press «Enviar al Time Clock».</span>' +
     (periodos.length > 6 ? '<button class="btn-link" type="button" id="dcPayMas">' + (S.dcPayTodos ? 'Last 6 pay periods' : 'All pay periods') + '</button>' : '');
   if(!periodos.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No paystubs sent yet.</div>'; return; }
   if(!emps.length){ $('dcTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)">No one matches.</div>'; return; }
@@ -8991,8 +8994,8 @@ function abrirMonitor(){
   if(!f.dataset.cargado){
     f.dataset.cargado = '1';
     f.addEventListener('load', () => { $('monCargando').classList.add('hidden'); });
-    f.src = 'monitor.html?embed=1' + (DEMO ? '&demo=1' : '');
-    if(DEMO) $('monNueva').href = 'monitor.html?demo=1';
+    f.src = PORTAL + 'monitor.html?embed=1' + (DEMO ? '&demo=1' : '');
+    if(DEMO) $('monNueva').href = PORTAL + 'monitor.html?demo=1';
   }
   setTimeout(monAjustar, 0);
 }
