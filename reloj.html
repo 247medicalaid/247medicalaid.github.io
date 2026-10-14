@@ -521,6 +521,14 @@ table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;co
 .imp-barra{height:10px;background:var(--brand-50);border-radius:6px;overflow:hidden;margin:16px 0 6px}
 .imp-barra i{display:block;height:100%;width:0;background:var(--brand-600);transition:width .3s}
 .marcas .corr.imp{color:var(--brand-700)}
+/* v92: clock out automático */
+.marcas .corr.auto{color:#B42318}
+.auto-mini{display:inline-block;font-size:9.5px;font-weight:700;padding:0 4px;border-radius:999px;background:#FDECEA;color:#B42318;line-height:14px;letter-spacing:.02em}
+.auto-tag{display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:999px;background:#FDECEA;color:#B42318;line-height:16px;vertical-align:1px}
+.globo-auto{position:fixed;z-index:3000;background:var(--ink-900, #0B2233);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;box-shadow:0 4px 12px rgba(11,34,51,.25);pointer-events:none}
+.globo-auto.hidden{display:none}
+.aj-margen{display:flex;align-items:center;gap:8px;font-size:14.5px;margin:0 0 10px;flex-wrap:wrap}
+.aj-margen input{width:84px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius-sm);font:inherit}
 .nom-btn.inact span{color:var(--text-muted);font-weight:500;font-style:italic}
 table.au td.num,table.au th.num,.au-items td.num,.au-items th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 table.au td.tot,table.au th.tot{background:var(--brand-50,#EAF6F8)}
@@ -1949,6 +1957,15 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="ajUbicGuardar" type="button">Save</button>
       <span class="nota" id="ajUbicEstado" style="margin-left:8px"></span>
     </div>
+    <div class="ajuste" id="ajAutoSal">
+      <h2>Automatic clock out</h2>
+      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. Checked every 5 minutes.</p>
+      <label class="chk-linea"><input type="checkbox" id="ajAuto"> Clock agents out automatically</label>
+      <label class="aj-margen">Margin after their hours per day <input type="number" id="ajAutoMargen" min="0" max="240" step="5" inputmode="numeric"> min</label>
+      <div class="ejemplo" id="ajAutoEjemplo"></div>
+      <button class="btn btn-ink btn-sm" id="ajAutoGuardar" type="button">Save</button>
+      <span class="nota" id="ajAutoEstado" style="margin-left:8px"></span>
+    </div>
     <div class="ajuste">
       <h2>Lists</h2>
       <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Accounts come from the Monitor.</p>
@@ -2374,6 +2391,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v92: clock out automático (paso 54): Settings → Automatic clock out; la salida del sistema queda marcada AUTO en el Timesheet -->
 <!-- v91: menú agrupado también en la app; la web con la distribución de la app y, en ventana ancha, el chat fijo a la derecha (reemplaza v90) -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
   <div class="ventana ventana-ancha ventana-uimp">
@@ -2589,6 +2607,28 @@ function armarDia(marcas, ahora, esHoy){
 
 /* Banderas del día. mon: datos del Monitor para ese día ({agente: {p,u,e}}),
    undefined = todavía llegando, false = sin configurar, null = no respondió. */
+// (v92) Clock out automático (paso 54): la salida la hizo el sistema; el administrador la revisa y la corrige si hace falta.
+function salidaAutoBandera(marcas){
+  const a = (marcas || []).filter(m => m.tipo === 'salida' && m.origen === 'auto').pop();
+  if(!a) return null;
+  const lim = /after (.+)$/.exec(a.motivo || '');
+  return { c:'SALIDA_AUTO', n:'alerta', hora:hora(a.ms), lim: lim ? lim[1] : '', t:'Automatic clock out at ' + hora(a.ms) + (lim ? ': still clocked in after ' + lim[1] : '') + '. Check the real clock-out time and correct the punches if needed.' };
+}
+// (v92) Al pasar el mouse (o con Tab) por un día con clock out automático en el Timesheet: «Auto clock out», nada más
+function globoAutoMostrar(c){
+  let g = $('globoAuto');
+  if(!g){ g = document.createElement('div'); g.id = 'globoAuto'; g.className = 'globo-auto hidden'; g.setAttribute('role', 'tooltip'); document.body.appendChild(g); }
+  g.textContent = 'Auto clock out';
+  g.classList.remove('hidden');
+  const r = c.getBoundingClientRect(), w = g.offsetWidth, h = g.offsetHeight;
+  let y = r.top - h - 6; if(y < 8) y = r.bottom + 6;
+  g.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; g.style.top = y + 'px';
+}
+function globoAutoOcultar(){ const g = $('globoAuto'); if(g) g.classList.add('hidden'); }
+document.addEventListener('mouseover', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
+document.addEventListener('focusin', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
+document.addEventListener('scroll', globoAutoOcultar, true);
+document.addEventListener('click', globoAutoOcultar, true);
 function banderas(dia, marcas, emp, mon, ahora, ub){
   const f = [], tol = CFG.TOLERANCIA_MIN * 60000;
   if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' });
@@ -2596,6 +2636,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(!dia.almuerzos.length && !dia.enCurso && dia.min >= CFG.SIN_ALMUERZO_MIN) f.push({ c:'SIN_ALMUERZO', n:'info', t:'No lunch was recorded.' });
   const corr = marcas.find(m => m.origen === 'admin');
   if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corrected by ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
+  const fAuto = salidaAutoBandera(marcas); if(fAuto) f.push(fAuto);   // (v92)
   if(dia.invalidas) f.push({ c:'FUERA_DE_ORDEN', n:'aviso', t:dia.invalidas + (dia.invalidas === 1 ? ' punch was' : ' punches were') + ' out of order and ignored.' });
   if(ub) ub.flags.forEach(x => f.push(x));
   if(!marcas.length) return f;
@@ -2947,6 +2988,9 @@ const SERVIDOR_EN = [
   [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, 'The bank history needs SQL step 37 in Supabase.'],
   [/^.*(reloj_importar_usuarios).*$/, 'Importing users needs SQL step 40 in Supabase.'],
   [/^.*(reloj_archivar_empleado).*$/, 'Archiving needs SQL step 53 in Supabase.'],
+  [/^.*(reloj_guardar_auto_salida|reloj_auto_salida).*$/, 'Automatic clock out needs SQL step 54 in Supabase.'],
+  [/^El margen debe estar entre 0 y 240 minutos\.$/, 'The margin must be between 0 and 240 minutes.'],
+  [/^Solo un administrador puede cambiar la configuración\.$/, 'Only an administrator can change the settings.'],
   [/^Solo un administrador puede manejar el inventario\.$/, 'Only an administrator can manage the inventory.'],
   [/^Elige el tipo de equipo\.$/, 'Choose the type of equipment.'],
   [/^Escribe al menos la marca, el modelo o el número de serie\.$/, 'Write at least the brand, model or serial number.'],
@@ -3096,7 +3140,7 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor;
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -3484,6 +3528,7 @@ async function api(action, p){
   }
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
+  if(action === 'guardarAutoSalida') return q(sb.rpc('reloj_guardar_auto_salida', { p_activo:p.activo, p_margen:p.margen }));   // (v92, paso 54)
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -4219,13 +4264,15 @@ function pintarReloj(){
 
   const av = [];
   if(r.turnoDeAyer) av.push(['info', 'Your shift started yesterday and is still open. Your clock-out will be recorded on that day.']);
+  { const sa = r.estado === 'fuera' && (r.marcas || []).filter(m => m.tipo === 'salida').pop();   // (v92)
+    if(sa && sa.origen === 'auto') av.push(['info', 'You were clocked out automatically at ' + hora(sa.ms) + ' because you were still clocked in after your hours for the day. If you kept working or that time isn\'t right, send a correction from your pay period.']); }
   r.pendientes.forEach(f => av.push(['alerta', 'Your clock-out for ' + fechaL(f) + ' is missing. Click that day in your pay period, add the time and send the request.']));
   if(r.estado === 'almuerzo' && r.almBase + (ahora() - r.desde) / 60000 > yo.config.almuerzoMax)
     av.push(['warn', 'You\'ve been on lunch for more than an hour.']);
   $('avisosAgente').innerHTML = av.map(([n, t]) => '<div class="aviso ' + n + '">' + IC[n === 'warn' ? 'aviso' : n] + '<span>' + esc(t) + '</span></div>').join('');
 
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map(m => '<li><span>' + NOMBRE_TIPO[m.tipo] +
-      (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
+      (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta();
   if(!S.awListo && !yo.esAdmin) appLayout();   // agentes: menú lateral en la app y en el navegador
@@ -4335,7 +4382,7 @@ function pintarPeriodoAg(){
     else if(!m.length) cel = '<td>—</td><td>—</td><td>—</td>';
     else cel = '<td class="num">' + hora(ent ? ent.ms : m[0].ms) + '</td>' +
       '<td class="num" title="' + esc(d.almuerzos.length ? d.almuerzos.length + ' lunch' + (d.almuerzos.length > 1 ? 'es' : '') : 'No lunch') + '">' + (d.alm ? d.alm + ' min' : '—') + '</td>' +
-      '<td class="num">' + (sal && !d.abierto ? hora(sal.ms) : d.incompleto ? '<span class="falta">missing</span>' : d.enCurso ? 'working…' : '—') + '</td>';
+      '<td class="num">' + (sal && !d.abierto ? hora(sal.ms) + (sal.origen === 'auto' ? '<span class="auto-tag" title="Clocked out automatically: you were still clocked in after your hours per day. If it isn\'t right, click the day to send a correction.">auto</span>' : '') : d.incompleto ? '<span class="falta">missing</span>' : d.enCurso ? 'working…' : '—') + '</td>';
     const horas = !m.length ? '' : d.incompleto ? '—' : hm(d.min);
     const lapiz = r.estDia[f] && r.estDia[f].e === 'pend' ? estDiaHTML(r.estDia[f])
       : ap[f] != null && edit ? '<span class="lapiz cerrado" title="Approved: ask your supervisor if something needs to change">' + IC_CANDADO + '</span>'
@@ -4840,12 +4887,14 @@ function pintarHoja(){
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const ics = (d.ausencia ? '<span class="aus-mini" title="' + esc(CLASE_TXT[d.ausencia.clase] + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '') +
         (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
+        (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? '<span class="auto-mini">AUTO</span>' : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
       const etiqueta = d.incompleto ? 'missing' : hm(d.min), otd = otDia(e, d);
       t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
         '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'clock-out missing' : dur(d.min)) +
-        (d.aprobado ? ', approved' : '') + (otd ? ', overtime ' + dur(otd) : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '"' +
-        (otd ? ' title="Overtime: ' + hm(otd) + ' above ' + (e.horasDia || 8) + ' h"' : '') + '>' +
+        (d.aprobado ? ', approved' : '') + (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? ', automatic clock out' : '') + (otd ? ', overtime ' + dur(otd) : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '"' +
+        (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? ' data-auto="1"'
+          : otd ? ' title="Overtime: ' + hm(otd) + ' above ' + (e.horasDia || 8) + ' h"' : '') + '>' +
         '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot num">+' + hm(otd) + '</span>' : '') + ics + '</span></button></td>';
     });
     const tot = e.totales, ote = otEmp(e);
@@ -4865,7 +4914,7 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 function diasLimpios(){
@@ -4908,7 +4957,7 @@ function vistaDia(){
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
-      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : '') +
+      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
@@ -5927,7 +5976,29 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
+  const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
+  $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
 }
+// (v92) Clock out automático
+function ejemploAutoSalida(){
+  const mg = Math.round(Number($('ajAutoMargen').value)), ok = $('ajAutoMargen').value !== '' && mg >= 0 && mg <= 240;
+  $('ajAutoEjemplo').innerHTML = !ok ? 'The margin must be between 0 and 240 minutes.'
+    : !$('ajAuto').checked ? 'Off: agents stay clocked in until they clock out (or you correct the day).'
+    : 'Example: an agent with <b>8 h</b> per day who forgets to clock out is clocked out after <b>' + hm(8 * 60 + mg) + '</b> of work; one with 6 h per day, after <b>' + hm(6 * 60 + mg) + '</b>.';
+}
+$('ajAuto').addEventListener('change', () => { ejemploAutoSalida(); $('ajAutoEstado').textContent = ''; });
+$('ajAutoMargen').addEventListener('input', () => { ejemploAutoSalida(); $('ajAutoEstado').textContent = ''; });
+$('ajAutoGuardar').addEventListener('click', async () => {
+  const activo = $('ajAuto').checked, mg = Math.round(Number($('ajAutoMargen').value)), b = $('ajAutoGuardar');
+  if($('ajAutoMargen').value === '' || !(mg >= 0 && mg <= 240)){ $('ajAutoEstado').textContent = 'The margin must be between 0 and 240 minutes.'; return; }
+  b.disabled = true;
+  try{
+    await api('guardarAutoSalida', { activo, margen:mg });
+    S.autoSalida = { activo, margen:mg }; $('ajAutoMargen').value = mg; ejemploAutoSalida();
+    $('ajAutoEstado').textContent = activo ? 'Saved. Agents are clocked out after their hours per day + ' + mg + ' min.' : 'Saved. Automatic clock out is off.'; toast('Settings saved.');
+  }catch(e){ $('ajAutoEstado').textContent = e.message; }
+  b.disabled = false;
+});
 $('ajUbicGuardar').addEventListener('click', async () => {
   const v = $('ajUbic').checked, b = $('ajUbicGuardar'); b.disabled = true;
   try{
@@ -10303,6 +10374,7 @@ function demoInit(){
   DM.nominas = []; DM.nomId = 0;
   DM.marcas = {}; DM.aprob = {}; DM.ubic = {};
   DM.diaLejos = sumarDias(hoy, -2); while([0, 6].indexOf(new Date(DM.diaLejos + 'T12:00:00Z').getUTCDay()) >= 0) DM.diaLejos = sumarDias(DM.diaLejos, -1);
+  if(!S.autoSalida) S.autoSalida = { activo:true, margen:30 };   // (v92)
   const CASA = { 'laura.a':[28.55291, -81.30612], 'claudia.c':[28.48114, -81.45973], 'farouk.n':[28.60402, -81.20019], 'saori.m':[28.4158, -81.2989], 'hebert.h':[28.6934, -81.3412] };
   const hace = h => Date.now() - h * 3600000;
   DM.solId = 4;
@@ -10347,6 +10419,15 @@ function demoInit(){
       DM.mon[k] = { p: t(ent + (i === 0 && rnd() < .3 ? 35 : -3)), u: f === hoy ? ahora() - 60000 : t(sal + 2), e: ep };
     });
   }
+  // (v92) a Hebert se le olvidó el clock out en su último día completo antes de ayer: lo sacó el sistema a las 8 h + 30 min trabajadas
+  for(let f = sumarDias(hoy, -2); f >= desde; f = sumarDias(f, -1)){
+    const k = 'hebert.h|' + f, m = DM.marcas[k];
+    if(!m || m.length !== 4 || m[3].tipo !== 'salida') continue;
+    const e = DM.emps.find(x => x.usuario === 'hebert.h'), hd = e.horasDia || 8, lim = (hd * 60 + 30) * 60000;
+    m[3] = { tipo:'salida', ms:m[2].ms + (lim - (m[1].ms - m[0].ms)), origen:'auto', autor:'sistema', motivo:'Auto clock out: still clocked in after ' + hd + ' h + 30 min' };
+    if(DM.ubic[k]) DM.ubic[k] = DM.ubic[k].slice(0, 3);   // la salida del sistema no tiene ubicación
+    delete DM.aprob[k]; DM.diaAuto = f; break;
+  }
 }
 function demoDia(e, f){
   const m = DM.marcas[e.usuario + '|' + f] || [], hoy = fechaHoy(), esHoy = f === hoy, t = ahora();
@@ -10368,6 +10449,7 @@ function demoDia(e, f){
   if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' }); }
   if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + d.alm + ' min: ' + (d.alm - 60) + ' min over the one-hour limit.' });
   if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
+  { const fa = salidaAutoBandera(m); if(fa) d.banderas.push(fa); }   // (v92)
   if(m.length && m.every(x => x.origen === 'importado')){ d.banderas.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam.' }); d.monitor = null; return d; }
   if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
   const mo = d.monitor;
@@ -11067,6 +11149,7 @@ async function demoApi(action, p){
     return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne, restauradas:nr };
   }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
+  if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
