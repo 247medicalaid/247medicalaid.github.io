@@ -8,6 +8,7 @@
 //  A demanda (boton del panel) corre un test de megas (descarga).
 //  2.8: cuando el servidor lo pide ("ubicar"), toma la ubicacion de Windows y la manda
 //  en el latido: durante el turno cada 30 min, o cada 5 si el equipo esta marcado perdido.
+//  2.9: sin cambios en el agente; el actualizador 2.9 instala la app 247 Time Clock (TimeTrack).
 //  Si no hay internet, guarda los latidos y los envia cuando vuelva.
 //  Captura SOLO nombres de programa, nunca titulos de ventana ni paginas
 //  web, para no arrastrar datos de pacientes. El instalador lo compila
@@ -36,7 +37,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.8";
+        const string Version = "2.9";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.

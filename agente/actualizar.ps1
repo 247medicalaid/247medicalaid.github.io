@@ -8,6 +8,9 @@
 #  Si el panel pide actualizar un equipo, el agente deja "forzar.txt" y aqui
 #  se consulta de inmediato, sin esperar la hora.
 #  No toca ningun dato del agente: solo reemplaza el programa del monitor.
+#  2.9: tambien instala y mantiene al dia la app "247 Time Clock" (TimeTrack)
+#  en los equipos de 24/7 Medical Aid, cuando version.json trae la seccion "tc"
+#  y este equipo esta incluido. Va aparte: si falla, el monitor no se toca.
 # =====================================================================
 $ErrorActionPreference = 'Stop'
 
@@ -225,9 +228,259 @@ function BuscarActualizacion {
         EscribirTexto $VersionFile ([string]$man.version)
         EscribirTexto $PendienteFil (([string]$man.version) + '|' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))
         ArrancarAgente
-        Log "Instalada la version $($man.version). Queda en observacion $MinutosVigila minutos."
+        Log "Instalada la version $($man.version). Queda en observacion $CiclosVigila revisiones."
     } catch {
         Log "No se pudo consultar/instalar la actualizacion: $($_.Exception.Message)"
+    } finally {
+        Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# ---------------------------------------------------------------------
+# 3) App "247 Time Clock" (TimeTrack) - 2.9 (equipos de 24/7 Medical Aid)
+#    version.json trae:
+#      "tc": { "version": "1.0.2", "todos": false, "equipos": ["PC1","PC2"], "no": [],
+#              "archivos": [ ["TimeClock247.cs", "TimeClock247.cs", "<sha256>"], ... ] }
+#    Cada archivo: [nombre en agente/timeclock/, ruta dentro de la carpeta del programa, huella].
+#    Hace lo mismo que INSTALAR.bat: Program Files\247 Time Clock, compilado en el PC (si no se
+#    puede, la copia ya compilada), WebView2 Runtime si falta, arranque con Windows, accesos
+#    directos y entrada en "Aplicaciones" (se desinstala desde ahi). La primera vez se abre en la
+#    sesion del agente para que entre con su correo.
+#    Estado en timeclock.txt: "<version>|<fecha UTC>|ok" o "<version>|<fecha UTC>|error|<motivo>".
+# ---------------------------------------------------------------------
+$TcDestino   = Join-Path $env:ProgramFiles '247 Time Clock'
+$TcExe       = Join-Path $TcDestino 'TimeClock247.exe'
+$TcVerFile   = Join-Path $TcDestino 'version.txt'
+$TcEstado    = Join-Path $Destino 'timeclock.txt'
+$TcChequeo   = Join-Path $Destino 'tc-chequeo.txt'
+$TcIntentos  = Join-Path $Destino 'tc-intentos.txt'
+$TcNombre    = '247 Time Clock'
+$TcIdWebView = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+
+function TcVersionWebView2 {
+    foreach ($k in @("HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$TcIdWebView",
+                     "HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\$TcIdWebView")) {
+        try { $p = (Get-ItemProperty -Path $k -ErrorAction Stop).pv; if ($p -and $p -ne '0.0.0.0') { return $p } } catch { }
+    }
+    return $null
+}
+
+function TcEstadoEscribir([string]$ver, [string]$txt) {
+    try { EscribirTexto $TcEstado ($ver + '|' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') + '|' + $txt) } catch { }
+}
+
+# Usuarios con sesion abierta en el PC (duenos de explorer.exe), sin repetir
+function TcUsuariosEnSesion {
+    $l = @()
+    try {
+        foreach ($p in @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction Stop)) {
+            try {
+                $o = Invoke-CimMethod -InputObject $p -MethodName GetOwner -ErrorAction Stop
+                if ($o.User) {
+                    $u = $o.User; if ($o.Domain) { $u = $o.Domain + '\' + $o.User }
+                    # con el SID la tarea funciona tambien con cuentas Microsoft / Azure AD
+                    $id = $u
+                    try { $s = Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop; if ($s.Sid) { $id = [string]$s.Sid } } catch { }
+                    if (-not ($l | Where-Object { $_.Id -eq $id })) { $l += [pscustomobject]@{ Nombre = $u; Id = $id } }
+                }
+            } catch { }
+        }
+    } catch { }
+    return $l
+}
+
+# Abre la app en la sesion de cada usuario conectado. SYSTEM no puede mostrar ventanas en la
+# sesion del usuario: se usa una tarea de una sola vez con ese usuario (interactiva) y se borra.
+function TcAbrirEnSesiones([string]$argumentos) {
+    $i = 0
+    foreach ($s in @(TcUsuariosEnSesion)) {
+        $i++; $u = $s.Nombre
+        $nom = 'Monitor247_AbrirTimeClock_' + $i
+        try {
+            if ($argumentos) { $acc = New-ScheduledTaskAction -Execute $TcExe -Argument $argumentos -WorkingDirectory $TcDestino }
+            else             { $acc = New-ScheduledTaskAction -Execute $TcExe -WorkingDirectory $TcDestino }
+            $pri = New-ScheduledTaskPrincipal -UserId $s.Id -LogonType Interactive -RunLevel Limited
+            $set = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Seconds 0) -Priority 4
+            Register-ScheduledTask -TaskName $nom -Action $acc -Principal $pri -Settings $set -Force | Out-Null
+            Start-ScheduledTask -TaskName $nom
+            Start-Sleep -Seconds 4
+            Log "TimeClock: abierto para $u."
+        } catch { Log "TimeClock: no se pudo abrir para ${u}: $($_.Exception.Message)" }
+        finally { try { Unregister-ScheduledTask -TaskName $nom -Confirm:$false -ErrorAction SilentlyContinue } catch { } }
+    }
+}
+
+function TcIncluido($tc) {
+    $pc = ([string]$env:COMPUTERNAME).ToUpper()
+    $nombres = @($tc.PSObject.Properties.Name)
+    if ($nombres -contains 'no' -and $tc.no) { if (@($tc.no | ForEach-Object { ([string]$_).ToUpper() }) -contains $pc) { return $false } }
+    if ($nombres -contains 'todos' -and $tc.todos -eq $true) { return $true }
+    if ($nombres -contains 'equipos' -and $tc.equipos) { return (@($tc.equipos | ForEach-Object { ([string]$_).ToUpper() }) -contains $pc) }
+    return $false
+}
+
+function RevisarTimeClock([bool]$forzado) {
+    # Cada cuanto se consulta: 55 min si ya esta al dia; 10 min si falta instalar o actualizar
+    $verInst = LeerTexto $TcVerFile
+    $estado  = LeerTexto $TcEstado
+    $alDia   = [bool]($estado -and $verInst -and $estado.EndsWith('|ok') -and $estado.StartsWith($verInst + '|') -and (Test-Path $TcExe))
+    $ult = LeerTexto $TcChequeo
+    if ($ult -and -not $forzado) {
+        try {
+            $cuando = [DateTime]::Parse($ult, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
+            $espera = 10; if ($alDia) { $espera = 55 }
+            if (([DateTime]::UtcNow - $cuando).TotalMinutes -lt $espera) { return }
+        } catch { }
+    }
+    EscribirTexto $TcChequeo ([DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+
+    $base = $BaseUrlFijo
+    $cfgTxt = LeerTexto $ConfigFile
+    if ($cfgTxt) { try { $cfg = $cfgTxt | ConvertFrom-Json; if ($cfg.PSObject.Properties.Name -contains 'actualizaciones' -and $cfg.actualizaciones) { $base = [string]$cfg.actualizaciones } } catch { } }
+    if (-not $base.EndsWith('/')) { $base += '/' }
+
+    $ver = $null
+    $abiertos = @()
+    $tmp = Join-Path $env:TEMP ('tc247_' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    try {
+        $manFile = Join-Path $tmp 'version.json'
+        Descargar ($base + 'version.json') $manFile
+        $man = (LeerTexto $manFile) | ConvertFrom-Json
+        # sin seccion tc o equipo fuera de la lista: la proxima consulta en 55 min (no cada 10)
+        $luego = [DateTime]::UtcNow.AddMinutes(45).ToString('yyyy-MM-ddTHH:mm:ssZ')
+        if (-not (@($man.PSObject.Properties.Name) -contains 'tc') -or -not $man.tc) { EscribirTexto $TcChequeo $luego; return }
+        $tc = $man.tc
+        if (-not (TcIncluido $tc)) { EscribirTexto $TcChequeo $luego; return }
+        $ver = [string]$tc.version
+        if (-not $ver -or -not $tc.archivos) { return }
+        if ($verInst -eq $ver -and (Test-Path $TcExe)) {
+            if (-not $alDia) { TcEstadoEscribir $ver 'ok' }
+            return
+        }
+
+        # Intentos fallidos de esta version: 3 seguidos, despues uno cada 6 horas
+        $int = (LeerTexto $TcIntentos).Split('|')
+        $n = 0
+        if ($int.Count -ge 3 -and $int[0] -eq $ver) {
+            [int]::TryParse($int[1], [ref]$n) | Out-Null
+            if ($n -ge 3 -and -not $forzado) {
+                try {
+                    $ultInt = [DateTime]::Parse($int[2], [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
+                    if (([DateTime]::UtcNow - $ultInt).TotalHours -lt 6) { return }
+                } catch { }
+            }
+        }
+        EscribirTexto $TcIntentos ($ver + '|' + ($n + 1) + '|' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+
+        $primera = -not (Test-Path $TcExe)
+        if ($primera) { Log "TimeClock: instalando $ver..." } else { Log "TimeClock: actualizando de '$verInst' a '$ver'..." }
+
+        # a) Bajar y verificar cada archivo en una carpeta temporal con la estructura final
+        $stage = Join-Path $tmp 'programa'
+        foreach ($a in @($tc.archivos)) {
+            $nombre = [string]$a[0]; $rel = [string]$a[1]; $huella = ([string]$a[2]).ToLower()
+            if ($nombre -notmatch '^[A-Za-z0-9._-]+$' -or $rel -match '\.\.' -or $rel -match '^[\\/]' -or $rel -match ':') { throw "Archivo no permitido: $nombre -> $rel" }
+            $dst = Join-Path $stage ($rel -replace '/', '\')
+            New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+            Descargar ($base + 'timeclock/' + $nombre) $dst
+            if ((Hash $dst) -ne $huella) { throw "La huella de $nombre no coincide" }
+        }
+        if (-not (Test-Path (Join-Path $stage 'TimeClock247.cs'))) { throw 'Falta TimeClock247.cs' }
+
+        # b) Compilar en la carpeta temporal; si no se puede, la copia ya compilada
+        $exeNuevo = Join-Path $stage 'TimeClock247.exe'
+        $compilado = $false
+        $csc = BuscarCsc
+        if ($csc) {
+            Push-Location $stage
+            $prefErr = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            try {
+                $salida = & $csc /nologo /codepage:65001 /target:winexe /optimize+ /win32icon:app.ico /out:TimeClock247.exe `
+                    /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll `
+                    /r:Microsoft.Web.WebView2.Core.dll /r:Microsoft.Web.WebView2.WinForms.dll TimeClock247.cs 2>&1
+                if ($LASTEXITCODE -eq 0 -and (Test-Path $exeNuevo)) { $compilado = $true }
+                else { Log ('TimeClock: no compilo; se usa la copia ya compilada. ' + ((($salida | Out-String).Trim()) -replace '\s+', ' ')) }
+            } catch { Log "TimeClock: error al compilar: $($_.Exception.Message)" }
+            finally { $ErrorActionPreference = $prefErr; Pop-Location }
+        }
+        if (-not $compilado) {
+            $pre = Join-Path $stage 'TimeClock247-precompilado.exe'
+            if (-not (Test-Path $pre)) { throw 'No se pudo compilar y no hay copia ya compilada' }
+            Copy-Item $pre $exeNuevo -Force
+        }
+
+        # c) Cerrar la app donde este abierta (cualquier sesion) y copiar a Program Files
+        $abiertos = @(Get-Process -Name 'TimeClock247' -ErrorAction SilentlyContinue)
+        if ($abiertos.Count) { $abiertos | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2 }
+        New-Item -ItemType Directory -Path $TcDestino -Force | Out-Null
+        for ($k = 1; $k -le 3; $k++) {
+            try { Copy-Item -Path (Join-Path $stage '*') -Destination $TcDestino -Recurse -Force; break }
+            catch {
+                if ($k -eq 3) { throw }
+                Get-Process -Name 'TimeClock247' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
+            }
+        }
+        Get-ChildItem -Path $TcDestino -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
+
+        # d) Microsoft Edge WebView2 Runtime (Windows 11 lo trae; si falta se instala para todo el PC)
+        $wv = TcVersionWebView2
+        if (-not $wv) {
+            Log 'TimeClock: falta WebView2 Runtime; se instala.'
+            try {
+                $wvSetup = Join-Path $tmp 'MicrosoftEdgeWebview2Setup.exe'
+                Descargar 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' $wvSetup
+                # sin -Wait: en PowerShell 5.1 espera tambien a los procesos hijos (EdgeUpdate se queda corriendo)
+                $pr = Start-Process -FilePath $wvSetup -ArgumentList '/silent /install' -PassThru
+                if (-not $pr.WaitForExit(300000)) { Log 'TimeClock: el instalador de WebView2 no termino en 5 minutos; se sigue.' }
+                $wv = TcVersionWebView2
+                if (-not $wv) { Log "TimeClock: WebView2 no quedo instalado (codigo $($pr.ExitCode))." }
+            } catch { Log "TimeClock: no se pudo instalar WebView2: $($_.Exception.Message)" }
+        }
+
+        # e) Arranque con Windows (en la bandeja), accesos directos y entrada en "Aplicaciones"
+        try { Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'TimeClock247' -Value ('"' + $TcExe + '" --tray') }
+        catch { Log "TimeClock: no se pudo dejar el arranque con Windows: $($_.Exception.Message)" }
+        try {
+            $sh = New-Object -ComObject WScript.Shell
+            foreach ($lnk in @((Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\$TcNombre.lnk"),
+                               (Join-Path $env:PUBLIC "Desktop\$TcNombre.lnk"))) {
+                $s = $sh.CreateShortcut($lnk)
+                $s.TargetPath = $TcExe; $s.WorkingDirectory = $TcDestino; $s.IconLocation = "$TcExe,0"
+                $s.Description = 'Time Clock de 24/7 Medical Aid'; $s.Save()
+            }
+        } catch { Log "TimeClock: no se pudieron crear los accesos directos: $($_.Exception.Message)" }
+        $clave = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\TimeClock247'
+        try {
+        New-Item -Path $clave -Force | Out-Null
+        Set-ItemProperty -Path $clave -Name 'DisplayName' -Value $TcNombre
+        Set-ItemProperty -Path $clave -Name 'DisplayVersion' -Value $ver
+        Set-ItemProperty -Path $clave -Name 'Publisher' -Value '24/7 Medical Aid'
+        Set-ItemProperty -Path $clave -Name 'DisplayIcon' -Value $TcExe
+        Set-ItemProperty -Path $clave -Name 'InstallLocation' -Value $TcDestino
+        Set-ItemProperty -Path $clave -Name 'UninstallString' -Value ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $TcDestino 'desinstalar.ps1') + '"')
+        Set-ItemProperty -Path $clave -Name 'NoModify' -Value 1 -Type DWord
+        Set-ItemProperty -Path $clave -Name 'NoRepair' -Value 1 -Type DWord
+        } catch { Log "TimeClock: no se pudo registrar en Aplicaciones: $($_.Exception.Message)" }
+
+        EscribirTexto $TcVerFile $ver
+        Remove-Item $TcIntentos -Force -ErrorAction SilentlyContinue
+        TcEstadoEscribir $ver 'ok'
+        $como = ' (copia ya compilada).'; if ($compilado) { $como = ' (compilada en este PC).' }
+        $wvTxt = ' SIN WebView2.'; if ($wv) { $wvTxt = " WebView2 $wv." }
+        Log ("TimeClock: version $ver instalada" + $como + $wvTxt)
+
+        # f) La primera vez se abre con la ventana a la vista (el agente entra con su correo);
+        #    en una actualizacion, escondida en la bandeja si estaba abierta.
+        if ($primera) { TcAbrirEnSesiones '' }
+        elseif ($abiertos.Count) { TcAbrirEnSesiones '--tray' }
+    } catch {
+        $m = $_.Exception.Message
+        Log "TimeClock: no se pudo instalar/actualizar: $m"
+        if ($ver) { TcEstadoEscribir $ver ('error|' + ($m -replace '\|', '/')) }
+        # si se cerro la app para actualizarla, se vuelve a abrir (en la bandeja) con lo que haya
+        if ($abiertos.Count -and (Test-Path $TcExe)) { TcAbrirEnSesiones '--tray' }
     } finally {
         Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -240,10 +493,10 @@ $mutex = New-Object System.Threading.Mutex($false, 'Global\Monitor247_Actualizad
 try { $tengo = $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $tengo = $true }
 if (-not $tengo) { exit 0 }
 
-try {
-    New-Item -ItemType Directory -Path $EstadoDir -Force | Out-Null
+$script:forzado = $false
+function CicloMonitor {
     $enObservacion = VerificarPendiente
-    if ($enObservacion) { exit 0 }     # mientras se vigila una version nueva no se busca otra
+    if ($enObservacion) { return }     # mientras se vigila una version nueva no se busca otra
 
     # Aviso del panel: consultar ya, sin esperar la hora. El aviso lo deja el
     # agente (corre como usuario, por eso escribe un archivo nuevo en vez de
@@ -263,18 +516,25 @@ try {
         } catch { }
         if ($forzado) { Log 'Actualizacion pedida desde el panel: se consulta ahora.' }
     }
+    $script:forzado = $forzado
 
     # En operacion normal se consulta una vez por hora
     $ult = LeerTexto $UltChequeo
     if ($ult -and -not $forzado) {
         try {
             $cuando = [DateTime]::Parse($ult, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
-            if (([DateTime]::UtcNow - $cuando).TotalMinutes -lt $MinutosRutina) { exit 0 }
+            if (([DateTime]::UtcNow - $cuando).TotalMinutes -lt $MinutosRutina) { return }
         } catch { }
     }
     BuscarActualizacion
+}
+
+try {
+    New-Item -ItemType Directory -Path $EstadoDir -Force | Out-Null
+    CicloMonitor
 } catch {
     Log "ERROR: $($_.Exception.Message)"
-} finally {
-    try { $mutex.ReleaseMutex() } catch { }
 }
+# 2.9: la app Time Clock va aparte; si algo falla aqui, el monitor ya quedo atendido arriba
+try { RevisarTimeClock $script:forzado } catch { Log "TimeClock: ERROR: $($_.Exception.Message)" }
+try { $mutex.ReleaseMutex() } catch { }

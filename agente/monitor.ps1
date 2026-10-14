@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.8'
+$Version = '2.9'
 # Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
 # al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
@@ -287,6 +287,7 @@ function Get-Inventario {
 }
 
 # 2.8: ubicacion de Windows (System.Device) cuando el servidor la pide ("ubicar").
+# 2.9: sin cambios en el agente; el actualizador 2.9 instala la app 247 Time Clock (TimeTrack).
 function Get-Ubicacion([string]$motivo) {
     $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     $mot = if ($motivo -eq 'perdido') { 'perdido' } else { 'turno' }
