@@ -780,6 +780,50 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .fila-hoy .min{font-weight:700;text-align:right}
 .fila-hoy .fls{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--text-muted)}
 .fila-hoy .fls span{display:flex;gap:6px;align-items:flex-start}
+/* v102: Today como tabla + columnas a elegir */
+.hoy-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 12px}
+.hoy-barra .hoy-filtro{margin:0;flex:1}
+.hoy-cols{position:relative}
+.hoy-cols > button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--paper);color:var(--text);
+  border-radius:var(--radius-sm);padding:6px 12px;font:600 13px var(--font-body);cursor:pointer}
+.hoy-cols > button:hover,.hoy-cols > button[aria-expanded="true"]{border-color:var(--brand-500)}
+.hoy-cols > button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+.hoy-cols-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:8px;min-width:220px}
+.hoy-cols-menu .tit{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 8px 6px}
+.hoy-cols-menu label{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:14px;cursor:pointer}
+.hoy-cols-menu label:hover{background:var(--sand)}
+.hoy-cols-menu label.fijo{color:var(--text-muted);cursor:default}
+.hoy-cols-menu input{width:16px;height:16px;accent-color:var(--brand-600)}
+.hoy-cols-menu .pie-cols{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:flex;justify-content:flex-end}
+.tabla-hoy-wrap{overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);-webkit-overflow-scrolling:touch}
+table.tabla-hoy{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+.tabla-hoy th,.tabla-hoy td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:middle}
+.tabla-hoy tbody tr:last-child td{border-bottom:0}
+.tabla-hoy thead th{position:sticky;top:0;z-index:2;background:var(--sand);font-size:12.5px;font-weight:600;color:var(--text-muted)}
+.tabla-hoy .c-nom{position:sticky;left:0;z-index:1;background:var(--paper);min-width:180px;border-right:1px solid var(--line)}
+.tabla-hoy thead .c-nom{z-index:3;background:var(--sand)}
+.tabla-hoy tbody tr{cursor:pointer}
+.tabla-hoy tbody tr:hover td{background:var(--brand-50)}
+.tabla-hoy .nom-hoy{display:flex;align-items:center;gap:10px;border:0;background:none;padding:0;font:600 14px var(--font-body);color:var(--text);cursor:pointer;text-align:left}
+.tabla-hoy .nom-hoy:focus-visible{outline:2px solid var(--brand-500);outline-offset:3px;border-radius:6px}
+.av-hoy{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em}
+.tabla-hoy .num{text-align:right;font-variant-numeric:tabular-nums}
+.tabla-hoy .hm{font-variant-numeric:tabular-nums}
+.tabla-hoy .vacio-c{color:#9AAAB5}
+.tabla-hoy .pin-h{display:inline-flex;vertical-align:-3px;margin-left:5px;color:#9AAAB5}
+.tabla-hoy .pin-h svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
+.tabla-hoy .pin-h.lejos{color:var(--warn)}
+.tabla-hoy .pin-h.lejos::after{content:'!';font-weight:800;font-size:12px;margin-left:1px}
+.tabla-hoy .cta-hoy{display:inline-block;max-width:170px;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--sand-2);color:var(--text)}
+.tabla-hoy .en-curso{color:var(--brand-700);font-weight:600}
+.tabla-hoy .c-al{white-space:normal;min-width:170px;font-size:13px;line-height:1.35;color:var(--text-muted)}
+.tabla-hoy .c-al span{display:flex;gap:6px;align-items:flex-start}
+.tabla-hoy .c-al span + span{margin-top:3px}
+@media (max-width:720px){
+  .tabla-hoy .c-nom{min-width:150px}
+  .tabla-hoy th,.tabla-hoy td{padding:10px 10px}
+}
 @media (max-width:720px){
   .fila-hoy{grid-template-columns:1fr auto}
   .fila-hoy .fls{grid-column:1/-1}
@@ -1771,7 +1815,10 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="resumen" id="hoyResumen"></div>
     <div id="hoyAvisos"></div>
-    <div class="hoy-filtro" id="hoyFiltro" role="group" aria-label="Filter by status"></div>
+    <div class="hoy-barra">
+      <div class="hoy-filtro" id="hoyFiltro" role="group" aria-label="Filter by status"></div>
+      <div class="hoy-cols" id="hoyCols"></div>
+    </div>
     <div class="lista-hoy" id="hoyLista"></div>
   </section>
 
@@ -2446,6 +2493,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v102: Today como tabla (estilo Connecteam) con botón «Columns» para elegir columnas -->
 <!-- v101: Import from Connecteam — elegir si los días entran aprobados o sin aprobar -->
 <!-- v100: Today — filtro por estado (Clocked in · Clocked out · Not clocked in · Time off · With alerts) -->
 <!-- v99: Edit hours — «Edit day» ya no se traba por un día que venía incompleto; al cerrar el día vuelve a Edit hours -->
@@ -4707,6 +4755,7 @@ function pintarHoy(){
   $('hoyFiltro').innerHTML = '<span class="rot">Show</span>' + visibles.map(([k, txt]) =>
     '<button type="button" data-hf="' + k + '" aria-pressed="' + (S.hoyFiltro === k) + '">' + txt + ' <span class="n">' + nF[k] + '</span></button>').join('');
   $('hoyFiltro').querySelectorAll('[data-hf]').forEach(b => b.addEventListener('click', () => { S.hoyFiltro = b.dataset.hf; pintarHoy(); }));
+  pintarColsHoy();
   const fnF = FILTROS.find(([k]) => k === S.hoyFiltro)[2], lista = filas.filter(fnF);
   if(!lista.length){
     const nada = { dentro:'Nobody is clocked in right now.', salio:'Nobody has clocked out yet today.', sin:'Everyone has clocked in today.',
@@ -4714,6 +4763,8 @@ function pintarHoy(){
     $('hoyLista').innerHTML = '<div class="vacio"><p>' + nada + '</p></div>';
     return;
   }
+  pintarTablaHoy(lista, f);
+  return;
   $('hoyLista').innerHTML = lista.map(x => {
     const d = x.d;
     const ent = d && d.marcas.find(m => m.tipo === 'entrada');
@@ -4728,6 +4779,84 @@ function pintarHoy(){
   $('hoyLista').querySelectorAll('.fila-hoy').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, f, S.hojaHoy)));
 }
 $('hoyRefrescar').addEventListener('click', () => cargarHoy());
+
+/* ── v102: Today como tabla (estilo Connecteam) y columnas a elegir ── */
+const IC_COLS = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>';
+const AV_COLORES = ['#6A1B9A', '#E64A19', '#00897B', '#C2185B', '#3949AB', '#2E7D32', '#AD1457', '#0277BD', '#5D4037', '#7B1FA2', '#00838F', '#BF360C'];
+const avColor = u => { let h = 0; String(u || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return AV_COLORES[h % AV_COLORES.length]; };
+const pinHoy = (d, tipo, ms) => {
+  const p = d && d.ubic && d.ubic.puntos ? d.ubic.puntos.find(x => !x.anulada && x.tipo === tipo && Math.abs(x.ms - ms) < 120000) : null;
+  if(!p) return '';
+  return '<span class="pin-h' + (p.lejos ? ' lejos' : '') + '" title="' + (p.lejos ? 'Away from their work location (' + esc(fmtDist(p.dist)) + ')' : 'Location recorded') + '">' + IC_PIN + '</span>';
+};
+const vacioC = '<span class="vacio-c">—</span>';
+const avIni = n => String(n || '').normalize('NFD').replace(/[^A-Za-z\s]/g, '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+const COLS_HOY = [
+  { k:'estado', t:'Status', def:true, h:x => { const d = x.d, ent = d && d.marcas.find(m => m.tipo === 'entrada');
+      const txt = !d ? 'Not clocked in' : (d.ausencia && !d.marcas.length) ? 'Off · ' + CLASE_TXT[d.ausencia.clase] : d.estado === 'trabajando' ? 'Working'
+        : d.estado === 'almuerzo' ? 'On lunch' : d.marcas.length ? 'Clocked out' : 'Not clocked in';
+      return estadoHTML(x.estado, txt); } },
+  { k:'cuenta', t:'Account', def:true, h:x => { const c = x.e.cuenta; if(!c) return vacioC; const col = colorCuenta(c);
+      return '<span class="cta-hoy" title="' + esc(c) + '"' + (col ? ' style="background:' + col + ';color:' + tintaDe(col) + '"' : '') + '>' + esc(c) + '</span>'; } },
+  { k:'entrada', t:'Clock in', def:true, h:x => { const m = x.d && x.d.marcas.find(y => y.tipo === 'entrada'); return m ? '<span class="hm">' + hora(m.ms) + '</span>' + pinHoy(x.d, 'entrada', m.ms) : vacioC; } },
+  { k:'almuerzo', t:'Lunch', def:true, h:x => { const d = x.d; if(!d) return vacioC;
+      const ini = d.marcas.filter(m => m.tipo === 'almuerzo_ini'), fin = d.marcas.filter(m => m.tipo === 'almuerzo_fin');
+      if(!ini.length) return vacioC;
+      return ini.map((a, i) => '<span class="hm">' + hora(a.ms) + ' – ' + (fin[i] ? hora(fin[i].ms) : d.estado === 'almuerzo' ? '<span class="en-curso">now</span>' : '<span class="vacio-c" title="Lunch end not clocked">no end</span>') + '</span>').join('<br>'); } },
+  { k:'salida', t:'Clock out', def:true, h:x => { const d = x.d; if(!d || d.estado !== 'fuera') return vacioC;
+      const m = d.marcas.filter(y => y.tipo === 'salida').pop(); return m ? '<span class="hm">' + hora(m.ms) + '</span>' + pinHoy(d, 'salida', m.ms) : vacioC; } },
+  { k:'total', t:'Daily total', def:true, num:true, h:x => { const d = x.d; if(!d || !d.marcas.length) return vacioC;
+      return (d.estado === 'trabajando' ? '<span class="en-curso" title="Still working">' : '<span>') + hm(d.min) + '</span>'; } },
+  { k:'extra', t:'Overtime', def:true, num:true, h:x => { const d = x.d; if(!d || !d.marcas.length) return vacioC;
+      const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? '+' + hm(ex) : vacioC; } },
+  { k:'almMin', t:'Lunch time', def:false, num:true, h:x => x.d && x.d.alm ? hm(x.d.alm) : vacioC },
+  { k:'horario', t:'Scheduled start', def:false, h:x => x.e.horaEntrada ? h12(x.e.horaEntrada.slice(0, 5)) : vacioC },
+  { k:'depto', t:'Department', def:false, h:x => x.e.departamento ? esc(x.e.departamento) : vacioC },
+  { k:'ausencia', t:'Time off', def:false, h:x => { const a = x.d && x.d.ausencia; if(!a) return vacioC;
+      return esc(CLASE_TXT[a.clase]) + (esParcial(a) ? ' · ' + esc(franjaTxt(a)) : '') + (a.pagada ? '' : ' · unpaid'); } },
+  { k:'alertas', t:'Alerts', def:true, cls:'c-al', h:x => { const l = x.fl.filter(b => b.n !== 'info'); return l.length ? l.map(b => '<span>' + icono(b.n) + esc(b.t) + '</span>').join('') : vacioC; } }
+];
+const COLS_HOY_CLAVE = 'reloj_hoy_cols_v1';
+function colsHoy(){
+  let g = null; try{ g = JSON.parse(localStorage.getItem(COLS_HOY_CLAVE) || 'null'); }catch(e){}
+  const v = new Set(Array.isArray(g) ? g : COLS_HOY.filter(c => c.def).map(c => c.k));
+  return COLS_HOY.filter(c => v.has(c.k));
+}
+function guardarColsHoy(lista){ try{ localStorage.setItem(COLS_HOY_CLAVE, JSON.stringify(lista)); }catch(e){} }
+function pintarColsHoy(){
+  const caja = $('hoyCols'); if(!caja) return;
+  const abierto = !!(caja.querySelector('.hoy-cols-menu')), vis = new Set(colsHoy().map(c => c.k));
+  caja.innerHTML = '<button type="button" id="hoyColsBtn" aria-haspopup="true" aria-expanded="' + abierto + '">' + IC_COLS + 'Columns</button>' +
+    (abierto ? '<div class="hoy-cols-menu" role="menu"><div class="tit">Show columns</div>' +
+      '<label class="fijo"><input type="checkbox" checked disabled> Name</label>' +
+      COLS_HOY.map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (vis.has(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('') +
+      '<div class="pie-cols"><button class="btn-link" type="button" id="hoyColsDef">Reset to default</button></div></div>' : '');
+  $('hoyColsBtn').addEventListener('click', ev => { ev.stopPropagation();
+    if(abierto){ caja.innerHTML = ''; pintarColsHoy(); return; }
+    caja.insertAdjacentHTML('beforeend', '<div class="hoy-cols-menu"></div>'); pintarColsHoy();
+    const pri = caja.querySelector('input[data-col]'); if(pri) pri.focus(); });
+  caja.querySelectorAll('input[data-col]').forEach(i => i.addEventListener('change', () => {
+    guardarColsHoy([...caja.querySelectorAll('input[data-col]:checked')].map(x => x.dataset.col));
+    if(S.hojaHoy) pintarHoy();
+    const igual = caja.querySelector('input[data-col="' + i.dataset.col + '"]'); if(igual) igual.focus(); }));
+  if($('hoyColsDef')) $('hoyColsDef').addEventListener('click', () => { try{ localStorage.removeItem(COLS_HOY_CLAVE); }catch(e){} if(S.hojaHoy) pintarHoy(); });
+}
+// cerrar el menú al hacer clic afuera o con Esc
+document.addEventListener('click', ev => { const caja = $('hoyCols');
+  if(caja && caja.querySelector('.hoy-cols-menu') && !caja.contains(ev.target)){ caja.querySelector('.hoy-cols-menu').remove(); pintarColsHoy(); } });
+document.addEventListener('keydown', ev => { const caja = $('hoyCols');
+  if(ev.key === 'Escape' && caja && caja.querySelector('.hoy-cols-menu')){ caja.querySelector('.hoy-cols-menu').remove(); pintarColsHoy(); $('hoyColsBtn').focus(); } });
+function pintarTablaHoy(lista, f){
+  asegurarColores(() => { if(S.vista === 'hoy' && S.hojaHoy) pintarHoy(); });
+  const cols = colsHoy();
+  $('hoyLista').innerHTML = '<div class="tabla-hoy-wrap"><table class="tabla-hoy"><thead><tr><th class="c-nom">Name</th>' +
+    cols.map(c => '<th' + (c.num ? ' class="num"' : '') + '>' + esc(c.t) + '</th>').join('') + '</tr></thead><tbody>' +
+    lista.map(x => '<tr data-u="' + esc(x.e.usuario) + '"><td class="c-nom"><button type="button" class="nom-hoy" title="Open ' + esc(x.e.nombre) + '\'s day">' +
+      '<span class="av-hoy" style="background:' + avColor(x.e.usuario) + '" aria-hidden="true">' + esc(avIni(x.e.nombre)) + '</span>' + esc(x.e.nombre) + '</button></td>' +
+      cols.map(c => '<td class="' + [c.num ? 'num' : '', c.cls || ''].join(' ').trim() + '">' + c.h(x) + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table></div>';
+  $('hoyLista').querySelectorAll('tr[data-u]').forEach(tr => tr.addEventListener('click', () => abrirDia(tr.dataset.u, f, S.hojaHoy)));
+}
 
 function avisosMonitor(h){
   if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Checking against the Monitor… Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).</span></div>';
@@ -7459,7 +7588,9 @@ function hojaCongelar(){
   const barra = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-h')) || 57;
   const rc = cab.getBoundingClientRect(), rt = w.getBoundingClientRect();
   const arriba = rt.top - rc.top;                                                          // título, filtros, resumen, avisos, «N people»
-  const abajo = document.documentElement.scrollHeight - (rt.bottom + y);                   // botones, leyenda y margen final
+  const pie = sec.closest('main') || document.documentElement;
+  const abajo = pie === document.documentElement ? document.documentElement.scrollHeight - (rt.bottom + y)
+              : pie.getBoundingClientRect().bottom - rt.bottom;                            // botones, leyenda y margen final (v102: sin el hueco)
   const alto = Math.round(window.innerHeight - barra - 8 - arriba - abajo);
   const nuevo = Math.max(260, alto) + 'px';
   if(w.style.maxHeight !== nuevo) w.style.maxHeight = nuevo;
