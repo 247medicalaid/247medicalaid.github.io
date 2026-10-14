@@ -795,12 +795,29 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .hoy-cols-menu label:hover{background:var(--sand)}
 .hoy-cols-menu label.fijo{color:var(--text-muted);cursor:default}
 .hoy-cols-menu input{width:16px;height:16px;accent-color:var(--brand-600)}
-.hoy-cols-menu .pie-cols{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:flex;justify-content:flex-end}
-.tabla-hoy-wrap{overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);-webkit-overflow-scrolling:touch}
+.hoy-cols-menu .pie-cols{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:flex;gap:10px;justify-content:flex-end}
+.tabla-hoy-wrap{overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);-webkit-overflow-scrolling:touch;
+  max-height:calc(100vh - var(--top-h, 57px) - 36px);overscroll-behavior:contain}
+body[data-vista="hoy"] main{padding-bottom:14px}
+.tabla-hoy thead th{padding:0;position:sticky;top:0}
+.tabla-hoy .th-in{display:flex;align-items:center;position:relative;min-height:40px}
+.tabla-hoy .ord-h{flex:1;display:flex;align-items:center;gap:5px;border:0;background:none;padding:11px 10px;font:600 12.5px var(--font-body);color:var(--text-muted);
+  cursor:pointer;text-align:left;white-space:nowrap;min-width:0}
+.tabla-hoy th.num .ord-h{justify-content:flex-end}
+.tabla-hoy .ord-h:hover{color:var(--text)}
+.tabla-hoy .ord-h:focus-visible{outline:2px solid var(--brand-500);outline-offset:-3px;border-radius:6px}
+.tabla-hoy .ord-h .fl-ord{font-size:12px;color:var(--brand-700);width:10px;display:inline-block}
+.tabla-hoy th[aria-sort="ascending"] .ord-h,.tabla-hoy th[aria-sort="descending"] .ord-h{color:var(--text)}
+.tabla-hoy .rz{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:4;touch-action:none}
+.tabla-hoy .rz::after{content:'';position:absolute;left:4px;top:25%;height:50%;width:1px;background:var(--line)}
+.tabla-hoy .rz:hover::after,.tabla-hoy .rz.activo::after{background:var(--brand-500);width:2px;top:0;height:100%}
+table.tabla-hoy.fija{table-layout:fixed}
+.tabla-hoy.fija td,.tabla-hoy.fija .ord-h{overflow:hidden;text-overflow:ellipsis}
+body.redimensionando{cursor:col-resize;user-select:none}
 table.tabla-hoy{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
 .tabla-hoy th,.tabla-hoy td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:middle}
 .tabla-hoy tbody tr:last-child td{border-bottom:0}
-.tabla-hoy thead th{position:sticky;top:0;z-index:2;background:var(--sand);font-size:12.5px;font-weight:600;color:var(--text-muted)}
+.tabla-hoy thead th{position:sticky;top:0;z-index:2;background:var(--sand);font-size:12.5px;font-weight:600;color:var(--text-muted);padding:0}
 .tabla-hoy .c-nom{position:sticky;left:0;z-index:1;background:var(--paper);min-width:180px;border-right:1px solid var(--line)}
 .tabla-hoy thead .c-nom{z-index:3;background:var(--sand)}
 .tabla-hoy tbody tr{cursor:pointer}
@@ -2493,6 +2510,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v103: Today — títulos fijos, ordenar con clic en el título y cambiar el ancho de las columnas -->
 <!-- v102: Today como tabla (estilo Connecteam) con botón «Columns» para elegir columnas -->
 <!-- v101: Import from Connecteam — elegir si los días entran aprobados o sin aprobar -->
 <!-- v100: Today — filtro por estado (Clocked in · Clocked out · Not clocked in · Time off · With alerts) -->
@@ -4830,7 +4848,8 @@ function pintarColsHoy(){
     (abierto ? '<div class="hoy-cols-menu" role="menu"><div class="tit">Show columns</div>' +
       '<label class="fijo"><input type="checkbox" checked disabled> Name</label>' +
       COLS_HOY.map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (vis.has(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('') +
-      '<div class="pie-cols"><button class="btn-link" type="button" id="hoyColsDef">Reset to default</button></div></div>' : '');
+      '<div class="pie-cols"><button class="btn-link" type="button" id="hoyAnchosDef">Reset column widths</button><span class="esp" style="flex:1"></span>' +
+      '<button class="btn-link" type="button" id="hoyColsDef">Reset to default</button></div></div>' : '');
   $('hoyColsBtn').addEventListener('click', ev => { ev.stopPropagation();
     if(abierto){ caja.innerHTML = ''; pintarColsHoy(); return; }
     caja.insertAdjacentHTML('beforeend', '<div class="hoy-cols-menu"></div>'); pintarColsHoy();
@@ -4840,22 +4859,97 @@ function pintarColsHoy(){
     if(S.hojaHoy) pintarHoy();
     const igual = caja.querySelector('input[data-col="' + i.dataset.col + '"]'); if(igual) igual.focus(); }));
   if($('hoyColsDef')) $('hoyColsDef').addEventListener('click', () => { try{ localStorage.removeItem(COLS_HOY_CLAVE); }catch(e){} if(S.hojaHoy) pintarHoy(); });
+  if($('hoyAnchosDef')) $('hoyAnchosDef').addEventListener('click', () => { ponerLS(ANCHOS_HOY_CLAVE, null); if(S.hojaHoy) pintarHoy(); });
 }
 // cerrar el menú al hacer clic afuera o con Esc
 document.addEventListener('click', ev => { const caja = $('hoyCols');
   if(caja && caja.querySelector('.hoy-cols-menu') && !caja.contains(ev.target)){ caja.querySelector('.hoy-cols-menu').remove(); pintarColsHoy(); } });
 document.addEventListener('keydown', ev => { const caja = $('hoyCols');
   if(ev.key === 'Escape' && caja && caja.querySelector('.hoy-cols-menu')){ caja.querySelector('.hoy-cols-menu').remove(); pintarColsHoy(); $('hoyColsBtn').focus(); } });
+// v103: valor para ordenar cada columna (null = vacío, siempre al final)
+const msHoyDe = (d, tipo, ultima) => { if(!d) return null; const l = d.marcas.filter(m => m.tipo === tipo); const m = ultima ? l[l.length - 1] : l[0]; return m ? m.ms : null; };
+const ORD_HOY = {
+  nombre: x => x.e.nombre.toLowerCase(),
+  estado: x => { const d = x.d; if(!d || !d.marcas.length) return d && d.ausencia ? 4 : 3; return ({ trabajando:0, almuerzo:1 })[d.estado] ?? 2; },
+  cuenta: x => (x.e.cuenta || '').toLowerCase() || null,
+  entrada: x => msHoyDe(x.d, 'entrada'),
+  almuerzo: x => msHoyDe(x.d, 'almuerzo_ini'),
+  salida: x => x.d && x.d.estado === 'fuera' ? msHoyDe(x.d, 'salida', true) : null,
+  total: x => x.d && x.d.marcas.length ? x.d.min : null,
+  extra: x => { const d = x.d; if(!d || !d.marcas.length) return null; const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? ex : null; },
+  almMin: x => x.d && x.d.alm ? x.d.alm : null,
+  horario: x => x.e.horaEntrada ? x.e.horaEntrada.slice(0, 5) : null,
+  depto: x => (x.e.departamento || '').toLowerCase() || null,
+  ausencia: x => x.d && x.d.ausencia ? CLASE_TXT[x.d.ausencia.clase] : null,
+  alertas: x => { const n = nivelMax(x.fl.filter(b => b.n !== 'info')); return n === 'alerta' ? 0 : n === 'aviso' ? 1 : null; }
+};
+const ORD_HOY_CLAVE = 'reloj_hoy_orden_v1', ANCHOS_HOY_CLAVE = 'reloj_hoy_anchos_v1';
+const leerLS = (k, def) => { try{ const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? def : v; }catch(e){ return def; } };
+const ponerLS = (k, v) => { try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+function ordenarHoy(lista){
+  const o = leerLS(ORD_HOY_CLAVE, null); if(!o || !ORD_HOY[o.k]) return lista;
+  const fn = ORD_HOY[o.k], s = o.dir === 'desc' ? -1 : 1;
+  return lista.map((x, i) => ({ x, i, v: fn(x) })).sort((a, b) => {
+    if(a.v == null && b.v == null) return a.i - b.i; if(a.v == null) return 1; if(b.v == null) return -1;
+    const c = typeof a.v === 'string' ? a.v.localeCompare(b.v, 'en') : a.v - b.v;
+    return c ? c * s : (a.x.e.nombre.localeCompare(b.x.e.nombre, 'en'));
+  }).map(z => z.x);
+}
 function pintarTablaHoy(lista, f){
   asegurarColores(() => { if(S.vista === 'hoy' && S.hojaHoy) pintarHoy(); });
-  const cols = colsHoy();
-  $('hoyLista').innerHTML = '<div class="tabla-hoy-wrap"><table class="tabla-hoy"><thead><tr><th class="c-nom">Name</th>' +
-    cols.map(c => '<th' + (c.num ? ' class="num"' : '') + '>' + esc(c.t) + '</th>').join('') + '</tr></thead><tbody>' +
+  const cols = colsHoy(), ord = leerLS(ORD_HOY_CLAVE, null), anchos = leerLS(ANCHOS_HOY_CLAVE, {});
+  const prev = $('hoyLista').querySelector('.tabla-hoy-wrap'), scr = prev ? [prev.scrollTop, prev.scrollLeft] : null;
+  lista = ordenarHoy(lista);
+  const todas = [{ k:'nombre', t:'Name', cls:'c-nom' }].concat(cols);
+  const fija = todas.some(c => anchos[c.k]);
+  const th = c => { const st = ord && ord.k === c.k ? ord.dir : null;
+    return '<th data-k="' + c.k + '" class="' + [c.cls || '', c.num ? 'num' : ''].join(' ').trim() + '" aria-sort="' + (st === 'asc' ? 'ascending' : st === 'desc' ? 'descending' : 'none') + '">' +
+      '<div class="th-in"><button type="button" class="ord-h" data-ord="' + c.k + '" title="Sort by ' + esc(c.t) + '">' + esc(c.t) +
+      '<span class="fl-ord" aria-hidden="true">' + (st === 'asc' ? '↑' : st === 'desc' ? '↓' : '') + '</span></button>' +
+      '<span class="rz" data-rz="' + c.k + '" title="Drag to resize"></span></div></th>'; };
+  $('hoyLista').innerHTML = '<div class="tabla-hoy-wrap"><table class="tabla-hoy' + (fija ? ' fija' : '') + '"><colgroup>' +
+    todas.map(c => '<col data-k="' + c.k + '"' + (fija ? ' style="width:' + (anchos[c.k] || (c.k === 'nombre' ? 200 : c.k === 'alertas' ? 260 : 120)) + 'px"' : '') + '>').join('') +
+    '</colgroup><thead><tr>' + todas.map(th).join('') + '</tr></thead><tbody>' +
     lista.map(x => '<tr data-u="' + esc(x.e.usuario) + '"><td class="c-nom"><button type="button" class="nom-hoy" title="Open ' + esc(x.e.nombre) + '\'s day">' +
       '<span class="av-hoy" style="background:' + avColor(x.e.usuario) + '" aria-hidden="true">' + esc(avIni(x.e.nombre)) + '</span>' + esc(x.e.nombre) + '</button></td>' +
       cols.map(c => '<td class="' + [c.num ? 'num' : '', c.cls || ''].join(' ').trim() + '">' + c.h(x) + '</td>').join('') + '</tr>').join('') +
     '</tbody></table></div>';
   $('hoyLista').querySelectorAll('tr[data-u]').forEach(tr => tr.addEventListener('click', () => abrirDia(tr.dataset.u, f, S.hojaHoy)));
+  const wrap = $('hoyLista').querySelector('.tabla-hoy-wrap'), tabla = wrap.querySelector('table');
+  if(fija) tabla.style.width = [...tabla.querySelectorAll('col')].reduce((s, c) => s + parseFloat(c.style.width), 0) + 'px';
+  if(scr){ wrap.scrollTop = scr[0]; wrap.scrollLeft = scr[1]; }
+  // ordenar: ↑ → ↓ → orden normal
+  tabla.querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => {
+    if(S.hoyRz) return;
+    const o = leerLS(ORD_HOY_CLAVE, null), k = b.dataset.ord;
+    ponerLS(ORD_HOY_CLAVE, !o || o.k !== k ? { k, dir:'asc' } : o.dir === 'asc' ? { k, dir:'desc' } : null);
+    pintarHoy();
+    const igual = $('hoyLista').querySelector('[data-ord="' + k + '"]'); if(igual) igual.focus();
+  }));
+  // cambiar el ancho arrastrando el borde del título
+  tabla.querySelectorAll('[data-rz]').forEach(h => h.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const k = h.dataset.rz, cols = [...tabla.querySelectorAll('col')];
+    if(!tabla.classList.contains('fija')){   // primera vez: fijar los anchos que se ven ahora
+      const ths = [...tabla.querySelectorAll('thead th')];
+      cols.forEach((c, i) => { c.style.width = ths[i].getBoundingClientRect().width + 'px'; });
+      tabla.style.width = ths.reduce((s, x) => s + x.getBoundingClientRect().width, 0) + 'px';
+      tabla.classList.add('fija');
+    }
+    const col = cols.find(c => c.dataset.k === k), x0 = ev.clientX, w0 = parseFloat(col.style.width), t0 = parseFloat(tabla.style.width);
+    S.hoyRz = true; h.classList.add('activo'); document.body.classList.add('redimensionando');
+    try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+    const mover = e => { const w = Math.max(60, Math.round(w0 + e.clientX - x0)); col.style.width = w + 'px'; tabla.style.width = (t0 + w - w0) + 'px'; };
+    const soltar = () => {
+      h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', soltar); h.removeEventListener('pointercancel', soltar);
+      h.classList.remove('activo'); document.body.classList.remove('redimensionando');
+      const a = {}; cols.forEach(c => { a[c.dataset.k] = Math.round(parseFloat(c.style.width)); });
+      ponerLS(ANCHOS_HOY_CLAVE, Object.assign(leerLS(ANCHOS_HOY_CLAVE, {}), a));
+      setTimeout(() => { S.hoyRz = false; }, 0);
+    };
+    h.addEventListener('pointermove', mover); h.addEventListener('pointerup', soltar); h.addEventListener('pointercancel', soltar);
+  }));
+  tabla.querySelectorAll('[data-rz]').forEach(h => h.addEventListener('click', ev => ev.stopPropagation()));
 }
 
 function avisosMonitor(h){
