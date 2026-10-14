@@ -527,6 +527,11 @@ table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;co
 .auto-tag{display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:999px;background:#FDECEA;color:#B42318;line-height:16px;vertical-align:1px}
 .globo-auto{position:fixed;z-index:3000;background:var(--ink-900, #0B2233);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;box-shadow:0 4px 12px rgba(11,34,51,.25);pointer-events:none}
 .globo-auto.hidden{display:none}
+.pill-test{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:0 6px;border-radius:999px;background:#EDE7FB;color:#5A43A0;line-height:16px;letter-spacing:.05em;vertical-align:1px}
+.nom-btn .pill-test{margin-left:5px;flex:none}
+.aj-prueba{display:grid;grid-template-columns:minmax(0,320px) minmax(0,260px);gap:10px 14px;margin:2px 0 12px}
+.aj-prueba .campo{margin:0}
+@media (max-width:640px){ .aj-prueba{grid-template-columns:1fr} }
 .aj-margen{display:flex;align-items:center;gap:8px;font-size:14.5px;margin:0 0 10px;flex-wrap:wrap}
 .aj-margen input{width:84px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius-sm);font:inherit}
 .nom-btn.inact span{color:var(--text-muted);font-weight:500;font-style:italic}
@@ -1957,6 +1962,11 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="ajUbicGuardar" type="button">Save</button>
       <span class="nota" id="ajUbicEstado" style="margin-left:8px"></span>
     </div>
+    <div class="ajuste" id="ajPrueba">
+      <h2>Test user</h2>
+      <p class="nota">Copy an agent's punches, approved days, requests and time off, documents and paystubs (with their files) to your test user. Then sign in as the test user to see and try the agent view with real information. Whatever the test user had is replaced; the agent's own data isn't changed. The profile and the chat aren't copied. Test users show in the Timesheet with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or the payroll exports.</p>
+      <div id="prCuerpo"></div>
+    </div>
     <div class="ajuste" id="ajAutoSal">
       <h2>Automatic clock out</h2>
       <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. Checked every 5 minutes.</p>
@@ -2391,6 +2401,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v93: usuario de prueba (paso 55): Settings → Test user copia los datos de un agente; TEST fuera del Pay run y de las exportaciones -->
 <!-- v92: clock out automático (paso 54): Settings → Automatic clock out; la salida del sistema queda marcada AUTO en el Timesheet -->
 <!-- v91: menú agrupado también en la app; la web con la distribución de la app y, en ventana ancha, el chat fijo a la derecha (reemplaza v90) -->
 <div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
@@ -2989,6 +3000,10 @@ const SERVIDOR_EN = [
   [/^.*(reloj_importar_usuarios).*$/, 'Importing users needs SQL step 40 in Supabase.'],
   [/^.*(reloj_archivar_empleado).*$/, 'Archiving needs SQL step 53 in Supabase.'],
   [/^.*(reloj_guardar_auto_salida|reloj_auto_salida).*$/, 'Automatic clock out needs SQL step 54 in Supabase.'],
+  [/^.*(reloj_copiar_a_prueba).*$/, 'Copying to the test user needs SQL step 55 in Supabase.'],
+  [/^Solo un administrador puede copiar datos al usuario de prueba\.$/, 'Only an administrator can copy data to the test user.'],
+  [/^Solo se puede copiar a un usuario de prueba\.$/, 'You can only copy to a test user.'],
+  [/^Elige un agente que no sea de prueba\.$/, 'Choose an agent who isn\'t a test user.'],
   [/^El margen debe estar entre 0 y 240 minutos\.$/, 'The margin must be between 0 and 240 minutes.'],
   [/^Solo un administrador puede cambiar la configuración\.$/, 'Only an administrator can change the settings.'],
   [/^Solo un administrador puede manejar el inventario\.$/, 'Only an administrator can manage the inventory.'],
@@ -3135,7 +3150,7 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
-  pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
+  prueba:e.prueba === true, pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
 
@@ -3529,6 +3544,21 @@ async function api(action, p){
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarAutoSalida') return q(sb.rpc('reloj_guardar_auto_salida', { p_activo:p.activo, p_margen:p.margen }));   // (v92, paso 54)
+  // (v93, paso 55) usuario de prueba: las filas las copia la base; los archivos, la página (como administrador)
+  if(action === 'copiarAPrueba') return q(sb.rpc('reloj_copiar_a_prueba', { p_desde:p.desde, p_hacia:p.hacia }));
+  if(action === 'pruebaBorrarArchivos'){
+    for(let i = 0; i < p.rutas.length; i += 100){ const { error } = await sb.storage.from(BUCKET_DOCS).remove(p.rutas.slice(i, i + 100)); if(error) console.warn('No se borraron', error); }
+    return { ok:true };
+  }
+  if(action === 'pruebaCopiarArchivo'){
+    let { error } = await sb.storage.from(BUCKET_DOCS).copy(p.de, p.a);
+    if(error && /exist|duplicate/i.test(error.message || '')){ await sb.storage.from(BUCKET_DOCS).remove([p.a]); ({ error } = await sb.storage.from(BUCKET_DOCS).copy(p.de, p.a)); }
+    if(error){   // si la copia directa no se permite: bajarlo y subirlo
+      const d = await sb.storage.from(BUCKET_DOCS).download(p.de); if(d.error) throw new Error(docErrStorage(d.error));
+      const u = await sb.storage.from(BUCKET_DOCS).upload(p.a, d.data, { contentType:d.data.type || docMime(p.a), upsert:true }); if(u.error) throw new Error(docErrStorage(u.error));
+    }
+    return { ok:true };
+  }
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -3645,11 +3675,13 @@ async function empleadosSB(){
     monitorSB().catch(() => null)]);
   if(monSB && monSB.agentes.length){
     S.cuentasMon = monSB.cuentas.length ? monSB.cuentas : S.cuentasMon;
+    S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93) el paso 55 ya agregó la columna
     return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })),
       monitor:monSB.agentes, cuentas:monSB.cuentas };
   }
   // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
   if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
+  S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93)
   return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
 
@@ -4725,6 +4757,8 @@ function ordenarEmps(lista){
   return l;
 }
 // Empleados que se ven en la hoja (según el filtro de cuenta), en el orden elegido.
+// (v93) los usuarios de prueba se ven en el Timesheet pero no cuentan para la nómina
+const empsNomina = () => empsVisibles().filter(e => !e.prueba);
 const empsVisibles = () => ordenarEmps((S.hoja ? S.hoja.empleados : []).filter(e => !S.cuentaFiltro || (e.cuenta || '') === S.cuentaFiltro));
 $('hPreset').addEventListener('change', e => elegirPreset(e.target.value));
 ['hDesde','hHasta'].forEach(id => $(id).addEventListener('change', () => elegirPreset('c')));
@@ -4810,7 +4844,7 @@ async function cargarHoja(){
 }
 // Resumen del periodo (con el filtro de cuenta): horas, almuerzo, tiempo libre sin pago, días aprobados y pago.
 function resumenHoja(h){
-  const emps = empsVisibles(); let trab = 0, ot = 0, pto = 0, alm = 0, ausNP = 0, pago = 0, diasAp = 0, diasTot = 0;
+  const emps = empsNomina(); let trab = 0, ot = 0, pto = 0, alm = 0, ausNP = 0, pago = 0, diasAp = 0, diasTot = 0;
   emps.forEach(e => { const hd = Math.round((e.horasDia || 8) * 60);
     Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(!d) return; const m = minPagoDia(d);
       trab += m; ot += Math.max(0, m - hd);
@@ -4867,7 +4901,7 @@ function pintarHoja(){
     }
     const estN = estadoPeriodo(e, h);
     t += '<tr' + (S.selHoja.has(e.usuario) ? ' class="sel"' : '') + ' data-fila="' + esc(e.usuario) + '"><td class="nombre"><label class="selq"><input type="checkbox" data-sel="' + esc(e.usuario) + '"' + (S.selHoja.has(e.usuario) ? ' checked' : '') + ' aria-label="Select ' + esc(e.nombre) + '"></label>' +
-      '<button class="nom-btn' + (e.activo === false ? ' inact' : '') + '" type="button" data-editar="' + esc(e.usuario) + '" title="' + esc(e.nombre) + ' — edit hours' + (e.activo === false ? ' (archived)' : '') + '"><span>' + esc(e.nombre) + '</span>' +
+      '<button class="nom-btn' + (e.activo === false ? ' inact' : '') + '" type="button" data-editar="' + esc(e.usuario) + '" title="' + esc(e.nombre) + ' — edit hours' + (e.activo === false ? ' (archived)' : '') + '"><span>' + esc(e.nombre) + '</span>' + (e.prueba ? '<span class="pill-test" title="Test user: not included in the Pay run or the payroll exports">TEST</span>' : '') +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
       (estN.todo ? '<span class="ap-ok" title="Whole pay period approved (' + estN.aprobados + ' days)" aria-label="Whole pay period approved">✓</span>' : '') + '</td>';
     h.fechas.forEach(f => {
@@ -5230,7 +5264,7 @@ function minPagoDia(d){
   return d.incompleto || !d.marcas || !d.marcas.length ? 0 : Math.round(d.min);
 }
 function filasPayroll(h, lista){
-  return (lista || empsVisibles()).map(e => {
+  return (lista || empsNomina()).map(e => {
     let trab = 0, ot = 0, pagoDias = 0; const tarifaHoy = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora), tarDias = new Set();
     Object.keys(e.dias).forEach(f => { const d = e.dias[f], m = minPagoDia(d); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60));
       const td = d && d.aprobado && d.aprobado.tarifa != null ? d.aprobado.tarifa : tarifaHoy;
@@ -5317,7 +5351,7 @@ $('hExpNomina').addEventListener('click', async () => {
   const h = S.hoja; if(!h) return;
   // Solo los días sin salida (pasados y sin aprobar) no se pueden contar: se avisa con los nombres.
   const sinSalida = [];
-  empsVisibles().forEach(e => Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(d && d.incompleto && !d.aprobado && f < h.hoy) sinSalida.push(e.nombre + ' · ' + diaS(f)); }));
+  empsNomina().forEach(e => Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(d && d.incompleto && !d.aprobado && f < h.hoy) sinSalida.push(e.nombre + ' · ' + diaS(f)); }));
   if(sinSalida.length && !(await confirmar('Export payroll?', '<b>' + sinSalida.length + (sinSalida.length === 1 ? ' day has' : ' days have') + ' no clock-out</b>, so ' +
       (sinSalida.length === 1 ? 'its hours aren\'t' : 'their hours aren\'t') + ' counted:<br>' + sinSalida.slice(0, 8).map(esc).join('<br>') + (sinSalida.length > 8 ? '<br>…' : '') +
       '<br><br>You can fix them in this Timesheet first.', 'Export anyway'))) return;
@@ -5332,7 +5366,7 @@ $('hExpNomina').addEventListener('click', async () => {
 $('hExpResumen').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
   const filas = [['Employee','Account','First name','Last name','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
-  empsVisibles().forEach(e => {
+  empsNomina().forEach(e => {
     const t = e.totales;
     filas.push([e.nombre, e.cuenta || ''].concat(partirNombre(e)).concat([e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(otEmp(e)), horasDec(t.minAprob), t.diasAprob,
       horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]));
@@ -5342,7 +5376,7 @@ $('hExpResumen').addEventListener('click', () => {
 $('hExpDetalle').addEventListener('click', () => {
   const h = S.hoja; if(!h) return;
   const filas = [['Employee','Account','First name','Last name','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Overtime hours','Lunch minutes','Approved','Approved hours','Issues','Absence']];
-  empsVisibles().forEach(e => h.fechas.forEach(f => {
+  empsNomina().forEach(e => h.fechas.forEach(f => {
     const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
     const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
     const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
@@ -5438,7 +5472,7 @@ function pintarEmps(){
   const cols = uColsVer(), o = S.uOrden || {};
   const th = (k, t, num) => '<th' + (num ? ' class="num"' : '') + ' aria-sort="' + (o.k === k ? (o.dir === 'desc' ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="u-orden' + (o.k === k ? ' on' : '') + '" data-orden="' + k + '">' + t +
     '<i aria-hidden="true">' + (o.k === k ? (o.dir === 'desc' ? '▼' : '▲') : '↕') + '</i></button></th>';
-  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.activo ? '' : ' <span class="pill pill-arch" title="Former employee">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
+  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.prueba ? '<span class="pill-test" title="Test user: not included in the Pay run or the payroll exports">TEST</span>' : '') + (e.activo ? '' : ' <span class="pill pill-arch" title="Former employee">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
       '<small>' + esc(e.email || e.usuario) + (e.departamento && !cols.some(c => c.k === 'departamento') ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
     cols.map(c => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(e) + '</td>').join('') +
     '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
@@ -5976,8 +6010,54 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
+  pintarPrueba();   // (v93)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
+}
+// (v93) Usuario de prueba: copiarle los datos de un agente
+async function pintarPrueba(){
+  const c = $('prCuerpo'); if(!c) return;
+  if(!S.emps){ c.innerHTML = '<p class="nota"><span class="spin dark"></span> Loading users…</p>'; try{ S.emps = await api('empleados'); }catch(e){ c.innerHTML = '<p class="nota err">' + esc(e.message) + '</p>'; return; } }
+  if(S.prCopiando) return;
+  const emps = S.emps.empleados || [], pruebas = emps.filter(e => e.prueba);
+  if(!S.pruebaListo && !DEMO){ c.innerHTML = '<p class="nota">This needs SQL step 55 in Supabase.</p>'; return; }
+  if(!pruebas.length){ c.innerHTML = '<p class="nota">There\'s no test user yet. Put «(Test)» in your test user\'s name in Users and run SQL step 55 again.</p>'; return; }
+  const fuentes = emps.filter(e => !e.prueba).sort((a, b) => (b.activo === true) - (a.activo === true) || a.nombre.localeCompare(b.nombre, 'es', { sensitivity:'base' }));
+  const ant = $('prDesde') ? $('prDesde').value : '';
+  c.innerHTML = '<div class="aj-prueba"><label class="campo"><span>Copy from</span><select id="prDesde"><option value="">Choose an agent…</option>' +
+      fuentes.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === ant ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' (archived)') + '</option>').join('') + '</select></label>' +
+    '<label class="campo"><span>To</span><select id="prHacia"' + (pruebas.length === 1 ? ' disabled' : '') + '>' + pruebas.map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + '</option>').join('') + '</select></label></div>' +
+    '<button class="btn btn-ink btn-sm" id="prCopiar" type="button">Copy data…</button><span class="nota" id="prcEstado" style="margin-left:8px"></span>';
+  $('prCopiar').addEventListener('click', copiarAPrueba);
+  $('prDesde').addEventListener('change', () => { $('prcEstado').textContent = ''; });
+}
+async function copiarAPrueba(){
+  const desde = $('prDesde').value, hacia = $('prHacia').value, est = $('prcEstado');
+  if(!desde){ est.textContent = 'Choose the agent to copy from.'; return; }
+  const ed = S.emps.empleados.find(e => e.usuario === desde), eh = S.emps.empleados.find(e => e.usuario === hacia);
+  const ok = await confirmar('Copy ' + ed.nombre + '\'s data to ' + eh.nombre + '?',
+    'Everything <b>' + esc(eh.nombre) + '</b> has now (punches, approved days, requests and time off, documents and paystubs) is <b>replaced</b> with a copy of <b>' + esc(ed.nombre) + '</b>\'s. ' +
+    esc(ed.nombre) + '\'s own data isn\'t changed. The profile and the chat aren\'t copied.', 'Copy data');
+  if(!ok) return;
+  const b = $('prCopiar'); b.disabled = true; $('prDesde').disabled = true; S.prCopiando = true;
+  try{
+    est.textContent = 'Copying the data…';
+    const r = await api('copiarAPrueba', { desde, hacia });
+    if((r.borrar || []).length){ est.textContent = 'Removing the old files…'; try{ await api('pruebaBorrarArchivos', { rutas:r.borrar }); }catch(e){} }
+    const lista = r.copiar || []; let hechos = 0, fallos = 0;
+    for(let i = 0; i < lista.length; i += 4){
+      est.textContent = 'Copying files… ' + Math.min(i + 4, lista.length) + ' / ' + lista.length;
+      const res = await Promise.allSettled(lista.slice(i, i + 4).map(x => api('pruebaCopiarArchivo', x)));
+      res.forEach(x => { if(x.status === 'fulfilled') hechos++; else fallos++; });
+    }
+    const f = r.filas || {}, n = k => Number(f[k]) || 0, pl = (v, a, b) => v + ' ' + (v === 1 ? a : b);
+    est.innerHTML = '<b>Done.</b> ' + esc(eh.nombre) + ' now has ' + esc(ed.nombre) + '\'s ' + [pl(n('reloj_marcas'), 'punch', 'punches'), pl(n('reloj_aprobaciones'), 'approved day', 'approved days'),
+      pl(n('reloj_solicitudes'), 'request', 'requests'), pl(n('reloj_docs'), 'document', 'documents'), pl(n('reloj_paystubs'), 'paystub', 'paystubs')].join(', ') +
+      (lista.length ? ' (' + pl(hechos, 'file', 'files') + ' copied' + (fallos ? ', <b>' + fallos + ' couldn\'t be copied</b>' : '') + ')' : '') + '. Sign in as ' + esc(eh.nombre) + ' to see it.';
+    toast('Data copied to ' + eh.nombre + '.');
+    if(S.hoja) S.hoja = null;   // el Timesheet se vuelve a cargar al abrirlo
+  }catch(e){ est.textContent = e.message; }
+  S.prCopiando = false; b.disabled = false; $('prDesde').disabled = false;
 }
 // (v92) Clock out automático
 function ejemploAutoSalida(){
@@ -9631,13 +9711,13 @@ async function ajustesPrevios(tok){
 function armarBase(primera){
   const pr = S.pr, P = pr.P, corte = P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '';
   const asum = diasPorAsumir(corte, pr.hasta);
-  const emps = pr.hoja.empleados.map(e => recortarEmp(e, corte));
+  const hojaE = pr.hoja.empleados.filter(e => !e.prueba), emps = hojaE.map(e => recortarEmp(e, corte));   // (v93) sin usuarios de prueba
   const fp = filasPayroll(pr.hoja, emps);
   pr.asumidos = asum; pr.corte = corte;
   pr.base = [];
   fp.forEach((x, i) => {
     const e = emps[i], g = pr.guardadas[e.usuario], aj = pr.ajustes[e.usuario];
-    const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(pr.hoja.empleados[i].dias[f] && pr.hoja.empleados[i].dias[f].ausencia));
+    const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(hojaE[i].dias[f] && hojaE[i].dias[f].ausencia));
     const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop), tar = numO(x.tarifa);
     const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar, horas:x.horas, ot:x.ot, min:x.min, minOt:x.minOt,
                    j:Number(x.pago) || 0, horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres };
@@ -10428,6 +10508,9 @@ function demoInit(){
     if(DM.ubic[k]) DM.ubic[k] = DM.ubic[k].slice(0, 3);   // la salida del sistema no tiene ubicación
     delete DM.aprob[k]; DM.diaAuto = f; break;
   }
+  // (v93) usuario de prueba, sin datos
+  DM.emps.push({ usuario:'carlos.test', nombre:'Carlos (Test)', agenteMonitor:'', nombreNomina:'', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'',
+    fechaIngreso:'2026-10-01', horaEntrada:'08:00', pagoCuenta:'247', aportesCop:0, pagoFijoCop:null, prueba:true });
 }
 function demoDia(e, f){
   const m = DM.marcas[e.usuario + '|' + f] || [], hoy = fechaHoy(), esHoy = f === hoy, t = ahora();
@@ -10519,14 +10602,14 @@ function demoDocsInit(){
   add('hebert.h', 6, 'aportes ' + mesAnt(4) + '.pdf', 'rechazado', 110, { periodo:mesAnt(4), nota:'Es de otro mes.' });
   // quién presenta cada mensual: Aportes (Laura y Hebert, desde el primer mes), Cuenta de cobro (todos, desde hace 3 meses; Saori desde el mes pasado)
   DM.docPersonas = [{ tipoId:6, usuario:'laura.a', desdeMes:mesAnt(5) }, { tipoId:6, usuario:'hebert.h', desdeMes:mesAnt(5) }]
-    .concat(DM.emps.map(e => ({ tipoId:5, usuario:e.usuario, desdeMes: e.usuario === 'saori.m' ? mesAnt(1) : mesAnt(3) })));
+    .concat(DM.emps.filter(e => !e.prueba).map(e => ({ tipoId:5, usuario:e.usuario, desdeMes: e.usuario === 'saori.m' ? mesAnt(1) : mesAnt(3) })));
   [3, 2, 1].forEach(n => ['laura.a', 'claudia.c', 'farouk.n'].forEach(u => add(u, 5, 'Cuenta de cobro ' + mesAnt(n) + '.pdf', n === 1 && u === 'farouk.n' ? 'pendiente' : 'aprobado', n * 30 - 25, { periodo:mesAnt(n), vence:'' })));
   // Laura: en agosto subió uno bueno (aprobado) y luego otro equivocado (rechazado): sigue contando el bueno
   add('laura.a', 5, 'Cuenta de cobro equivocada.pdf', 'rechazado', 50, { periodo:mesAnt(3), nota:'Es la cuenta de cobro de otro mes.' });
   // Paystubs de las últimas quincenas (los manda «Comprobantes»)
   DM.paystubs = []; DM.payId = 0;
   const finQ = n => { let d = new Date(Date.UTC(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 1, Number(hoy.slice(8, 10)) <= 15 ? 0 : 15)); for(let i = 0; i < n; i++) d = d.getUTCDate() === 15 ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)) : new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 15)); return d.toISOString().slice(0, 10); };
-  [3, 2, 1, 0].forEach(n => DM.emps.forEach((e, i) => { const f = finQ(n), id = ++DM.payId, ruta = e.usuario + '/paystubs/demo' + id + '-' + e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf';
+  [3, 2, 1, 0].forEach(n => DM.emps.filter(e => !e.prueba).forEach((e, i) => { const f = finQ(n), id = ++DM.payId, ruta = e.usuario + '/paystubs/demo' + id + '-' + e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf';
     DM.docFiles.set(ruta, demoPdf('PAYSTUB ' + e.nombre + ' - pay period ending ' + f));
     DM.paystubs.push({ id, usuario:e.usuario, periodoFin:f, periodo:'', archivo:ruta, nombre:e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf', bytes:42000 + i * 311, neto:1200000 + i * 98500,
       enviadoPor:'carloshtl75', enviadoEn:Date.parse(f + 'T22:00:00Z') + 86400000, vistoEn: n > 0 || i % 2 ? Date.parse(f + 'T22:00:00Z') + 2 * 86400000 : null, reemplazado:false }); }));
@@ -11150,6 +11233,32 @@ async function demoApi(action, p){
   }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
+  if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
+    if(S.demoAgente) throw new Error('Only an administrator can copy data to the test user.'); demoDocsInit();
+    const de = DM.emps.find(e => e.usuario === p.desde), a = DM.emps.find(e => e.usuario === p.hacia);
+    if(!de) throw new Error('That employee is not in the Time Clock.');
+    if(!a || !a.prueba) throw new Error('You can only copy to a test user.');
+    if(de.prueba || de === a) throw new Error('Choose an agent who isn\'t a test user.');
+    const pd = p.desde + '|', ph = p.hacia + '|', ren = r => typeof r === 'string' && r.indexOf(p.desde + '/') === 0 ? p.hacia + r.slice(p.desde.length) : r;
+    const borrar = DM.docs.filter(d => d.usuario === p.hacia).map(d => d.archivo).concat(DM.paystubs.filter(x => x.usuario === p.hacia).map(x => x.archivo));
+    [DM.marcas, DM.aprob, DM.aprobH || {}, DM.aprobT || {}, DM.ubic].forEach(o => Object.keys(o).forEach(k => { if(k.indexOf(ph) === 0) delete o[k]; }));
+    DM.sols = DM.sols.filter(s => s.usuario !== p.hacia); DM.docs = DM.docs.filter(d => d.usuario !== p.hacia);
+    DM.docPersonas = DM.docPersonas.filter(x => x.usuario !== p.hacia); DM.paystubs = DM.paystubs.filter(x => x.usuario !== p.hacia);
+    const filas = { reloj_marcas:0, reloj_aprobaciones:0, reloj_solicitudes:0, reloj_docs:0, reloj_doc_personas:0, reloj_paystubs:0 }, copiar = [];
+    Object.keys(DM.marcas).filter(k => k.indexOf(pd) === 0).forEach(k => { const k2 = ph + k.slice(pd.length); DM.marcas[k2] = demoCopia(DM.marcas[k]); filas.reloj_marcas += DM.marcas[k2].length;
+      if(DM.ubic[k]) DM.ubic[k2] = DM.ubic[k].map(x => Object.assign({}, x, { usuario:p.hacia })); });
+    Object.keys(DM.aprob).filter(k => k.indexOf(pd) === 0).forEach(k => { const k2 = ph + k.slice(pd.length); DM.aprob[k2] = DM.aprob[k]; filas.reloj_aprobaciones++;
+      if(DM.aprobH && DM.aprobH[k] != null) DM.aprobH[k2] = DM.aprobH[k]; if(DM.aprobT && DM.aprobT[k] != null) DM.aprobT[k2] = DM.aprobT[k]; });
+    DM.sols.filter(s => s.usuario === p.desde).forEach(s => { DM.sols.push(Object.assign(demoCopia(s), { id:++DM.solId, usuario:p.hacia })); filas.reloj_solicitudes++; });
+    DM.docs.filter(d => d.usuario === p.desde).forEach(d => { const n = Object.assign(demoCopia(d), { id:++DM.docId, usuario:p.hacia, archivo:ren(d.archivo), subidoPor: d.subidoPor === p.desde ? p.hacia : d.subidoPor });
+      DM.docs.push(n); copiar.push({ de:d.archivo, a:n.archivo }); filas.reloj_docs++; });
+    DM.docPersonas.filter(x => x.usuario === p.desde).forEach(x => { DM.docPersonas.push(Object.assign({}, x, { usuario:p.hacia })); filas.reloj_doc_personas++; });
+    DM.paystubs.filter(x => x.usuario === p.desde).forEach(x => { const n = Object.assign(demoCopia(x), { id:++DM.payId, usuario:p.hacia, archivo:ren(x.archivo) });
+      DM.paystubs.push(n); copiar.push({ de:x.archivo, a:n.archivo }); filas.reloj_paystubs++; });
+    return { ok:true, desde:p.desde, hacia:p.hacia, nombreDesde:de.nombre, nombreHacia:a.nombre, filas, copiar, borrar };
+  }
+  if(action === 'pruebaBorrarArchivos'){ demoDocsInit(); (p.rutas || []).forEach(r => DM.docFiles.delete(r)); return { ok:true }; }
+  if(action === 'pruebaCopiarArchivo'){ demoDocsInit(); const b = DM.docFiles.get(p.de); if(!b) throw new Error('That file is not available.'); DM.docFiles.set(p.a, b); return { ok:true }; }
   if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
