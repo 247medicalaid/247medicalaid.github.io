@@ -2432,6 +2432,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v97: Timesheet congelado — la página se detiene con el título arriba y solo baja la tabla -->
 <!-- v96: Timesheet y Pay run — «N people» y botón fijo «N more people below» al pie de la ventana -->
 <!-- v95: Documents — cuántas personas hay, sombra y botón «N more people below» mientras queden filas abajo -->
 <!-- v94: también en timeclock.247medical-aid.com (cargador en cPanel); rutas completas a sb.js, monitor y paystubs -->
@@ -7382,6 +7383,7 @@ function masFilas(vista, idTabla, selFilas, idCuantos){
     if(!abajo) return;
     btn.querySelector('span').textContent = abajo + ' more ' + (abajo === 1 ? 'person' : 'people') + ' below';
     btn.style.left = Math.round((Math.max(rw.left, 0) + Math.min(rw.right, window.innerWidth)) / 2) + 'px';
+    btn.style.bottom = Math.max(18, Math.round(window.innerHeight - Math.min(rw.bottom, window.innerHeight) + 12)) + 'px';   // (v97)
   };
   btn.addEventListener('click', () => {
     const w = $(idTabla), rw = w.getBoundingClientRect();
@@ -7401,6 +7403,28 @@ function masFilas(vista, idTabla, selFilas, idCuantos){
   return act;
 }
 masFilas('hoja', 'hojaTabla', 'tbody tr .nom-btn[data-editar]', 'hojaCuantos');
+// (v97) Timesheet congelado: la página baja solo hasta que el título «Timesheet» queda debajo de la barra de arriba; desde ahí
+// solo se mueve la tabla. Alto de la tabla = ventana − barra − (del título al inicio de la tabla) − (lo que va debajo) − 8.
+function hojaCongelar(){
+  const w = $('hojaTabla'), sec = $('vHoja');
+  if(!w || !sec || document.body.dataset.vista !== 'hoja' || !w.offsetParent) return;
+  if(window.innerWidth < 700){ w.style.maxHeight = ''; return; }
+  const cab = sec.querySelector('.cabecera'), y = window.scrollY || 0;
+  const barra = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-h')) || 57;
+  const rc = cab.getBoundingClientRect(), rt = w.getBoundingClientRect();
+  const arriba = rt.top - rc.top;                                                          // título, filtros, resumen, avisos, «N people»
+  const abajo = document.documentElement.scrollHeight - (rt.bottom + y);                   // botones, leyenda y margen final
+  const alto = Math.round(window.innerHeight - barra - 8 - arriba - abajo);
+  const nuevo = Math.max(260, alto) + 'px';
+  if(w.style.maxHeight !== nuevo) w.style.maxHeight = nuevo;
+}
+(() => {
+  const pedir = () => requestAnimationFrame(hojaCongelar);
+  window.addEventListener('resize', pedir);
+  new MutationObserver(pedir).observe($('hojaTabla'), { childList:true });
+  new MutationObserver(pedir).observe(document.body, { attributes:true, attributeFilter:['data-vista'] });
+  if(window.ResizeObserver){ const ro = new ResizeObserver(pedir); ['hojaResumen', 'hojaAvisos', 'hSelBar', 'hojaLeyenda', 'hojaCuantos'].forEach(id => { if($(id)) ro.observe($(id)); }); ro.observe($('vHoja').querySelector('.cabecera')); }
+})();
 masFilas('pago', 'pyTabla', 'tbody tr[data-pf]', 'pyCuantos');
 // (v95) Cuántas personas hay y cuántas quedan abajo (sombra + botón «▾ N more people»)
 function dcMasActualizar(){
