@@ -902,6 +902,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .emps .inact td{color:#9AAAB5}
 .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sand-2);color:var(--text-muted)}
 .pill.no{background:var(--warn-50);color:var(--warn)}
+.pill.app-ok{background:#E3F4EC;color:#14653F}
 .pill.dif{background:var(--warn-50);color:var(--warn);cursor:help}
 .pill.dup-mon{background:var(--accent-50);color:var(--accent-600);cursor:help}
 .cta-mon{display:block;font-size:12px;line-height:1.35;margin-top:5px;color:var(--text-muted);font-weight:400}
@@ -2510,6 +2511,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v104: Users — columna «Windows app» (quién ya entró desde la app de Windows; paso 56) -->
 <!-- v103: Today — títulos fijos, ordenar con clic en el título y cambiar el ancho de las columnas -->
 <!-- v102: Today como tabla (estilo Connecteam) con botón «Columns» para elegir columnas -->
 <!-- v101: Import from Connecteam — elegir si los días entran aprobados o sin aprobar -->
@@ -3524,6 +3526,9 @@ async function api(action, p){
   if(DEMO) return demoApi(action, p || {});
   p = p || {};
   if(action === 'yo') return yoSB();
+  // v104: uso de la app de Windows (paso 56)
+  if(action === 'appVisto') return q(sb.rpc('reloj_app_visto', { p_info:p.info || null }));
+  if(action === 'appUso') return todas(() => sb.from('reloj_app_win').select('usuario,primera,visto,veces').order('usuario'));
   if(action === 'marcar'){
     const t0 = performance.now();
     const r = await q(sb.rpc('reloj_marcar', { p_tipo: p.tipo, p_ubic: p.ubic || null }));
@@ -4295,8 +4300,17 @@ function appRecordatorios(yo, r, t){
     texto:'Open My profile in the Time Clock and send a photo of your ID document.' });
   return out;
 }
+// v104: anotar que este agente usa la app de Windows (como mucho cada 30 min)
+function appReportarUso(){
+  if(!appWin() || !S.yo || !S.yo.empleado) return;
+  let u = 0; try{ u = Number(localStorage.getItem('reloj_app_visto')) || 0; }catch(e){}
+  if(Date.now() - u < 30 * 60000) return;
+  try{ localStorage.setItem('reloj_app_visto', String(Date.now())); }catch(e){}
+  api('appVisto', { info:String(navigator.userAgent || '').slice(0, 300) }).catch(() => {});
+}
 function appEstado(){
   if(!appWin()) return;
+  appReportarUso();
   const yo = S.yo, r = yo && yo.reloj;
   if(!yo || !r) return appMandar({ tipo:'estado', v:1, conectado:!!yo, empleado:!!(yo && yo.empleado), estado:'fuera', nombre: yo ? (yo.usuario.nombre || yo.usuario.username || '') : '', minHoy:0, recordatorios:[] });
   const t = ahora(), abierto = r.estado !== 'fuera' && r.desde ? (t - r.desde) / 60000 : 0;
@@ -5689,6 +5703,7 @@ $('hExpDetalle').addEventListener('click', () => {
 /* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
 async function cargarEmps(){
   $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Loading…</div>';
+  S.appUso = S.appUso || undefined; cargarAppUso();
   try{ S.emps = await api('empleados'); pintarEmps(); }
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
@@ -5731,9 +5746,27 @@ const UCOLS = [
   { k:'horario', t:'Schedule', num:true, v:e => e.horaEntrada || '', h:e => (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h' },
   { k:'pago', t:'Pay rate', num:true, v:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? Number(e.pagoHora) : '',
     h:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>' },
-  { k:'monitor', t:'Monitor', v:e => e.agenteMonitor, h:e => e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>' }
+  { k:'monitor', t:'Monitor', v:e => e.agenteMonitor, h:e => e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>' },
+  { k:'app', t:'Windows app', num:true, v:e => { const a = S.appUso && S.appUso[e.usuario]; return a ? Date.parse(a.visto) : ''; }, h:appUsoHTML }
 ];
-const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor'];
+const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor', 'app'];
+// v104: quién ya entró desde la app de Windows (se instala sola con el Monitor 2.9)
+function appUsoHTML(e){
+  if(S.appUso === null) return '<span class="muted" title="The Windows app usage needs SQL step 56 in Supabase.">Run SQL step 56</span>';
+  if(!S.appUso) return '<span class="muted">…</span>';
+  const a = S.appUso[e.usuario]; if(!a) return '<span class="muted" title="Hasn\'t signed in from the Windows app yet">—</span>';
+  const f = x => new Intl.DateTimeFormat('en-US', { timeZone:S.zona || 'America/New_York', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }).format(new Date(x));
+  return '<span class="pill app-ok" title="First used ' + esc(f(a.primera)) + ' · last ' + esc(f(a.visto)) + ' · ' + a.veces + (a.veces === 1 ? ' time' : ' times') + '">✓ In use</span><small>' + esc(f(a.visto)) + '</small>';
+}
+async function cargarAppUso(){
+  try{ const l = await api('appUso'); const m = {}; (l || []).forEach(x => { m[x.usuario] = x; }); S.appUso = m; }
+  catch(e){ S.appUso = null; }
+  if(S.vista === 'emps' && S.emps) pintarEmps();
+}
+// la columna nueva se agrega una vez a la elección guardada
+(() => { try{ const c = JSON.parse(localStorage.getItem('reloj_users_cols') || 'null');
+  if(Array.isArray(c) && !c.includes('app') && !localStorage.getItem('reloj_users_cols_app_v104')){ c.push('app'); localStorage.setItem('reloj_users_cols', JSON.stringify(c)); }
+  localStorage.setItem('reloj_users_cols_app_v104', '1'); }catch(e){} })();
 const UGRUPOS = { cuenta:{ t:'Account', v:e => e.cuenta, vacio:'No account' }, titulo:{ t:'Title', v:e => e.titulo, vacio:'No title' }, ciudad:{ t:'City', v:e => e.ciudad, vacio:'No city' } };
 function uPref(k, def){ try{ const v = JSON.parse(localStorage.getItem('reloj_users_' + k)); return v == null ? def : v; }catch(e){ return def; } }
 function uGuardarPref(k, v){ try{ localStorage.setItem('reloj_users_' + k, JSON.stringify(v)); }catch(e){} }
@@ -11422,6 +11455,12 @@ async function demoApi(action, p){
       reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
   };
   if(action === 'yo') return yo();
+  if(action === 'appVisto'){ DM.appWin = DM.appWin || {}; const x = DM.appWin[yoU]; DM.appWin[yoU] = { usuario:yoU, primera: x ? x.primera : new Date().toISOString(), visto:new Date().toISOString(), veces: x ? x.veces + 1 : 1 }; return null; }
+  if(action === 'appUso'){
+    if(!DM.appWin){ DM.appWin = {}; (DM.emps || []).filter(e => e.activo !== false).slice(0, 2).forEach((e, i) => {
+      DM.appWin[e.usuario] = { usuario:e.usuario, primera:new Date(Date.now() - (i + 1) * 86400000).toISOString(), visto:new Date(Date.now() - (i * 50 + 5) * 60000).toISOString(), veces:3 + i }; }); }
+    return Object.values(DM.appWin);
+  }
   if(action === 'marcar'){
     const k = yoU + '|' + hoy; (DM.marcas[k] = DM.marcas[k] || []).push({ tipo:p.tipo, ms:ahora(), origen:'agente' });
     if(p.ubic) (DM.ubic[k] = DM.ubic[k] || []).push({ usuario:yoU, fecha:hoy, tipo:p.tipo, ms:ahora(), lat:p.ubic.lat, lng:p.ubic.lng, prec:p.ubic.prec, anulada:false });
