@@ -692,6 +692,22 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .per .ok{color:var(--brand-600);display:inline-flex;vertical-align:-2px;margin-right:3px}
 .per .ok svg{width:12px;height:12px}
 .per-tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+/* v107: resumen de pago del agente */
+.pay-res{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--paper)}
+.pay-cab{background:var(--brand-700);color:#fff;padding:10px 14px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pay-cab small{font-weight:600;font-size:12px;opacity:.85}
+.pay-fila{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.pay-fila .et{color:var(--text-muted)}
+.pay-fila .va{font-weight:600;font-variant-numeric:tabular-nums}
+.pay-ded{background:var(--accent-50);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.pay-ded .pay-fila{border-bottom:0;padding-top:6px;padding-bottom:6px}
+.pay-ded .pay-fila.tit{color:var(--accent-600);font-weight:700;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding-bottom:2px}
+.pay-ded .neg{color:var(--accent-600)}
+.pay-neto{background:var(--brand-50);display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px}
+.pay-neto .et{font-weight:700;color:var(--brand-700)}
+.pay-neto .va{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--brand-700);font-variant-numeric:tabular-nums}
+.pay-nota{padding:10px 14px;font-size:13px;color:var(--text-muted)}
+.pay-pie{padding:8px 14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--line)}
 .per-tot div{background:var(--sand);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--text-muted)}
 .per-tot b{display:block;font-family:var(--font-display);font-size:18px;color:var(--text);font-weight:800}
 .per-tot .grande{background:var(--ink-900);color:#9FBECB}
@@ -1858,6 +1874,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       </div>
       <div id="pTabla" class="per-tabla"></div>
       <div class="per-tot" id="pTot"></div>
+      <div class="pay-res hidden" id="payResumen"></div>
     </aside>
    </div>
   </section>
@@ -2559,6 +2576,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v107: resumen de pago del agente por quincena cerrada (paso 57) -->
 <!-- v106: centro de notificaciones con pestaña History -->
 <!-- v105: centro de notificaciones (campana) para los avisos del administrador -->
 <!-- v104: Users — columna «Windows app» (quién ya entró desde la app de Windows; paso 56) -->
@@ -3703,6 +3721,7 @@ async function api(action, p){
   if(action === 'quitarAusencia') return q(sb.rpc('reloj_quitar_ausencia', { p_id:p.id, p_nota:p.nota || '' }));
   if(action === 'decidir') return q(sb.rpc('reloj_decidir_solicitud', { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '',
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas }));
+  if(action === 'misPagos') return q(sb.rpc('reloj_mis_pagos'));
   if(action === 'miPeriodo'){
     const ses = await sesionSB(), u = usuarioDe(ses);
     const [marcas, aprob, aus, pend] = await Promise.all([
@@ -4508,8 +4527,49 @@ function quincenaVecina(p, dir){
   if(dir < 0) return dd === 1 ? quincenaDe(sumarDias(mes + '-01', -1)) : { desde:mes + '-01', hasta:mes + '-15' };
   return dd === 1 ? { desde:mes + '-16', hasta:finMesF(mes) } : quincenaDe(sumarDias(finMesF(mes), 1));
 }
+async function cargarMisPagos(){
+  if(S.misPagos !== undefined) return;
+  S.misPagos = {};
+  try{ const l = await api('misPagos'); (l || []).forEach(x => { S.misPagos[x.desde + '|' + x.hasta] = x; }); }
+  catch(e){ S.misPagos = null; }   // sin el paso 57: no se muestra el resumen
+}
+// El pago (exacto) de la quincena que está viendo el agente, si ya está cerrada.
+const copCO = v => (v < -0.5 ? '−$' : '$') + Math.abs(Math.round(Number(v) || 0)).toLocaleString('es-CO');
+function pintarPagoAg(){
+  const caja = $('payResumen'); if(!caja) return;
+  const pg = S.misPagos && S.perAg ? S.misPagos[S.perAg.desde + '|' + S.perAg.hasta] : null;
+  if(!pg){
+    const actual = S.perAg && quincenaDe(S.yo.hoy).desde === S.perAg.desde;
+    caja.className = 'pay-res' + (actual && S.misPagos ? '' : ' hidden');
+    caja.innerHTML = actual && S.misPagos ? '<div class="pay-nota">This pay period hasn\'t been paid yet. Your payment summary will appear here once payroll is done.</div>' : '';
+    if(S.awListo) awTamano();
+    return;
+  }
+  const num = k => { const r = pg[k]; if(r == null || r === '') return null; const v = Number(r); return isFinite(v) ? v : null; };
+  const m = num('m'), y = num('y'), n = num('n'), v = num('v'), w = num('w'), x = num('x'), tar = num('tarifa'), fijo = num('fijo');
+  const es247 = pg.de === '247';
+  const filU = (et, val) => '<div class="pay-fila"><span class="et">' + et + '</span><span class="va">' + val + '</span></div>';
+  let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
+  if(fijo == null){
+    if(tar != null) h += filU('Hourly rate', 'USD ' + tar.toFixed(2));
+    if(m != null) h += filU('Gross pay (USD)', 'USD ' + m.toFixed(2));
+    if(y) h += filU('Exchange rate', '$' + Math.round(y).toLocaleString('es-CO') + ' COP');
+  }
+  // deducciones
+  const ded = [];
+  ded.push('<div class="pay-fila"><span class="et">' + (fijo != null ? 'Fixed pay (COP)' : 'Gross pay (COP)') + '</span><span class="va">' + copCO(fijo != null ? fijo : n) + '</span></div>');
+  if(es247 && v) ded.push('<div class="pay-fila"><span class="et">Rete ICA (' + esc(String(pg.ica || '9.5')) + ' per 1,000)</span><span class="va neg">−' + copCO(v) + '</span></div>');
+  if(w) ded.push('<div class="pay-fila"><span class="et">Payroll contributions (Aportes)</span><span class="va neg">−' + copCO(w) + '</span></div>');
+  if(ded.length > 1) h += '<div class="pay-ded"><div class="pay-fila tit"><span>Deductions</span><span></span></div>' + ded.join('') + '</div>';
+  else h += ded[0];
+  h += '<div class="pay-neto"><span class="et">Net pay (COP)</span><span class="va">' + copCO(x != null ? x : (n || 0) - (v || 0) - (w || 0)) + '</span></div>';
+  if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from Connecteam' : '') + '</div>';
+  caja.className = 'pay-res'; caja.innerHTML = h;
+  if(S.awListo) awTamano();
+}
 async function cargarPeriodoAg(p){
   if(p) S.perAg = p; if(!S.perAg) S.perAg = quincenaDe(S.yo.hoy);
+  cargarMisPagos();
   const pedido = S.perAg.desde;
   $('pSub').textContent = diaS(S.perAg.desde).replace(/^\w+, /, '') + ' – ' + diaS(S.perAg.hasta).replace(/^\w+, /, '');
   $('pTitulo').textContent = S.perAg.desde === quincenaDe(S.yo.hoy).desde ? 'Current pay period' : 'Pay period';
@@ -4618,6 +4678,7 @@ function pintarPeriodoAg(){
     '<div>Approved<b class="num">' + hm(totAp) + '</b></div>' +
     (pto ? '<div>Paid time off<b class="num">' + hm(pto) + '</b></div>' : '') +
     (faltan ? '<div style="background:var(--accent-50);color:#7A1418">Missing clock-out<b class="num" style="color:var(--accent-600)">' + faltan + (faltan === 1 ? ' day' : ' days') + '</b></div>' : '');
+  pintarPagoAg();
   if(S.awListo && !S.awTam) awTamano();
   $('pTabla').querySelectorAll('tr.ed').forEach(tr => {
     tr.addEventListener('click', () => abrirPed(tr.dataset.f));
@@ -11544,6 +11605,11 @@ async function demoApi(action, p){
   if(action === 'importarUsuarios'){ await new Promise(r => setTimeout(r, 150)); return demoImportarUsuarios(p || {}); }
   if(/^inv[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 150)); return demoInv(action, p || {}); }   // (no «invitar»)
   if(action === 'idEstado') return demoIdEstado();
+  if(action === 'misPagos'){   // quincena anterior cerrada, como ejemplo (la actual sale «aún no pagada»)
+    const ant = quincenaVecina(quincenaDe(fechaHoy()), -1);
+    return [{ desde:ant.desde, hasta:ant.hasta, fechaPago:ant.hasta, origen:'manual', ica:'9.5',
+      tarifa:'4', m:'352', y:'3603', n:'1268182', v:'12048', w:'254150', x:'1001984', de:'247', fijo:null, cuenta:'Cardiovascular' }];
+  }
   await new Promise(s => setTimeout(s, 250));
   const hoy = fechaHoy(), yoU = 'laura.a';
   const hojaDe = (desde, hasta) => {
