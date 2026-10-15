@@ -2636,6 +2636,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v125: Excel del banco/personal con números en formato General (sin el punto final) -->
 <!-- v124: Plantilla Banco (247) + Ventana Pagos Personal, leyendo la ficha del TimeTrack -->
 <!-- v123: Comprobantes de pago dentro del Pay run (individual + combinado + resumen, jsPDF) -->
 <!-- v122: Pay run — avisar antes de salir (cambio de tab o recarga) con cambios sin guardar -->
@@ -13128,6 +13129,34 @@ async function cpCadaUno(btn){
 })();
 // Espacio accesible (para pruebas y para la ventana de Pagos Personal en v124)
 // ───────── Fase 2: Plantilla Banco (247) + Ventana Pagos Personal ─────────
+// Generador .xlsx limpio para el banco/personal: números en formato General (sin punto), textos como texto (conserva ceros).
+function cpXlsxSimple(nombre, cab, filas, anchos){
+  const colL = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : '') + String.fromCharCode(65 + i % 26);
+  const cel = (r, i, v, hdr) => { const ref = colL(i) + r;
+    if(v === null || v === undefined || v === '') return '';
+    if(hdr) return '<c r="' + ref + '" s="1" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>';
+    if(typeof v === 'number') return '<c r="' + ref + '"><v>' + v + '</v></c>';
+    return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>'; };
+  let rows = '<row r="1">' + cab.map((t, i) => cel(1, i, t, true)).join('') + '</row>';
+  filas.forEach((f, ri) => { const r = ri + 2; rows += '<row r="' + r + '">' + f.map((v, i) => cel(r, i, v, false)).join('') + '</row>'; });
+  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:' + colL(cab.length - 1) + (filas.length + 1) +
+    '"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>' +
+    anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols><sheetData>' + rows + '</sheetData></worksheet>';
+  const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+    '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  return zipBlob([
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + xmlEsc(nombre) + '" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', estilos],
+    ['xl/worksheets/sheet1.xml', hoja]]);
+}
+
 const cpNorm = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
 const CP_BANCO_COD = { 'bancolombia':7,'banco de bogota':1,'banco de bogotá':1,'banco popular':2,'itau':6,'itaú':6,'citibank':9,
   'banco gnb sudameris':12,'gnb sudameris':12,'bbva':13,'bbva colombia':13,'helm bank':14,'scotiabank colpatria':19,'scotiabank':19,
@@ -13167,7 +13196,7 @@ async function cpBanco(){
     filas.push([cpCodId(e.tipoId), nid, partes[0], partes[1], cod, 'CA', cta, cpNeto(f), '', e.email || '', desc]);
   });
   if(!filas.length){ toast(faltan.length ? 'No one has complete bank info yet.' : 'No 24/7 payments in this pay run.', 'err'); return; }
-  cpBajarXls(xlsxTablas([{ nombre:'Hoja1', cab, filas, anchos:[22,22,20,22,16,24,26,22,14,30,22], sinFiltro:true }]), 'Plantilla-Pagos-Nomina_' + cpFecha() + '.xlsx');
+  cpBajarXls(cpXlsxSimple('Hoja1', cab, filas, [22,22,20,22,16,24,26,22,14,30,22]), 'Plantilla-Pagos-Nomina_' + cpFecha() + '.xlsx');
   toast('Bank template: ' + filas.length + ' payment' + (filas.length === 1 ? '' : 's') + (faltan.length ? '. Missing bank info: ' + faltan.join(', ') : '.'), faltan.length ? 'err' : '');
 }
 
@@ -13200,7 +13229,7 @@ function cpModalPersonal(rows){
   if($('cpPerXls')) $('cpPerXls').addEventListener('click', () => {
     const cab = ['ID type','ID number','Name','Bank','Account #','Amount (COP)'];
     const filas = rows.map(r => [r.tipoId, String(r.numId), r.nombre, r.banco, String(r.cuenta), r.valor]);
-    cpBajarXls(xlsxTablas([{ nombre:'Personal', cab, filas, anchos:[12,18,26,18,20,16] }]), 'Pagos-Personal_' + cpFecha() + '.xlsx');
+    cpBajarXls(cpXlsxSimple('Personal', cab, filas, [12,18,26,18,20,16]), 'Pagos-Personal_' + cpFecha() + '.xlsx');
   });
 }
 // listeners nuevos
