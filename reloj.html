@@ -67,6 +67,15 @@ button,input,select{font:inherit;color:inherit}
 .btn-ink{background:var(--ink-900);color:#fff}
 .btn-ink:hover:not(:disabled){background:var(--ink-700)}
 .btn-brand{background:var(--brand-600);color:#fff}
+.btn-brand-o{border-color:var(--brand-600);background:var(--brand-50);color:var(--brand-700)}
+.cp-per th.cp-chk,.cp-per td.cp-chk{text-align:center;white-space:nowrap}
+.cp-pago-chk{width:17px;height:17px;cursor:pointer;accent-color:#1E9E5A;vertical-align:middle}
+.cp-pago-conf{width:132px;max-width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;font-size:13px;font-family:inherit;color:var(--text)}
+.cp-pago-conf:focus{outline:none;border-color:var(--brand-500);box-shadow:0 0 0 2px var(--brand-50)}
+.cp-pago-chk.cp-ok,.cp-pago-conf.cp-ok{outline:2px solid #1E9E5A;outline-offset:1px}
+.cp-per tr.cp-pagado td{background:#E9F7EF}
+.cp-per tr.cp-pagado td.cp-chk{box-shadow:inset 3px 0 0 #1E9E5A}
+.cp-pagados{color:#1E7A45;font-weight:600}
 .btn-brand:hover:not(:disabled){background:var(--brand-700)}
 .btn-sm{padding:7px 13px;font-size:13px}
 .btn-link{border:0;background:none;color:var(--brand-700);font-weight:700;cursor:pointer;padding:4px 2px;font-size:14px}
@@ -147,7 +156,7 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-docs-sub{font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);opacity:.85}
 .py-docs-b{display:flex;flex-wrap:wrap;gap:6px}
 @media(max-width:860px){.py-docs-g{border-left:0;padding:2px 0;flex-basis:100%}}
-#cpOvPersonal .cp-per-v{position:relative;max-width:920px}
+#cpOvPersonal .cp-per-v{position:relative;max-width:1100px}
 #cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
 #cpOvPersonal .cp-x:hover{color:var(--text)}
 .cp-per-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px;margin-top:10px}
@@ -2100,13 +2109,13 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="py-docs-g">
         <span class="py-docs-sub">To employee profiles</span>
         <div class="py-docs-b">
-          <button class="btn btn-ghost btn-sm" id="cpEnviar" type="button" title="Generate each pay stub and save it to the person’s Documents → Paystubs">Send to profiles</button>
+          <button class="btn btn-brand btn-sm" id="cpEnviar" type="button" title="Generate each pay stub and save it to the person’s Documents → Paystubs">Send to profiles</button>
         </div>
       </div>
       <div class="py-docs-g">
         <span class="py-docs-sub">For the accountant</span>
         <div class="py-docs-b">
-          <button class="btn btn-ghost btn-sm" id="cpResu" type="button" title="One-page totals summary (the accountant needs it)">Summary PDF</button>
+          <button class="btn btn-brand-o btn-sm" id="cpResu" type="button" title="One-page totals summary (the accountant needs it)">Summary PDF</button>
         </div>
       </div>
       <div class="py-docs-g">
@@ -2678,6 +2687,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v132: color a «Send to profiles» y «Summary PDF»; Personal payments con check «Paid» + confirmation # guardados (paso 62) -->
 <!-- v131: agrupar los botones de Payroll documents por función (Payment / To profiles / Accountant / Download) -->
 <!-- v130: quitar el botón «All pay periods» de Documents → Paystubs (el selector Period ya navega todos los periodos) -->
 <!-- v129: quitar la nota obsoleta de Documents → Paystubs (los comprobantes ya se envían internamente desde el Pay run) -->
@@ -3682,6 +3692,11 @@ async function docsSB(action, p){
     const r = await q(sb.from('reloj_paystubs').select('usuario').eq('periodo_fin', p.periodoFin).eq('reemplazado', false));
     return (r || []).map(x => x.usuario);
   }
+  // (v132) pagos desde la cuenta personal: estado guardado por persona y quincena (paso 62)
+  if(action === 'pagoPersonalPeriodo'){ await sesionSB();
+    const r = await q(sb.from('reloj_pago_personal').select('usuario,pagado,confirmacion,pagado_en').eq('periodo_fin', p.periodoFin));
+    return r || []; }
+  if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
   // (v127) comprobante generado internamente → Paystubs del usuario (reloj_paystub_registrar reemplaza el de ese periodo)
   if(action === 'docPayEnviar'){
     await sesionSB();
@@ -11934,6 +11949,10 @@ function demoChat2(action, p){
 }
 async function demoApi(action, p){
   demoInit();
+  if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
+    window.__demoPagos = window.__demoPagos || {};
+    if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
+    const per = window.__demoPagos[p.periodoFin] = (window.__demoPagos[p.periodoFin] || {}); per[p.usuario] = { pagado:!!p.pagado, confirmacion:p.confirmacion || '' }; return { ok:true }; }
   if(/^upd[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 150)); return demoUpd(action, p || {}); }
   if(/^chat[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 80)); return demoChat2(action, p || {}); }
   if(action.startsWith('doc')){ await new Promise(r => setTimeout(r, 200)); return demoDocs(action, p || {}); }
@@ -13298,7 +13317,7 @@ async function cpPersonal(){
   const m = await cpFichas();
   const rows = ordenPago(pr.filas).filter(f => f.de === 'personal').map(f => {
     const e = cpFichaDe(f, m) || {};
-    return { nombre:((f.nom || '') + ' ' + (f.ape || '')).trim(), tipoId:e.tipoId || '', numId:e.numId || '', banco:e.banco || '', cuenta:e.cuentaBanco || '', valor:cpNeto(f) };
+    return { usuario:f.usuario, nombre:((f.nom || '') + ' ' + (f.ape || '')).trim(), tipoId:e.tipoId || '', numId:e.numId || '', banco:e.banco || '', cuenta:e.cuentaBanco || '', valor:cpNeto(f) };
   });
   cpModalPersonal(rows);
 }
@@ -13309,16 +13328,36 @@ function cpModalPersonal(rows){
     document.addEventListener('keydown', e => { if(e.key === 'Escape' && !ov.classList.contains('hidden')) ov.classList.add('hidden'); }); }
   const money = n => '$ ' + Number(n).toLocaleString('es-CO');
   const total = rows.reduce((s, r) => s + r.valor, 0);
-  const cuerpo = rows.length ? rows.map(r => '<tr><td>' + esc(r.tipoId) + '</td><td>' + esc(String(r.numId)) + '</td><td>' + esc(r.nombre) + '</td><td>' + esc(r.banco) +
-      '</td><td>' + esc(String(r.cuenta)) + '</td><td class="num">' + money(r.valor) + '</td></tr>').join('')
-    : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px">No personal-account payments in this pay run.</td></tr>';
+  const periodoFin = (S.pr && S.pr.hasta) || '';
+  const trDe = u => ov.querySelector('tr[data-u="' + String(u).replace(/"/g, '\\"') + '"]');
+  const fila = r => '<tr data-u="' + esc(r.usuario || '') + '">' +
+      '<td class="cp-chk"><input type="checkbox" class="cp-pago-chk"' + (r.usuario ? '' : ' disabled') + ' aria-label="Mark ' + esc(r.nombre) + ' as paid"></td>' +
+      '<td>' + esc(r.tipoId) + '</td><td>' + esc(String(r.numId)) + '</td><td>' + esc(r.nombre) + '</td><td>' + esc(r.banco) +
+      '</td><td>' + esc(String(r.cuenta)) + '</td><td class="num">' + money(r.valor) + '</td>' +
+      '<td class="cp-conf"><input type="text" class="cp-pago-conf" placeholder="Confirmation #" autocomplete="off"' + (r.usuario ? '' : ' disabled') + '></td></tr>';
+  const cuerpo = rows.length ? rows.map(fila).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:18px">No personal-account payments in this pay run.</td></tr>';
   ov.innerHTML = '<div class="ventana ventana-ancha cp-per-v"><button class="cp-x" id="cpPerX" type="button" aria-label="Close">×</button>' +
-    '<h2>Personal account payments</h2><div class="sub">Agents paid directly from the personal account (not in the bank template). ' + rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' · ' + money(total) + ' total.</div>' +
-    '<div class="cp-per-wrap"><table class="cp-per"><thead><tr><th>ID type</th><th>ID number</th><th>Name</th><th>Bank</th><th>Account #</th><th class="num">Amount to pay (COP)</th></tr></thead><tbody>' + cuerpo +
-    '</tbody>' + (rows.length ? '<tfoot><tr><td colspan="5">Total</td><td class="num">' + money(total) + '</td></tr></tfoot>' : '') + '</table></div>' +
+    '<h2>Personal account payments</h2><div class="sub">Agents paid directly from the personal account (not in the bank template). ' + rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' · ' + money(total) + ' total.<span id="cpPagados" class="cp-pagados"></span></div>' +
+    '<div class="cp-per-wrap"><table class="cp-per"><thead><tr><th class="cp-chk" title="Mark as paid">✓ Paid</th><th>ID type</th><th>ID number</th><th>Name</th><th>Bank</th><th>Account #</th><th class="num">Amount to pay (COP)</th><th>Confirmation #</th></tr></thead><tbody>' + cuerpo +
+    '</tbody>' + (rows.length ? '<tfoot><tr><td colspan="6">Total</td><td class="num">' + money(total) + '</td><td></td></tr></tfoot>' : '') + '</table></div>' +
     '<div class="barra-acc" style="margin-top:14px"><span class="esp"></span>' + (rows.length ? '<button class="btn btn-ink btn-sm" id="cpPerXls" type="button">Download Excel</button>' : '') + '</div></div>';
   ov.classList.remove('hidden');
   $('cpPerX').addEventListener('click', () => ov.classList.add('hidden'));
+  const contar = () => { const el = $('cpPagados'); if(!el) return; const n = ov.querySelectorAll('.cp-pago-chk:checked').length; el.textContent = n ? ' · ' + n + ' of ' + rows.length + ' paid' : ''; };
+  const guardar = async (u, el) => { if(!u) return; const tr = trDe(u); if(!tr) return;
+    const pagado = tr.querySelector('.cp-pago-chk').checked, confirmacion = tr.querySelector('.cp-pago-conf').value.trim();
+    tr.classList.toggle('cp-pagado', pagado); contar();
+    try{ await api('pagoPersonalSet', { usuario:u, periodoFin, pagado, confirmacion });
+      if(el){ el.classList.add('cp-ok'); setTimeout(() => el.classList.remove('cp-ok'), 800); } }
+    catch(e){ const m = (e && e.message) || '';
+      toast(/reloj_pago_personal|does not exist|could not find|schema cache/i.test(m) ? 'Saving needs the Personal payments SQL step (paso 62) in Supabase.' : (m || 'Could not save the payment.'), 'err'); } };
+  ov.addEventListener('change', e => { const c = e.target.closest('.cp-pago-chk, .cp-pago-conf'); if(!c) return; const tr = c.closest('tr'); if(tr) guardar(tr.dataset.u, c); });
+  (async () => { try{ const prev = await api('pagoPersonalPeriodo', { periodoFin });
+    (prev || []).forEach(x => { const tr = trDe(x.usuario); if(!tr) return;
+      tr.querySelector('.cp-pago-chk').checked = !!x.pagado; tr.querySelector('.cp-pago-conf').value = x.confirmacion || ''; tr.classList.toggle('cp-pagado', !!x.pagado); });
+    contar();
+  }catch(e){} })();
   if($('cpPerXls')) $('cpPerXls').addEventListener('click', () => {
     const cab = ['ID type','ID number','Name','Bank','Account #','Amount (COP)'];
     const filas = rows.map(r => [r.tipoId, String(r.numId), r.nombre, r.banco, String(r.cuenta), r.valor]);
