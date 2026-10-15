@@ -119,8 +119,17 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
 .pill.pr-borr{background:var(--warn-50);color:var(--warn)}
 .pr-sucio{color:var(--warn)}
-.pr-param{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 4px;margin-bottom:12px}
+.pr-param{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-bottom:12px}
+.pr-g{display:flex;gap:16px;border:1px solid var(--line);border-radius:var(--radius);padding:9px 13px;background:var(--paper)}
+.pr-g > .campo{margin:0;min-width:0}
+.pr-g-dolar{background:var(--brand-50);border-color:#BFE0F2}
+.pr-g-dias{background:var(--accent-50);border-color:#F2CFD2}
 .pr-param input{width:100%}
+.pr-param input[type=date]{width:150px}
+.pr-param .pr-trm{width:172px}
+.pr-param .pr-trm input[type=number]{text-align:right}
+.pr-param .pr-tasa{min-width:172px}
+.pr-param .pr-g-dias > .campo{width:206px}
 .pr-param .pr-fila{display:flex;gap:6px}
 .pr-param .pr-fila input{flex:1;min-width:0}
 .pr-param .pr-regla{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);margin-top:2px}
@@ -2199,15 +2208,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <span class="nota" id="impEstado" style="margin-left:8px"></span>
       <div id="impLista"></div>
     </div>
-    <div class="ajuste peligro hidden" id="ajPruebas">
-      <h2>Testing tools</h2>
-      <p class="nota">While the Time Clock is being tested you can erase everything and start over. The portal, Payroll and the Monitor aren't touched. <b>Erasing can't be undone.</b> When testing is over, turn these tools off so nobody can erase the real data.</p>
-      <div class="botones">
-        <button class="btn btn-peligro btn-sm" id="prBorrar" type="button">Erase all Time Clock data…</button>
-        <button class="btn btn-ghost btn-sm" id="prApagar" type="button">Turn off testing tools</button>
-        <span class="nota" id="prEstado"></span>
-      </div>
-    </div>
   </section>
 
   <!-- ADMIN: EMPLEADOS -->
@@ -2277,19 +2277,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pie">
       <button class="btn btn-ghost" data-cerrar type="button">Cancel</button>
       <button class="btn btn-ink" id="peAplicar" type="button">Apply</button>
-    </div>
-  </div>
-</div>
-
-<!-- borrar todo (modo de pruebas) -->
-<div class="overlay hidden" id="ovBorrar" role="dialog" aria-modal="true" aria-labelledby="bTitulo">
-  <div class="ventana" style="max-width:480px">
-    <h2 id="bTitulo">Erase all Time Clock data?</h2>
-    <div id="bCuerpo"></div>
-    <div class="err" id="bErr"></div>
-    <div class="pie">
-      <button class="btn btn-ghost" id="bNo" data-cerrar>Cancel</button>
-      <button class="btn btn-peligro" id="bSi" type="button" disabled>Erase everything</button>
     </div>
   </div>
 </div>
@@ -2597,6 +2584,10 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v114: Pay run — TRM más ancho y título corto -->
+<!-- v113: Pay run — parámetros agrupados en sub-cuadros (TRM/dólar y días) más compactos -->
+<!-- v112: Pay run — «Pay remaining days from» (antes Assume worked from) + «Add days» que suma (festivos) -->
+<!-- v111: quitar Testing tools de Settings + Pay run «Add days — everyone» (aplicar a todos) -->
 <!-- v110: Test user (incluye Payment, solo al usuario de prueba, avisa si ya tiene datos, botón de vaciar) + importar hoy -->
 <!-- v109: encabezado del reloj y resumen de pago más bajos para que todo quepa en la app sin scroll -->
 <!-- v108: resumen de pago del agente en cuadrícula (3 columnas × 2 filas), deducciones con detalle flotante -->
@@ -6488,7 +6479,6 @@ $('ajListasGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarListas(); pintarImportaciones(); pintarReglasPago();
-  $('ajPruebas').classList.toggle('hidden', !S.modoPruebas); $('prEstado').textContent = '';
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -7105,7 +7095,7 @@ async function pintarImportaciones(){
 
 // ── Testing tools: borrar todo el Reloj ──
 S.borrando = false;
-$('prBorrar').addEventListener('click', () => {
+$('prBorrar') && $('prBorrar').addEventListener('click', () => {
   $('bCuerpo').innerHTML = '<p>This permanently erases <b>everything</b> saved or imported in the Time Clock:</p><ul class="borrar-lista">' +
     '<li>all punches, approvals and hours</li><li>all requests and time off</li><li>all imports from Connecteam</li><li>the Time Clock\'s change history</li>' +
     '<li>every user, including agents\' sign-in (email and password)</li><li>these settings (back to default)</li></ul>' +
@@ -7115,7 +7105,7 @@ $('prBorrar').addEventListener('click', () => {
   $('bConfirma').addEventListener('input', ev => { $('bSi').disabled = ev.target.value.trim() !== 'DELETE'; });
   abrir('ovBorrar'); setTimeout(() => $('bConfirma').focus(), 50);
 });
-$('bSi').addEventListener('click', async () => {
+$('bSi') && $('bSi').addEventListener('click', async () => {
   if(S.borrando || $('bConfirma').value.trim() !== 'DELETE') return;
   S.borrando = true; $('bSi').disabled = true; $('bNo').disabled = true; $('bErr').textContent = '';
   $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Erasing…</p>';
@@ -7139,7 +7129,7 @@ $('bSi').addEventListener('click', async () => {
   S.borrando = false; $('bNo').disabled = false;
   if(S.vista === 'ajustes') pintarAjustes();
 });
-$('prApagar').addEventListener('click', async () => {
+$('prApagar') && $('prApagar').addEventListener('click', async () => {
   const si = await confirmar('Turn off testing tools?', 'The <b>Erase all Time Clock data</b> button will disappear, so the real data can\'t be erased by mistake. Turning it back on can only be done in Supabase (SQL).', 'Turn off', true);
   if(!si) return;
   try{ await api('apagarPruebas'); S.modoPruebas = false; pintarAjustes(); toast('Testing tools turned off.'); }
@@ -10453,19 +10443,24 @@ function pintarPago(){
   const R = P.reglas, dis = cerr ? ' disabled' : '';
   const asum = cerr ? diasPorAsumir(P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '', pr.hasta) : pr.asumidos;
   $('pyParam').innerHTML =
-    '<label class="campo"><span>Payment date</span><input type="date" id="pyFecha" value="' + esc(P.fechaPago || '') + '"' + dis + '></label>' +
-    '<div class="campo pr-trm"><span>TRM (COP per dollar)</span><div class="pr-fila"><input type="number" id="pyTrm" min="0" step="0.01" inputmode="decimal" value="' + (P.trm != null ? P.trm : '') + '"' + dis + '>' +
-      (cerr ? '' : '<button class="btn btn-ghost btn-sm" id="pyTrmBuscar" type="button" title="Get the official TRM for the payment date">Get TRM</button>') + '</div><small id="pyTrmNota">' + esc(P.trmNota || '') + '</small></div>' +
-    '<div class="campo pr-tasa"><span>Dollar paid at</span><b id="pyTasa">' + (P.tasa ? '$' + P.tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—') + '</b>' +
-      '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
-      ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
-      (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
-        ? '<small class="pr-regla-nota">Default: TRM + ' + Number(reglasPago().extra).toLocaleString('en-US') + ', up to ' + Number(reglasPago().tope).toLocaleString('en-US') +
-          (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
-        : '<small>Default rule (Settings → Pay run). You can change it for this pay period.</small>') + '</div>' +
-    '<label class="campo"><span>Assume worked from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
-      '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
-        : 'No days paid in advance: every day of the pay period is counted as worked.') + '</small></label>';
+    '<div class="pr-g pr-g-fecha"><label class="campo"><span>Payment date</span><input type="date" id="pyFecha" value="' + esc(P.fechaPago || '') + '"' + dis + '></label></div>' +
+    '<div class="pr-g pr-g-dolar">' +
+      '<div class="campo pr-trm"><span>TRM (COP/USD)</span><div class="pr-fila"><input type="number" id="pyTrm" min="0" step="0.01" inputmode="decimal" value="' + (P.trm != null ? P.trm : '') + '"' + dis + '>' +
+        (cerr ? '' : '<button class="btn btn-ghost btn-sm" id="pyTrmBuscar" type="button" title="Get the official TRM for the payment date">Get</button>') + '</div><small id="pyTrmNota">' + esc(P.trmNota || '') + '</small></div>' +
+      '<div class="campo pr-tasa"><span>Dollar paid at</span><b id="pyTasa">' + (P.tasa ? '$' + P.tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—') + '</b>' +
+        '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
+        ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
+        (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
+          ? '<small class="pr-regla-nota">Default: TRM + ' + Number(reglasPago().extra).toLocaleString('en-US') + ', up to ' + Number(reglasPago().tope).toLocaleString('en-US') +
+            (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
+          : '<small>Default rule (Settings → Pay run).</small>') + '</div>' +
+    '</div>' +
+    '<div class="pr-g pr-g-dias">' +
+      '<label class="campo"><span>Pay remaining days from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
+        '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
+          : 'No days paid in advance: every day of the pay period is counted as worked.') + '</small></label>' +
+      '<label class="campo"><span>Add days — everyone</span><div class="pr-fila"><input type="number" id="pyDiasTodos" min="0" max="10" step="0.5" inputmode="decimal" placeholder="e.g. 1"' + dis + '><button class="btn btn-ghost btn-sm" id="pyDiasAplicar" type="button"' + dis + '>Add to all</button></div><small>Adds these days on top for everyone (e.g. a paid holiday with no punches); you can still change each person.</small></label>' +
+    '</div>';
   pintarResumenPago();
   // avisos: días sin salida, sin aprobar, ajustes de la quincena anterior
   let av = '';
@@ -10583,6 +10578,13 @@ $('pyParam').addEventListener('change', e => {
 });
 $('pyParam').addEventListener('click', e => {
   if(e.target.id === 'pyTrmBuscar') buscarTrm(true);
+  if(e.target.id === 'pyDiasAplicar' && S.pr && !cerradaPago()){
+    const add = Math.max(0, Math.min(10, Number($('pyDiasTodos').value) || 0));
+    if(!add){ toast('Type how many days to add.'); return; }
+    S.pr.filas.forEach(f => { if(f.tarifa != null){ const ed = S.pr.ed[f.usuario]; if(ed){ delete ed._diasAuto; ed.dias = Math.min(10, (Number(ed.dias) || 0) + add); } } });
+    recalcPago(); marcarSucio(); pintarResumenPago(); pintarTablaPago();
+    toast('Added ' + add + (add === 1 ? ' day' : ' days') + ' to everyone.');
+  }
   if(e.target.id === 'pyReglaDef' && S.pr && !cerradaPago()){ const d = reglasPago(); S.pr.P.reglas = Object.assign({}, S.pr.P.reglas, { extra:d.extra, tope:d.tope });
     S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
 });
