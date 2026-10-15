@@ -140,7 +140,13 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .btn-xs{padding:3px 10px;font-size:12px;flex:none}
 #cpOvEnvio .cp-envio-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 #cpOvEnvio .cp-envio-ops .btn{flex:1 1 auto}
-.py-docs-tit{font-weight:700;font-size:13px;color:var(--text-muted);margin-right:4px}
+.py-docs{align-items:flex-start}
+.py-docs-tit{font-weight:700;font-size:13px;color:var(--text-muted);margin:0 0 2px;flex-basis:100%}
+.py-docs-g{display:flex;flex-direction:column;gap:5px;padding:2px 14px;border-left:1px solid var(--line)}
+.py-docs-g:first-of-type{padding-left:0;border-left:0}
+.py-docs-sub{font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);opacity:.85}
+.py-docs-b{display:flex;flex-wrap:wrap;gap:6px}
+@media(max-width:860px){.py-docs-g{border-left:0;padding:2px 0;flex-basis:100%}}
 #cpOvPersonal .cp-per-v{position:relative;max-width:920px}
 #cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
 #cpOvPersonal .cp-x:hover{color:var(--text)}
@@ -2084,12 +2090,32 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="py-docs hidden" id="pyDocs">
       <span class="py-docs-tit">Payroll documents</span>
-      <button class="btn btn-ghost btn-sm" id="cpComb" type="button" title="One PDF with every pay stub">Pay stubs — combined PDF</button>
-      <button class="btn btn-ghost btn-sm" id="cpCada" type="button" title="A separate PDF file per person">Pay stubs — one file each</button>
-      <button class="btn btn-ghost btn-sm" id="cpResu" type="button">Summary PDF</button>
-      <button class="btn btn-ghost btn-sm" id="cpEnviar" type="button" title="Generate each pay stub and save it to the person’s Documents → Paystubs">Send to profiles</button>
-      <button class="btn btn-ghost btn-sm" id="cpBanco" type="button" title="Bancolombia payment template for 24/7 agents">Bank template (247)</button>
-      <button class="btn btn-ghost btn-sm" id="cpPersonal" type="button" title="Agents paid from the personal account">Personal payments</button>
+      <div class="py-docs-g">
+        <span class="py-docs-sub">Payment</span>
+        <div class="py-docs-b">
+          <button class="btn btn-ink btn-sm" id="cpBanco" type="button" title="Bancolombia payment template for 24/7 agents">Bank template (247)</button>
+          <button class="btn btn-ink btn-sm" id="cpPersonal" type="button" title="Agents paid from the personal account">Personal payments</button>
+        </div>
+      </div>
+      <div class="py-docs-g">
+        <span class="py-docs-sub">To employee profiles</span>
+        <div class="py-docs-b">
+          <button class="btn btn-ghost btn-sm" id="cpEnviar" type="button" title="Generate each pay stub and save it to the person’s Documents → Paystubs">Send to profiles</button>
+        </div>
+      </div>
+      <div class="py-docs-g">
+        <span class="py-docs-sub">For the accountant</span>
+        <div class="py-docs-b">
+          <button class="btn btn-ghost btn-sm" id="cpResu" type="button" title="One-page totals summary (the accountant needs it)">Summary PDF</button>
+        </div>
+      </div>
+      <div class="py-docs-g">
+        <span class="py-docs-sub">Download pay stubs</span>
+        <div class="py-docs-b">
+          <button class="btn btn-ghost btn-sm" id="cpComb" type="button" title="One PDF with every pay stub">Combined PDF</button>
+          <button class="btn btn-ghost btn-sm" id="cpCada" type="button" title="A separate PDF file per person">One file each</button>
+        </div>
+      </div>
     </div>
     <p class="nota" id="pyLeyenda" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
     <div class="pr-hist-cab"><h2>Saved pay runs</h2><span id="pyAnios"></span>
@@ -2652,6 +2678,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v131: agrupar los botones de Payroll documents por función (Payment / To profiles / Accountant / Download) -->
 <!-- v130: quitar el botón «All pay periods» de Documents → Paystubs (el selector Period ya navega todos los periodos) -->
 <!-- v129: quitar la nota obsoleta de Documents → Paystubs (los comprobantes ya se envían internamente desde el Pay run) -->
 <!-- v128: «Send to profiles» avisa si algunos ya tienen el comprobante del periodo (enviar solo los que faltan / a todos / cancelar) -->
