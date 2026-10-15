@@ -2687,6 +2687,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v133: corregir enrutado de pagoPersonalPeriodo/Set (iban a docsSB → Unknown action); ahora en api() principal -->
 <!-- v132: color a «Send to profiles» y «Summary PDF»; Personal payments con check «Paid» + confirmation # guardados (paso 62) -->
 <!-- v131: agrupar los botones de Payroll documents por función (Payment / To profiles / Accountant / Download) -->
 <!-- v130: quitar el botón «All pay periods» de Documents → Paystubs (el selector Period ya navega todos los periodos) -->
@@ -3692,11 +3693,6 @@ async function docsSB(action, p){
     const r = await q(sb.from('reloj_paystubs').select('usuario').eq('periodo_fin', p.periodoFin).eq('reemplazado', false));
     return (r || []).map(x => x.usuario);
   }
-  // (v132) pagos desde la cuenta personal: estado guardado por persona y quincena (paso 62)
-  if(action === 'pagoPersonalPeriodo'){ await sesionSB();
-    const r = await q(sb.from('reloj_pago_personal').select('usuario,pagado,confirmacion,pagado_en').eq('periodo_fin', p.periodoFin));
-    return r || []; }
-  if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
   // (v127) comprobante generado internamente → Paystubs del usuario (reloj_paystub_registrar reemplaza el de ese periodo)
   if(action === 'docPayEnviar'){
     await sesionSB();
@@ -3773,6 +3769,11 @@ async function api(action, p){
   if(action === 'corregir'){ await q(sb.rpc('reloj_corregir', { p_usuario:p.usuario, p_fecha:p.fecha, p_marcas:p.marcas, p_motivo:p.motivo })); return { ok:true }; }
   if(action === 'aprobar' || action === 'desaprobar') return q(sb.rpc('reloj_aprobar', { p_items:p.items, p_aprobar: action === 'aprobar' }));
   if(action === 'empleados') return empleadosSB();
+  // (v133) pagos desde la cuenta personal: estado guardado por persona y quincena (paso 62)
+  if(action === 'pagoPersonalPeriodo'){ await sesionSB();
+    const r = await q(sb.from('reloj_pago_personal').select('usuario,pagado,confirmacion,pagado_en').eq('periodo_fin', p.periodoFin));
+    return r || []; }
+  if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
