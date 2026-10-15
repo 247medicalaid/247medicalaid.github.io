@@ -138,6 +138,8 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-diffs-list .rt{font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
 .py-diffs-list .du{font-variant-numeric:tabular-nums;font-weight:600;min-width:84px;text-align:right;white-space:nowrap}
 .btn-xs{padding:3px 10px;font-size:12px;flex:none}
+#cpOvEnvio .cp-envio-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+#cpOvEnvio .cp-envio-ops .btn{flex:1 1 auto}
 .py-docs-tit{font-weight:700;font-size:13px;color:var(--text-muted);margin-right:4px}
 #cpOvPersonal .cp-per-v{position:relative;max-width:920px}
 #cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
@@ -2650,6 +2652,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v128: «Send to profiles» avisa si algunos ya tienen el comprobante del periodo (enviar solo los que faltan / a todos / cancelar) -->
 <!-- v127: «Send to profiles» — comprobantes a Documents → Paystubs de cada usuario desde el Pay run -->
 <!-- v126: al reabrir el Pay run, conservar lo pagado y avisar diferencias de rate con «Aplicar» -->
 <!-- v125: Excel del banco/personal con números en formato General (sin el punto final) -->
@@ -3643,6 +3646,12 @@ async function docsSB(action, p){
       if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing documents needs SQL step 50 in Supabase.');
       throw e;
     }
+  }
+  // (v128) usuarios que ya tienen el comprobante vigente de este periodo (para avisar antes de reenviar)
+  if(action === 'docPaysPeriodo'){
+    await sesionSB();
+    const r = await q(sb.from('reloj_paystubs').select('usuario').eq('periodo_fin', p.periodoFin).eq('reemplazado', false));
+    return (r || []).map(x => x.usuario);
   }
   // (v127) comprobante generado internamente → Paystubs del usuario (reloj_paystub_registrar reemplaza el de ese periodo)
   if(action === 'docPayEnviar'){
@@ -13302,14 +13311,25 @@ async function cpEnviarComprobantes(btn){
   const pr = S.pr; if(!pr || !pr.filas.length) return;
   if(!cerradaPago()){ toast('Close the pay run first.', 'err'); return; }
   const emps = cpEmps(); if(!emps.length) return;
-  if(!(await confirmar('Send pay stubs to profiles?', 'Generate ' + emps.length + ' pay stub' + (emps.length === 1 ? '' : 's') + ' and save each to the person’s <b>Documents → Paystubs</b>. Re-sending replaces the ones from this pay period.', 'Send'))) return;
   const mapU = {}; pr.filas.forEach(f => { mapU[cpNorm((f.nom || '') + ' ' + (f.ape || ''))] = f.usuario; });
   const periodoFin = pr.hasta, periodo = (emps[0] && emps[0].periodo) || '';
+  let ya = new Set();
+  try{ ya = new Set(await api('docPaysPeriodo', { periodoFin })); }catch(e){}
+  const faltan = emps.filter(e => !ya.has(mapU[cpNorm(e.nombre)]));
+  let lista = emps;
+  if(ya.size){
+    const op = await cpPreguntarEnvio(ya.size, faltan.length);
+    if(op == null) return;
+    lista = op === 'missing' ? faltan : emps;
+    if(!lista.length){ toast('Everyone already has this pay period’s pay stub.'); return; }
+  }else{
+    if(!(await confirmar('Send pay stubs to profiles?', 'Generate ' + emps.length + ' pay stub' + (emps.length === 1 ? '' : 's') + ' and save each to the person’s <b>Documents → Paystubs</b>.', 'Send'))) return;
+  }
   const orig = btn ? btn.textContent : ''; if(btn) btn.disabled = true;
   let ok = 0; const fail = [];
-  for(let i = 0; i < emps.length; i++){
-    const emp = emps[i], u = mapU[cpNorm(emp.nombre)];
-    if(btn) btn.textContent = '⏳ ' + (i + 1) + ' / ' + emps.length + '…';
+  for(let i = 0; i < lista.length; i++){
+    const emp = lista[i], u = mapU[cpNorm(emp.nombre)];
+    if(btn) btn.textContent = '⏳ ' + (i + 1) + ' / ' + lista.length + '…';
     if(!u){ fail.push(emp.nombre + ' (no user)'); continue; }
     try{
       const bytes = new Uint8Array(buildPaystubPDF([emp]));
@@ -13322,6 +13342,22 @@ async function cpEnviarComprobantes(btn){
   if(S.emps){ try{ S.emps = await api('empleados'); }catch(e){} }
   toast('Sent ' + ok + ' pay stub' + (ok === 1 ? '' : 's') + ' to profiles' + (fail.length ? '. Issues: ' + fail.slice(0, 3).join('; ') : '.'), fail.length ? 'err' : '');
 }
+function cpPreguntarEnvio(yaN, faltanN){
+  return new Promise(resolve => {
+    let ov = document.getElementById('cpOvEnvio');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'cpOvEnvio'; ov.className = 'overlay'; document.body.appendChild(ov); }
+    ov.innerHTML = '<div class="ventana" style="max-width:480px"><h2>Some already have this pay stub</h2>' +
+      '<div class="sub">' + yaN + ' ' + (yaN === 1 ? 'person already has' : 'people already have') + ' this pay period’s pay stub in their profile' + (faltanN ? ', ' + faltanN + ' ' + (faltanN === 1 ? 'is' : 'are') + ' missing' : '') + '. Re-sending replaces the previous one for that period.</div>' +
+      '<div class="cp-envio-ops">' + (faltanN ? '<button class="btn btn-brand btn-sm" data-op="missing" type="button">Send only the ' + faltanN + ' missing</button>' : '') +
+      '<button class="btn btn-ink btn-sm" data-op="all" type="button">Send to everyone (replace)</button>' +
+      '<button class="btn btn-ghost btn-sm" data-op="cancel" type="button">Cancel</button></div></div>';
+    ov.classList.remove('hidden');
+    const done = v => { ov.classList.add('hidden'); resolve(v); };
+    ov.querySelectorAll('[data-op]').forEach(b => b.onclick = () => done(b.dataset.op === 'cancel' ? null : b.dataset.op));
+    ov.onclick = e => { if(e.target === ov) done(null); };
+  });
+}
+
 (function(){ const b = $('cpEnviar'); if(b) b.addEventListener('click', async e => { try{ await cpEnviarComprobantes(e.currentTarget); }catch(err){ toast('Error: ' + err.message, 'err'); } }); })();
 
 try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cadaUno:cpCadaUno, resumen:cpResumen, buildPaystubPDF:buildPaystubPDF, buildSummaryPDF:buildSummaryPDF, banco:cpBanco, personal:cpPersonal, fichas:cpFichas, codBanco:cpCodBanco, enviar:cpEnviarComprobantes }; }catch(e){}
