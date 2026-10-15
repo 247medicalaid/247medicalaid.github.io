@@ -119,7 +119,10 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
 .pill.pr-borr{background:var(--warn-50);color:var(--warn)}
 .pr-sucio{color:var(--warn)}
-.py-barra-sup{display:flex;align-items:center;gap:10px;margin:-2px 0 6px}
+.py-sup-fila{display:flex;align-items:flex-start;gap:14px;margin:-2px 0 6px}
+.py-sup-fila #pyAvisos{flex:1;min-width:0}
+.py-barra-sup{display:flex;align-items:center;gap:10px;margin:2px 0 0;flex:none}
+@media (max-width:720px){.py-sup-fila{flex-wrap:wrap}.py-sup-fila .py-barra-sup{margin-left:auto}}
 #pyCuantos{display:none}
 .hoja.pago tfoot .ft-sub{display:block;font-weight:600;font-size:10px;color:var(--muted);line-height:1.15;margin-bottom:1px;white-space:normal}
 .py-barra-sup .dc-cuantos{margin:0}
@@ -2034,12 +2037,13 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pr-estado" id="pyEstado"></div>
     <div class="pr-param" id="pyParam"></div>
     <div class="res-hoja hidden" id="pyResumen" aria-label="Pay run totals"></div>
-    <div id="pyAvisos"></div>
-    <div class="py-barra-sup">
-      <p class="dc-cuantos" id="pyCuantos"></p>
-      <span class="esp"></span>
-      <select id="pyOrden" class="py-orden" aria-label="Sort / group"><option value="cuenta">Grouped by account</option><option value="nombre">By name</option><option value="de">By paid from</option></select>
+    <div class="py-sup-fila">
+      <div id="pyAvisos"></div>
+      <div class="py-barra-sup">
+        <p class="dc-cuantos" id="pyCuantos"></p>
+        <select id="pyOrden" class="py-orden" aria-label="Sort / group"><option value="cuenta">Grouped by account</option><option value="nombre">By name</option><option value="de">By paid from</option></select>
       <div class="py-cols" id="pyColsWrap"><button class="btn btn-ghost btn-sm" id="pyColsBtn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;vertical-align:-2px;margin-right:5px"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M9 4v16M15 4v16"/></svg>Columns</button><div class="py-cols-menu hidden" id="pyColsMenu"></div></div>
+      </div>
     </div>
     <div class="tabla-wrap" id="pyTabla"></div>
     <div class="barra-acc">
@@ -2611,6 +2615,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v120: Pay run — orden + Columns en la misma fila que los avisos (ahorra espacio vertical) -->
 <!-- v119: Pay run — sin «people» arriba (ya está en el pie) y total de Add days etiquetado -->
 <!-- v118: Pay run — barra compacta, selector de orden (cuenta/nombre/paid from) y columnas redimensionables -->
 <!-- v117: Pay run — campo Bonus más angosto -->
