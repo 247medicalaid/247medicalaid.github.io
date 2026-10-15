@@ -2615,6 +2615,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v122: Pay run — avisar antes de salir (cambio de tab o recarga) con cambios sin guardar -->
 <!-- v121: Today — contenido más ancho (1500px) y columna Alerts más ancha (menos saltos) -->
 <!-- v120: Pay run — orden + Columns en la misma fila que los avisos (ahorra espacio vertical) -->
 <!-- v119: Pay run — sin «people» arriba (ya está en el pie) y total de Add days etiquetado -->
@@ -4470,6 +4471,8 @@ async function refrescarYo(minimo){
 document.addEventListener('visibilitychange', () => { if(!document.hidden && S.vista === 'reloj') refrescarYo(60000); });
 
 function irA(v){
+  if(S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio &&
+     !confirm('You have unsaved changes in the Pay run. Leave without saving? Your changes will be lost.')) return;
   S.vista = v; document.body.dataset.vista = v;
   ['reloj','sin','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
@@ -4491,6 +4494,7 @@ function irA(v){
   if(v === 'pago') cargarPago(S.periodo ? quinDe(S.periodo.desde) : S.pr ? S.pr.desde : null);
 }
 document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
+window.addEventListener('beforeunload', e => { if(S.vista === 'pago' && S.pr && S.pr.sucio){ e.preventDefault(); e.returnValue = ''; } });
 
 /* Menú lateral: en celular se abre con ☰ y se cierra al elegir, al tocar fuera o con Esc. */
 function menuLateral(abrir){
