@@ -2085,6 +2085,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="cpComb" type="button" title="One PDF with every pay stub">Pay stubs — combined PDF</button>
       <button class="btn btn-ghost btn-sm" id="cpCada" type="button" title="A separate PDF file per person">Pay stubs — one file each</button>
       <button class="btn btn-ghost btn-sm" id="cpResu" type="button">Summary PDF</button>
+      <button class="btn btn-ghost btn-sm" id="cpEnviar" type="button" title="Generate each pay stub and save it to the person’s Documents → Paystubs">Send to profiles</button>
       <button class="btn btn-ghost btn-sm" id="cpBanco" type="button" title="Bancolombia payment template for 24/7 agents">Bank template (247)</button>
       <button class="btn btn-ghost btn-sm" id="cpPersonal" type="button" title="Agents paid from the personal account">Personal payments</button>
     </div>
@@ -2649,6 +2650,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v127: «Send to profiles» — comprobantes a Documents → Paystubs de cada usuario desde el Pay run -->
 <!-- v126: al reabrir el Pay run, conservar lo pagado y avisar diferencias de rate con «Aplicar» -->
 <!-- v125: Excel del banco/personal con números en formato General (sin el punto final) -->
 <!-- v124: Plantilla Banco (247) + Ventana Pagos Personal, leyendo la ficha del TimeTrack -->
@@ -3639,6 +3641,20 @@ async function docsSB(action, p){
     }catch(e){
       if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
       if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing documents needs SQL step 50 in Supabase.');
+      throw e;
+    }
+  }
+  // (v127) comprobante generado internamente → Paystubs del usuario (reloj_paystub_registrar reemplaza el de ese periodo)
+  if(action === 'docPayEnviar'){
+    await sesionSB();
+    const ruta = p.usuario + '/paystubs/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '-' + dimpLimpio(p.nombre);
+    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:'application/pdf' }), { contentType:'application/pdf', upsert:false });
+    if(error) throw new Error(docErrStorage(error));
+    try{
+      return await q(sb.rpc('reloj_paystub_registrar', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, periodo:p.periodo || '', archivo:ruta, nombre:String(p.nombre).slice(-160), bytes:p.datos.length, neto:Math.round(Number(p.neto) || 0) } }));
+    }catch(e){
+      try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
+      if(/reloj_paystub_registrar|does not exist|could not find the function/i.test(e.message)) throw new Error('Sending paystubs needs the Paystubs SQL step in Supabase.');
       throw e;
     }
   }
@@ -13281,7 +13297,34 @@ function cpModalPersonal(rows){
   on('cpPersonal', () => cpPersonal());
 })();
 
-try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cadaUno:cpCadaUno, resumen:cpResumen, buildPaystubPDF:buildPaystubPDF, buildSummaryPDF:buildSummaryPDF, banco:cpBanco, personal:cpPersonal, fichas:cpFichas, codBanco:cpCodBanco }; }catch(e){}
+// Enviar los comprobantes a Documents → Paystubs de cada persona (interno, desde el Pay run cerrado).
+async function cpEnviarComprobantes(btn){
+  const pr = S.pr; if(!pr || !pr.filas.length) return;
+  if(!cerradaPago()){ toast('Close the pay run first.', 'err'); return; }
+  const emps = cpEmps(); if(!emps.length) return;
+  if(!(await confirmar('Send pay stubs to profiles?', 'Generate ' + emps.length + ' pay stub' + (emps.length === 1 ? '' : 's') + ' and save each to the person’s <b>Documents → Paystubs</b>. Re-sending replaces the ones from this pay period.', 'Send'))) return;
+  const mapU = {}; pr.filas.forEach(f => { mapU[cpNorm((f.nom || '') + ' ' + (f.ape || ''))] = f.usuario; });
+  const periodoFin = pr.hasta, periodo = (emps[0] && emps[0].periodo) || '';
+  const orig = btn ? btn.textContent : ''; if(btn) btn.disabled = true;
+  let ok = 0; const fail = [];
+  for(let i = 0; i < emps.length; i++){
+    const emp = emps[i], u = mapU[cpNorm(emp.nombre)];
+    if(btn) btn.textContent = '⏳ ' + (i + 1) + ' / ' + emps.length + '…';
+    if(!u){ fail.push(emp.nombre + ' (no user)'); continue; }
+    try{
+      const bytes = new Uint8Array(buildPaystubPDF([emp]));
+      const nombre = (String(emp.nombre).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_') || 'Paystub') + '_' + String(emp.end || '').replace(/\//g, '-') + '.pdf';
+      await api('docPayEnviar', { usuario:u, periodoFin, periodo, nombre, datos:bytes, neto:emp.netoCOP });
+      ok++;
+    }catch(e){ fail.push(emp.nombre + ': ' + (e.message || e)); }
+  }
+  if(btn){ btn.disabled = false; btn.textContent = orig; }
+  if(S.emps){ try{ S.emps = await api('empleados'); }catch(e){} }
+  toast('Sent ' + ok + ' pay stub' + (ok === 1 ? '' : 's') + ' to profiles' + (fail.length ? '. Issues: ' + fail.slice(0, 3).join('; ') : '.'), fail.length ? 'err' : '');
+}
+(function(){ const b = $('cpEnviar'); if(b) b.addEventListener('click', async e => { try{ await cpEnviarComprobantes(e.currentTarget); }catch(err){ toast('Error: ' + err.message, 'err'); } }); })();
+
+try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cadaUno:cpCadaUno, resumen:cpResumen, buildPaystubPDF:buildPaystubPDF, buildSummaryPDF:buildSummaryPDF, banco:cpBanco, personal:cpPersonal, fichas:cpFichas, codBanco:cpCodBanco, enviar:cpEnviarComprobantes }; }catch(e){}
 
 })();
 </script>
