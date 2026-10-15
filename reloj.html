@@ -696,17 +696,35 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .pay-res{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--paper)}
 .pay-cab{background:var(--brand-700);color:#fff;padding:10px 14px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .pay-cab small{font-weight:600;font-size:12px;opacity:.85}
-.pay-fila{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;font-size:13.5px;border-bottom:1px solid var(--line)}
-.pay-fila .et{color:var(--text-muted)}
-.pay-fila .va{font-weight:600;font-variant-numeric:tabular-nums}
-.pay-ded{background:var(--accent-50);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.pay-ded .pay-fila{border-bottom:0;padding-top:6px;padding-bottom:6px}
-.pay-ded .pay-fila.tit{color:var(--accent-600);font-weight:700;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding-bottom:2px}
-.pay-ded .neg{color:var(--accent-600)}
-.pay-neto{background:var(--brand-50);display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px}
-.pay-neto .et{font-weight:700;color:var(--brand-700)}
-.pay-neto .va{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--brand-700);font-variant-numeric:tabular-nums}
+.pay-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+.pay-cel{position:relative;padding:9px 13px;border-right:1px solid var(--line);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:3px;min-width:0}
+.pay-cel:nth-child(3n){border-right:0}
+.pay-grid>.pay-cel:nth-child(-n+3){border-top:0}
+.pay-cel .et{color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1.25;display:flex;align-items:center;gap:4px}
+.pay-cel .va{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pay-cel .va.neg{color:var(--accent-600)}
+.pay-cel.ded{background:var(--accent-50);cursor:pointer}
+.pay-cel.ded:focus-visible{outline:2px solid var(--brand-500);outline-offset:-2px}
+.pay-cel.ded .car{width:12px;height:12px;opacity:.6;transition:transform .15s}
+.pay-cel.ded.abierto .car{transform:rotate(180deg)}
+.pay-cel.neto{background:var(--brand-50)}
+.pay-cel.neto .et{color:var(--brand-700)}
+.pay-cel.neto .va{font-family:var(--font-display);font-weight:800;font-size:18px;color:var(--brand-700)}
+.pay-ded-pop{position:absolute;left:50%;transform:translateX(-50%);width:270px;max-width:calc(100vw - 24px);z-index:25;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:8px 12px;display:none}
+.pay-ded-pop.arriba{bottom:calc(100% - 6px)}
+.pay-ded-pop.abajo{top:calc(100% - 6px)}
+.pay-cel.ded:hover .pay-ded-pop,.pay-cel.ded.abierto .pay-ded-pop{display:block}
+.pay-ded-pop .dl{display:flex;justify-content:space-between;align-items:baseline;gap:14px;font-size:12.5px;padding:3px 0}
+.pay-ded-pop .dl+.dl{border-top:1px solid var(--line)}
+.pay-ded-pop .dl .et{color:var(--text-muted);flex:1;min-width:0;line-height:1.3}
+.pay-ded-pop .dl .va{font-weight:700;color:var(--accent-600);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .pay-nota{padding:10px 14px;font-size:13px;color:var(--text-muted)}
+@media (max-width:520px){
+  .pay-grid{grid-template-columns:repeat(2,1fr)}
+  .pay-cel:nth-child(3n){border-right:1px solid var(--line)}
+  .pay-cel:nth-child(2n){border-right:0}
+  .pay-grid>.pay-cel:nth-child(3){border-top:1px solid var(--line)}
+}
 .pay-pie{padding:8px 14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--line)}
 .per-tot div{background:var(--sand);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--text-muted)}
 .per-tot b{display:block;font-family:var(--font-display);font-size:18px;color:var(--text);font-weight:800}
@@ -2576,6 +2594,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v108: resumen de pago del agente en cuadrícula (3 columnas × 2 filas), deducciones con detalle flotante -->
 <!-- v107: resumen de pago del agente por quincena cerrada (paso 57) -->
 <!-- v106: centro de notificaciones con pestaña History -->
 <!-- v105: centro de notificaciones (campana) para los avisos del administrador -->
@@ -4290,8 +4309,7 @@ function appLayout(){
 // Alto que necesita la ventana para ver el pay period completo (16 días) sin scroll: se mide con el panel
 // visible por un instante (sin pintar en pantalla) y se le pide a la app. Una vez por carga de la página.
 function awTamano(){
-  if(!S.awListo || S.awTam) return;
-  S.awTam = true;
+  if(!S.awListo) return;
   const medir = () => {
     const per = document.querySelector('.aw-panel .per-ag'), fijo = document.querySelector('.aw-fijo'), panel = document.querySelector('.aw-panel');
     if(!per || !fijo || !panel) return;
@@ -4300,8 +4318,8 @@ function awTamano(){
     const fila = filas.length ? filas[0].offsetHeight : 28, cs = getComputedStyle(panel), mt = parseFloat(getComputedStyle(per).marginTop) || 0;
     const alto = fijo.offsetHeight + (parseFloat(cs.paddingTop) || 0) + mt + per.offsetHeight + Math.max(0, 16 - filas.length) * fila + (parseFloat(cs.paddingBottom) || 0) + 2;
     document.body.dataset.aw = antes;
-    S.awAlto = Math.round(Math.min(1400, Math.max(560, alto)));
-    appMandar({ tipo:'ventana', v:1, ancho:AW_TAM[0], alto:S.awAlto });
+    const nuevo = Math.round(Math.min(1400, Math.max(560, alto)));
+    if(nuevo !== S.awAlto){ S.awAlto = nuevo; appMandar({ tipo:'ventana', v:1, ancho:AW_TAM[0], alto:nuevo }); }
   };
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(medir, 0));
 }
@@ -4548,23 +4566,35 @@ function pintarPagoAg(){
   const num = k => { const r = pg[k]; if(r == null || r === '') return null; const v = Number(r); return isFinite(v) ? v : null; };
   const m = num('m'), y = num('y'), n = num('n'), v = num('v'), w = num('w'), x = num('x'), tar = num('tarifa'), fijo = num('fijo');
   const es247 = pg.de === '247';
-  const filU = (et, val) => '<div class="pay-fila"><span class="et">' + et + '</span><span class="va">' + val + '</span></div>';
-  let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
+  const cel = (et, va, cls) => '<div class="pay-cel' + (cls ? ' ' + cls : '') + '"><span class="et">' + et + '</span><span class="va">' + va + '</span></div>';
+  const celdas = [];
   if(fijo == null){
-    if(tar != null) h += filU('Hourly rate', 'USD ' + tar.toFixed(2));
-    if(m != null) h += filU('Gross pay (USD)', 'USD ' + m.toFixed(2));
-    if(y) h += filU('Exchange rate', '$' + Math.round(y).toLocaleString('es-CO') + ' COP');
+    if(tar != null) celdas.push(cel('Hourly rate', 'USD ' + tar.toFixed(2)));
+    if(m != null) celdas.push(cel('Gross pay (USD)', 'USD ' + m.toFixed(2)));
+    if(y) celdas.push(cel('Exchange rate', '$' + Math.round(y).toLocaleString('es-CO')));
   }
-  // deducciones
-  const ded = [];
-  ded.push('<div class="pay-fila"><span class="et">' + (fijo != null ? 'Fixed pay (COP)' : 'Gross pay (COP)') + '</span><span class="va">' + copCO(fijo != null ? fijo : n) + '</span></div>');
-  if(es247 && v) ded.push('<div class="pay-fila"><span class="et">Rete ICA (' + esc(String(pg.ica || '9.5')) + ' per 1,000)</span><span class="va neg">−' + copCO(v) + '</span></div>');
-  if(w) ded.push('<div class="pay-fila"><span class="et">Payroll contributions (Aportes)</span><span class="va neg">−' + copCO(w) + '</span></div>');
-  if(ded.length > 1) h += '<div class="pay-ded"><div class="pay-fila tit"><span>Deductions</span><span></span></div>' + ded.join('') + '</div>';
-  else h += ded[0];
-  h += '<div class="pay-neto"><span class="et">Net pay (COP)</span><span class="va">' + copCO(x != null ? x : (n || 0) - (v || 0) - (w || 0)) + '</span></div>';
+  celdas.push(cel(fijo != null ? 'Fixed pay (COP)' : 'Gross pay (COP)', copCO(fijo != null ? fijo : n)));
+  // deducciones: una celda con el total; el detalle sale al pasar el mouse o al tocar (globo flotante, no alarga)
+  const det = [];
+  if(es247 && v) det.push(['Rete ICA (' + esc(String(pg.ica || '9.5')) + ' per 1,000)', v]);
+  if(w) det.push(['Payroll contributions (Aportes)', w]);
+  const totDed = det.reduce((s, d) => s + d[1], 0);
+  if(det.length){
+    const CAR = det.length > 1 ? ' <svg class="car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' : '';
+    const arriba = celdas.length >= 3;   // caería en la 2ª fila: el globo sale hacia arriba
+    const titulo = det.map(d => d[0].replace(/<[^>]+>/g, '') + ': −' + copCO(d[1])).join('  ·  ');
+    const pop = det.length > 1 ? '<div class="pay-ded-pop ' + (arriba ? 'arriba' : 'abajo') + '">' +
+        det.map(d => '<div class="dl"><span class="et">' + d[0] + '</span><span class="va">−' + copCO(d[1]) + '</span></div>').join('') + '</div>' : '';
+    celdas.push('<div class="pay-cel ded"' + (det.length > 1 ? ' tabindex="0" role="button" aria-expanded="false"' : '') + ' title="' + esc(titulo) + '">' +
+        '<span class="et">Deductions' + CAR + '</span><span class="va neg">−' + copCO(totDed) + '</span>' + pop + '</div>');
+  }
+  celdas.push(cel('Net pay (COP)', copCO(x != null ? x : (n || 0) - totDed), 'neto'));
+  let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
+  h += '<div class="pay-grid">' + celdas.join('') + '</div>';
   if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from Connecteam' : '') + '</div>';
   caja.className = 'pay-res'; caja.innerHTML = h;
+  const dcel = caja.querySelector('.pay-cel.ded');
+  if(dcel && dcel.querySelector('.pay-ded-pop')) dcel.addEventListener('click', () => { const ab = dcel.classList.toggle('abierto'); dcel.setAttribute('aria-expanded', ab); });
   if(S.awListo) awTamano();
 }
 async function cargarPeriodoAg(p){
@@ -4679,7 +4709,7 @@ function pintarPeriodoAg(){
     (pto ? '<div>Paid time off<b class="num">' + hm(pto) + '</b></div>' : '') +
     (faltan ? '<div style="background:var(--accent-50);color:#7A1418">Missing clock-out<b class="num" style="color:var(--accent-600)">' + faltan + (faltan === 1 ? ' day' : ' days') + '</b></div>' : '');
   pintarPagoAg();
-  if(S.awListo && !S.awTam) awTamano();
+  if(S.awListo) awTamano();
   $('pTabla').querySelectorAll('tr.ed').forEach(tr => {
     tr.addEventListener('click', () => abrirPed(tr.dataset.f));
     tr.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrirPed(tr.dataset.f); } });
