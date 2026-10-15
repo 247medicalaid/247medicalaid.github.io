@@ -126,6 +126,18 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 @media (max-width:720px){.py-sup-fila{flex-wrap:wrap}.py-sup-fila .py-barra-sup{margin-left:auto}}
 #pyCuantos{display:none}
 .py-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 0;padding-top:12px;border-top:1px dashed var(--line)}
+.py-diffs{background:var(--accent-50);border:1px solid #F4B9BB;border-radius:var(--radius);padding:12px 14px;margin:0 0 12px}
+.py-diffs-cab{display:flex;align-items:flex-start;gap:10px}
+.py-diffs-cab svg{width:20px;height:20px;flex:none;fill:none;stroke:var(--accent-600);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.py-diffs-cab > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.py-diffs-cab b{color:var(--accent-600);font-size:14px}
+.py-diffs-cab > div span{font-size:12.5px;color:var(--text-muted)}
+.py-diffs-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.py-diffs-list li{display:flex;align-items:center;gap:10px;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:5px 8px 5px 11px}
+.py-diffs-list .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.py-diffs-list .rt{font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
+.py-diffs-list .du{font-variant-numeric:tabular-nums;font-weight:600;min-width:84px;text-align:right;white-space:nowrap}
+.btn-xs{padding:3px 10px;font-size:12px;flex:none}
 .py-docs-tit{font-weight:700;font-size:13px;color:var(--text-muted);margin-right:4px}
 #cpOvPersonal .cp-per-v{position:relative;max-width:920px}
 #cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
@@ -2050,6 +2062,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pr-estado" id="pyEstado"></div>
     <div class="pr-param" id="pyParam"></div>
     <div class="res-hoja hidden" id="pyResumen" aria-label="Pay run totals"></div>
+    <div id="pyDiffs"></div>
     <div class="py-sup-fila">
       <div id="pyAvisos"></div>
       <div class="py-barra-sup">
@@ -2636,6 +2649,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v126: al reabrir el Pay run, conservar lo pagado y avisar diferencias de rate con «Aplicar» -->
 <!-- v125: Excel del banco/personal con números en formato General (sin el punto final) -->
 <!-- v124: Plantilla Banco (247) + Ventana Pagos Personal, leyendo la ficha del TimeTrack -->
 <!-- v123: Comprobantes de pago dentro del Pay run (individual + combinado + resumen, jsPDF) -->
@@ -10404,7 +10418,7 @@ async function cargarPago(desde){
   const hasta = finQ(desde), ant = quinAnt(desde), tok = {};
   // la Timesheet queda en la misma quincena (si ya estaba dentro de ella, se deja como estaba)
   if(!S.periodo || quinDe(S.periodo.desde) !== desde){ S.periodo = { desde, hasta }; S.periodoDePago = true; }
-  S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[] };
+  S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[], refrescados:new Set(), live:{}, diffs:[] };
   $('pyQuin').innerHTML = opcionesQuin(desde);
   $('pyTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading the pay period…</div>';
   ['pyParam','pyResumen','pyAvisos','pyEstado'].forEach(id => { $(id).innerHTML = ''; });
@@ -10468,14 +10482,19 @@ function armarBase(primera){
   const asum = diasPorAsumir(corte, pr.hasta);
   const hojaE = pr.hoja.empleados.filter(e => !e.prueba), emps = hojaE.map(e => recortarEmp(e, corte));   // (v93) sin usuarios de prueba
   const fp = filasPayroll(pr.hoja, emps);
-  pr.asumidos = asum; pr.corte = corte;
+  pr.asumidos = asum; pr.corte = corte; if(!pr.refrescados) pr.refrescados = new Set(); pr.live = {};
   pr.base = [];
   fp.forEach((x, i) => {
     const e = emps[i], g = pr.guardadas[e.usuario], aj = pr.ajustes[e.usuario];
     const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(hojaE[i].dias[f] && hojaE[i].dias[f].ausencia));
-    const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop), tar = numO(x.tarifa);
-    const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar, horas:x.horas, ot:x.ot, min:x.min, minOt:x.minOt,
-                   j:Number(x.pago) || 0, horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres };
+    const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop);
+    const tarLive = numO(x.tarifa), jLive = Number(x.pago) || 0;
+    pr.live[e.usuario] = { tar:tarLive, j:jLive, horas:x.horas, ot:x.ot };
+    const cong = g && !pr.refrescados.has(e.usuario);   // (v126) al reabrir se conserva lo pagado; aplicar el perfil es explícito
+    const tar = cong && g.tarifa != null ? numO(g.tarifa) : tarLive;
+    const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar,
+                   horas:(cong && g.horas != null ? g.horas : x.horas), ot:(cong && g.ot != null ? g.ot : x.ot), min:x.min, minOt:x.minOt,
+                   j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres };
     if(!(base.min > 0 || fijo != null || aj || g)) return;
     let ed = pr.ed[e.usuario];
     if(!ed || primera){
@@ -10488,6 +10507,28 @@ function armarBase(primera){
     pr.base.push(base);
   });
   recalcPago();
+  pr.diffs = [];
+  pr.base.forEach(b => { const g = pr.guardadas && pr.guardadas[b.usuario], lv = pr.live[b.usuario]; if(!g || !lv || pr.refrescados.has(b.usuario)) return;
+    const dRate = Math.abs((numO(b.tarifa) || 0) - (lv.tar || 0)) > 0.0001, dJ = Math.abs((Number(b.j) || 0) - (lv.j || 0)) > 0.005;
+    if(!dRate && !dJ) return;
+    const f = pr.filas.find(x => x.usuario === b.usuario) || {}, dias = f.dias || 0, l = f.l || 0;
+    const mLive = (lv.j || 0) + (dias && lv.tar != null ? r2(lv.tar * (b.horasDia || 8) * dias) : 0) + l;
+    pr.diffs.push({ usuario:b.usuario, nombre:(b.nom + ' ' + b.ape).trim(), ratePaid:numO(b.tarifa), rateLive:lv.tar, dUsd:r2(mLive - (Number(f.m) || 0)) }); });
+}
+// Aviso de diferencias al reabrir: conservar lo pagado, aplicar el perfil por agente (o a todos).
+function pintarDiffsPago(){
+  const pr = S.pr, cont = $('pyDiffs'); if(!cont) return;
+  if(cerradaPago() || !pr.diffs || !pr.diffs.length){ cont.innerHTML = ''; return; }
+  const dUsd = n => (n < 0 ? '−$' : '+$') + Math.abs(n).toFixed(2);
+  cont.innerHTML = '<div class="py-diffs"><div class="py-diffs-cab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>' +
+    '<div><b>' + pr.diffs.length + (pr.diffs.length === 1 ? ' person has' : ' people have') + ' a different rate in their profile than what was paid.</b>' +
+    '<span>Values were kept as paid. Apply the profile rate only if you meant to change it.</span></div>' +
+    '<button class="btn btn-ink btn-sm" id="pyDiffAll" type="button">Apply all</button></div><ul class="py-diffs-list">' +
+    pr.diffs.map(d => '<li><span class="nm">' + esc(d.nombre) + '</span><span class="rt">$' + Number(d.ratePaid).toFixed(2) + ' → $' + Number(d.rateLive).toFixed(2) + '/h</span>' +
+      '<span class="du">' + dUsd(d.dUsd) + ' USD</span><button class="btn btn-ghost btn-xs" data-dif="' + esc(d.usuario) + '" type="button">Apply</button></li>').join('') + '</ul></div>';
+  const aplicar = us => { us.forEach(u => pr.refrescados.add(u)); armarBase(false); marcarSucio(); pintarPago(); };
+  $('pyDiffAll').addEventListener('click', () => aplicar(pr.diffs.map(d => d.usuario)));
+  cont.querySelectorAll('[data-dif]').forEach(btn => btn.addEventListener('click', () => aplicar([btn.dataset.dif])));
 }
 function recalcPago(){
   const pr = S.pr;
@@ -10529,6 +10570,7 @@ function pintarPago(){
     '</div>';
   pintarResumenPago();
   if($('pyOrden')) $('pyOrden').value = pyModo();
+  pintarDiffsPago();
   // avisos: días sin salida, sin aprobar, ajustes de la quincena anterior
   let av = '';
   if(!cerr){
