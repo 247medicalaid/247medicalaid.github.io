@@ -2687,6 +2687,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v134: Users agrupado por cuenta — resaltar la fila-título con el color de la cuenta -->
 <!-- v133: corregir enrutado de pagoPersonalPeriodo/Set (iban a docsSB → Unknown action); ahora en api() principal -->
 <!-- v132: color a «Send to profiles» y «Summary PDF»; Personal payments con check «Paid» + confirmation # guardados (paso 62) -->
 <!-- v131: agrupar los botones de Payroll documents por función (Payment / To profiles / Accountant / Download) -->
@@ -6102,8 +6103,10 @@ function pintarEmps(){
     '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
   const cerrados = S.uCerrados || (S.uCerrados = {}), n = cols.length + 2;
   const cuerpo = por && UGRUPOS[por] ? uGrupos(l, por).map(g => { const ck = por + '|' + g.k, cer = !!cerrados[ck];
-      return '<tbody class="u-grp"><tr class="u-grp-cab"><th colspan="' + n + '"><button type="button" data-grp="' + esc(ck) + '" aria-expanded="' + !cer + '">' +
-        '<i aria-hidden="true">' + (cer ? '▸' : '▾') + '</i>' + (por === 'cuenta' && g.k && colorCuenta(g.nombre) ? '<i class="punto-cta" style="background:' + colorCuenta(g.nombre) + '"></i>' : '') +
+      const cta = por === 'cuenta' && g.k ? colorCuenta(g.nombre) : null;
+      const estCta = cta ? ' style="background:color-mix(in srgb,' + cta + ' 42%,#fff);box-shadow:inset 5px 0 0 ' + cta + '"' : '';
+      return '<tbody class="u-grp"><tr class="u-grp-cab' + (cta ? ' u-grp-cta' : '') + '"><th colspan="' + n + '"' + estCta + '><button type="button" data-grp="' + esc(ck) + '" aria-expanded="' + !cer + '">' +
+        '<i aria-hidden="true">' + (cer ? '▸' : '▾') + '</i>' + (cta ? '<i class="punto-cta" style="background:' + cta + '"></i>' : '') +
         esc(g.nombre) + ' <span class="u-n">' + g.gente.length + '</span></button></th></tr>' + (cer ? '' : g.gente.map(fila).join('')) + '</tbody>'; }).join('')
     : '<tbody>' + l.map(fila).join('') + '</tbody>';
   $('empsTabla').innerHTML = '<table class="emps"><thead><tr>' + th('nombre', 'Name') + cols.map(c => th(c.k, c.t, c.num)).join('') + '<th></th></tr></thead>' + cuerpo + '</table>' +
