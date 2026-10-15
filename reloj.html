@@ -127,6 +127,16 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 #pyCuantos{display:none}
 .py-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 0;padding-top:12px;border-top:1px dashed var(--line)}
 .py-docs-tit{font-weight:700;font-size:13px;color:var(--text-muted);margin-right:4px}
+#cpOvPersonal .cp-per-v{position:relative;max-width:920px}
+#cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
+#cpOvPersonal .cp-x:hover{color:var(--text)}
+.cp-per-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+.cp-per{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+.cp-per th,.cp-per td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.cp-per thead th{position:sticky;top:0;background:var(--sand);font-size:12.5px;font-weight:600;color:var(--text-muted);z-index:1}
+.cp-per .num{text-align:right;font-variant-numeric:tabular-nums}
+.cp-per tbody tr:hover td{background:var(--brand-50)}
+.cp-per tfoot td{font-weight:700;background:var(--sand);border-top:2px solid var(--line);position:sticky;bottom:0}
 .hoja.pago tfoot .ft-sub{display:block;font-weight:600;font-size:10px;color:var(--muted);line-height:1.15;margin-bottom:1px;white-space:normal}
 .py-barra-sup .dc-cuantos{margin:0}
 .py-barra-sup .esp{flex:1}
@@ -2062,6 +2072,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="cpComb" type="button" title="One PDF with every pay stub">Pay stubs — combined PDF</button>
       <button class="btn btn-ghost btn-sm" id="cpCada" type="button" title="A separate PDF file per person">Pay stubs — one file each</button>
       <button class="btn btn-ghost btn-sm" id="cpResu" type="button">Summary PDF</button>
+      <button class="btn btn-ghost btn-sm" id="cpBanco" type="button" title="Bancolombia payment template for 24/7 agents">Bank template (247)</button>
+      <button class="btn btn-ghost btn-sm" id="cpPersonal" type="button" title="Agents paid from the personal account">Personal payments</button>
     </div>
     <p class="nota" id="pyLeyenda" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
     <div class="pr-hist-cab"><h2>Saved pay runs</h2><span id="pyAnios"></span>
@@ -2624,6 +2636,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v124: Plantilla Banco (247) + Ventana Pagos Personal, leyendo la ficha del TimeTrack -->
 <!-- v123: Comprobantes de pago dentro del Pay run (individual + combinado + resumen, jsPDF) -->
 <!-- v122: Pay run — avisar antes de salir (cambio de tab o recarga) con cambios sin guardar -->
 <!-- v121: Today — contenido más ancho (1500px) y columna Alerts más ancha (menos saltos) -->
@@ -13114,7 +13127,90 @@ async function cpCadaUno(btn){
   on('cpCada', b => cpCadaUno(b));
 })();
 // Espacio accesible (para pruebas y para la ventana de Pagos Personal en v124)
-try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cadaUno:cpCadaUno, resumen:cpResumen, buildPaystubPDF:buildPaystubPDF, buildSummaryPDF:buildSummaryPDF }; }catch(e){}
+// ───────── Fase 2: Plantilla Banco (247) + Ventana Pagos Personal ─────────
+const cpNorm = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+const CP_BANCO_COD = { 'bancolombia':7,'banco de bogota':1,'banco de bogotá':1,'banco popular':2,'itau':6,'itaú':6,'citibank':9,
+  'banco gnb sudameris':12,'gnb sudameris':12,'bbva':13,'bbva colombia':13,'helm bank':14,'scotiabank colpatria':19,'scotiabank':19,
+  'banco de occidente':23,'bancoldex':31,'bancóldex':31,'banco caja social':32,'banco agrario':40,'bnp paribas':42,'mundo mujer':47,
+  'davivienda':51,'daviplata':51,'davivienda - daviplata':51,'av villas':52,'banco av villas':52,'banco w':53,'bancamia':59,'bancamía':59,
+  'banco pichincha':60,'bancoomeva':61,'banco falabella':62,'banco finandina':63,'banco santander de negocios':65,'coopcentral':66,
+  'mi banco':67,'banco serfinanza':69,'lulo bank':70,'lulo':70,'banco j.p. morgan colombia':71,'jp morgan':71,'banco union':303,'banco unión':303,
+  'coltefinaciera':370,'nequi':507,'ban100':558,'pibank':560,'iris':637,'iris (dann regional)':637,'movii':801,'ding':802,'powwi':803,
+  'bancar tecnología ualá':804,'uala':804,'ualá':804,'btg pactual':805,'bold cf':808,'bold':808,'nubank':809,'nu':809,'rappipay':811,
+  'coink':812,'coink s.a.':812,'santander consumer':813,'global66':814 };
+const CP_ID_COD = { 'cc':1,'ti':2,'nit':3,'ce':4,'pasaporte':5,'passport':5,'pep':5,'permiso de trabajo':5 };
+const cpCodBanco = nm => { const v = CP_BANCO_COD[String(nm || '').toLowerCase().replace(/\s+/g, ' ').trim()]; return v == null ? '' : v; };
+const cpCodId = t => { const v = CP_ID_COD[String(t || '').toLowerCase().replace(/[.\s]+/g, l => l.includes('.') ? '' : ' ').trim()]; return v == null ? 1 : v; };
+function cpPartirNom(full){ const p = String(full || '').trim().split(/\s+/); if(p.length <= 1) return [p[0] || '', '']; if(p.length === 2) return [p[0], p[1]]; return [p.slice(0, 2).join(' '), p.slice(2).join(' ')]; }
+function cpDesc(){ const h = S.pr.hasta; return 'NOMINA ' + h.slice(5, 7) + '-' + h.slice(8, 10) + '-' + h.slice(0, 4); }
+function cpFecha(){ const h = S.pr.hasta; return h.slice(5, 7) + '-' + h.slice(8, 10) + '-' + h.slice(0, 4); }
+function cpNeto(f){ return Math.round(Number(f.x != null ? f.x : f.n) || 0); }
+async function cpFichas(){
+  const es = (S.emps && S.emps.empleados) ? S.emps.empleados : ((await api('empleados')).empleados || []);
+  const porU = {}, porN = {};
+  es.forEach(e => { porU[e.usuario] = e; porN[cpNorm(e.nombre)] = e; if(e.apellidos) porN[cpNorm((e.nombre || '') + ' ' + e.apellidos)] = e; });
+  return { porU, porN };
+}
+function cpFichaDe(f, m){ return m.porU[f.usuario] || m.porN[cpNorm((f.nom || '') + ' ' + (f.ape || ''))] || m.porN[cpNorm(f.nombre)] || null; }
+function cpBajarXls(blob, nombre){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+
+async function cpBanco(){
+  const pr = S.pr; if(!pr || !pr.filas.length) return;
+  const m = await cpFichas(), desc = cpDesc();
+  const cab = ['Tipo de Identificación','Número de Identificación','Nombre','Apellido','Código del Banco','Tipo de Producto o Servicio',
+    'Número del Producto o Servicio','Valor del pago o de la recarga','Referencia (Opcional)','Correo Electronico (Opcional)','Descripción o Detalle (Opcional)'];
+  const filas = [], faltan = [];
+  ordenPago(pr.filas).filter(f => f.de === '247').forEach(f => {
+    const e = cpFichaDe(f, m), cta = e ? String(e.cuentaBanco || '').trim() : '', nid = e ? String(e.numId || '').trim() : '', cod = e ? cpCodBanco(e.banco) : '';
+    if(!e || !cta || !nid || cod === ''){ faltan.push((f.nom || '') + ' ' + (f.ape || '')); return; }
+    const partes = cpPartirNom((f.nom || '') + ' ' + (f.ape || ''));
+    filas.push([cpCodId(e.tipoId), nid, partes[0], partes[1], cod, 'CA', cta, cpNeto(f), '', e.email || '', desc]);
+  });
+  if(!filas.length){ toast(faltan.length ? 'No one has complete bank info yet.' : 'No 24/7 payments in this pay run.', 'err'); return; }
+  cpBajarXls(xlsxTablas([{ nombre:'Hoja1', cab, filas, anchos:[22,22,20,22,16,24,26,22,14,30,22], sinFiltro:true }]), 'Plantilla-Pagos-Nomina_' + cpFecha() + '.xlsx');
+  toast('Bank template: ' + filas.length + ' payment' + (filas.length === 1 ? '' : 's') + (faltan.length ? '. Missing bank info: ' + faltan.join(', ') : '.'), faltan.length ? 'err' : '');
+}
+
+async function cpPersonal(){
+  const pr = S.pr; if(!pr || !pr.filas.length) return;
+  const m = await cpFichas();
+  const rows = ordenPago(pr.filas).filter(f => f.de === 'personal').map(f => {
+    const e = cpFichaDe(f, m) || {};
+    return { nombre:((f.nom || '') + ' ' + (f.ape || '')).trim(), tipoId:e.tipoId || '', numId:e.numId || '', banco:e.banco || '', cuenta:e.cuentaBanco || '', valor:cpNeto(f) };
+  });
+  cpModalPersonal(rows);
+}
+function cpModalPersonal(rows){
+  let ov = document.getElementById('cpOvPersonal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'cpOvPersonal'; ov.className = 'overlay'; document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.add('hidden'); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && !ov.classList.contains('hidden')) ov.classList.add('hidden'); }); }
+  const money = n => '$ ' + Number(n).toLocaleString('es-CO');
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  const cuerpo = rows.length ? rows.map(r => '<tr><td>' + esc(r.tipoId) + '</td><td>' + esc(String(r.numId)) + '</td><td>' + esc(r.nombre) + '</td><td>' + esc(r.banco) +
+      '</td><td>' + esc(String(r.cuenta)) + '</td><td class="num">' + money(r.valor) + '</td></tr>').join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px">No personal-account payments in this pay run.</td></tr>';
+  ov.innerHTML = '<div class="ventana ventana-ancha cp-per-v"><button class="cp-x" id="cpPerX" type="button" aria-label="Close">×</button>' +
+    '<h2>Personal account payments</h2><div class="sub">Agents paid directly from the personal account (not in the bank template). ' + rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' · ' + money(total) + ' total.</div>' +
+    '<div class="cp-per-wrap"><table class="cp-per"><thead><tr><th>ID type</th><th>ID number</th><th>Name</th><th>Bank</th><th>Account #</th><th class="num">Amount to pay (COP)</th></tr></thead><tbody>' + cuerpo +
+    '</tbody>' + (rows.length ? '<tfoot><tr><td colspan="5">Total</td><td class="num">' + money(total) + '</td></tr></tfoot>' : '') + '</table></div>' +
+    '<div class="barra-acc" style="margin-top:14px"><span class="esp"></span>' + (rows.length ? '<button class="btn btn-ink btn-sm" id="cpPerXls" type="button">Download Excel</button>' : '') + '</div></div>';
+  ov.classList.remove('hidden');
+  $('cpPerX').addEventListener('click', () => ov.classList.add('hidden'));
+  if($('cpPerXls')) $('cpPerXls').addEventListener('click', () => {
+    const cab = ['ID type','ID number','Name','Bank','Account #','Amount (COP)'];
+    const filas = rows.map(r => [r.tipoId, String(r.numId), r.nombre, r.banco, String(r.cuenta), r.valor]);
+    cpBajarXls(xlsxTablas([{ nombre:'Personal', cab, filas, anchos:[12,18,26,18,20,16] }]), 'Pagos-Personal_' + cpFecha() + '.xlsx');
+  });
+}
+// listeners nuevos
+(function(){
+  const on = (id, fn) => { const b = $(id); if(b) b.addEventListener('click', async e => { try{ await fn(e.currentTarget); }catch(err){ toast('Error: ' + err.message, 'err'); } }); };
+  on('cpBanco', () => cpBanco());
+  on('cpPersonal', () => cpPersonal());
+})();
+
+try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cadaUno:cpCadaUno, resumen:cpResumen, buildPaystubPDF:buildPaystubPDF, buildSummaryPDF:buildSummaryPDF, banco:cpBanco, personal:cpPersonal, fichas:cpFichas, codBanco:cpCodBanco }; }catch(e){}
 
 })();
 </script>
