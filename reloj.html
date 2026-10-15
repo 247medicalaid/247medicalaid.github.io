@@ -119,7 +119,18 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .pill.pr-cerr{background:var(--brand-100);color:var(--brand-700)}
 .pill.pr-borr{background:var(--warn-50);color:var(--warn)}
 .pr-sucio{color:var(--warn)}
-.py-colsbar{display:flex;justify-content:flex-end;margin:0 0 8px}
+.py-barra-sup{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.py-barra-sup .dc-cuantos{margin:0}
+.py-barra-sup .esp{flex:1}
+.py-orden{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:var(--paper);cursor:pointer}
+.hoja.pago .th-in{display:flex;align-items:center;position:relative;min-height:30px}
+.hoja.pago .th-lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hoja.pago th.tot .th-lb,.hoja.pago th.num .th-lb{text-align:right}
+.hoja.pago .rz{position:absolute;top:0;right:-5px;width:10px;height:100%;cursor:col-resize;z-index:4;touch-action:none}
+.hoja.pago .rz::after{content:'';position:absolute;left:5px;top:25%;height:50%;width:1px;background:var(--line)}
+.hoja.pago .rz:hover::after,.hoja.pago .rz.activo::after{background:var(--brand-500);width:2px;top:0;height:100%}
+table.hoja.pago.fija{table-layout:fixed}
+.hoja.pago.fija td,.hoja.pago.fija .th-lb{overflow:hidden;text-overflow:ellipsis}
 .py-cols{position:relative}
 .py-cols-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:8px;min-width:200px;max-height:min(70vh,440px);overflow:auto}
 .py-cols-menu .tit{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 8px 6px}
@@ -2022,8 +2033,12 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pr-param" id="pyParam"></div>
     <div class="res-hoja hidden" id="pyResumen" aria-label="Pay run totals"></div>
     <div id="pyAvisos"></div>
-    <p class="dc-cuantos" id="pyCuantos"></p>
-    <div class="py-colsbar"><div class="py-cols" id="pyColsWrap"><button class="btn btn-ghost btn-sm" id="pyColsBtn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;vertical-align:-2px;margin-right:5px"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M9 4v16M15 4v16"/></svg>Columns</button><div class="py-cols-menu hidden" id="pyColsMenu"></div></div></div>
+    <div class="py-barra-sup">
+      <p class="dc-cuantos" id="pyCuantos"></p>
+      <span class="esp"></span>
+      <select id="pyOrden" class="py-orden" aria-label="Sort / group"><option value="cuenta">Grouped by account</option><option value="nombre">By name</option><option value="de">By paid from</option></select>
+      <div class="py-cols" id="pyColsWrap"><button class="btn btn-ghost btn-sm" id="pyColsBtn" type="button" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;vertical-align:-2px;margin-right:5px"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M9 4v16M15 4v16"/></svg>Columns</button><div class="py-cols-menu hidden" id="pyColsMenu"></div></div>
+    </div>
     <div class="tabla-wrap" id="pyTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-ink btn-sm" id="pyGuardar" type="button">Save draft</button>
@@ -2594,6 +2609,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v118: Pay run — barra compacta, selector de orden (cuenta/nombre/paid from) y columnas redimensionables -->
 <!-- v117: Pay run — campo Bonus más angosto -->
 <!-- v116: Pay run — selector de columnas (COP/USD oculta por defecto) -->
 <!-- v115: Pay run — sub-cuadros que se ensanchan al ancho disponible (más bajos) -->
@@ -10475,6 +10491,7 @@ function pintarPago(){
       '<label class="campo"><span>Add days — everyone</span><div class="pr-fila"><input type="number" id="pyDiasTodos" min="0" max="10" step="0.5" inputmode="decimal" placeholder="e.g. 1"' + dis + '><button class="btn btn-ghost btn-sm" id="pyDiasAplicar" type="button"' + dis + '>Add to all</button></div><small>Adds these days on top for everyone (e.g. a paid holiday with no punches); you can still change each person.</small></label>' +
     '</div>';
   pintarResumenPago();
+  if($('pyOrden')) $('pyOrden').value = pyModo();
   // avisos: días sin salida, sin aprobar, ajustes de la quincena anterior
   let av = '';
   if(!cerr){
@@ -10509,13 +10526,20 @@ function celdasCalc(f){
 function pintarTablaPago(){
   const pr = S.pr, cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
   if(!pr.filas.length){ $('pyTabla').innerHTML = ''; return; }
-  let t = '<table class="hoja pago"><thead><tr><th class="nombre" data-col="nombre">Employee</th><th data-col="tarifa">Rate</th><th data-col="horas">Hours</th><th data-col="ot">OT</th><th data-col="j">Hours pay</th><th data-col="dias" title="Days paid in advance (assumed worked)">Add days</th><th data-col="k">Add pay</th>' +
-    '<th data-col="bono" title="In USD. For pesos write COP after the amount, e.g. -100000 COP">Bonus</th><th data-col="aj" title="Difference from the days paid in advance last pay run">Adjustment</th><th class="tot" data-col="m">Total USD</th><th data-col="y">COP / USD</th>' +
-    '<th class="tot" data-col="n">Total COP</th><th data-col="de">Paid from</th><th data-col="v">Rete ICA</th><th data-col="w">Aportes</th><th class="tot" data-col="x">Net COP</th></tr></thead><tbody>';
-  const lista = ordenPago(pr.filas); let g = null;
+  const anchosPago = leerLS(PY_ANCHOS_CLAVE, {}), fijaPago = Object.keys(anchosPago).length > 0;
+  const PY_TH_TIT = { dias:'Days paid in advance (assumed worked)', bono:'In USD. For pesos write COP after the amount, e.g. -100000 COP', aj:'Difference from the days paid in advance last pay run' };
+  const PY_TH_CLS = { nombre:'nombre', m:'tot', n:'tot', x:'tot', tarifa:'num', horas:'num', ot:'num', j:'num', k:'num', v:'num', w:'num' };
+  const PY_ANCHO_DEF = { nombre:168, m:94, n:104, x:106, de:118, bono:92, dias:76, aj:96 };
+  let t = '<table class="hoja pago' + (fijaPago ? ' fija' : '') + '"><colgroup>' +
+    PY_COLS.map(([id]) => '<col data-k="' + id + '"' + (fijaPago ? ' style="width:' + (anchosPago[id] || PY_ANCHO_DEF[id] || 84) + 'px"' : '') + '>').join('') +
+    '</colgroup><thead><tr>' +
+    PY_COLS.map(([id, lab]) => '<th data-col="' + id + '" data-k="' + id + '"' + (PY_TH_CLS[id] ? ' class="' + PY_TH_CLS[id] + '"' : '') + (PY_TH_TIT[id] ? ' title="' + PY_TH_TIT[id] + '"' : '') +
+      '><div class="th-in"><span class="th-lb">' + esc(lab) + '</span><span class="rz" data-rz="' + id + '" title="Drag to resize"></span></div></th>').join('') +
+    '</tr></thead><tbody>';
+  const modoPago = pyModo(), lista = filasPago(modoPago); let g = null;
   lista.forEach(f => {
-    const gc = f.cuenta || SIN_CUENTA;
-    if(gc !== g){
+    const gc = modoPago === 'cuenta' ? (f.cuenta || SIN_CUENTA) : null;
+    if(modoPago === 'cuenta' && gc !== g){
       g = gc; const del = lista.filter(x => (x.cuenta || SIN_CUENTA) === gc), col = gc === SIN_CUENTA ? null : colorCuenta(gc);
       t += '<tr class="grupo' + (col ? ' color" style="--c:' + col + ';--tinta:' + tintaDe(col) : '') + '" data-g="' + esc(gc) + '"><td class="nombre" data-col="nombre">' + esc(gc) + '<span class="n">' + del.length + '</span></td>' +
         '<td data-col="tarifa"></td><td data-col="horas"></td><td data-col="ot"></td><td data-col="j"></td><td data-col="dias"></td><td data-col="k"></td><td data-col="bono"></td><td data-col="aj"></td>' +
@@ -10540,8 +10564,12 @@ function pintarTablaPago(){
   t += '</tbody><tfoot><tr><td class="nombre" data-col="nombre" data-t="personas"></td><td data-col="tarifa"></td><td data-col="horas"></td><td data-col="ot"></td><td class="num" data-col="j" data-t="j"></td><td class="num" data-col="dias" data-t="dias"></td>' +
     '<td class="num" data-col="k" data-t="k"></td><td class="num" data-col="bono" data-t="bono"></td><td class="num" data-col="aj" data-t="aj"></td>' +
     '<td class="tot num" data-col="m" data-t="usd"></td><td data-col="y"></td><td class="tot num" data-col="n" data-t="cop"></td><td data-col="de"></td><td class="num" data-col="v" data-t="ica"></td><td class="num" data-col="w" data-t="aportes"></td><td class="tot num" data-col="x" data-t="neto"></td></tr></tfoot></table>';
-  $('pyTabla').innerHTML = t; requestAnimationFrame(altoPago);
+  $('pyTabla').innerHTML = t;
+  const _tp = $('pyTabla').querySelector('table');
+  if(_tp && _tp.classList.contains('fija')) _tp.style.width = [...(_tp.querySelectorAll('col'))].filter(c => c.style.display !== 'none').reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0) + 'px';
+  if(_tp) engancharResizePago(_tp);
   aplicarColsPago();
+  requestAnimationFrame(altoPago);
   totalesTablaPago();
 }
 // Selector de columnas del Pay run (la preferencia se guarda en el navegador). «COP / USD» oculta por defecto.
@@ -10554,10 +10582,54 @@ function pyColsOff(){
   return S.pyColsOff;
 }
 function aplicarColsPago(){
-  const off = pyColsOff(), tb = $('pyTabla'); if(!tb) return;
+  const off = pyColsOff(), tb = $('pyTabla'), tabla = tb ? tb.querySelector('table') : null; if(!tb) return;
   PY_COLS.forEach(([id]) => { const ocultar = id !== 'nombre' && off.has(id);
-    tb.querySelectorAll('[data-col="' + id + '"]').forEach(el => { el.style.display = ocultar ? 'none' : ''; }); });
+    tb.querySelectorAll('[data-col="' + id + '"]').forEach(el => { el.style.display = ocultar ? 'none' : ''; });
+    const cc = tabla ? tabla.querySelector('col[data-k="' + id + '"]') : null; if(cc) cc.style.display = ocultar ? 'none' : ''; });
+  if(tabla && tabla.classList.contains('fija')){
+    const w = [...tabla.querySelectorAll('col')].filter(c => c.style.display !== 'none').reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0);
+    if(w) tabla.style.width = w + 'px';
+  }
 }
+// Orden del Pay run (guardado por navegador): «cuenta» agrupa con subtotales; «nombre» y «de» son listas planas.
+const PY_ORDEN_CLAVE = 'reloj_pago_orden_v1', PY_ANCHOS_CLAVE = 'reloj_pago_anchos_v1';
+function pyModo(){ const m = leerLS(PY_ORDEN_CLAVE, 'cuenta'); return ['cuenta','nombre','de'].includes(m) ? m : 'cuenta'; }
+function filasPago(modo){
+  const nom = f => (f.nom + ' ' + f.ape);
+  if(modo === 'nombre') return pr().filas.slice().sort((a, b) => nom(a).localeCompare(nom(b), 'en'));
+  if(modo === 'de') return pr().filas.slice().sort((a, b) => ((a.de === 'personal') - (b.de === 'personal')) || nom(a).localeCompare(nom(b), 'en'));
+  return ordenPago(pr().filas);
+  function pr(){ return S.pr; }
+}
+// Cambiar el ancho de una columna arrastrando el borde del título (anchos guardados por navegador).
+function engancharResizePago(tabla){
+  tabla.querySelectorAll('[data-rz]').forEach(h => h.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const k = h.dataset.rz, cols = [...tabla.querySelectorAll('col')];
+    if(!tabla.classList.contains('fija')){
+      const ths = [...tabla.querySelectorAll('thead th')];
+      cols.forEach((c, i) => { c.style.width = Math.round(ths[i].getBoundingClientRect().width) + 'px'; });
+      tabla.style.width = Math.round(ths.reduce((s, x) => s + x.getBoundingClientRect().width, 0)) + 'px';
+      tabla.classList.add('fija');
+    }
+    const col = cols.find(c => c.dataset.k === k), x0 = ev.clientX, w0 = parseFloat(col.style.width), t0 = parseFloat(tabla.style.width);
+    S.pyRz = true; h.classList.add('activo'); document.body.classList.add('redimensionando');
+    try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+    const mover = e => { const w = Math.max(54, Math.round(w0 + e.clientX - x0)); col.style.width = w + 'px'; tabla.style.width = (t0 + w - w0) + 'px'; };
+    const soltar = () => {
+      h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', soltar); h.removeEventListener('pointercancel', soltar);
+      h.classList.remove('activo'); document.body.classList.remove('redimensionando');
+      const a = {}; cols.forEach(c => { if(c.style.width) a[c.dataset.k] = Math.round(parseFloat(c.style.width)); });
+      ponerLS(PY_ANCHOS_CLAVE, Object.assign(leerLS(PY_ANCHOS_CLAVE, {}), a));
+      setTimeout(() => { S.pyRz = false; }, 0);
+    };
+    h.addEventListener('pointermove', mover); h.addEventListener('pointerup', soltar); h.addEventListener('pointercancel', soltar);
+  }));
+}
+(function(){
+  const sel = $('pyOrden'); if(!sel) return;
+  sel.addEventListener('change', () => { ponerLS(PY_ORDEN_CLAVE, sel.value); if(S.pr) pintarTablaPago(); });
+})();
 function pintarColsMenu(){
   const off = pyColsOff();
   $('pyColsMenu').innerHTML = '<div class="tit">Show columns</div>' + PY_COLS.map(([id, lab, fijo]) =>
