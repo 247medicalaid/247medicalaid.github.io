@@ -2710,6 +2710,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v146: Updates — al pegar/soltar una imagen se inserta su marcador [imgN] en el cursor (queda dentro del texto) -->
 <!-- v145: Updates — imágenes dentro del texto con marcadores [imgN]; las no ubicadas van en la galería -->
 <!-- v144: Updates — arrastrar/soltar y pegar imágenes en «New update» (se adjuntan a Photos and files) -->
 <!-- v143: Ubicación — se confía en el GPS del PC (Monitor) contra el lugar de trabajo; se quita el falso aviso navegador↔PC (VPN) -->
@@ -2801,7 +2802,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="ue-sec"><b>Photos and files</b> <small class="muted">Up to 10 · 15 MB each · drag &amp; drop or paste images into the message</small>
       <ul class="ue-archivos" id="ueArchivos"></ul>
       <button class="btn btn-ghost btn-sm" type="button" id="ueAdjuntar">Add photos or files</button>
-      <input type="file" id="ueArchivo" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.mp4"><small class="ue-imghint">To place an image inside the text, type <b>[img1]</b>, <b>[img2]</b>… where you want it. Images you don't place show at the bottom.</small></div>
+      <input type="file" id="ueArchivo" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.mp4"><small class="ue-imghint">Paste or drop an image into the message and it's placed right there. You can also type <b>[img1]</b>, <b>[img2]</b>… to position an attached image. Images you don't place show at the bottom.</small></div>
     <div class="ue-sec"><b>Who gets it</b>
       <p class="nota" id="ueDestinoFijo"></p>
       <div id="ueDestino">
@@ -9465,33 +9466,49 @@ $('ueGrupos').addEventListener('change', ev => {
   pintarUpdEd();
 });
 $('ueAdjuntar').addEventListener('click', () => { $('ueArchivo').value = ''; $('ueArchivo').click(); });
-function updAgregarArchivos(fs){
+function updEsImgF(f){ return /^image\//.test((f && f.type) || '') || updEsImg({ mime:f && f.type, nombre:f && f.name }); }
+// Inserta texto en el cuerpo: en el cursor si está enfocado, si no al final; en su propia línea.
+function updInsertarCuerpo(txt){
+  const ta = $('ueCuerpo'); if(!ta) return;
+  const foco = document.activeElement === ta;
+  const s = foco ? ta.selectionStart : ta.value.length, e = foco ? ta.selectionEnd : ta.value.length;
+  const v = ta.value, antes = v.slice(0, s), despues = v.slice(e);
+  const pre = (antes && !antes.endsWith('\n')) ? '\n' : '', post = (despues && !despues.startsWith('\n')) ? '\n' : '';
+  const ins = pre + txt + post;
+  ta.value = antes + ins + despues;
+  const caret = (antes + ins).length; ta.selectionStart = ta.selectionEnd = caret; ta.focus();
+}
+// marcar=true: por cada imagen agregada, pone su marcador [imgN] en el cursor (pegar/soltar).
+function updAgregarArchivos(fs, marcar){
   const ed = S.updEd; if(!ed) return; $('ueErr').textContent = '';
+  const nums = [];
   for(const f of fs){
     if(!f) continue;
     if(ed.quedan.length + ed.nuevos.length >= 10){ $('ueErr').textContent = 'Up to 10 files per update.'; break; }
     if(f.size > 15 * 1048576){ $('ueErr').textContent = (f.name || 'A file') + ' is too big. The limit is 15 MB.'; continue; }
     ed.nuevos.push(f);
+    if(marcar && updEsImgF(f)) nums.push(ed.quedan.filter(updEsImg).length + ed.nuevos.filter(updEsImgF).length);
   }
+  if(marcar && nums.length) updInsertarCuerpo(nums.map(n => '[img' + n + ']').join('\n'));
   pintarUpdEd();
 }
-$('ueArchivo').addEventListener('change', () => { updAgregarArchivos([...$('ueArchivo').files]); });
-// (v144) Pegar imágenes del portapapeles en el mensaje → se adjuntan
+$('ueArchivo').addEventListener('change', () => { updAgregarArchivos([...$('ueArchivo').files], false); });
+// (v146) Pegar imágenes del portapapeles → se adjuntan y se coloca su marcador en el cursor
 $('ueCuerpo').addEventListener('paste', ev => {
   const items = ev.clipboardData && ev.clipboardData.items; if(!items) return;
   const imgs = [];
   for(const it of items){ if(it.kind === 'file' && /^image\//.test(it.type || '')){ const f = it.getAsFile(); if(f) imgs.push(f); } }
   if(!imgs.length) return;                        // sin imágenes: se pega el texto como siempre
   ev.preventDefault();
-  updAgregarArchivos(imgs.map(f => (f.name && f.name !== 'image.png') ? f : new File([f], 'pegado-' + Date.now() + '.png', { type:f.type || 'image/png' })));
+  updAgregarArchivos(imgs.map(f => (f.name && f.name !== 'image.png') ? f : new File([f], 'pegado-' + Date.now() + '.png', { type:f.type || 'image/png' })), true);
 });
-// (v144) Arrastrar y soltar archivos sobre el modal de New update
+// (v146) Arrastrar y soltar: se adjunta y se coloca el marcador de cada imagen
 (function(){ const v = document.querySelector('#ovUpdEd .ventana'); if(!v) return;
   const hl = on => { const c = $('ueCuerpo'); if(c) c.classList.toggle('ue-drag', on); };
   const tieneArchivos = dt => !!(dt && [...(dt.types || [])].includes('Files'));
   v.addEventListener('dragover', ev => { if(tieneArchivos(ev.dataTransfer)){ ev.preventDefault(); hl(true); } });
   v.addEventListener('dragleave', ev => { if(!v.contains(ev.relatedTarget)) hl(false); });
-  v.addEventListener('drop', ev => { if(!(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length)) return; ev.preventDefault(); hl(false); updAgregarArchivos([...ev.dataTransfer.files]); });
+  v.addEventListener('drop', ev => { if(!(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length)) return; ev.preventDefault(); hl(false); updAgregarArchivos([...ev.dataTransfer.files], true); });
 })();
 $('ueArchivos').addEventListener('click', ev => { const b = ev.target.closest('[data-ue-x]'); if(!b) return; const k = b.dataset.ueX, i = Number(k.slice(1));
   if(k[0] === 'q') S.updEd.quedan.splice(i, 1); else S.updEd.nuevos.splice(i, 1); pintarUpdEd(); });
