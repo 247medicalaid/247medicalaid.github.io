@@ -7421,13 +7421,22 @@ function aplicarBorrador(borrador){
     $('qmgmt').value     = borrador.config.mgmt;
   }
   if(borrador.agentesSnap){
+    // (baja permanente) La fuente estable de las bajas es la config guardada, que
+    // la navegación entre quincenas NO modifica. Así un borrador viejo no revive a
+    // un agente dado de baja: la baja manda hacia adelante. Las quincenas aprobadas
+    // cargan su propia copia aparte, por lo que su historial se conserva igual.
+    let _bajasConfig = {};
+    try {
+      const _cfg = JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) || 'null');
+      if(_cfg && Array.isArray(_cfg.agentes)) _cfg.agentes.forEach(a => { if(a && a.estado === 'inactive') _bajasConfig[a.id] = true; });
+    } catch(e){}
     borrador.agentesSnap.forEach(snap => {
       const ag = agentes.find(a => a.id === snap.id);
       if(ag){
         ag.dias      = snap.dias;
         ag.diasStd   = snap.diasStd;
         ag.diasCobrar= snap.diasCobrar;
-        ag.estado    = snap.estado;
+        ag.estado    = _bajasConfig[snap.id] ? 'inactive' : snap.estado;
         if(snap.horas    !== undefined) ag.horas    = snap.horas;
         if(snap.valor    !== undefined) ag.valor    = snap.valor;
         if(snap.tipoPago !== undefined) ag.tipoPago = snap.tipoPago;
