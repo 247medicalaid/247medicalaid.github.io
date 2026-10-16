@@ -2584,6 +2584,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="sub" id="sSub"></div>
     <div id="sCuerpo"></div>
     <div class="err" id="sErr"></div>
+    <div class="ped-nota hidden" id="sAviso" style="margin-top:8px"></div>
     <div class="pie">
       <button class="btn btn-ghost" data-cerrar>Cancel</button>
       <button class="btn btn-ink" id="sEnviar">Send request</button>
@@ -2711,6 +2712,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v148: Shift request inteligente — avisa si reemplaza el turno (cruza) o con cuántas horas queda el día (no cruza); confirmar/cancelar -->
 <!-- v147: Updates — botón Preview: vista previa del comunicado antes de enviar -->
 <!-- v146: Updates — al pegar/soltar una imagen se inserta su marcador [imgN] en el cursor (queda dentro del texto) -->
 <!-- v145: Updates — imágenes dentro del texto con marcadores [imgN]; las no ubicadas van en la galería -->
@@ -9992,6 +9994,9 @@ function abrirSolicitud(tipo){
   h += '<label class="campo"><span>Reason</span><textarea id="sMotivo" maxlength="500" placeholder="' +
     (tipo === 'ausencia' ? 'E.g. medical appointment, family trip' : 'E.g. I forgot to clock it') + '"></textarea></label>';
   $('sCuerpo').innerHTML = h;
+  S.solConf = false; S.solReemplaza = false; $('sEnviar').textContent = 'Send request';
+  if($('sAviso')){ $('sAviso').classList.add('hidden'); $('sAviso').innerHTML = ''; }
+  $('sCuerpo').oninput = () => { if(S.solConf){ S.solConf = false; $('sEnviar').textContent = 'Send request'; const a = $('sAviso'); if(a){ a.classList.add('hidden'); a.innerHTML = ''; } } };
   if(tipo === 'ausencia'){
     tlEnlazar('s');
     const anio = fechaHoy().slice(0, 4), pintarAnio = l => { if($('sAnio')) $('sAnio').innerHTML = 'Your time off in ' + anio + ': ' + resumenAnio((l || []).filter(x => x.tipo === 'ausencia'), anio); };
@@ -9999,6 +10004,25 @@ function abrirSolicitud(tipo){
   }
   $('sEnviar').disabled = false;
   abrir('ovSol');
+}
+// (v148) Marcas de un día (de lo ya cargado si lo cubre, si no se pide al servidor)
+async function _marcasDia(fecha){
+  const d = S.perAg;
+  if(d && d.desde <= fecha && d.hasta >= fecha && S.perAgDatos) return (S.perAgDatos.marcas || []).filter(m => m.fecha === fecha);
+  try{ const r = await api('miPeriodo', { desde:fecha, hasta:fecha }); return (r.marcas || []).filter(m => m.fecha === fecha); }catch(e){ return []; }
+}
+function _sMin(hhmm){ const p = (hhmm || '').split(':'); return (+p[0]) * 60 + (+p[1]); }
+// ¿El turno pedido se cruza con lo que ya hay ese día? y ¿con cuántas horas quedaría?
+async function analizarTurno(sol){
+  const marcas = await _marcasDia(sol.fecha);
+  const lista = marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })).filter(x => /^\d\d:\d\d$/.test(x.hora));
+  const existMin = minutosLista(lista);
+  const mins = lista.map(x => _sMin(x.hora));
+  const spanIni = mins.length ? Math.min.apply(null, mins) : null, spanFin = mins.length ? Math.max.apply(null, mins) : null;
+  const reqIni = _sMin(sol.horaIni), reqFin = _sMin(sol.horaFin);
+  const reqMin = (reqFin - reqIni) - (sol.almIni && sol.almFin ? (_sMin(sol.almFin) - _sMin(sol.almIni)) : 0);
+  const cruza = spanIni != null && reqIni < spanFin && reqFin > spanIni;
+  return { hay:lista.length > 0, cruza, existMin, reqMin, totalMin:existMin + reqMin };
 }
 $('sEnviar').addEventListener('click', async () => {
   const t = S.solTipo, sol = { tipo:t, motivo:$('sMotivo').value.trim() };
@@ -10016,9 +10040,32 @@ $('sEnviar').addEventListener('click', async () => {
     : t === 'ausencia' && sol.fechaFin < sol.fecha ? 'The end date can\'t be before the start date.'
     : sol.motivo.length < 3 ? 'Enter the reason for the request.' : '';
   if(err){ $('sErr').textContent = err; return; }
+  // (v148) Turno: primer clic analiza y avisa (reemplaza o total); segundo clic envía.
+  if(t === 'turno' && !S.solConf){
+    $('sErr').textContent = ''; const b0 = $('sEnviar'); b0.disabled = true; b0.innerHTML = '<span class="spin"></span> Checking…';
+    let a = null; try{ a = await analizarTurno(sol); }catch(e){}
+    b0.disabled = false; b0.textContent = 'Confirm & send';
+    const av = $('sAviso'); av.classList.remove('hidden', 'neg');
+    if(a && a.cruza){
+      av.classList.add('neg');
+      av.innerHTML = '<b>This overlaps the shift already on ' + esc(diaS(sol.fecha)) + '.</b> If approved, it will <b>replace</b> that shift with the times above. If you only want to fix your hours, edit them in your timesheet instead.';
+      S.solReemplaza = true;
+    } else {
+      S.solReemplaza = false;
+      av.innerHTML = a ? ('If approved, <b>' + esc(diaS(sol.fecha)) + '</b> would total <b>' + hm(a.totalMin) + '</b> of work.') : 'Send this shift request?';
+    }
+    S.solConf = true; return;
+  }
   const b = $('sEnviar'); b.disabled = true;
   try{
-    await api('solicitar', { sol });
+    if(t === 'turno' && S.solReemplaza){
+      const marcas = [{ tipo:'entrada', hora:sol.horaIni }];
+      if(sol.almIni && sol.almFin){ marcas.push({ tipo:'almuerzo_ini', hora:sol.almIni }, { tipo:'almuerzo_fin', hora:sol.almFin }); }
+      marcas.push({ tipo:'salida', hora:sol.horaFin });
+      await api('solicitar', { sol:{ tipo:'correccion', fecha:sol.fecha, marcas, motivo:sol.motivo } });
+    } else {
+      await api('solicitar', { sol });
+    }
     cerrar('ovSol'); toast('Request sent. You\'ll see the answer in “View your requests”.');
     contarMias();
   }catch(e){ $('sErr').textContent = e.message; b.disabled = false; }
