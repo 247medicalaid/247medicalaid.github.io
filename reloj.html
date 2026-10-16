@@ -1731,6 +1731,10 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-imgs.n1 a{aspect-ratio:auto;max-height:420px}
 .upd-imgs img{width:100%;height:100%;object-fit:cover;display:block}.upd-imgs.n1 img{object-fit:contain;max-height:420px}
 .upd-img-x{display:block;padding:12px;font-size:13px;color:var(--text-muted)}
+.upd-img-in{display:block;margin:10px 0}
+.upd-img-in img{max-width:100%;max-height:420px;border-radius:12px;display:block}
+.ue-imgnum{flex:none;background:var(--brand-100,#E0ECF5);color:var(--brand-700,#0B5A7A);font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-right:2px}
+.ue-imghint{display:block;color:var(--text-muted);font-size:12px;margin-top:8px}
 .upd-arch{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .upd-file{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;text-decoration:none;color:var(--text);font-size:13.5px;max-width:100%}
 .upd-file svg{width:20px;height:20px;flex:none;fill:none;stroke:var(--brand-700, #1F4E79);stroke-width:1.8;stroke-linejoin:round}
@@ -2706,6 +2710,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v145: Updates — imágenes dentro del texto con marcadores [imgN]; las no ubicadas van en la galería -->
 <!-- v144: Updates — arrastrar/soltar y pegar imágenes en «New update» (se adjuntan a Photos and files) -->
 <!-- v143: Ubicación — se confía en el GPS del PC (Monitor) contra el lugar de trabajo; se quita el falso aviso navegador↔PC (VPN) -->
 <!-- v142: Horario de entrada desde el Monitor (base + semanal + turnos); se quita el campo Scheduled start (paso 64) -->
@@ -2796,7 +2801,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="ue-sec"><b>Photos and files</b> <small class="muted">Up to 10 · 15 MB each · drag &amp; drop or paste images into the message</small>
       <ul class="ue-archivos" id="ueArchivos"></ul>
       <button class="btn btn-ghost btn-sm" type="button" id="ueAdjuntar">Add photos or files</button>
-      <input type="file" id="ueArchivo" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.mp4"></div>
+      <input type="file" id="ueArchivo" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.mp4"><small class="ue-imghint">To place an image inside the text, type <b>[img1]</b>, <b>[img2]</b>… where you want it. Images you don't place show at the bottom.</small></div>
     <div class="ue-sec"><b>Who gets it</b>
       <p class="nota" id="ueDestinoFijo"></p>
       <div id="ueDestino">
@@ -9223,6 +9228,28 @@ const updEsImg = a => /^image\//.test(a.mime || '') || /\.(png|jpe?g|gif|webp)$/
 function updTexto(t){
   return esc(t || '').replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 }
+// (v145) Cuerpo con imágenes incrustadas donde haya marcadores [imgN] (N = imagen adjunta #N).
+function updCuerpoHTML(cuerpo, imgs){
+  const txt = cuerpo || '', re = /\[img(\d+)\]/gi, usados = new Set();
+  const tag = a => a && a.url
+    ? '<a class="upd-img-in" href="' + esc(a.url) + '" target="_blank" rel="noopener" title="' + esc(a.nombre) + '"><img src="' + esc(a.url) + '" alt="' + esc(a.nombre) + '" loading="lazy"></a>'
+    : (a ? '<span class="upd-img-x">' + esc(a.nombre) + '</span>' : '');
+  let html = '', last = 0, m;
+  while((m = re.exec(txt))){
+    html += updTexto(txt.slice(last, m.index));
+    const n = parseInt(m[1], 10) - 1, a = imgs[n];
+    if(a){ usados.add(n); html += tag(a); } else { html += updTexto(m[0]); }   // marcador sin imagen → literal
+    last = m.index + m[0].length;
+  }
+  html += updTexto(txt.slice(last));
+  return { html, usados };
+}
+// Cuerpo (con marcadores) + galería de las imágenes que no se ubicaron en el texto.
+function updCuerpoYGaleria(u, imgs){
+  const cb = updCuerpoHTML(u.cuerpo, imgs), sobran = imgs.filter((a, i) => !cb.usados.has(i));
+  return (u.cuerpo ? '<div class="upd-texto">' + cb.html + '</div>' : '') +
+    (sobran.length ? '<div class="upd-imgs n' + Math.min(sobran.length, 3) + '">' + sobran.map(a => a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" title="' + esc(a.nombre) + '"><img src="' + esc(a.url) + '" alt="' + esc(a.nombre) + '" loading="lazy"></a>' : '<span class="upd-img-x">' + esc(a.nombre) + '</span>').join('') + '</div>' : '');
+}
 function updCuando(ms){
   const d = (Date.now() - ms) / 60000;
   if(d < 1) return 'just now'; if(d < 60) return Math.round(d) + ' min ago'; if(d < 60 * 20) return Math.round(d / 60) + ' h ago';
@@ -9253,8 +9280,7 @@ function updTarjeta(u, completo){
     '<header>' + (u.fijado ? '<span class="upd-pin" title="Pinned">' + IC_UPD_PIN + '</span>' : '') +
       '<div class="upd-cab"><h3>' + esc(u.titulo) + (u.leido === null ? ' <span class="upd-nuevo">New</span>' : '') + '</h3>' +
       '<small>' + esc(u.autorNombre || u.autor) + ' · ' + esc(updCuando(u.creado)) + (u.editado ? ' · edited' : '') + '</small></div></header>' +
-    (u.cuerpo ? '<div class="upd-texto">' + updTexto(u.cuerpo) + '</div>' : '') +
-    (imgs.length ? '<div class="upd-imgs n' + Math.min(imgs.length, 3) + '">' + imgs.map(a => a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" title="' + esc(a.nombre) + '"><img src="' + esc(a.url) + '" alt="' + esc(a.nombre) + '" loading="lazy"></a>' : '<span class="upd-img-x">' + esc(a.nombre) + '</span>').join('') + '</div>' : '') +
+    updCuerpoYGaleria(u, imgs) +
     (arch.length ? '<div class="upd-arch">' + arch.map(a => '<a class="upd-file" ' + (a.url ? 'href="' + esc(a.url) + '" target="_blank" rel="noopener"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span>' + esc(a.nombre) + '<small>' + updBytes(a.bytes) + '</small></span></a>').join('') + '</div>' : '') +
     '<div class="upd-reac" role="group" aria-label="Reactions">' + UPD_EMOJIS.map(e => { const l = reac[e] || [], mio = l.some(r => r.usuario === S.updYo);
       return '<button type="button" class="upd-emo' + (mio ? ' on' : '') + (l.length ? ' con' : '') + '" data-reac="' + e + '" aria-pressed="' + mio + '" title="' + esc(l.length ? l.map(r => r.nombre || r.usuario).join(', ') : 'React') + '">' + e + (l.length ? '<b>' + l.length + '</b>' : '') + '</button>'; }).join('') +
@@ -9420,11 +9446,13 @@ function pintarUpdEd(){
   }
   const n = updQuienes(d, emps).length;
   $('ueCuantos').innerHTML = nuevo ? (n ? '<b>' + n + '</b> ' + (n === 1 ? 'person' : 'people') + ' will get it.' : '<span class="ui-falta">Nobody selected yet.</span>') : '';
-  // archivos
-  const fila = (nom, tam, i, viejo, url) => '<li>' + (url ? '<img src="' + esc(url) + '" alt="">' : '<span class="ue-ic">📄</span>') + '<span>' + esc(nom) + '<small>' + updBytes(tam) + '</small></span>' +
-    '<button type="button" class="upd-com-x" data-ue-x="' + (viejo ? 'q' : 'n') + i + '" aria-label="Remove ' + esc(nom) + '">×</button></li>';
-  $('ueArchivos').innerHTML = ed.quedan.map((a, i) => fila(a.nombre, a.bytes, i, true, updEsImg(a) ? a.url : '')).join('') +
-    ed.nuevos.map((f, i) => fila(f.name, f.size, i, false, /^image\//.test(f.type) ? (f._url || (f._url = URL.createObjectURL(f))) : '')).join('');
+  // archivos (con número de imagen para los marcadores [imgN])
+  let _imgN = 0;
+  const fila = (nom, tam, key, esImg, url) => '<li>' + (url ? '<img src="' + esc(url) + '" alt="">' : '<span class="ue-ic">📄</span>') + '<span>' + esc(nom) + '<small>' + updBytes(tam) + '</small></span>' +
+    (esImg ? '<span class="ue-imgnum" title="Type [img' + (++_imgN) + '] in the message to place it there">img' + _imgN + '</span>' : '') +
+    '<button type="button" class="upd-com-x" data-ue-x="' + key + '" aria-label="Remove ' + esc(nom) + '">×</button></li>';
+  $('ueArchivos').innerHTML = ed.quedan.map((a, i) => fila(a.nombre, a.bytes, 'q' + i, updEsImg(a), updEsImg(a) ? a.url : '')).join('') +
+    ed.nuevos.map((f, i) => fila(f.name, f.size, 'n' + i, /^image\//.test(f.type), /^image\//.test(f.type) ? (f._url || (f._url = URL.createObjectURL(f))) : '')).join('');
   $('ueAdjuntar').disabled = ed.quedan.length + ed.nuevos.length >= 10;
 }
 $('ueTodos').addEventListener('change', () => { S.updEd.destino = { todos:true }; pintarUpdEd(); });
