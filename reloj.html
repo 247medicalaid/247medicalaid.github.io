@@ -2500,7 +2500,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           <div class="emp-2x2">
             <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
             <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
-            <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
             <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
           </div>
         </div>
@@ -2706,6 +2705,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v142: Horario de entrada desde el Monitor (base + semanal + turnos); se quita el campo Scheduled start (paso 64) -->
 <!-- v141: Add user — «Agent in the Monitor» centrado y bloque de Empleo corrido a la derecha -->
 <!-- v140: Add user — nombre/apellido/email en una fila; Direct manager junto a Department; fila de banco compacta -->
 <!-- v139: función Manager — casilla «This user is a manager» + Direct manager como lista de managers (paso 63) -->
@@ -3985,7 +3985,7 @@ async function yoSB(){
   const t0 = performance.now(), ses = await sesionSB();
   const usuario = usuarioDe(ses), desde = sumarDias(fechaHoy(), -15);
   // Todo en paralelo: un solo viaje de ida y vuelta, no cinco seguidos.
-  const [ahoraSrv, perfil, emp, marcas, aprob, aus] = await Promise.all([
+  const [ahoraSrv, perfil, emp, marcas, aprob, aus, , horEntHoy] = await Promise.all([
     // (la configuración se pide en paralelo y queda en S.redondeo)
     q(sb.rpc('ahora')),
     q(sb.from('perfiles').select('usuario,nombre,rol,activo').eq('user_id', ses.user.id).maybeSingle()),
@@ -3994,11 +3994,12 @@ async function yoSB(){
     q(sb.from('reloj_aprobaciones').select('fecha').eq('usuario', usuario).gte('fecha', desde)),
     q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', usuario).eq('tipo', 'ausencia')
       .eq('estado', 'aprobada').gte('fecha_fin', desde)).catch(() => []),
-    cargarConfig()
+    cargarConfig(),
+    q(sb.rpc('reloj_mi_horario_hoy')).catch(() => null)
   ]);
   S.offset = Date.parse(ahoraSrv) - Date.now();
   if(!perfil || !perfil.activo) throw Object.assign(new Error('Your user is not active. Talk to the administrator.'), { codigo:'INACTIVO' });
-  const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia), horaEntrada:(emp.hora_entrada || '').slice(0, 5) } : null;
+  const e = emp && emp.activo ? { nombre:emp.nombre, horasDia:Number(emp.horas_dia), horaEntrada:(horEntHoy || '') } : null;
   const ahoraMs = ahora(), hoy = fechaHoy(), ap = {};
   aprob.forEach(a => { ap[a.fecha] = true; });
   const ms = tiempo('abrir', t0);
@@ -4281,7 +4282,7 @@ function pintarPerfil(){
         '<p class="nota" style="margin:-6px 0 10px">At least 8 characters, with letters and numbers.</p>' +
         '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Update password</button></div></div>' : '') + '</div>' +
     '<div class="ficha-sec mp-sec mp-trabajo"><h3>' + MP_ICO.trabajo + 'Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Title', f.titulo) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
-      ro('Employment start date', fecha(f.fechaIngreso)) + ro('Scheduled start', f.horaEntrada ? h12(f.horaEntrada) : '') + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
+      ro('Employment start date', fecha(f.fechaIngreso)) + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
     '<div class="ficha-sec mp-sec mp-personal"><h3>' + MP_ICO.personal + 'Personal</h3><div class="ficha-grid">' +
       '<label class="campo"><span>Mobile phone</span><input id="mpTel" type="tel" autocomplete="tel" maxlength="40"></label>' +
       '<label class="campo"><span>Birthday</span><input id="mpCumple" type="date"></label>' +
@@ -4548,7 +4549,7 @@ function appRecordatorios(yo, r, t){
     out.push({ id:'sal2|' + r.fecha, en:seg(fin + 120 * 60000), titulo:'You\'re still clocked in', texto:'It\'s been 2 hours past your ' + hd + ' hours today. Clock out if you\'re done.' });
   }
   const he = yo.empleado && yo.empleado.horaEntrada, dow = new Date(yo.hoy + 'T12:00:00Z').getUTCDay(), hoySem = (r.semana || []).find(x => x.fecha === yo.hoy);
-  if(r.estado === 'fuera' && he && /^\d\d:\d\d$/.test(he) && dow >= 1 && dow <= 5 && !r.marcas.length && r.fecha === yo.hoy && !(hoySem && hoySem.aus)){
+  if(r.estado === 'fuera' && he && /^\d\d:\d\d$/.test(he) && !r.marcas.length && r.fecha === yo.hoy && !(hoySem && hoySem.aus)){
     const ini = ctMs(yo.hoy, he, S.zona);
     out.push({ id:'ent|' + yo.hoy, en:seg(ini + 5 * 60000), titulo:'Your shift started at ' + hora(ini), texto:'You haven\'t clocked in yet today.' });
   }
@@ -5164,7 +5165,6 @@ const COLS_HOY = [
   { k:'extra', t:'Overtime', def:true, num:true, h:x => { const d = x.d; if(!d || !d.marcas.length) return vacioC;
       const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? '+' + hm(ex) : vacioC; } },
   { k:'almMin', t:'Lunch time', def:false, num:true, h:x => x.d && x.d.alm ? hm(x.d.alm) : vacioC },
-  { k:'horario', t:'Scheduled start', def:false, h:x => x.e.horaEntrada ? h12(x.e.horaEntrada.slice(0, 5)) : vacioC },
   { k:'depto', t:'Department', def:false, h:x => x.e.departamento ? esc(x.e.departamento) : vacioC },
   { k:'ausencia', t:'Time off', def:false, h:x => { const a = x.d && x.d.ausencia; if(!a) return vacioC;
       return esc(CLASE_TXT[a.clase]) + (esParcial(a) ? ' · ' + esc(franjaTxt(a)) : '') + (a.pagada ? '' : ' · unpaid'); } },
@@ -5214,7 +5214,6 @@ const ORD_HOY = {
   total: x => x.d && x.d.marcas.length ? x.d.min : null,
   extra: x => { const d = x.d; if(!d || !d.marcas.length) return null; const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? ex : null; },
   almMin: x => x.d && x.d.alm ? x.d.alm : null,
-  horario: x => x.e.horaEntrada ? x.e.horaEntrada.slice(0, 5) : null,
   depto: x => (x.e.departamento || '').toLowerCase() || null,
   ausencia: x => x.d && x.d.ausencia ? CLASE_TXT[x.d.ausencia.clase] : null,
   alertas: x => { const n = nivelMax(x.fl.filter(b => b.n !== 'info')); return n === 'alerta' ? 0 : n === 'aviso' ? 1 : null; }
@@ -6065,7 +6064,7 @@ const UCOLS = [
   { k:'ciudad', t:'City', v:e => e.ciudad, h:e => e.ciudad ? esc(e.ciudad) : '<span class="muted">—</span>' },
   { k:'ingreso', t:'Start date', num:true, v:e => e.fechaIngreso, h:e => e.fechaIngreso ? esc(uFecha(e.fechaIngreso)) : '—' },
   { k:'cumple', t:'Birthday', num:true, v:e => e.cumpleanos ? e.cumpleanos.slice(5) : '', h:e => e.cumpleanos ? esc(new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(e.cumpleanos + 'T12:00:00Z'))) : '<span class="muted">—</span>' },
-  { k:'horario', t:'Schedule', num:true, v:e => e.horaEntrada || '', h:e => (e.horaEntrada ? esc(h12(e.horaEntrada)) + ' · ' : '') + e.horasDia + ' h' },
+  { k:'horario', t:'Hours/day', num:true, v:e => e.horasDia || '', h:e => e.horasDia + ' h' },
   { k:'pago', t:'Pay rate', num:true, v:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? Number(e.pagoHora) : '',
     h:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>' },
   { k:'monitor', t:'Monitor', v:e => e.agenteMonitor, h:e => e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>' },
@@ -6166,7 +6165,7 @@ $('uGrupo').addEventListener('change', () => { uGuardarPref('grupo', $('uGrupo')
 $('eCargo').addEventListener('focus', () => { const t = new Set((S.emps ? S.emps.empleados : []).map(e => (e.titulo || '').trim()).filter(Boolean));
   $('eCargoLista').innerHTML = [...t].sort().map(x => '<option value="' + esc(x) + '">').join(''); });
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
-const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', titulo:'eCargo', fechaIngreso:'eIngreso', horaEntrada:'eEntrada', pagoHora:'ePago',
+const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
 // Listas de Settings → Lists para los campos que se eligen.
