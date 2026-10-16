@@ -1731,6 +1731,7 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-imgs.n1 a{aspect-ratio:auto;max-height:420px}
 .upd-imgs img{width:100%;height:100%;object-fit:cover;display:block}.upd-imgs.n1 img{object-fit:contain;max-height:420px}
 .upd-img-x{display:block;padding:12px;font-size:13px;color:var(--text-muted)}
+#ovUpdPrev .upd-prev .upd-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface,#fff)}
 .upd-img-in{display:block;margin:10px 0}
 .upd-img-in img{max-width:100%;max-height:420px;border-radius:12px;display:block}
 .ue-imgnum{flex:none;background:var(--brand-100,#E0ECF5);color:var(--brand-700,#0B5A7A);font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-right:2px}
@@ -2710,6 +2711,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v147: Updates — botón Preview: vista previa del comunicado antes de enviar -->
 <!-- v146: Updates — al pegar/soltar una imagen se inserta su marcador [imgN] en el cursor (queda dentro del texto) -->
 <!-- v145: Updates — imágenes dentro del texto con marcadores [imgN]; las no ubicadas van en la galería -->
 <!-- v144: Updates — arrastrar/soltar y pegar imágenes en «New update» (se adjuntan a Photos and files) -->
@@ -2817,7 +2819,16 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="ue-sec ue-ops"><label><input type="checkbox" id="ueComs"> Allow comments</label><label><input type="checkbox" id="ueFijar"> Pin to the top</label></div>
     <div class="err" id="ueErr" role="alert"></div>
-    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><button class="btn btn-ink" type="button" id="uePublicar">Publish</button></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" id="uePrev">Preview</button><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><button class="btn btn-ink" type="button" id="uePublicar">Publish</button></div>
+  </div>
+</div>
+<!-- Updates: vista previa (admin) -->
+<div class="overlay hidden" id="ovUpdPrev" role="dialog" aria-modal="true" aria-labelledby="upPrevT">
+  <div class="ventana ventana-ficha">
+    <h2 id="upPrevT">Preview</h2>
+    <p class="nota" style="margin:-4px 0 10px">This is how the update will look. Nothing has been sent yet.</p>
+    <div id="upPrevBody" class="upd-prev"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Back to edit</button><button class="btn btn-ink" type="button" id="upPrevPub">Publish</button></div>
   </div>
 </div>
 <!-- Chat: nueva conversación -->
@@ -9512,6 +9523,17 @@ $('ueCuerpo').addEventListener('paste', ev => {
 })();
 $('ueArchivos').addEventListener('click', ev => { const b = ev.target.closest('[data-ue-x]'); if(!b) return; const k = b.dataset.ueX, i = Number(k.slice(1));
   if(k[0] === 'q') S.updEd.quedan.splice(i, 1); else S.updEd.nuevos.splice(i, 1); pintarUpdEd(); });
+// (v147) Vista previa del update con el estado actual del formulario (no envía nada)
+function updPrevObj(){
+  const ed = S.updEd || { quedan:[], nuevos:[] };
+  const urlDe = f => f._url || (f._url = URL.createObjectURL(f));
+  const adj = (ed.quedan || []).slice().concat((ed.nuevos || []).map(f => ({ nombre:f.name, mime:f.type, bytes:f.size, url:(/^image\//.test(f.type || '') ? urlDe(f) : '') })));
+  return { id:0, titulo:($('ueTit').value.trim() || '(No title)'), autorNombre:(updNombre(S.updYo) || 'You'),
+    creado:Date.now(), editado:null, cuerpo:$('ueCuerpo').value, comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
+    leido:Date.now(), reacs:[], coms:[], adjuntos:adj };
+}
+$('uePrev').addEventListener('click', () => { $('upPrevBody').innerHTML = updTarjeta(updPrevObj(), true); abrir('ovUpdPrev'); });
+$('upPrevPub').addEventListener('click', () => { cerrar('ovUpdPrev'); $('uePublicar').click(); });
 $('uePublicar').addEventListener('click', async () => {
   const ed = S.updEd, tit = $('ueTit').value.trim(), b = $('uePublicar');
   if(!tit){ $('ueErr').textContent = 'Write the title of the update.'; return $('ueTit').focus(); }
