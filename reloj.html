@@ -690,6 +690,10 @@ tr.cerrado td{background:#F6FAFC}
 .ventana-ficha .ficha-grid .fbr{flex-basis:100%;width:100%;grid-column:1/-1;height:0;margin:0;padding:0;border:0}
 .ventana-ficha .ficha-grid .fila-mon-emp{flex-basis:100%;width:100%;grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-start;margin:0}
 .ventana-ficha .ficha-grid .emp-2x2{display:grid;grid-template-columns:repeat(2,minmax(0,165px));gap:8px 14px}
+.ventana-ficha .ficha-grid .emp-mgr-chk{flex-basis:100%;width:100%;grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:2px 0 2px;cursor:pointer;flex-wrap:wrap}
+.ventana-ficha .ficha-grid .emp-mgr-chk input{width:17px;height:17px;flex:none;accent-color:var(--brand-600);cursor:pointer}
+.ventana-ficha .ficha-grid .emp-mgr-chk span{font-weight:600;color:var(--text)}
+.ventana-ficha .ficha-grid .emp-mgr-chk small{color:var(--text-muted);font-size:12.5px}
 #ovEmp .ficha-sec{padding:13px 16px 12px;border-radius:14px;margin-top:14px;border:1px solid var(--line)}
 #ovEmp .ficha-sec.sec-id{background:#F5F7F9;border-color:#E6ECF0}
 #ovEmp .ficha-sec.sec-work{background:#F0F8F2;border-color:#D7EDDE}
@@ -2487,8 +2491,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="ficha-grid">
         <label class="campo c4" style="--w:230px"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
         <label class="campo c4" style="--w:230px"><span>Department</span><select id="eDepto"></select></label>
-        <label class="campo c4" style="--w:230px"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
+        <label class="campo c4" style="--w:230px"><span>Direct manager</span><select id="eJefe"></select></label>
         <input id="eCargo" type="hidden"><datalist id="eCargoLista"></datalist>
+        <label class="emp-mgr-chk" for="eEsManager"><input type="checkbox" id="eEsManager"><span>This user is a manager</span><small>They appear in the Direct manager list for other users.</small></label>
         <div class="fila-mon-emp">
           <label class="campo campo-mon" style="--w:210px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
           <input id="eNomina" type="hidden">
@@ -2701,6 +2706,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v139: función Manager — casilla «This user is a manager» + Direct manager como lista de managers (paso 63) -->
 <!-- v138: Add user — empleo en 2×2, Address antes que City, fondo suave por sección -->
 <!-- v137: reorganizar Add user (nombre/apellido/email; sin Title; Direct manager arriba; empleo junto a Monitor; City+Address) -->
 <!-- v136: quitar la referencia «As in Connecteam» del placeholder del campo Title -->
@@ -3496,7 +3502,7 @@ function enIngles(m){ m = String(m || '');
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
-const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo,
+const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo, esManager:e.es_manager === true,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
@@ -3793,6 +3799,8 @@ async function api(action, p){
     const r = await q(sb.from('reloj_pago_personal').select('usuario,pagado,confirmacion,pagado_en').eq('periodo_fin', p.periodoFin));
     return r || []; }
   if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
+  // (v139) marcar/desmarcar a un usuario como manager (paso 63)
+  if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
@@ -6430,6 +6438,13 @@ function abrirEmp(usuario){
     const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
+  (function(){ const self = e ? e.usuario : null;
+    const mgrs = ((S.emps && S.emps.empleados) || []).filter(x => x.esManager && x.usuario !== self && x.activo !== false).map(x => x.nombre).filter(Boolean).sort((a, b) => a.localeCompare(b, 'en'));
+    const sel = $('eJefe'); if(sel){ const actual = e ? (e.jefe || '') : '';
+      let o = ['<option value="">\u2014 None \u2014</option>'].concat([...new Set(mgrs)].map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>'));
+      if(actual && mgrs.indexOf(actual) < 0) o.push('<option value="' + esc(actual) + '" selected>' + esc(actual) + ' (not a manager)</option>');
+      sel.innerHTML = o.join(''); sel.value = actual; }
+    const chk = $('eEsManager'); if(chk) chk.checked = e ? !!e.esManager : false; })();
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
   pintarNominaAviso(); pintarMonNota(); pintarQuien();
   $('eErr').textContent = '';
@@ -6550,6 +6565,10 @@ $('eGuardar').addEventListener('click', async () => {
   const monAntes = monAgente(datos.agenteMonitor);
   try{
     let r = await api('guardarEmpleado', { empleado:datos });
+    try{ const _u = datos.usuario || ((r.empleados || []).find(x => (x.email || '').toLowerCase() === datos.email) || {}).usuario;
+      if(_u){ const _ya = !!((r.empleados || []).find(x => x.usuario === _u) || {}).esManager, _q = !!($('eEsManager') || {}).checked;
+        if(_q !== _ya){ await api('setManager', { usuario:_u, esManager:_q }); const _e = (r.empleados || []).find(x => x.usuario === _u); if(_e) _e.esManager = _q; } } }
+    catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Marking a manager needs SQL step 63 in Supabase.' : 'Could not save the manager flag.', 'err'); }
     // Time Clock → Monitor: la misma cuenta en los dos lados.
     let avisoMon = '', renombrado = null;
     // (v78) el agente del Monitor toma el nombre del usuario (el nombre de la ficha es el que manda)
@@ -11971,6 +11990,7 @@ function demoChat2(action, p){
 }
 async function demoApi(action, p){
   demoInit();
+  if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
     if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
