@@ -1766,6 +1766,7 @@ ul.upd-gente li{display:flex;justify-content:space-between;gap:10px;padding:6px 
 ul.upd-gente li small{color:var(--text-muted)}
 #ovUpd .upd-card{border:0;padding:0}
 .ue-sec{border-top:1px solid var(--line);padding:12px 0 4px;margin-top:6px}
+#ueCuerpo.ue-drag{outline:2px dashed var(--brand-500);outline-offset:2px;background:var(--brand-50)}
 .ue-sec > b{font-size:14px}
 .ue-archivos{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .ue-archivos li{display:flex;align-items:center;gap:10px;position:relative;border:1px solid var(--line);border-radius:10px;padding:6px 32px 6px 8px;font-size:13.5px}
@@ -2705,6 +2706,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v144: Updates — arrastrar/soltar y pegar imágenes en «New update» (se adjuntan a Photos and files) -->
 <!-- v143: Ubicación — se confía en el GPS del PC (Monitor) contra el lugar de trabajo; se quita el falso aviso navegador↔PC (VPN) -->
 <!-- v142: Horario de entrada desde el Monitor (base + semanal + turnos); se quita el campo Scheduled start (paso 64) -->
 <!-- v141: Add user — «Agent in the Monitor» centrado y bloque de Empleo corrido a la derecha -->
@@ -2791,7 +2793,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <h2 id="ueTitulo">New update</h2>
     <label class="campo"><span>Title</span><input id="ueTit" maxlength="200" autocomplete="off"></label>
     <label class="campo"><span>Message</span><textarea id="ueCuerpo" rows="7" maxlength="20000" placeholder="Write the message. Links work."></textarea></label>
-    <div class="ue-sec"><b>Photos and files</b> <small class="muted">Up to 10 · 15 MB each</small>
+    <div class="ue-sec"><b>Photos and files</b> <small class="muted">Up to 10 · 15 MB each · drag &amp; drop or paste images into the message</small>
       <ul class="ue-archivos" id="ueArchivos"></ul>
       <button class="btn btn-ghost btn-sm" type="button" id="ueAdjuntar">Add photos or files</button>
       <input type="file" id="ueArchivo" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.mp4"></div>
@@ -9435,15 +9437,34 @@ $('ueGrupos').addEventListener('change', ev => {
   pintarUpdEd();
 });
 $('ueAdjuntar').addEventListener('click', () => { $('ueArchivo').value = ''; $('ueArchivo').click(); });
-$('ueArchivo').addEventListener('change', () => {
-  const ed = S.updEd, fs = [...$('ueArchivo').files]; $('ueErr').textContent = '';
+function updAgregarArchivos(fs){
+  const ed = S.updEd; if(!ed) return; $('ueErr').textContent = '';
   for(const f of fs){
+    if(!f) continue;
     if(ed.quedan.length + ed.nuevos.length >= 10){ $('ueErr').textContent = 'Up to 10 files per update.'; break; }
-    if(f.size > 15 * 1048576){ $('ueErr').textContent = f.name + ' is too big. The limit is 15 MB.'; continue; }
+    if(f.size > 15 * 1048576){ $('ueErr').textContent = (f.name || 'A file') + ' is too big. The limit is 15 MB.'; continue; }
     ed.nuevos.push(f);
   }
   pintarUpdEd();
+}
+$('ueArchivo').addEventListener('change', () => { updAgregarArchivos([...$('ueArchivo').files]); });
+// (v144) Pegar imágenes del portapapeles en el mensaje → se adjuntan
+$('ueCuerpo').addEventListener('paste', ev => {
+  const items = ev.clipboardData && ev.clipboardData.items; if(!items) return;
+  const imgs = [];
+  for(const it of items){ if(it.kind === 'file' && /^image\//.test(it.type || '')){ const f = it.getAsFile(); if(f) imgs.push(f); } }
+  if(!imgs.length) return;                        // sin imágenes: se pega el texto como siempre
+  ev.preventDefault();
+  updAgregarArchivos(imgs.map(f => (f.name && f.name !== 'image.png') ? f : new File([f], 'pegado-' + Date.now() + '.png', { type:f.type || 'image/png' })));
 });
+// (v144) Arrastrar y soltar archivos sobre el modal de New update
+(function(){ const v = document.querySelector('#ovUpdEd .ventana'); if(!v) return;
+  const hl = on => { const c = $('ueCuerpo'); if(c) c.classList.toggle('ue-drag', on); };
+  const tieneArchivos = dt => !!(dt && [...(dt.types || [])].includes('Files'));
+  v.addEventListener('dragover', ev => { if(tieneArchivos(ev.dataTransfer)){ ev.preventDefault(); hl(true); } });
+  v.addEventListener('dragleave', ev => { if(!v.contains(ev.relatedTarget)) hl(false); });
+  v.addEventListener('drop', ev => { if(!(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length)) return; ev.preventDefault(); hl(false); updAgregarArchivos([...ev.dataTransfer.files]); });
+})();
 $('ueArchivos').addEventListener('click', ev => { const b = ev.target.closest('[data-ue-x]'); if(!b) return; const k = b.dataset.ueX, i = Number(k.slice(1));
   if(k[0] === 'q') S.updEd.quedan.splice(i, 1); else S.updEd.nuevos.splice(i, 1); pintarUpdEd(); });
 $('uePublicar').addEventListener('click', async () => {
