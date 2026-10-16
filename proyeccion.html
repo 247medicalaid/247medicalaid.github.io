@@ -770,12 +770,13 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   const descManual  = ov.descDias !== undefined && ov.descDias !== null;
   if(descManual) totalDias = invR2(Math.max(0, _diasPlenos - (Number(ov.descDias)||0)));
   const prorrateo = diasMes > 0 ? totalDias/diasMes : 0;
-  // (fix) El invoice de una cuenta propia ya viene calculado en la foto de la
-  // quincena (campo totalCobro, idéntico al "Invoice Pending" que muestra Nómina):
-  // se usa ESE número —con la tarifa y el calendario propio tal como se aprobó o
-  // proyectó— en vez de recalcularlo aquí. Así no depende de que la copia de
-  // cuentas que cargó Cash Flow esté al día. Si hay un ajuste manual del invoice
-  // (tarifa, días o descuento), manda el cálculo de arriba.
+  // (fix) El invoice de una cuenta propia se toma del totalCobro que ya calculó
+  // Nómina (sumando las quincenas), idéntico a su "Invoice Pending", SIEMPRE que
+  // exista. El número de Nómina manda: los ajustes de días por agente, tarifa o
+  // descuento que hubiera quedado en el invoice se ignoran a propósito (eran
+  // parches de cuando Cash Flow calculaba distinto). Para forzar otra cifra se
+  // fija el MONTO del invoice (proyInv), que se aplica después en completarMes y
+  // sí prevalece. Si no hay totalCobro (dato viejo), se recae en el cálculo.
   let montoSnap = 0, haySnap = false;
   cuList.forEach(cu => {
     if(cu.tipo !== 'own') return;              // solo las cuentas propias guardan totalCobro
@@ -787,11 +788,7 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
       }
     });
   });
-  const _ajusteManualInv = descManual
-    || (ov.tarifa !== undefined && ov.tarifa !== null)
-    || (ov.agenteDias && Object.keys(ov.agenteDias).length > 0);
-  let monto = tarifa * prorrateo;
-  if(haySnap && !_ajusteManualInv) monto = invR2(montoSnap);
+  let monto = haySnap ? invR2(montoSnap) : (tarifa * prorrateo);
   const numAgentes = agentes.length;
 
   // Meta
