@@ -770,7 +770,28 @@ function buildInvData(mkid, cuentaNombre, cuentaTipo, subCuentas){
   const descManual  = ov.descDias !== undefined && ov.descDias !== null;
   if(descManual) totalDias = invR2(Math.max(0, _diasPlenos - (Number(ov.descDias)||0)));
   const prorrateo = diasMes > 0 ? totalDias/diasMes : 0;
-  const monto = tarifa * prorrateo;
+  // (fix) El invoice de una cuenta propia ya viene calculado en la foto de la
+  // quincena (campo totalCobro, idéntico al "Invoice Pending" que muestra Nómina):
+  // se usa ESE número —con la tarifa y el calendario propio tal como se aprobó o
+  // proyectó— en vez de recalcularlo aquí. Así no depende de que la copia de
+  // cuentas que cargó Cash Flow esté al día. Si hay un ajuste manual del invoice
+  // (tarifa, días o descuento), manda el cálculo de arriba.
+  let montoSnap = 0, haySnap = false;
+  cuList.forEach(cu => {
+    if(cu.tipo !== 'own') return;              // solo las cuentas propias guardan totalCobro
+    [m.q1, m.q2].forEach(reg => {
+      if(!reg) return;
+      const snap = reg.cuentas.find(c => c.nombre === cu.nombre && c.tipo === cu.tipo);
+      if(snap && snap.totalCobro !== undefined && snap.totalCobro !== null){
+        montoSnap += Number(snap.totalCobro) || 0; haySnap = true;
+      }
+    });
+  });
+  const _ajusteManualInv = descManual
+    || (ov.tarifa !== undefined && ov.tarifa !== null)
+    || (ov.agenteDias && Object.keys(ov.agenteDias).length > 0);
+  let monto = tarifa * prorrateo;
+  if(haySnap && !_ajusteManualInv) monto = invR2(montoSnap);
   const numAgentes = agentes.length;
 
   // Meta
@@ -1470,9 +1491,21 @@ function calcularMes(mk){
         if(normalizeAccountName(nombre) === 'WHITE WILSON') return;   // Carlos lo pidió fuera
         let d = null;
         try { d = buildInvData(mk, nombre, it.tipo, it.subCuentas || null); } catch(e){}
-        if(!d || !(d.monto > 0.005)) return;
+        if(!d) return;
         const ov = getOv(mk, nombre);
         if(ov.noPago === true) return;                                 // dado por perdido
+        if(!(d.monto > 0.005)){
+          // (red de seguridad) Una cuenta propia con días a cobrar pero sin monto
+          // casi siempre es una tarifa que no se encontró: no la ocultes —que se vea
+          // con aviso— para no perder un cobro en silencio, como pasó con Lake Nona.
+          if(it.tipo === 'own' && (Number(d.totalDias)||0) > 0.005){
+            invDet.push({ id: 'inv:' + normalizeAccountName(nombre),
+                          e: nombre + ' — ⚠ falta tarifa',
+                          cuenta: normalizeAccountName(nombre), m: 0,
+                          saldo: 0, cerrado: false, faltaTarifa: true });
+          }
+          return;
+        }
         invTotal += d.monto;                                 // crudo
         const est = estadoCobro(ov, d.monto);
         if(est.saldo > 0.005) invPendiente += est.saldo;
