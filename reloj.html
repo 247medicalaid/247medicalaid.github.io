@@ -688,7 +688,13 @@ tr.cerrado td{background:#F6FAFC}
   .ventana-ficha .ficha-grid .fila4::before{content:'';flex:0 0 100%;height:0}
   .ventana-ficha .ficha-grid .campo[style*="--w"]{flex:0 0 var(--w);width:var(--w);max-width:100%}
 .ventana-ficha .ficha-grid .fbr{flex-basis:100%;width:100%;grid-column:1/-1;height:0;margin:0;padding:0;border:0}
-.ventana-ficha .ficha-grid .fila-mon-emp{flex-basis:100%;width:100%;grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-start;margin:0}
+.ventana-ficha .ficha-grid .fila-mon-emp{flex-basis:100%;width:100%;grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-start;margin:0}
+.ventana-ficha .ficha-grid .emp-2x2{display:grid;grid-template-columns:repeat(2,minmax(0,165px));gap:8px 14px}
+#ovEmp .ficha-sec{padding:13px 16px 12px;border-radius:14px;margin-top:14px;border:1px solid var(--line)}
+#ovEmp .ficha-sec.sec-id{background:#F5F7F9;border-color:#E6ECF0}
+#ovEmp .ficha-sec.sec-work{background:#F0F8F2;border-color:#D7EDDE}
+#ovEmp .ficha-sec.sec-personal{background:#FFF6EC;border-color:#F3E3CC}
+#ovEmp .ficha-sec.sec-bank{background:#EEF6FC;border-color:#D6E9F6}
 .ventana-ficha .ficha-grid > .c8{grid-column:span 8}
 }
 @media (max-width:640px){ .ventana-ficha .ficha-grid .fila4{grid-template-columns:1fr 1fr} }
@@ -2468,6 +2474,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <div class="ventana ventana-ficha">
     <h2 id="eTitulo">Add user</h2>
     <div class="sub">Their sign-in email, account, Monitor and Payroll links, and personal details.</div>
+    <div class="ficha-sec sec-id">
     <div class="ficha-grid">
       <label class="campo c3" style="--w:200px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
       <label class="campo c3" style="--w:200px"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
@@ -2475,32 +2482,35 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
-    <div class="ficha-sec"><h3>Work</h3>
+    </div>
+    <div class="ficha-sec sec-work"><h3>Work</h3>
       <div class="ficha-grid">
         <label class="campo c4" style="--w:230px"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
         <label class="campo c4" style="--w:230px"><span>Department</span><select id="eDepto"></select></label>
         <label class="campo c4" style="--w:230px"><span>Direct manager</span><input id="eJefe" autocomplete="off"></label>
         <input id="eCargo" type="hidden"><datalist id="eCargoLista"></datalist>
         <div class="fila-mon-emp">
-          <label class="campo campo-mon" style="--w:200px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
+          <label class="campo campo-mon" style="--w:210px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
           <input id="eNomina" type="hidden">
-          <label class="campo" style="--w:145px"><span>Employment start date</span><input id="eIngreso" type="date"></label>
-          <label class="campo" style="--w:118px"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
-          <label class="campo" style="--w:92px"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
-          <label class="campo" style="--w:100px"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
+          <div class="emp-2x2">
+            <label class="campo"><span>Employment start date</span><input id="eIngreso" type="date"></label>
+            <label class="campo"><span>Hours per day</span><input id="eHoras" type="number" min="1" max="12" step="0.5" value="8"></label>
+            <label class="campo"><span>Scheduled start</span><input id="eEntrada" type="time"></label>
+            <label class="campo"><span>Pay rate ($/hour)</span><input id="ePago" type="number" min="0" step="0.01" inputmode="decimal"></label>
+          </div>
         </div>
       </div>
     </div>
-    <div class="ficha-sec"><h3>Personal</h3>
+    <div class="ficha-sec sec-personal"><h3>Personal</h3>
       <div class="ficha-grid">
         <label class="campo c6" style="--w:230px"><span>Mobile phone</span><input id="eTel" type="tel" autocomplete="off"></label>
         <label class="campo c6" style="--w:200px"><span>Birthday</span><input id="eCumple" type="date"></label>
         <div class="fbr"></div>
+        <label class="campo c6" style="--w:380px"><span>Home address</span><input id="eDir" autocomplete="off"></label>
         <label class="campo c4" style="--w:230px"><span>City</span><input id="eCiudad" autocomplete="off"></label>
-        <label class="campo c8" style="--w:430px"><span>Home address</span><input id="eDir" autocomplete="off"></label>
       </div>
     </div>
-    <div class="ficha-sec"><h3>Bank information</h3>
+    <div class="ficha-sec sec-bank"><h3>Bank information</h3>
       <div class="ficha-grid"><div class="fila4 fila-banco">
         <label class="campo" style="--w:100px"><span>ID type</span><select id="eTipoId"></select></label>
         <label class="campo" style="--w:170px"><span>ID number</span><input id="eNumId" autocomplete="off"></label>
@@ -2691,6 +2701,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v138: Add user — empleo en 2×2, Address antes que City, fondo suave por sección -->
 <!-- v137: reorganizar Add user (nombre/apellido/email; sin Title; Direct manager arriba; empleo junto a Monitor; City+Address) -->
 <!-- v136: quitar la referencia «As in Connecteam» del placeholder del campo Title -->
 <!-- v135: badge de notificaciones más legible (centrado flex, un poco más grande, con sombra) -->
