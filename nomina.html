@@ -7392,15 +7392,23 @@ function capturarBorrador(){
       tipoPago: a.tipoPago || 'empresa',
       dias: a.dias, diasStd: a.diasStd, diasCobrar: a.diasCobrar
     })),
-    cuentasSnap: cuentas.map(c => ({
-      id: c.id,
-      colombian: c.colombian, accountant: c.accountant,
-      accountantReal: c.accountantReal, transferFeeReal: c.transferFeeReal,
-      dollarPctReal: c.dollarPctReal, dollarPctOwn: c.dollarPctOwn,
-      transferPctDr: c.transferPctDr, dollarPctDr: c.dollarPctDr,
-      cobroAgente: c.cobroAgente, qdaysOwn: c.qdaysOwn,
-      _cobroAgenteOverride: c._cobroAgenteOverride
-    }))
+    cuentasSnap: cuentas.map(c => {
+      const s = {
+        id: c.id, nombre: c.nombre, tipo: c.tipo,
+        colombian: c.colombian, accountant: c.accountant,
+        accountantReal: c.accountantReal, transferFeeReal: c.transferFeeReal,
+        dollarPctReal: c.dollarPctReal, dollarPctOwn: c.dollarPctOwn,
+        transferPctDr: c.transferPctDr, dollarPctDr: c.dollarPctDr,
+        cobroAgente: c.cobroAgente, qdaysOwn: c.qdaysOwn,
+        _cobroAgenteOverride: c._cobroAgenteOverride
+      };
+      // (Cash Flow) Guardar en el borrador el invoice ya calculado de las cuentas
+      // propias —el mismo "Invoice Pending" que muestra el Resumen— para que la
+      // proyección lo lea tal cual, sin recalcularlo. Es puramente aditivo: no
+      // cambia ningún cálculo de Nómina y no entra en firmaBorrador.
+      if(c.tipo === 'own'){ try { s.totalCobro = calcOwn(c).totalCobro; } catch(e){} }
+      return s;
+    })
   };
 }
 

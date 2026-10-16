@@ -988,23 +988,39 @@ function registroDesdeBorrador(key, borrador){
   try { p = parsePeriodoKey(key); } catch(e){ return null; }
   if(!p || !p.anio || !p.mes || !p.q) return null;
   const agsSnap = borrador.agentesSnap;
-  const cuentasSnapshot = cuentas.filter(c => c.activo !== false).map(c => {
-    const ags = agsSnap.filter(a => a.cuenta === c.id);
+  // (Cash Flow) Lo que Nómina guardó por cuenta en el borrador, indexado por id —
+  // trae el totalCobro (invoice ya calculado) y nombre/tipo de cada cuenta.
+  const snapCta = {};
+  (borrador.cuentasSnap || []).forEach(s => { if(s && s.id) snapCta[s.id] = s; });
+  // Arma los agentes de una cuenta con el mismo criterio de estado que las aprobadas.
+  const mapAgentes = (cuentaId, tipoCuenta) => agsSnap.filter(a => a.cuenta === cuentaId).map(a => {
+    const inactivoPerm = a.estado === 'inactive';
+    const sinDias = tipoCuenta === 'dr'
+      ? ((a.dias||0) === 0 && (a.diasStd === 0 || a.diasStd === undefined))
+      : ((a.dias||0) === 0 && (a.diasCobrar === 0 ||
+          (a.diasCobrar === undefined && (a.diasStd === 0 || a.diasStd === undefined))));
     return {
-      id: c.id, nombre: c.nombre, tipo: c.tipo,
-      agentes: ags.map(a => {
-        const inactivoPerm = a.estado === 'inactive';
-        const sinDias = c.tipo === 'dr'
-          ? ((a.dias||0) === 0 && (a.diasStd === 0 || a.diasStd === undefined))
-          : ((a.dias||0) === 0 && (a.diasCobrar === 0 ||
-              (a.diasCobrar === undefined && (a.diasStd === 0 || a.diasStd === undefined))));
-        return {
-          id: a.id, nombre: a.nombre, horas: a.horas, valor: a.valor,
-          dias: a.dias || 0, diasStd: a.diasStd || 0, diasCobrar: a.diasCobrar,
-          estadoQuincena: inactivoPerm ? 'inactive_perm' : (sinDias ? 'inactive_temp' : 'active')
-        };
-      })
+      id: a.id, nombre: a.nombre, horas: a.horas, valor: a.valor,
+      dias: a.dias || 0, diasStd: a.diasStd || 0, diasCobrar: a.diasCobrar,
+      estadoQuincena: inactivoPerm ? 'inactive_perm' : (sinDias ? 'inactive_temp' : 'active')
     };
+  });
+  const cuentasSnapshot = cuentas.filter(c => c.activo !== false).map(c => ({
+    id: c.id, nombre: c.nombre, tipo: c.tipo,
+    // El invoice que Nómina ya calculó para esta cuenta en el borrador (si lo trae).
+    totalCobro: snapCta[c.id] ? snapCta[c.id].totalCobro : undefined,
+    agentes: mapAgentes(c.id, c.tipo)
+  }));
+  // (Cash Flow) Incluir cuentas PROPIAS que están en el borrador pero no en la
+  // config cargada —p. ej. un cliente nuevo cuando la copia de cuentas viene
+  // desfasada—, armadas desde la foto del borrador con su totalCobro guardado.
+  const yaInc = new Set(cuentasSnapshot.map(c => c.id));
+  (borrador.cuentasSnap || []).forEach(s => {
+    if(!s || !s.id || yaInc.has(s.id)) return;
+    if(s.tipo !== 'own' || !s.nombre) return;
+    const ags = mapAgentes(s.id, s.tipo);
+    if(!ags.length) return;
+    cuentasSnapshot.push({ id: s.id, nombre: s.nombre, tipo: s.tipo, totalCobro: s.totalCobro, agentes: ags });
   });
   return { key, anio: p.anio, mes: p.mes, quincena: p.q, _borrador: true,
            periodo: periodoLabel(p.anio, p.mes, p.q), cuentas: cuentasSnapshot };
