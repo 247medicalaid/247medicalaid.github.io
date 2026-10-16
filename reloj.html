@@ -2705,6 +2705,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v143: Ubicación — se confía en el GPS del PC (Monitor) contra el lugar de trabajo; se quita el falso aviso navegador↔PC (VPN) -->
 <!-- v142: Horario de entrada desde el Monitor (base + semanal + turnos); se quita el campo Scheduled start (paso 64) -->
 <!-- v141: Add user — «Agent in the Monitor» centrado y bloque de Empleo corrido a la derecha -->
 <!-- v140: Add user — nombre/apellido/email en una fila; Direct manager junto a Department; fila de banco compacta -->
@@ -3104,21 +3105,27 @@ function ubicDia(lista, emp){
   const lugar = emp.lugar || null, puntos = [], flags = [];
   lista.forEach(u => {
     if(u.lat == null || !isFinite(u.lat) || !isFinite(u.lng)) return;
-    const d = lugar ? distM(lugar, u) : null, prec = u.prec == null ? 0 : u.prec;
-    // el PC en ese momento: misma casa si, sumando las dos precisiones, quedan a menos de PC_TOL_M
     const pc = u.pc || null, pcOk = !!(pc && pc.estado === 'ok' && isFinite(pc.lat) && isFinite(pc.lng));
-    const pcDist = pcOk ? distM(u, pc) : null;
-    puntos.push({ tipo:u.tipo, ms:u.ms, lat:u.lat, lng:u.lng, prec:u.prec, dist:d, anulada:!!u.anulada,
-                  lejos: d != null && d > lugar.radio + prec, imprecisa: prec > IMPRECISA_M,
-                  pc, pcDist, pcLejos: pcOk && pcDist > PC_TOL_M + prec + (pc.prec || 0) });
+    // (v143) Con ubicación del PC (GPS real del Monitor) esa es la posición de confianza del agente:
+    // el navegador puede venir por VPN/IP. Se compara el PC contra el lugar de trabajo y se omiten los
+    // chequeos del navegador. Sin PC, se usa el navegador como antes.
+    if(pcOk){
+      const pcPrec = pc.prec == null ? 0 : pc.prec, d = lugar ? distM(lugar, pc) : null;
+      puntos.push({ tipo:u.tipo, ms:u.ms, lat:pc.lat, lng:pc.lng, prec:pcPrec, dist:d, anulada:!!u.anulada,
+                    lejos: d != null && d > lugar.radio + pcPrec, imprecisa:false,
+                    pc, pcDist:distM(u, pc), pcLejos:false, fuentePC:true,
+                    navLat:u.lat, navLng:u.lng, navPrec:(u.prec == null ? 0 : u.prec) });
+    } else {
+      const prec = u.prec == null ? 0 : u.prec, d = lugar ? distM(lugar, u) : null;
+      puntos.push({ tipo:u.tipo, ms:u.ms, lat:u.lat, lng:u.lng, prec:u.prec, dist:d, anulada:!!u.anulada,
+                    lejos: d != null && d > lugar.radio + prec, imprecisa: prec > IMPRECISA_M,
+                    pc, pcDist: pc ? distM(u, pc) : null, pcLejos:false, fuentePC:false });
+    }
   });
   const vivos = puntos.filter(x => !x.anulada);
   const lejos = vivos.filter(x => x.lejos);
   if(lejos.length) flags.push({ c:'UBIC_LEJOS', n:'aviso', t:lejos.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.dist)).join('; ') +
     ' from their work location.' });
-  const pcl = vivos.filter(x => x.pcLejos);
-  if(pcl.length) flags.push({ c:'UBIC_PC', n:'aviso', t:pcl.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.pcDist) +
-    ' from their work computer (PC location at ' + hora(x.pc.ts) + ')').join('; ') + '.' });
   const imp = vivos.filter(x => !x.lejos && x.imprecisa);
   if(imp.length) flags.push({ c:'UBIC_IMPRECISA', n:'info', t:'Approximate location (±' + fmtDist(Math.max.apply(null, imp.map(x => x.prec))) + ') for ' +
     imp.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms)).join(', ') + ': it can\'t confirm where they were.' });
@@ -3164,8 +3171,8 @@ function ubicBloque(e, d){
   let h = '<div class="bloque"><h3>Punch locations</h3>';
   h += ub.lugar ? '<p class="nota" style="margin:0 0 4px">Work location set · allowed distance ' + esc(radioTxt(ub.lugar.radio)) + ' · <a href="' + mapaUrl(ub.lugar.lat, ub.lugar.lng) + '" target="_blank" rel="noopener">view on map</a></p>'
                 : '<p class="nota" style="margin:0 0 4px">No work location set for ' + esc(e.nombre) + '. Choose <b>Use as work location</b> on a punch made from where they work.</p>';
-  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.pcLejos && e.agenteMonitor && x.pc && x.pc.estado === 'ok' ? ' pc-lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
-    '<span class="dd">' + (x.lejos ? '⚠ ' : '') + (x.dist != null ? '<b>' + esc(fmtDist(x.dist)) + '</b> from work location' : 'Location recorded') +
+  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
+    '<span class="dd">' + (x.lejos ? '⚠ ' : '') + (x.dist != null ? '<b>' + esc(fmtDist(x.dist)) + '</b> from work location' + (x.fuentePC ? ' (per work computer)' : '') : 'Location recorded') +
     (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
     '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
     ((!ub.lugar || (x.dist != null && x.dist > 30)) ? '<button class="btn btn-ghost" type="button" data-lugar="' + i + '">' + (ub.lugar ? 'Make this the work location' : 'Use as work location') + '</button>' : '') +
@@ -3179,8 +3186,10 @@ function pcLinea(x, e){
   if(!pc) return '<span class="pc">PC: no reading near this punch (computer off, or Monitor older than 2.8)</span>';
   const t = 'PC at ' + esc(hora(pc.ts)) + ': ';
   if(pc.estado !== 'ok') return '<span class="pc">' + t + esc(PC_FALLA[pc.estado] || pc.estado) + '</span>';
-  return '<span class="pc' + (x.pcLejos ? ' mal' : '') + '">' + t + (x.pcLejos ? '⚠ ' + esc(fmtDist(x.pcDist)) + ' away' : 'same place (' + esc(fmtDist(x.pcDist)) + ')') +
-    ' · <a href="' + mapaUrl(pc.lat, pc.lng) + '" target="_blank" rel="noopener">PC on map</a></span>';
+  const mapa = ' · <a href="' + mapaUrl(pc.lat, pc.lng) + '" target="_blank" rel="noopener">PC on map</a>';
+  if(x.fuentePC) return '<span class="pc">Location taken from the work computer (GPS)' +
+    (x.pcDist != null && x.pcDist > PC_TOL_M ? ' · browser reported ' + esc(fmtDist(x.pcDist)) + ' away (likely a VPN)' : '') + mapa + '</span>';
+  return '<span class="pc">' + t + 'same place (' + esc(fmtDist(x.pcDist)) + ')' + mapa + '</span>';
 }
 function conectarUbicBloque(){
   document.querySelectorAll('#dCuerpo [data-lugar]').forEach(b => b.addEventListener('click', async () => {
