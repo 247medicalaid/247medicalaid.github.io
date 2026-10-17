@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v164-202610172027">
+<meta name="app-build" content="v165-202610172039">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v165: Ficha admin — Punch locations plegable + aviso de ubicacion anormal en Punches; Punches changed como tabla Before/After -->
 <!-- v164: Vista admin — mismo caption con el "Before" de la correccion en la ficha del dia (paso 70) -->
 <!-- v163: Vista agente — el caption muestra el "Before" de la correccion (hora original + (Auto Clock)) via paso 69 -->
 <!-- v162: Vista agente — sin etiqueta "corrected" en linea; caption "Corrected by <admin>" al pasar el mouse -->
@@ -3206,7 +3207,8 @@ function ayudaUbicacion(cod, tipo){
 function ubicBloque(e, d){
   const ub = d.ubic;
   if(!ub || !ub.puntos.length) return '';
-  let h = '<div class="bloque"><h3>Punch locations</h3>';
+  const abn = ub.puntos.some(x => x.lejos && !x.anulada);
+  let h = '<details class="bloque"' + (abn ? ' open' : '') + '><summary style="cursor:pointer;font-weight:600;font-size:15px;color:var(--text);margin:0 0 4px">Punch locations' + (abn ? ' <span style="color:#C0392B">\u26a0</span>' : '') + '</summary>';
   h += ub.lugar ? '<p class="nota" style="margin:0 0 4px">Work location set · allowed distance ' + esc(radioTxt(ub.lugar.radio)) + ' · <a href="' + mapaUrl(ub.lugar.lat, ub.lugar.lng) + '" target="_blank" rel="noopener">view on map</a></p>'
                 : '<p class="nota" style="margin:0 0 4px">No work location set for ' + esc(e.nombre) + '. Choose <b>Use as work location</b> on a punch made from where they work.</p>';
   h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
@@ -3214,7 +3216,7 @@ function ubicBloque(e, d){
     (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
     '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
     ((!ub.lugar || (x.dist != null && x.dist > 30)) ? '<button class="btn btn-ghost" type="button" data-lugar="' + i + '">' + (ub.lugar ? 'Make this the work location' : 'Use as work location') + '</button>' : '') +
-    pcLinea(x, e) + '</li>').join('') + '</ul></div>';
+    pcLinea(x, e) + '</li>').join('') + '</ul></details>';
   return h;
 }
 const PC_FALLA = { apagada:'Windows location is off', denegada:'Windows blocks location', sin_dato:'Windows couldn\'t find it', error:'couldn\'t read it' };
@@ -5704,6 +5706,7 @@ function vistaDia(){
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
+      (d.ubic && d.ubic.puntos.some(x => x.lejos && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>A punch was recorded far from the work location. Check Punch locations below.</span></div>' : '') +
       '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc(m.origen === 'admin' ? ('Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : '')) : ('Exact punch: ' + hora(m.msReal || m.ms))) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
@@ -5812,7 +5815,7 @@ function armarHist(r, fecha, e){
     } else if(a.accion === 'corregir'){
       const antes = d.antes ? marcasDeAudit(d.antes) : null, despues = marcasDeAudit(d.despues);
       add(a.en, 'cor', '<b>Punches changed</b>' + por(a.autor) +
-        (antes ? '<div class="de">Before: ' + esc(marcasTxt(antes)) + '</div>' : '') + '<div class="de">After: ' + esc(marcasTxt(despues)) + '</div>' +
+        tablaCambios(antes, despues) +
         (d.motivo ? '<div class="de">Reason: ' + esc(d.motivo) + '</div>' : '') +
         (d.aprobacionQuitada ? '<div class="de">The day\'s approval (' + esc(hm(Number(d.aprobacionQuitada.horas) * 60)) + ' h) was removed.</div>' : ''), a.id);
     } else if(a.accion === 'aprobar' || a.accion === 'desaprobar'){
@@ -7448,6 +7451,21 @@ const solJS = r => ({ id:r.id, usuario:r.usuario, tipo:r.tipo, fecha:r.fecha, fe
 function h12(x){ if(!x) return ''; const [h, m] = x.split(':').map(Number); return ((h + 11) % 12 + 1) + ':' + String(m).padStart(2,'0') + (h < 12 ? ' AM' : ' PM'); }
 const diaS = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'short', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
 function diasEntre(a, b){ return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000) + 1; }
+// (v165) Tabla Before/After de una correccion, resaltando lo que cambio.
+function tablaCambios(antes, despues){
+  const A = antes || [], B = despues || [], n = Math.max(A.length, B.length);
+  if(!n) return '<div class="de">No punches</div>';
+  const th = s => '<th style="text-align:left;padding:3px 10px 3px 0;color:#64748b;font-weight:600">' + s + '</th>';
+  let rows = '';
+  for(let i = 0; i < n; i++){
+    const a = A[i], b = B[i], tipo = (b && b.tipo) || (a && a.tipo) || '';
+    const nom = NOMBRE_TIPO[tipo] || tipo, chg = (a ? a.hora : null) !== (b ? b.hora : null);
+    rows += '<tr><td style="padding:3px 10px 3px 0">' + esc(nom) + '</td>' +
+      '<td style="padding:3px 14px 3px 0;' + (chg ? 'text-decoration:line-through;color:#94a3b8' : 'color:#334155') + '">' + esc(a ? h12(a.hora) : '\u2014') + '</td>' +
+      '<td style="padding:3px 0;' + (chg ? 'font-weight:700;color:#0f172a' : 'color:#334155') + '">' + esc(b ? h12(b.hora) : '\u2014') + '</td></tr>';
+  }
+  return '<table style="border-collapse:collapse;margin:4px 0 2px;font-size:13px"><tr>' + th('Punch') + th('Before') + th('After') + '</tr>' + rows + '</table>';
+}
 // «In 9:00 AM · Lunch 12:00 PM – 12:30 PM · Out 5:10 PM» (para las correcciones de horas)
 function marcasTxt(ms){
   if(!ms || !ms.length) return 'No punches';
