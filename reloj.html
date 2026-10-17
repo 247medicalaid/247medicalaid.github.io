@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v168-202610172137">
+<meta name="app-build" content="v169-202610172156">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v169: ficha del dia — "History" ahora es un desplegable colapsado, igual que Punch locations -->
 <!-- v168: la ventana del dia con cambios sin guardar pide confirmar antes de cerrar (clic afuera / Close / Escape) -->
 <!-- v167: marcar como corregido solo el ponche que realmente cambio (no todo el dia) — vista agente y admin -->
 <!-- v166: Ubicacion anormal tambien cuando el ponche se hizo lejos del PC del Monitor (sin lugar de trabajo) -->
@@ -5736,7 +5737,7 @@ function vistaDia(){
   h += ubicBloque(e, d);
   if(d.banderas.length) h += '<div class="bloque"><h3>Issues</h3><ul class="banderas">' +
     d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
-  h += '<div class="bloque"><h3>History</h3><div id="dHist"><div class="nota"><span class="spin dark"></span> Loading…</div></div></div>';
+  h += '<details class="bloque"><summary style="cursor:pointer;font-weight:600;font-size:15px;color:var(--text);margin:0 0 4px">History</summary><div id="dHist"><div class="nota"><span class="spin dark"></span> Loading…</div></div></details>';
   $('dCuerpo').innerHTML = h;
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
   conectarUbicBloque();
