@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v167-202610172100">
+<meta name="app-build" content="v168-202610172137">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v168: la ventana del dia con cambios sin guardar pide confirmar antes de cerrar (clic afuera / Close / Escape) -->
 <!-- v167: marcar como corregido solo el ponche que realmente cambio (no todo el dia) — vista agente y admin -->
 <!-- v166: Ubicacion anormal tambien cuando el ponche se hizo lejos del PC del Monitor (sin lugar de trabajo) -->
 <!-- v165: Ficha admin — Punch locations plegable + aviso de ubicacion anormal en Punches; Punches changed como tabla Before/After -->
@@ -2949,9 +2950,17 @@ function toast(msg, tipo){
 }
 function abrir(id){ $(id).classList.remove('hidden'); }
 function cerrar(id){ $(id).classList.add('hidden'); }
+// (v168) el editor de punches del dia (ovDia) con cambios sin guardar
+function diaEdSucio(){
+  if(!document.getElementById('dEd') || !$('dFilas')) return false;
+  return !!($('dFilas').querySelector('.edit-fila.cambio') || (S.dia && S.dia.ed && S.dia.ed.quitadas > 0));
+}
+async function pedirSalirDia(){
+  if(await confirmar('Discard changes?', 'You have unsaved changes to the punches. If you leave now, they\'ll be lost. Use <b>Save changes</b> to keep them.', 'Discard changes', true)) cerrar('ovDia');
+}
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if(ov.id === 'ovEmp' && (e.target === ov || (e.target.closest && e.target.closest('[data-cerrar]')))){ e.stopPropagation(); return cerrarEmp(); }
-    if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')) ov.classList.add('hidden'); });
+    if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')){ if(ov.id === 'ovDia' && diaEdSucio()){ pedirSalirDia(); return; } ov.classList.add('hidden'); } });
 });
 document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
   // (v74) la ficha de usuario: Esc cierra lo que esté encima; si la ficha queda arriba, pregunta antes de cerrarla
@@ -2962,7 +2971,8 @@ document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
     if(encima.length){ encima.forEach(o => o.classList.add('hidden')); return; }
     return cerrarEmp();
   }
-  document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo)) o.classList.add('hidden'); }); });
+  if(!$('ovDia').classList.contains('hidden') && $('ovConf').classList.contains('hidden') && diaEdSucio()){ pedirSalirDia(); return; }
+  document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo) && !(o.id === 'ovDia' && diaEdSucio())) o.classList.add('hidden'); }); });
 
 /* ── SESIÓN Y SERVIDOR ── */
 function alPortal(motivo){
