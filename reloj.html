@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v165-202610172039">
+<meta name="app-build" content="v166-202610172044">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v166: Ubicacion anormal tambien cuando el ponche se hizo lejos del PC del Monitor (sin lugar de trabajo) -->
 <!-- v165: Ficha admin — Punch locations plegable + aviso de ubicacion anormal en Punches; Punches changed como tabla Before/After -->
 <!-- v164: Vista admin — mismo caption con el "Before" de la correccion en la ficha del dia (paso 70) -->
 <!-- v163: Vista agente — el caption muestra el "Before" de la correccion (hora original + (Auto Clock)) via paso 69 -->
@@ -3127,7 +3128,7 @@ function asegurarColores(repintar){ if(!S.coloresN && !S.coloresCargando) cargar
    Con precisión de más de una milla se avisa aparte (solo informativo). */
 const IC_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>';
 const RADIOS = [[160, '0.1 mi (500 ft)'], [400, '0.25 mi'], [800, '0.5 mi'], [1609, '1 mi'], [3219, '2 mi']];
-const IMPRECISA_M = 1609, PC_TOL_M = 400;   // marca vs PC: «mismo lugar» hasta 0.25 mi más las precisiones
+const IMPRECISA_M = 1609, PC_TOL_M = 400, PC_LEJOS_M = 1609;   // marca vs PC: «mismo lugar» hasta 0.25 mi; «lejos del PC» a mas de 1 mi
 function distM(a, b){
   const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
@@ -3152,7 +3153,7 @@ function ubicDia(lista, emp){
       const pcPrec = pc.prec == null ? 0 : pc.prec, d = lugar ? distM(lugar, pc) : null;
       puntos.push({ tipo:u.tipo, ms:u.ms, lat:pc.lat, lng:pc.lng, prec:pcPrec, dist:d, anulada:!!u.anulada,
                     lejos: d != null && d > lugar.radio + pcPrec, imprecisa:false,
-                    pc, pcDist:distM(u, pc), pcLejos:false, fuentePC:true,
+                    pc, pcDist:distM(u, pc), pcLejos: distM(u, pc) > PC_LEJOS_M, fuentePC:true,
                     navLat:u.lat, navLng:u.lng, navPrec:(u.prec == null ? 0 : u.prec) });
     } else {
       const prec = u.prec == null ? 0 : u.prec, d = lugar ? distM(lugar, u) : null;
@@ -3165,6 +3166,8 @@ function ubicDia(lista, emp){
   const lejos = vivos.filter(x => x.lejos);
   if(lejos.length) flags.push({ c:'UBIC_LEJOS', n:'aviso', t:lejos.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.dist)).join('; ') +
     ' from their work location.' });
+  const pcLej = vivos.filter(x => x.pcLejos && !x.lejos);
+  if(pcLej.length) flags.push({ c:'UBIC_PC_LEJOS', n:'aviso', t:pcLej.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms) + ' was ' + fmtDist(x.pcDist) + ' from the work computer').join('; ') + '.' });
   const imp = vivos.filter(x => !x.lejos && x.imprecisa);
   if(imp.length) flags.push({ c:'UBIC_IMPRECISA', n:'info', t:'Approximate location (±' + fmtDist(Math.max.apply(null, imp.map(x => x.prec))) + ') for ' +
     imp.map(x => NOMBRE_TIPO[x.tipo] + ' at ' + hora(x.ms)).join(', ') + ': it can\'t confirm where they were.' });
@@ -3207,11 +3210,11 @@ function ayudaUbicacion(cod, tipo){
 function ubicBloque(e, d){
   const ub = d.ubic;
   if(!ub || !ub.puntos.length) return '';
-  const abn = ub.puntos.some(x => x.lejos && !x.anulada);
+  const abn = ub.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada);
   let h = '<details class="bloque"' + (abn ? ' open' : '') + '><summary style="cursor:pointer;font-weight:600;font-size:15px;color:var(--text);margin:0 0 4px">Punch locations' + (abn ? ' <span style="color:#C0392B">\u26a0</span>' : '') + '</summary>';
   h += ub.lugar ? '<p class="nota" style="margin:0 0 4px">Work location set · allowed distance ' + esc(radioTxt(ub.lugar.radio)) + ' · <a href="' + mapaUrl(ub.lugar.lat, ub.lugar.lng) + '" target="_blank" rel="noopener">view on map</a></p>'
                 : '<p class="nota" style="margin:0 0 4px">No work location set for ' + esc(e.nombre) + '. Choose <b>Use as work location</b> on a punch made from where they work.</p>';
-  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + (x.lejos ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
+  h += '<ul class="ubics">' + ub.puntos.map((x, i) => '<li class="' + ((x.lejos || x.pcLejos) ? 'lejos' : '') + (x.anulada ? ' anul' : '') + '"><span class="q">' + NOMBRE_TIPO[x.tipo] + ' · ' + esc(hora(x.ms)) + '</span>' +
     '<span class="dd">' + (x.lejos ? '⚠ ' : '') + (x.dist != null ? '<b>' + esc(fmtDist(x.dist)) + '</b> from work location' + (x.fuentePC ? ' (per work computer)' : '') : 'Location recorded') +
     (x.prec != null ? ' · ±' + esc(fmtDist(x.prec)) : '') + (x.anulada ? ' · changed later' : '') + '</span>' +
     '<a href="' + mapaUrl(x.lat, x.lng) + '" target="_blank" rel="noopener">Map</a>' +
@@ -3227,8 +3230,8 @@ function pcLinea(x, e){
   const t = 'PC at ' + esc(hora(pc.ts)) + ': ';
   if(pc.estado !== 'ok') return '<span class="pc">' + t + esc(PC_FALLA[pc.estado] || pc.estado) + '</span>';
   const mapa = ' · <a href="' + mapaUrl(pc.lat, pc.lng) + '" target="_blank" rel="noopener">PC on map</a>';
-  if(x.fuentePC) return '<span class="pc">Location taken from the work computer (GPS)' +
-    (x.pcDist != null && x.pcDist > PC_TOL_M ? ' · browser reported ' + esc(fmtDist(x.pcDist)) + ' away (likely a VPN)' : '') + mapa + '</span>';
+  if(x.fuentePC) return '<span class="pc' + (x.pcLejos ? ' lejos' : '') + '">Location taken from the work computer (GPS)' +
+    (x.pcLejos ? ' · ⚠ the punch was made ' + esc(fmtDist(x.pcDist)) + ' from the work computer' : (x.pcDist != null && x.pcDist > PC_TOL_M ? ' · browser reported ' + esc(fmtDist(x.pcDist)) + ' away (likely a VPN)' : '')) + mapa + '</span>';
   return '<span class="pc">' + t + 'same place (' + esc(fmtDist(x.pcDist)) + ')' + mapa + '</span>';
 }
 function conectarUbicBloque(){
@@ -5706,7 +5709,7 @@ function vistaDia(){
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
-      (d.ubic && d.ubic.puntos.some(x => x.lejos && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>A punch was recorded far from the work location. Check Punch locations below.</span></div>' : '') +
+      (d.ubic && d.ubic.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>An unusual punch location was detected. Check Punch locations below.</span></div>' : '') +
       '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc(m.origen === 'admin' ? ('Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : '')) : ('Exact punch: ' + hora(m.msReal || m.ms))) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
