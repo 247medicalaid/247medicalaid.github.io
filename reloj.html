@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v163-202610171957">
+<meta name="app-build" content="v164-202610172027">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v164: Vista admin — mismo caption con el "Before" de la correccion en la ficha del dia (paso 70) -->
 <!-- v163: Vista agente — el caption muestra el "Before" de la correccion (hora original + (Auto Clock)) via paso 69 -->
 <!-- v162: Vista agente — sin etiqueta "corrected" en linea; caption "Corrected by <admin>" al pasar el mouse -->
 <!-- v161: Fix aviso de version en bucle — "Update" recarga sin cache (conserva app=win) -->
@@ -3310,7 +3311,7 @@ function construirHoja(raw, monDias, ahora){
       const ub = ubicDia(ubicU[emp.usuario + '|' + f] || [], emp);
       const fl = banderas(d, m, emp, mon, ahora, ub);
       dias[f] = { estado:d.estado, enCurso:d.enCurso, incompleto:d.incompleto, desde:d.desde, min:d.min, alm:d.alm, banderas:fl, ubic:ub,
-        marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, msReal:x.msReal, origen:x.origen })),
+        marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, msReal:x.msReal, origen:x.origen, autor:x.autor, motivo:x.motivo })),
         aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en), tarifa: ap.tarifa == null ? null : Number(ap.tarifa) } : null,
         monitor: (mon && emp.agenteMonitor) ? (mon[normal(emp.agenteMonitor)] || null) : null, ausencia:au };
       tot.min += d.incompleto ? 0 : d.min;
@@ -3978,6 +3979,7 @@ async function api(action, p){
   }
   if(action === 'fijarLugar') return q(sb.rpc('reloj_fijar_lugar', { p_usuario:p.usuario, p_lat:p.lat, p_lng:p.lng, p_radio:p.radio }));
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
+  if(action === 'antes') return q(sb.rpc('reloj_antes', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarAutoSalida') return q(sb.rpc('reloj_guardar_auto_salida', { p_activo:p.activo, p_margen:p.margen }));   // (v92, paso 54)
   // (v93, paso 55) usuario de prueba: las filas las copia la base; los archivos, la página (como administrador)
   if(action === 'copiarAPrueba') return q(sb.rpc('reloj_copiar_a_prueba', { p_desde:p.desde, p_hacia:p.hacia }));
@@ -5702,7 +5704,7 @@ function vistaDia(){
       (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
-      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="Exact punch: ' + hora(m.msReal || m.ms) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
+      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc(m.origen === 'admin' ? ('Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : '')) : ('Exact punch: ' + hora(m.msReal || m.ms))) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
@@ -5721,6 +5723,7 @@ function vistaDia(){
   if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
   conectarUbicBloque();
   cargarHistDia();
+  cargarAntesDia();
   if($('dEditar')) $('dEditar').onclick = () => editarDia();
   if($('dMarcas') && !d.aprobado) $('dMarcas').querySelectorAll('li').forEach(li => li.addEventListener('click', () => editarDia(Number(li.dataset.i))));
 
@@ -5739,6 +5742,22 @@ function vistaDia(){
 /* ── Historial del día (solo administrador): marcas, solicitudes, correcciones y aprobaciones,
    en orden, con quién y cuándo. Sale de reloj_historial_dia (marcas también anuladas,
    solicitudes y auditoría). ── */
+// (v164) caption con la hora anterior a la correccion en la ficha del dia (admin, paso 70)
+async function cargarAntesDia(){
+  const S0 = S.dia; if(!S0) return;
+  const { e, fecha, d } = S0, clave = e.usuario + '|' + fecha;
+  if(!d.marcas.some(m => m.origen === 'admin')) return;
+  try{
+    const ant = await api('antes', { usuario:e.usuario, fecha });
+    if(!S.dia || S.dia.e.usuario + '|' + S.dia.fecha !== clave) return;
+    const antes = (ant || []).map(x => ({ ms:Date.parse(x.ts), auto:!!x.auto }));
+    const ul = $('dMarcas'); if(!ul) return;
+    ul.querySelectorAll('li').forEach(li => {
+      const i = Number(li.dataset.i), m = d.marcas[i];
+      if(m && m.origen === 'admin'){ const a0 = antes[i]; if(a0) li.title = 'Was ' + hora(a0.ms) + (a0.auto ? ' (Auto Clock)' : '') + ' · ' + li.title; }
+    });
+  }catch(e){}
+}
 async function cargarHistDia(){
   const { e, fecha } = S.dia, clave = e.usuario + '|' + fecha;
   try{
