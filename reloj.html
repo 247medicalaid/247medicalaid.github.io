@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v150-202610170242">
+<meta name="app-build" content="v151-202610170258">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v151: Caption con la hora exacta del ponche al pasar el mouse (paso 67 ts_real) -->
 <!-- v150: Redondeo inmediato en el editor de horas (complementa el trigger del paso 66) -->
 <!-- v149: Chequeo de versión — barra "There's a new version / Update" cuando el servidor sirve otro reloj.html (build id en <meta app-build>) -->
 <!-- v148: Shift request inteligente — avisa si reemplaza el turno (cruza) o con cuántas horas queda el día (no cruza); confirmar/cancelar -->
@@ -3536,14 +3537,14 @@ function enIngles(m){ m = String(m || '');
   const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
-const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), origen:m.origen, autor:m.autor, motivo:m.motivo });
+const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), msReal:(m.ts_real ? Date.parse(m.ts_real) : Date.parse(m.ts)), origen:m.origen, autor:m.autor, motivo:m.motivo });
 const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo, esManager:e.es_manager === true,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
   prueba:e.prueba === true, pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
-const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo';
+const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
@@ -5658,7 +5659,7 @@ function vistaDia(){
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
       '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'admin' ? '<span class="corr" title="Corrected by the administrator">corrected</span>' : m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
-      '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
+      '</span><span class="h num"' + (m.msReal && m.msReal !== m.ms ? ' title="Exact punch: ' + hora(m.msReal) + '"' : '') + '>' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
       '<span>Lunch <b class="num">' + dur(d.alm) + '</b></span>' +
