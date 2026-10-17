@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v154-202610170326">
+<meta name="app-build" content="v155-202610170338">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v155: Caption de hora exacta tambien en los editores (dia y periodo) -->
 <!-- v154: Fix caption hora exacta (construirHoja conserva msReal) -->
 <!-- v153: Caption de hora exacta SIEMPRE visible al pasar el mouse por el ponche -->
 <!-- v152: Caption de hora exacta en todo el renglon del ponche -->
@@ -5804,13 +5805,13 @@ const segDe = x => { const p = String(x || '').split(':').map(Number); return p.
 function editarDia(foco){
   if(S.dia && S.dia.d && S.dia.d.aprobado){ $('dErr').textContent = 'This day is approved, so it\'s locked. Remove the approval to change it.'; return; }
   const { d } = S.dia;
-  const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms), orig:hhmmss(m.ms), origTipo:m.tipo }))
+  const filas = d.marcas.length ? d.marcas.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms), orig:hhmmss(m.ms), origTipo:m.tipo, real:hora(m.msReal || m.ms) }))
     : [{ tipo:'entrada', hora:'08:00' }, { tipo:'almuerzo_ini', hora:'12:00' }, { tipo:'almuerzo_fin', hora:'13:00' }, { tipo:'salida', hora:'17:00' }];
   if(d.incompleto && d.marcas.length && d.marcas[d.marcas.length - 1].tipo !== 'salida' && S.dia.fecha < S.dia.fuente.hoy) filas.push({ tipo:'salida', hora:'' });
   S.dia.ed = { quitadas:0 };
   const opts = t => Object.keys(NOMBRE_TIPO).map(k => '<option value="' + k + '"' + (k === t ? ' selected' : '') + '>' + NOMBRE_TIPO[k] + '</option>').join('');
   const fila = f => '<div class="edit-fila"' + (f.orig ? ' data-orig="' + f.orig + '" data-otipo="' + f.origTipo + '"' : '') + '><select aria-label="Type">' + opts(f.tipo) + '</select>' +
-    '<input type="time" value="' + f.hora + '" aria-label="Time"><button type="button" aria-label="Remove this punch" title="Remove this punch">×</button></div>';
+    '<input type="time" value="' + f.hora + '"' + (f.real ? ' title="Exact punch: ' + esc(f.real) + '"' : '') + ' aria-label="Time"><button type="button" aria-label="Remove this punch" title="Remove this punch">×</button></div>';
   S.dia.filaHTML = fila;
   $('dZona').innerHTML = '<div class="ed-dia" id="dEd"><div class="marcas-cab" style="margin-top:0"><h3>Edit punches</h3><span class="nota" style="margin:0">Orlando time · changes in amber</span></div>' +
     '<div id="dFilas" style="margin-top:10px">' + filas.map(fila).join('') + '</div><div class="quitada" id="dQuitadas"></div>' +
@@ -10427,10 +10428,10 @@ function abrirPeriodo(usuario){
         '<td><button class="btn-link" type="button" data-dia="' + f + '">Edit day</button></td>' + ausTd(f, d) + '</tr>';
       return;
     }
-    const v = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); });
+    const v = {}, vR = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); vR[m.tipo] = hora(m.msReal || m.ms); });
     const orig = CAMPOS_PH.map(k => v[k] || '').join('|');
     t += '<tr data-f="' + f + '" data-orig="' + orig + '">' + diaTd +
-      CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '" aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
+      CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '"' + (vR[k] ? ' title="Exact punch: ' + vR[k] + '"' : '') + ' aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
       '<td class="hrs num"></td><td><button class="x" type="button" title="Clear this day" aria-label="Clear ' + esc(diaS(f)) + '">×</button></td>' + ausTd(f, d) + '</tr>';
   });
   $('phTabla').innerHTML = t + '</tbody>';
