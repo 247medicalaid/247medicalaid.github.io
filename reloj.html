@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v166-202610172044">
+<meta name="app-build" content="v167-202610172100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v167: marcar como corregido solo el ponche que realmente cambio (no todo el dia) — vista agente y admin -->
 <!-- v166: Ubicacion anormal tambien cuando el ponche se hizo lejos del PC del Monitor (sin lugar de trabajo) -->
 <!-- v165: Ficha admin — Punch locations plegable + aviso de ubicacion anormal en Punches; Punches changed como tabla Before/After -->
 <!-- v164: Vista admin — mismo caption con el "Before" de la correccion en la ficha del dia (paso 70) -->
@@ -4785,8 +4786,9 @@ function pintarReloj(){
     av.push(['warn', 'You\'ve been on lunch for more than an hour.']);
   $('avisosAgente').innerHTML = av.map(([n, t]) => '<div class="aviso ' + n + '">' + IC[n === 'warn' ? 'aviso' : n] + '<span>' + esc(t) + '</span></div>').join('');
 
+  const _dc = diffCorreccion(r.antes, r.marcas);
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map((m, i) => { let corr = '';
-      if(m.origen === 'admin'){ const a0 = r.antes && r.antes[i]; const antesTxt = a0 ? 'Was ' + hora(a0.ms) + (a0.auto ? ' (Auto Clock)' : '') + ' · ' : ''; corr = antesTxt + 'Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : ''); }
+      if(_dc[i] && _dc[i].corrected){ const antesTxt = _dc[i].beforeMs != null ? 'Was ' + hora(_dc[i].beforeMs) + (_dc[i].beforeAuto ? ' (Auto Clock)' : '') + ' · ' : ''; corr = antesTxt + 'Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : ''); }
       return '<li' + (corr ? ' title="' + esc(corr) + '"' : '') + '><span>' + NOMBRE_TIPO[m.tipo] +
       (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
     : '<li class="muted">No punches yet today.</li>';
@@ -5710,7 +5712,7 @@ function vistaDia(){
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
       (d.ubic && d.ubic.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>An unusual punch location was detected. Check Punch locations below.</span></div>' : '') +
-      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc(m.origen === 'admin' ? ('Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : '')) : ('Exact punch: ' + hora(m.msReal || m.ms))) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
+      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc('Exact punch: ' + hora(m.msReal || m.ms)) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
@@ -5748,6 +5750,20 @@ function vistaDia(){
 /* ── Historial del día (solo administrador): marcas, solicitudes, correcciones y aprobaciones,
    en orden, con quién y cuándo. Sale de reloj_historial_dia (marcas también anuladas,
    solicitudes y auditoría). ── */
+// (v167) marca como corregido SOLO el ponche que realmente cambio (reloj_corregir reemplaza
+//   el dia completo; aqui se compara contra el Before). Empareja cambios por tipo, en orden.
+function diffCorreccion(antes, marcas){
+  const A = antes || [], M = marcas || [], key = x => x.tipo + '@' + hhmm(x.ms);
+  const antesSet = new Set(A.map(key)), curSet = new Set(M.map(key));
+  const cambBefore = {}; A.forEach(a => { if(!curSet.has(key(a))) (cambBefore[a.tipo] = cambBefore[a.tipo] || []).push(a); });
+  const usado = {};
+  return M.map(m => {
+    const corrected = m.origen === 'admin' && !antesSet.has(key(m));
+    let beforeMs = null, beforeAuto = false;
+    if(corrected){ const arr = cambBefore[m.tipo] || [], j = usado[m.tipo] || 0; if(arr[j]){ beforeMs = arr[j].ms; beforeAuto = !!arr[j].auto; } usado[m.tipo] = j + 1; }
+    return { corrected, beforeMs, beforeAuto };
+  });
+}
 // (v164) caption con la hora anterior a la correccion en la ficha del dia (admin, paso 70)
 async function cargarAntesDia(){
   const S0 = S.dia; if(!S0) return;
@@ -5756,11 +5772,15 @@ async function cargarAntesDia(){
   try{
     const ant = await api('antes', { usuario:e.usuario, fecha });
     if(!S.dia || S.dia.e.usuario + '|' + S.dia.fecha !== clave) return;
-    const antes = (ant || []).map(x => ({ ms:Date.parse(x.ts), auto:!!x.auto }));
+    const antes = (ant || []).map(x => ({ tipo:x.tipo, ms:Date.parse(x.ts), auto:!!x.auto }));
+    const dc = diffCorreccion(antes, d.marcas);
     const ul = $('dMarcas'); if(!ul) return;
     ul.querySelectorAll('li').forEach(li => {
-      const i = Number(li.dataset.i), m = d.marcas[i];
-      if(m && m.origen === 'admin'){ const a0 = antes[i]; if(a0) li.title = 'Was ' + hora(a0.ms) + (a0.auto ? ' (Auto Clock)' : '') + ' · ' + li.title; }
+      const i = Number(li.dataset.i), m = d.marcas[i]; if(!m) return;
+      if(m.origen === 'admin' && dc[i] && dc[i].corrected){
+        const was = dc[i].beforeMs != null ? 'Was ' + hora(dc[i].beforeMs) + (dc[i].beforeAuto ? ' (Auto Clock)' : '') + ' · ' : '';
+        li.title = was + 'Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : '');
+      } else li.title = 'Exact punch: ' + hora(m.msReal || m.ms);
     });
   }catch(e){}
 }
