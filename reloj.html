@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v159-202610171857">
+<meta name="app-build" content="v160-202610171906">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2713,6 +2713,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v160: Clic en el titulo usa un enlace normal (la app WebView2 lo manda al navegador) -->
 <!-- v159: Clic en el titulo abre la web tambien en la app (WebView2): host msg + copia de respaldo -->
 <!-- v158: Sincronizacion mas rapida web<->app + anti-duplicados en el reloj -->
 <!-- v157: El logo/titulo abre una URL fija: timeclock.247medical-aid.com -->
@@ -4656,12 +4657,10 @@ function abrirWeb(){
   const url = 'https://timeclock.247medical-aid.com/';
   if(typeof appWin === 'function' && appWin()){
     try{ appMandar({ tipo:'abrirWeb', url }); }catch(e){}
-    let w = null; try{ w = window.open(url, '_blank', 'noopener'); }catch(e){}
-    if(w) return;
-    let copiado = false;
-    try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url); copiado = true; } }catch(e){}
-    if(copiado){ toast('Web link copied. Open it in your browser.'); }
-    else { try{ window.prompt('Copy the web address and open it in your browser:', url); }catch(e){ toast(url); } }
+    // La app (WebView2) solo permite /reloj de github.io dentro de la ventana y manda cualquier
+    // otro enlace al navegador. Un enlace normal al host externo activa esa ruta (sin reinstalar).
+    try{ const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+    catch(e){ try{ location.assign(url); }catch(e2){} }
     return;
   }
   let w = null; try{ w = window.open(url, '_blank', 'noopener'); }catch(e){}
