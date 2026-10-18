@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v184-202610181939">
+<meta name="app-build" content="v185-202610182124">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2759,6 +2759,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v185: Users muestra la versión de la app de Windows por agente (✓/⚠ vs. desplegada); la app pasa &tcv= y reloj_tc_visto la guarda -->
 <!-- v184: Fix letrero de "update" constante — el chequeo de versión traía un rango gzip ilegible; ahora trae el archivo completo y compara bien -->
 <!-- v183: Your schedule — una ✕ por evento (cada chip cancela lo suyo), para días con ausencia y cambio a la vez -->
 <!-- v182: Your schedule — ausencia parcial muestra horas+clase; la ✕ cancela solo ese día (reloj_cancelar_dia) con cuadro de confirmación -->
@@ -3636,7 +3637,7 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
-  prueba:e.prueba === true, pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop),
+  prueba:e.prueba === true, pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop), tcVersion:e.tc_version || '', tcVersionEn:e.tc_version_en || null,
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
@@ -4551,7 +4552,16 @@ async function inicio(){
   $('velo').remove();
 }
 
-function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now(); appEstado(); }
+function aplicarYo(yo){ S.yo = yo; S.zona = yo.zona || S.zona; S.yoEn = Date.now(); appEstado(); tcReportar(); }
+// (v185) La app de Windows agrega &tcv=<versión instalada> a la URL. Se reporta una vez por carga
+// para guardarlo en la ficha del empleado (reloj_tc_visto, paso83) y comparar versiones en Users.
+function tcVisto(){ try{ return (new URLSearchParams(location.search).get('tcv') || '').trim(); }catch(e){ return ''; } }
+async function tcReportar(){
+  if(S.tcReportado || DEMO) return;
+  const v = tcVisto(); if(!v) return;
+  S.tcReportado = true;
+  try{ await q(sb.rpc('reloj_tc_visto', { p_tc:v })); }catch(e){ S.tcReportado = false; }
+}
 
 /* ── App de Windows «247 Time Clock» (WebView2 + icono en la bandeja) ──
    El programa muestra esta misma página. Aquí se le cuenta el estado y los recordatorios, y se reciben sus pedidos.
@@ -6348,7 +6358,7 @@ $('hExpDetalle').addEventListener('click', () => {
 /* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
 async function cargarEmps(){
   $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Loading…</div>';
-  S.appUso = S.appUso || undefined; cargarAppUso();
+  S.appUso = S.appUso || undefined; cargarAppUso(); tcCargarDesplegada();
   try{ S.emps = await api('empleados'); pintarEmps(); }
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
@@ -6392,9 +6402,10 @@ const UCOLS = [
   { k:'pago', t:'Pay rate', num:true, v:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? Number(e.pagoHora) : '',
     h:e => e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora)) ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '<span class="muted">—</span>' },
   { k:'monitor', t:'Monitor', v:e => e.agenteMonitor, h:e => e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="pill no">Not linked</span>' },
-  { k:'app', t:'Windows app', num:true, v:e => { const a = S.appUso && S.appUso[e.usuario]; return a ? Date.parse(a.visto) : ''; }, h:appUsoHTML }
+  { k:'app', t:'Windows app', num:true, v:e => { const a = S.appUso && S.appUso[e.usuario]; return a ? Date.parse(a.visto) : ''; }, h:appUsoHTML },
+  { k:'tcv', t:'App version', v:e => e.tcVersion || '', h:tcvHTML }
 ];
-const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor', 'app'];
+const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor', 'app', 'tcv'];
 // v104: quién ya entró desde la app de Windows (se instala sola con el Monitor 2.9)
 function appUsoHTML(e){
   if(S.appUso === null) return '<span class="muted" title="The Windows app usage needs SQL step 56 in Supabase.">Run SQL step 56</span>';
@@ -6408,10 +6419,30 @@ async function cargarAppUso(){
   catch(e){ S.appUso = null; }
   if(S.vista === 'emps' && S.emps) pintarEmps();
 }
+// (v185) versión de la app de Windows por usuario vs. la desplegada (agente/version.json)
+function tcAlMenos(v, min){ const a = String(v).split('.').map(n => parseInt(n, 10) || 0), b = String(min).split('.').map(n => parseInt(n, 10) || 0); for(let i = 0; i < Math.max(a.length, b.length); i++){ const x = a[i] || 0, y = b[i] || 0; if(x !== y) return x > y; } return true; }
+async function tcCargarDesplegada(){
+  if(S.tcDesplegada !== undefined) return;
+  S.tcDesplegada = null;
+  try{ const r = await fetch('/agente/version.json?v=' + Date.now(), { cache:'no-store' }); const j = await r.json(); S.tcDesplegada = (j && j.tc && j.tc.version) || null; }catch(e){ S.tcDesplegada = null; }
+  if(S.vista === 'emps' && S.emps) pintarEmps();
+}
+function tcvHTML(e){
+  const v = e.tcVersion || '';
+  const cuando = e.tcVersionEn ? new Intl.DateTimeFormat('en-US', { timeZone:S.zona || 'America/New_York', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }).format(new Date(e.tcVersionEn)) : '';
+  if(!v) return '<span class="muted" title="Hasn\'t opened the Windows app here yet, or it\'s an older version that doesn\'t report it">\u2014</span>';
+  const dep = S.tcDesplegada || '', al = dep ? tcAlMenos(v, dep) : null;
+  if(al === true) return '<span class="pill app-ok" title="Up to date (deployed ' + esc(dep) + ')' + (cuando ? ' \u00b7 reported ' + esc(cuando) : '') + '">\u2713 v' + esc(v) + '</span>';
+  if(al === false) return '<span class="pill dif" title="Behind \u2014 deployed is ' + esc(dep) + (cuando ? ' \u00b7 reported ' + esc(cuando) : '') + '">\u26a0 v' + esc(v) + '</span>';
+  return '<span class="pill" title="' + (cuando ? 'Reported ' + esc(cuando) : '') + '">v' + esc(v) + '</span>';
+}
 // la columna nueva se agrega una vez a la elección guardada
 (() => { try{ const c = JSON.parse(localStorage.getItem('reloj_users_cols') || 'null');
   if(Array.isArray(c) && !c.includes('app') && !localStorage.getItem('reloj_users_cols_app_v104')){ c.push('app'); localStorage.setItem('reloj_users_cols', JSON.stringify(c)); }
   localStorage.setItem('reloj_users_cols_app_v104', '1'); }catch(e){} })();
+(() => { try{ const c = JSON.parse(localStorage.getItem('reloj_users_cols') || 'null');
+  if(Array.isArray(c) && !c.includes('tcv') && !localStorage.getItem('reloj_users_cols_tcv_v185')){ c.push('tcv'); localStorage.setItem('reloj_users_cols', JSON.stringify(c)); }
+  localStorage.setItem('reloj_users_cols_tcv_v185', '1'); }catch(e){} })();
 const UGRUPOS = { cuenta:{ t:'Account', v:e => e.cuenta, vacio:'No account' }, titulo:{ t:'Title', v:e => e.titulo, vacio:'No title' }, ciudad:{ t:'City', v:e => e.ciudad, vacio:'No city' } };
 function uPref(k, def){ try{ const v = JSON.parse(localStorage.getItem('reloj_users_' + k)); return v == null ? def : v; }catch(e){ return def; } }
 function uGuardarPref(k, v){ try{ localStorage.setItem('reloj_users_' + k, JSON.stringify(v)); }catch(e){} }
