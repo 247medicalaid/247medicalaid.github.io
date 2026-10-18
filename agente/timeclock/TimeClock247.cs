@@ -36,15 +36,25 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: System.Reflection.AssemblyDescription("Time Clock de 24/7 Medical Aid para Windows")]
 [assembly: System.Reflection.AssemblyCompany("24/7 Medical Aid - Call Center")]
 [assembly: System.Reflection.AssemblyProduct("247 Time Clock")]
-[assembly: System.Reflection.AssemblyVersion("1.0.2.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.2.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.4.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.4.0")]
 
 namespace TimeClock247
 {
     static class Programa
     {
-        public const string Version = "1.0.2";
+        public const string Version = "1.0.4";
         public const string Url = "https://247medicalaid.github.io/reloj.html?app=win";
+        // La versión realmente instalada la escribe el actualizador en version.txt; si no, usa la constante.
+        public static string UrlReloj()
+        {
+            string v = Version;
+            try {
+                string f = System.IO.Path.Combine(Carpeta.Programa, "version.txt");
+                if (System.IO.File.Exists(f)) { string s = System.IO.File.ReadAllText(f).Trim(); if (s.Length > 0) v = s; }
+            } catch { }
+            return Url + "&tcv=" + Uri.EscapeDataString(v);
+        }
         public const string Sitio = "247medicalaid.github.io";
         public const string Nombre = "247 Time Clock";
         public const string MutexNombre = "Local\\TimeClock247_App";
@@ -778,7 +788,7 @@ namespace TimeClock247
                     }
                     catch { }
                 };
-                cw.Navigate(Programa.Url);
+                cw.Navigate(Programa.UrlReloj());
             }
             catch (Exception e)
             {
@@ -896,7 +906,7 @@ namespace TimeClock247
                 if (web == null || web.CoreWebView2 == null) { Rehacer(); return; }
                 Uri u;
                 if (Uri.TryCreate(web.CoreWebView2.Source, UriKind.Absolute, out u) && Permitida(u) && u.Scheme == "https") web.CoreWebView2.Reload();
-                else web.CoreWebView2.Navigate(Programa.Url);
+                else web.CoreWebView2.Navigate(Programa.UrlReloj());
             }
             catch (Exception e) { Registro.Escribir("Recargar: " + e.Message); }
         }
