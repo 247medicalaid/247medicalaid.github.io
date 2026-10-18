@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v178-202610180154">
+<meta name="app-build" content="v179-202610180207">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2752,6 +2752,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v179: Fix layout agente — Your day no desaparece, badge Requests solo número (regresión de la tarjeta de horario) -->
 <!-- v178: Sin lápiz en días con ausencia aprobada (día completo) -->
 <!-- v177: Título "Your schedule" y selector de semana en la misma fila -->
 <!-- v176: Selector de semana en una sola fila y menos alto -->
@@ -4560,14 +4561,15 @@ function appLayout(){
   S.awListo = true;
   const fijo = document.createElement('div'); fijo.className = 'aw-fijo';
   fijo.append(r.querySelector('.esfera'), $('rAcciones'), r.querySelector('.nota-ubic'));
-  const dia = r.querySelector('.cinta-box:not(.sol-box)'), sol = r.querySelector('.sol-box'), per = grid.querySelector('.per-ag');
+  const hor = r.querySelector('.hor-box'); if(hor) hor.dataset.aw = 'dia';
+  const dia = r.querySelector('.cinta-box:not(.sol-box):not(.hor-box)'), sol = r.querySelector('.sol-box'), per = grid.querySelector('.per-ag');
   dia.dataset.aw = 'dia'; sol.dataset.aw = 'sol'; per.dataset.aw = 'per';
   const panel = document.createElement('div'); panel.className = 'aw-panel';
   const perfil = $('ovPerfil').querySelector('.ventana'); perfil.dataset.aw = 'perfil';
   const docs = $('ovDocs').querySelector('.ventana'); docs.dataset.aw = 'docs';
   const upd = $('updAg'); upd.dataset.aw = 'upd'; upd.classList.remove('hidden');
   const chat = $('chatAg'); chat.append($('chatApp')); chat.dataset.aw = 'chat'; chat.classList.remove('hidden');
-  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), dia, upd, chat, per, sol, docs, perfil);
+  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), ...(hor ? [hor] : []), dia, upd, chat, per, sol, docs, perfil);
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
@@ -4599,7 +4601,7 @@ function appLayout(){
   }));
   $('awSalir').addEventListener('click', () => $('btnSalir').click());
   // el número de solicitudes del agente (el mismo que el botón «View your requests»)
-  const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = n.textContent; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
+  const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = (n.textContent.match(/\d+/) || [''])[0]; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
   new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
   let k = 'dia'; try{ k = localStorage.getItem('aw_panel') || 'dia'; }catch(e){}
   appPanel(['dia', 'upd', 'chat', 'per', 'sol', 'docs', 'perfil'].indexOf(k) >= 0 ? k : 'dia');
