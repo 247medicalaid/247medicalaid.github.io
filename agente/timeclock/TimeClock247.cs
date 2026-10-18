@@ -746,6 +746,7 @@ namespace TimeClock247
             {
                 Programa.CargadorWebView2();
                 CoreWebView2EnvironmentOptions opciones = new CoreWebView2EnvironmentOptions();
+                opciones.AdditionalBrowserArguments = "--disable-http-cache";
                 CoreWebView2Environment env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(Carpeta.Datos, "WebView2"), opciones);
                 if (w != web) return;
                 await w.EnsureCoreWebView2Async(env);
