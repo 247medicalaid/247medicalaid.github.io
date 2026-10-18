@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v176-202610180143">
+<meta name="app-build" content="v177-202610180148">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -334,6 +334,9 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .hor-chip.c-ped{background:#EEEBFB;color:#5B4BD1}
 .hor-chip.c-ok{background:#E3F6EC;color:#1C7C4A}
 .hor-chip.c-aus{background:var(--warn-50);color:#8A4B00}
+.hor-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.hor-cab h2{margin:0}
+.hor-cab .hor-nav{margin:0}
 .hor-nav{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 8px}
 .hor-navb{border:1px solid var(--line);background:var(--paper);border-radius:8px;width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;color:var(--text);display:inline-flex;align-items:center;justify-content:center}
 .hor-navb:hover{background:var(--sand)}
@@ -1999,7 +2002,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="acciones" id="rAcciones"></div>
       <p class="nota-ubic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg><span>Your location is saved only when you clock in, start or end lunch, and clock out.</span></p>
       <div class="cinta-box hor-box">
-        <h2>Your schedule</h2>
+        <div class="hor-cab"><h2>Your schedule</h2><div id="rHorNav"></div></div>
         <div id="rHorario"></div>
       </div>
       <div class="cinta-box">
@@ -2749,6 +2752,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v177: Título "Your schedule" y selector de semana en la misma fila -->
 <!-- v176: Selector de semana en una sola fila y menos alto -->
 <!-- v175: Horario del agente — selector de semana, ausencias/solicitudes en la tabla, filas bajas con zebra -->
 <!-- v174: Cambio de horario — lápiz por fila, sin opción "día libre", y aviso de cambios sin guardar al salir -->
@@ -4837,7 +4841,7 @@ function pintarHorario(){
   const hoy = (S.yo && S.yo.hoy) || fechaHoy();
   if(!S.hor) S.hor = { lunes:lunesDe(hoy), dias:(S.yo && S.yo.horario) || null };
   const sem = S.hor.dias;
-  if(!sem){ cont.innerHTML = '<p class="muted">Your schedule isn\'t set in the Monitor yet. Ask your administrator.</p>'; return; }
+  if(!sem){ const nel = $('rHorNav'); if(nel) nel.innerHTML = ''; cont.innerHTML = '<p class="muted">Your schedule isn\'t set in the Monitor yet. Ask your administrator.</p>'; return; }
   const diaL = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'long' }).format(new Date(f + 'T12:00:00Z'));
   const mdc = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
   const rango = (a, b) => a && b ? h12(a) + ' \u2013 ' + h12(b) : a ? h12(a) : (b ? h12(b) : '\u2014');
@@ -4860,7 +4864,8 @@ function pintarHorario(){
     const lap = pasado ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
     return '<tr class="' + cls.trim() + '"><td class="d">' + esc(diaL(d.fecha)) + extra + '</td>' + cuerpo + lap + '</tr>';
   }).join('');
-  cont.innerHTML = nav + '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
+  const nel = $('rHorNav'); if(nel) nel.innerHTML = nav;
+  cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
     '<div class="hor-sub"><span>Use the pencil to request a change to a day.</span>' + (esActual ? '' : '<button class="hor-hoybtn" id="horHoy" type="button">Back to this week</button>') + '</div>';
   cont.querySelectorAll('.hor-ed').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
   if($('horPrev')) $('horPrev').addEventListener('click', () => cambiarSemana(-1));
