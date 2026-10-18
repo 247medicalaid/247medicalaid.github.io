@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v173-202610180048">
+<meta name="app-build" content="v174-202610180124">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -327,8 +327,10 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .hor-tabla tbody tr.hoy td.d{color:var(--brand-700)}
 .hor-box .muted{margin:0;font-size:14px;color:var(--text-muted)}
 @media(max-width:560px){.hor-tabla{font-size:13px}.hor-tabla th,.hor-tabla td{padding:8px 8px}}
-.hor-tabla tbody tr{cursor:pointer}
-.hor-tabla tbody tr:hover td{filter:brightness(0.97)}
+.hor-tabla td.ed{width:1%;padding-left:4px;padding-right:8px;text-align:center}
+.hor-ed{border:0;background:none;cursor:pointer;color:var(--brand-600);padding:5px;border-radius:8px;display:inline-flex}
+.hor-ed:hover{background:var(--brand-50)}
+.hor-ed svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .hor-sub{margin:9px 2px 0;font-size:12.5px;color:var(--text-muted)}
 .marcas .h{font-weight:700}
 .marcas .corr{font-size:12px;color:var(--text-muted);margin-left:6px}
@@ -2737,6 +2739,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v174: Cambio de horario — lápiz por fila, sin opción "día libre", y aviso de cambios sin guardar al salir -->
 <!-- v173: Solicitud de cambio de horario — agente pide desde su tabla, admin aprueba/niega (tipo horario, paso 74) -->
 <!-- v172: Horario del agente como tabla con colores (Day/In/Out/Lunch) + almuerzo (paso 73) -->
 <!-- v171: Horario del agente en Today — hoy + la semana (lun-dom), leido del Monitor (paso 72) -->
@@ -2984,12 +2987,14 @@ function diaEdSucio(){
   if(!document.getElementById('dEd') || !$('dFilas')) return false;
   return !!($('dFilas').querySelector('.edit-fila.cambio') || (S.dia && S.dia.ed && S.dia.ed.quitadas > 0));
 }
+function solSucio(){ return !!(S.solDirty && $('ovSol') && !$('ovSol').classList.contains('hidden')); }
+async function pedirSalirSol(){ if(await confirmar('Discard changes?', 'You have unsaved changes to this request. If you leave now, they\'ll be lost.', 'Discard changes', true)){ S.solDirty = false; cerrar('ovSol'); } }
 async function pedirSalirDia(){
   if(await confirmar('Discard changes?', 'You have unsaved changes to the punches. If you leave now, they\'ll be lost. Use <b>Save changes</b> to keep them.', 'Discard changes', true)) cerrar('ovDia');
 }
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if(ov.id === 'ovEmp' && (e.target === ov || (e.target.closest && e.target.closest('[data-cerrar]')))){ e.stopPropagation(); return cerrarEmp(); }
-    if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')){ if(ov.id === 'ovDia' && diaEdSucio()){ pedirSalirDia(); return; } ov.classList.add('hidden'); } });
+    if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')){ if(ov.id === 'ovDia' && diaEdSucio()){ pedirSalirDia(); return; } if(ov.id === 'ovSol' && solSucio()){ pedirSalirSol(); return; } ov.classList.add('hidden'); } });
 });
 document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
   // (v74) la ficha de usuario: Esc cierra lo que esté encima; si la ficha queda arriba, pregunta antes de cerrarla
@@ -3001,7 +3006,8 @@ document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
     return cerrarEmp();
   }
   if(!$('ovDia').classList.contains('hidden') && $('ovConf').classList.contains('hidden') && diaEdSucio()){ pedirSalirDia(); return; }
-  document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo) && !(o.id === 'ovDia' && diaEdSucio())) o.classList.add('hidden'); }); });
+  if(!$('ovSol').classList.contains('hidden') && $('ovConf').classList.contains('hidden') && solSucio()){ pedirSalirSol(); return; }
+  document.querySelectorAll('.overlay').forEach(o => { if(!(o.id === 'ovHoras' && S.ph && S.ph.sucio) && !(o.id === 'ovNomImp' && S.nmCorriendo) && !(o.id === 'ovDia' && diaEdSucio()) && !(o.id === 'ovSol' && solSucio())) o.classList.add('hidden'); }); });
 
 /* ── SESIÓN Y SERVIDOR ── */
 function alPortal(motivo){
@@ -4810,18 +4816,19 @@ function pintarHorario(){
   const rango = (a, b) => a && b ? h12(a) + ' \u2013 ' + h12(b) : a ? h12(a) : (b ? h12(b) : '\u2014');
   const filas = sem.map(d => {
     const esHoy = d.fecha === hoy, cls = (d.libre ? 'libre' : 'trab') + (esHoy ? ' hoy' : '');
-    if(d.libre) return '<tr class="' + cls + '" data-dia="' + d.fecha + '"><td class="d">' + esc(diaL(d.fecha)) + '</td><td class="off" colspan="3">Day off</td></tr>';
-    return '<tr class="' + cls + '" data-dia="' + d.fecha + '"><td class="d">' + esc(diaL(d.fecha)) + '</td>' +
+    const ped = '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
+    if(d.libre) return '<tr class="' + cls + '"><td class="d">' + esc(diaL(d.fecha)) + '</td><td class="off" colspan="3">Day off</td>' + ped + '</tr>';
+    return '<tr class="' + cls + '"><td class="d">' + esc(diaL(d.fecha)) + '</td>' +
       '<td>' + esc(d.inicio ? h12(d.inicio) : '\u2014') + '</td><td>' + esc(d.fin ? h12(d.fin) : '\u2014') + '</td>' +
-      '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td></tr>';
+      '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td>' + ped + '</tr>';
   }).join('');
-  cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th></tr></thead><tbody>' + filas + '</tbody></table>' +
-    '<p class="hor-sub">Tap a day to request a schedule change.</p>';
-  cont.querySelectorAll('tr[data-dia]').forEach(tr => tr.addEventListener('click', () => { const d = sem.find(x => x.fecha === tr.dataset.dia); if(d) pedirCambioHorario(d); }));
+  cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
+    '<p class="hor-sub">Use the pencil to request a change to a day.</p>';
+  cont.querySelectorAll('.hor-ed').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
 }
 // (v173) el agente pide un cambio de su horario desde la tabla (tipo 'horario', paso 74)
 function pedirCambioHorario(d){
-  S.solTipo = 'horario';
+  S.solTipo = 'horario'; S.solDirty = false;
   const dow = new Date(d.fecha + 'T12:00:00Z').getUTCDay(), hoy = fechaHoy();
   S.hc = { dow:dow, fecha:d.fecha };
   let prox = d.fecha; while(prox < hoy) prox = sumarDias(prox, 7);
@@ -4831,17 +4838,15 @@ function pedirCambioHorario(d){
   $('sErr').textContent = '';
   const rad = (name, val, txt, on) => '<label class="hc-rad"><input type="radio" name="' + name + '" value="' + val + '"' + (on ? ' checked' : '') + '><span>' + txt + '</span></label>';
   $('sCuerpo').innerHTML =
-    '<div class="hc-grp">' + rad('hcClase','cambio','Change the hours', !d.libre) + rad('hcClase','libre','Make it a day off', d.libre) + '</div>' +
-    '<div id="hcHoras"' + (d.libre ? ' style="display:none"' : '') + '><div class="dos-col">' +
+    '<div class="dos-col">' +
       '<label class="campo"><span>Clock in</span><input type="time" id="hcIni" value="' + (d.inicio || '') + '"></label>' +
       '<label class="campo"><span>Clock out</span><input type="time" id="hcFin" value="' + (d.fin || '') + '"></label></div>' +
       '<div class="dos-col"><label class="campo"><span>Lunch start <i class="opc">(optional)</i></span><input type="time" id="hcAlmIni" value="' + (d.almIni || '') + '"></label>' +
-      '<label class="campo"><span>Lunch end <i class="opc">(optional)</i></span><input type="time" id="hcAlmFin" value="' + (d.almFin || '') + '"></label></div></div>' +
+      '<label class="campo"><span>Lunch end <i class="opc">(optional)</i></span><input type="time" id="hcAlmFin" value="' + (d.almFin || '') + '"></label></div>' +
     '<div class="hc-grp col">' + rad('hcAlc','dia','Just one day', true) + rad('hcAlc','rango','A date range', false) + rad('hcAlc','permanente','Permanent (every ' + DOW_NOM[dow] + ')', false) + '</div>' +
     '<div class="dos-col" id="hcFechas"><label class="campo" id="hcFechaL"><span>Date</span><input type="date" id="hcFecha" value="' + prox + '" min="' + hoy + '"></label>' +
       '<label class="campo" id="hcFechaFinL" style="display:none"><span>To</span><input type="date" id="hcFechaFin" value="' + prox + '" min="' + hoy + '"></label></div>' +
     '<label class="campo"><span>Reason</span><textarea id="hcMotivo" maxlength="500" placeholder="E.g. I need to start earlier that day"></textarea></label>';
-  $('sCuerpo').querySelectorAll('[name=hcClase]').forEach(x => x.addEventListener('change', () => { $('hcHoras').style.display = document.querySelector('[name=hcClase]:checked').value === 'libre' ? 'none' : ''; }));
   $('sCuerpo').querySelectorAll('[name=hcAlc]').forEach(x => x.addEventListener('change', () => {
     const v = document.querySelector('[name=hcAlc]:checked').value;
     $('hcFechas').style.display = v === 'permanente' ? 'none' : '';
@@ -4853,7 +4858,7 @@ function pedirCambioHorario(d){
   abrir('ovSol');
 }
 async function enviarCambioHorario(){
-  const clase = (document.querySelector('[name=hcClase]:checked') || {}).value || 'cambio';
+  const clase = 'cambio';
   const alcance = (document.querySelector('[name=hcAlc]:checked') || {}).value || 'dia';
   const sol = { clase:clase, alcance:alcance, motivo:$('hcMotivo').value.trim() };
   if(clase === 'cambio'){ sol.horaIni = $('hcIni').value; sol.horaFin = $('hcFin').value; sol.almIni = $('hcAlmIni').value; sol.almFin = $('hcAlmFin').value; }
@@ -10203,7 +10208,7 @@ setInterval(() => { if(S.vista === 'mon' && !document.hidden) monAjustar(); }, 3
 document.querySelectorAll('[data-sol]').forEach(b => b.addEventListener('click', () => abrirSolicitud(b.dataset.sol)));
 function abrirSolicitud(tipo){
   const hoy = fechaHoy();
-  S.solTipo = tipo;
+  S.solTipo = tipo; S.solDirty = false;
   $('sTitulo').textContent = SOL_NUEVA[tipo];
   $('sSub').textContent = SOL_AYUDA[tipo];
   $('sErr').textContent = '';
@@ -10251,6 +10256,8 @@ async function analizarTurno(sol){
   const cruza = spanIni != null && reqIni < spanFin && reqFin > spanIni;
   return { hay:lista.length > 0, cruza, existMin, reqMin, totalMin:existMin + reqMin };
 }
+$('ovSol').addEventListener('input', () => { S.solDirty = true; });
+$('ovSol').addEventListener('change', () => { S.solDirty = true; });
 $('sEnviar').addEventListener('click', async () => {
   if(S.solTipo === 'horario') return enviarCambioHorario();
   const t = S.solTipo, sol = { tipo:t, motivo:$('sMotivo').value.trim() };
