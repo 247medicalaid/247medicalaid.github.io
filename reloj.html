@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v174-202610180124">
+<meta name="app-build" content="v175-202610180139">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -317,21 +317,31 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .marcas li:last-child{border-bottom:0}
 .hor-tabla{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;overflow:hidden;border:1px solid var(--line);border-radius:12px}
 .hor-tabla th{text-align:left;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);font-weight:700;padding:9px 12px;background:var(--sand-2)}
-.hor-tabla td{padding:10px 12px;border-top:1px solid var(--line)}
+.hor-tabla td{padding:6px 12px;border-top:1px solid var(--line)}
 .hor-tabla td.d{font-weight:600}
 .hor-tabla td.alm{color:var(--text-muted)}
-.hor-tabla tbody tr.trab td{background:var(--brand-50)}
-.hor-tabla tbody tr.libre td{background:var(--sand);color:var(--text-muted)}
-.hor-tabla tbody tr.libre td.off{font-style:italic}
+.hor-tabla td.off{font-style:italic;color:var(--text-muted)}
+.hor-tabla tbody tr:nth-child(even) td{background:var(--sand)}
+.hor-tabla tbody tr.aus td{background:var(--warn-50)}
 .hor-tabla tbody tr.hoy td{background:var(--brand-100);box-shadow:inset 3px 0 0 var(--brand-500)}
 .hor-tabla tbody tr.hoy td.d{color:var(--brand-700)}
 .hor-box .muted{margin:0;font-size:14px;color:var(--text-muted)}
-@media(max-width:560px){.hor-tabla{font-size:13px}.hor-tabla th,.hor-tabla td{padding:8px 8px}}
 .hor-tabla td.ed{width:1%;padding-left:4px;padding-right:8px;text-align:center}
-.hor-ed{border:0;background:none;cursor:pointer;color:var(--brand-600);padding:5px;border-radius:8px;display:inline-flex}
+.hor-ed{border:0;background:none;cursor:pointer;color:var(--brand-600);padding:4px;border-radius:8px;display:inline-flex}
 .hor-ed:hover{background:var(--brand-50)}
-.hor-ed svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.hor-sub{margin:9px 2px 0;font-size:12.5px;color:var(--text-muted)}
+.hor-ed svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hor-chip{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px;vertical-align:middle;text-transform:uppercase;letter-spacing:.02em}
+.hor-chip.c-ped{background:#EEEBFB;color:#5B4BD1}
+.hor-chip.c-ok{background:#E3F6EC;color:#1C7C4A}
+.hor-chip.c-aus{background:var(--warn-50);color:#8A4B00}
+.hor-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 10px}
+.hor-navb{border:1px solid var(--line);background:var(--paper);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:17px;line-height:1;color:var(--text);display:inline-flex;align-items:center;justify-content:center}
+.hor-navb:hover{background:var(--sand)}
+.hor-rotulo{font-size:13.5px;font-weight:600;min-width:150px;text-align:center}
+.hor-rotulo .wk{display:block;font-size:11px;font-weight:600;color:var(--brand-600)}
+.hor-sub{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:9px 2px 0;font-size:12.5px;color:var(--text-muted)}
+.hor-hoybtn{border:0;background:none;color:var(--brand-600);font-size:12.5px;cursor:pointer;font-weight:600;padding:0}
+@media(max-width:560px){.hor-tabla{font-size:13px}.hor-tabla th,.hor-tabla td{padding:6px 8px}}
 .marcas .h{font-weight:700}
 .marcas .corr{font-size:12px;color:var(--text-muted);margin-left:6px}
 
@@ -2739,6 +2749,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v175: Horario del agente — selector de semana, ausencias/solicitudes en la tabla, filas bajas con zebra -->
 <!-- v174: Cambio de horario — lápiz por fila, sin opción "día libre", y aviso de cambios sin guardar al salir -->
 <!-- v173: Solicitud de cambio de horario — agente pide desde su tabla, admin aprueba/niega (tipo horario, paso 74) -->
 <!-- v172: Horario del agente como tabla con colores (Day/In/Out/Lunch) + almuerzo (paso 73) -->
@@ -3922,6 +3933,7 @@ async function api(action, p){
   if(action === 'resetClave'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('clave', { usuario:p.usuario }, ses.access_token)); }
   if(action === 'solicitar'){ const r = await q(sb.rpc('reloj_solicitar', { p:p.sol })); avisarSolicitud(r.id); return r; }
   if(action === 'solicitarHorario'){ const r = await q(sb.rpc('reloj_solicitar_horario', { p:p.sol })); try{ await avisarSolicitud(r.id); }catch(e){} return r; }
+  if(action === 'miSemana') return q(sb.rpc('reloj_mi_semana', { p_lunes:p.lunes }));
   if(action === 'misSolicitudes'){
     const ses = await sesionSB(), u = usuarioDe(ses);
     return (await q(sb.from('reloj_solicitudes').select('*').eq('usuario', u).order('creada_en', { ascending:false }).limit(80))).map(solJS);
@@ -4805,26 +4817,54 @@ function tic(){
   if(t % 60000 < 1000) pintarCinta();
 }
 
-// (v172) horario del agente leido del Monitor (paso 73): tabla con colores
-//   (Day / In / Out / Lunch), hoy resaltado, dias libres en gris.
+// (v175) horario del agente (paso 75): semana elegible, ausencias/solicitudes
+//   superpuestas, filas bajas con colores intercalados. Lápiz por día (no en el pasado).
+function lunesDe(f){ const d = new Date(f + 'T12:00:00Z'), g = d.getUTCDay(); d.setUTCDate(d.getUTCDate() + (g === 0 ? -6 : 1 - g)); return d.toISOString().slice(0, 10); }
+async function cambiarSemana(delta){
+  const cont = $('rHorario'); if(cont) cont.style.opacity = '.5';
+  const nuevo = sumarDias(S.hor.lunes, delta * 7);
+  try{ const dias = await api('miSemana', { lunes:nuevo }); S.hor = { lunes:nuevo, dias:dias || [] }; }
+  catch(e){ if(cont) cont.style.opacity = ''; return; }
+  if(cont) cont.style.opacity = ''; pintarHorario();
+}
+function irSemanaActual(){ cambiarSemanaA(lunesDe((S.yo && S.yo.hoy) || fechaHoy())); }
+async function cambiarSemanaA(lunes){ const cont = $('rHorario'); if(cont) cont.style.opacity = '.5';
+  try{ const dias = await api('miSemana', { lunes:lunes }); S.hor = { lunes:lunes, dias:dias || [] }; }catch(e){ if(cont) cont.style.opacity=''; return; }
+  if(cont) cont.style.opacity = ''; pintarHorario(); }
 function pintarHorario(){
   const cont = $('rHorario'); if(!cont) return;
-  const sem = (S.yo && S.yo.horario) || [];
-  if(!sem.length){ cont.innerHTML = '<p class="muted">Your schedule isn\'t set in the Monitor yet. Ask your administrator.</p>'; return; }
-  const hoy = S.yo.hoy;
+  const hoy = (S.yo && S.yo.hoy) || fechaHoy();
+  if(!S.hor) S.hor = { lunes:lunesDe(hoy), dias:(S.yo && S.yo.horario) || null };
+  const sem = S.hor.dias;
+  if(!sem){ cont.innerHTML = '<p class="muted">Your schedule isn\'t set in the Monitor yet. Ask your administrator.</p>'; return; }
   const diaL = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'long' }).format(new Date(f + 'T12:00:00Z'));
+  const mdc = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
   const rango = (a, b) => a && b ? h12(a) + ' \u2013 ' + h12(b) : a ? h12(a) : (b ? h12(b) : '\u2014');
+  const chip = (txt, k) => '<span class="hor-chip c-' + k + '">' + esc(txt) + '</span>';
+  const esActual = S.hor.lunes === lunesDe(hoy), fin = sumarDias(S.hor.lunes, 6);
+  const nav = '<div class="hor-nav"><button class="hor-navb" id="horPrev" type="button" aria-label="Previous week">\u2039</button>' +
+    '<span class="hor-rotulo">' + esc(mdc(S.hor.lunes) + ' \u2013 ' + mdc(fin)) + (esActual ? '<span class="wk">This week</span>' : '') + '</span>' +
+    '<button class="hor-navb" id="horNext" type="button" aria-label="Next week">\u203a</button></div>';
   const filas = sem.map(d => {
-    const esHoy = d.fecha === hoy, cls = (d.libre ? 'libre' : 'trab') + (esHoy ? ' hoy' : '');
-    const ped = '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
-    if(d.libre) return '<tr class="' + cls + '"><td class="d">' + esc(diaL(d.fecha)) + '</td><td class="off" colspan="3">Day off</td>' + ped + '</tr>';
-    return '<tr class="' + cls + '"><td class="d">' + esc(diaL(d.fecha)) + '</td>' +
-      '<td>' + esc(d.inicio ? h12(d.inicio) : '\u2014') + '</td><td>' + esc(d.fin ? h12(d.fin) : '\u2014') + '</td>' +
-      '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td>' + ped + '</tr>';
+    const esHoy = d.fecha === hoy, pasado = d.fecha < hoy;
+    const ausTotal = d.aus && !d.aus.parcial;
+    let cls = (esHoy ? 'hoy ' : '') + (ausTotal ? 'aus ' : '') + ((d.libre && !ausTotal) ? 'libre' : '');
+    let cuerpo, extra = '';
+    if(ausTotal) cuerpo = '<td class="off" colspan="3">Time off \u00b7 ' + esc(CLASE_TXT[d.aus.clase] || 'Off') + (d.aus.pagada ? '' : ' (unpaid)') + '</td>';
+    else if(d.libre) cuerpo = '<td class="off" colspan="3">Day off</td>';
+    else { cuerpo = '<td>' + esc(d.inicio ? h12(d.inicio) : '\u2014') + '</td><td>' + esc(d.fin ? h12(d.fin) : '\u2014') + '</td>' +
+      '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td>';
+      if(d.aus && d.aus.parcial) extra += chip('Time off', 'aus'); }
+    if(d.ped) extra += chip(d.ped.estado === 'aprobada' ? 'Change approved' : 'Change pending', d.ped.estado === 'aprobada' ? 'ok' : 'ped');
+    const lap = pasado ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>';
+    return '<tr class="' + cls.trim() + '"><td class="d">' + esc(diaL(d.fecha)) + extra + '</td>' + cuerpo + lap + '</tr>';
   }).join('');
-  cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
-    '<p class="hor-sub">Use the pencil to request a change to a day.</p>';
+  cont.innerHTML = nav + '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
+    '<div class="hor-sub"><span>Use the pencil to request a change to a day.</span>' + (esActual ? '' : '<button class="hor-hoybtn" id="horHoy" type="button">Back to this week</button>') + '</div>';
   cont.querySelectorAll('.hor-ed').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
+  if($('horPrev')) $('horPrev').addEventListener('click', () => cambiarSemana(-1));
+  if($('horNext')) $('horNext').addEventListener('click', () => cambiarSemana(1));
+  if($('horHoy')) $('horHoy').addEventListener('click', irSemanaActual);
 }
 // (v173) el agente pide un cambio de su horario desde la tabla (tipo 'horario', paso 74)
 function pedirCambioHorario(d){
@@ -4871,7 +4911,7 @@ async function enviarCambioHorario(){
     : alcance === 'rango' && (!sol.fechaFin || sol.fechaFin < sol.fecha) ? 'The end date can\'t be before the start date.' : '';
   if(err){ $('sErr').textContent = err; return; }
   const b = $('sEnviar'); b.disabled = true;
-  try{ await api('solicitarHorario', { sol:sol }); cerrar('ovSol'); toast('Schedule-change request sent. You\'ll see the answer in \u201cView your requests\u201d.'); contarMias(); }
+  try{ await api('solicitarHorario', { sol:sol }); cerrar('ovSol'); toast('Schedule-change request sent. You\'ll see the answer in \u201cView your requests\u201d.'); contarMias(); if(S.hor) cambiarSemanaA(S.hor.lunes); }
   catch(e){ $('sErr').textContent = e.message; b.disabled = false; }
 }
 function pintarReloj(){
