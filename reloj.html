@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v181-202610181558">
+<meta name="app-build" content="v182-202610181641">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2756,6 +2756,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v182: Your schedule — ausencia parcial muestra horas+clase; la ✕ cancela solo ese día (reloj_cancelar_dia) con cuadro de confirmación -->
 <!-- v181: En Your schedule el día muestra el horario aprobado y una ✕ para cancelar la solicitud del día (ausencia/cambio) -->
 <!-- v180: El agente puede cancelar solicitudes aprobadas en My clock (con confirmación) -->
 <!-- v179: Fix layout agente — Your day no desaparece, badge Requests solo número (regresión de la tarjeta de horario) -->
@@ -3952,6 +3953,7 @@ async function api(action, p){
     return (await q(sb.from('reloj_solicitudes').select('*').eq('usuario', u).order('creada_en', { ascending:false }).limit(80))).map(solJS);
   }
   if(action === 'cancelarSolicitud') return q(sb.rpc('reloj_cancelar_solicitud', { p_id:p.id }));
+  if(action === 'cancelarDia') return q(sb.rpc('reloj_cancelar_dia', { p_id:p.id, p_fecha:p.fecha }));
   if(action === 'ausenciasAnio'){
     await sesionSB();
     const [emps, aus] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
@@ -4868,21 +4870,30 @@ function pintarHorario(){
     else if(d.libre) cuerpo = '<td class="off" colspan="3">Day off</td>';
     else { cuerpo = '<td>' + esc(d.inicio ? h12(d.inicio) : '\u2014') + '</td><td>' + esc(d.fin ? h12(d.fin) : '\u2014') + '</td>' +
       '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td>';
-      if(d.aus && d.aus.parcial) extra += chip('Time off', 'aus'); }
+      if(d.aus && d.aus.parcial) extra += chip('Time off ' + rango(d.aus.horaIni, d.aus.horaFin) + ' \u00b7 ' + (CLASE_TXT[d.aus.clase] || 'Off'), 'aus'); }
     if(d.ped) extra += chip(d.ped.estado === 'aprobada' ? 'Change approved' : 'Change pending', d.ped.estado === 'aprobada' ? 'ok' : 'ped');
     const solId = (d.aus && d.aus.id) ? d.aus.id : ((d.ped && d.ped.id) ? d.ped.id : 0);
-    const lap = solId ? '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + solId + '" title="Cancel this request" aria-label="Cancel this request"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>'
+    const lap = solId ? '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + solId + '" data-dia="' + d.fecha + '" title="Cancel this request" aria-label="Cancel this request"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>'
       : (pasado ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>');
     return '<tr class="' + cls.trim() + '"><td class="d">' + esc(diaL(d.fecha)) + extra + '</td>' + cuerpo + lap + '</tr>';
   }).join('');
   const nel = $('rHorNav'); if(nel) nel.innerHTML = nav;
   cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
     '<div class="hor-sub"><span>Use the pencil to request a change \u2014 or the \u2715 to cancel a day\u2019s request.</span>' + (esActual ? '' : '<button class="hor-hoybtn" id="horHoy" type="button">Back to this week</button>') + '</div>';
-  cont.querySelectorAll('.hor-ed[data-dia]').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
+  cont.querySelectorAll('.hor-ed[data-dia]:not(.hor-x)').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
   cont.querySelectorAll('[data-cancel-sol]').forEach(b => b.addEventListener('click', async () => {
-    if(b.dataset.armado !== '1'){ b.dataset.armado = '1'; b.classList.add('arm'); b.title = 'Click again to cancel'; toast('Click the \u2715 again to cancel this request.'); setTimeout(() => { if(b.dataset.armado === '1'){ b.dataset.armado = ''; b.classList.remove('arm'); b.title = 'Cancel this request'; } }, 4000); return; }
+    const d = sem.find(x => x.fecha === b.dataset.dia); if(!d) return;
+    let titulo, texto;
+    if(d.aus){
+      titulo = 'Cancel this time off?';
+      texto = diaL(d.fecha) + ', ' + mdc(d.fecha) + ' \u00b7 <b>' + esc(CLASE_TXT[d.aus.clase] || 'Time off') + '</b>' + (d.aus.parcial ? ' (' + esc(rango(d.aus.horaIni, d.aus.horaFin)) + ')' : '') + '.<br><br>Only this day is canceled \u2014 if this time off covers more days, the others stay.';
+    } else {
+      titulo = 'Cancel this schedule change?';
+      texto = diaL(d.fecha) + ', ' + mdc(d.fecha) + '.<br><br>This day goes back to your normal schedule.' + ((d.ped && d.ped.permanente) ? ' This is a permanent change, so it is removed from every ' + diaL(d.fecha) + '.' : '');
+    }
+    if(!(await confirmar(titulo, texto, 'Cancel it', true))) return;
     b.disabled = true;
-    try{ await api('cancelarSolicitud', { id:Number(b.dataset.cancelSol) }); toast('Request canceled.');
+    try{ await api('cancelarDia', { id:Number(b.dataset.cancelSol), fecha:b.dataset.dia }); toast('Canceled.');
       try{ const dias = await api('miSemana', { lunes:S.hor.lunes }); S.hor = { lunes:S.hor.lunes, dias:dias || [] }; }catch(e){}
       pintarHorario(); if(typeof contarMias === 'function') contarMias();
     }catch(e){ toast(e.message); b.disabled = false; }
@@ -12549,6 +12560,7 @@ async function demoApi(action, p){
   if(action === 'misSolicitudes') return DM.sols.filter(s => s.usuario === yoU);
   if(action === 'ausAnio') return DM.sols.filter(s => s.usuario === p.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada');
   if(action === 'cancelarSolicitud'){ const s = DM.sols.find(x => x.id === p.id && x.usuario === yoU && x.estado === 'pendiente'); if(!s) throw new Error('That request can no longer be canceled.'); s.estado = 'cancelada'; s.decidida = Date.now(); return { ok:true }; }
+  if(action === 'cancelarDia'){ const s = DM.sols.find(x => x.id === p.id && x.usuario === yoU); if(!s || !['pendiente', 'aprobada'].includes(s.estado)) throw new Error('That request can no longer be canceled.'); const a = s.fecha, b = s.fechaFin || s.fecha; if(s.permanente || a === b){ s.estado = 'cancelada'; s.decidida = Date.now(); } else if(p.fecha === a){ s.fecha = sumarDias(p.fecha, 1); } else if(p.fecha === b){ s.fechaFin = sumarDias(p.fecha, -1); } else { DM.sols.push(Object.assign({}, s, { id:Math.max.apply(null, DM.sols.map(x => x.id)) + 1, fecha:sumarDias(p.fecha, 1), fechaFin:b })); s.fechaFin = sumarDias(p.fecha, -1); } return { ok:true }; }
   if(action === 'ausenciasAnio') return { emps:DM.emps.map(e => Object.assign({}, e)),
     aus:DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= p.hasta && s.fechaFin >= p.desde)
       .map(s => ({ usuario:s.usuario, fecha:s.fecha, fechaFin:s.fechaFin, horaIni:s.horaIni || null, horaFin:s.horaFin || null, clase:s.clase, motivo:s.motivo || '',
