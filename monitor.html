@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -785,7 +786,7 @@ async function pedirEstado(fecha, url, tok){
       const ses = await window.sb.auth.getSession();
       if (ses.data.session) {
         const r = await fetch(window.SB_URL + '/functions/v1/monitor-estado' + (fecha ? '?fecha=' + fecha : ''),
-          { headers: { Authorization: 'Bearer ' + ses.data.session.access_token, apikey: window.SB_KEY } });
+          { cache: 'no-store', headers: { Authorization: 'Bearer ' + ses.data.session.access_token, apikey: window.SB_KEY } });
         const j = await r.json();
         if (j && j.ok) { FUENTE.ultima = 'Supabase'; FUENTE.ms = Math.round(performance.now() - t0); FUENTE.en = Date.now(); return j; }
         console.warn('Monitor: Supabase respondió', r.status, j && j.error);
@@ -851,12 +852,12 @@ async function seguirPrecarga(){
   }
 }
 
-async function cargar(){
+async function cargar(forzar){
   if (S.demo) { S.data = DEMO; pintar(); return; }
   const url = apiUrl(), tok = store.get('token');
   if (!url || !tok) { mostrarSetup(); return; }
   // Un dia pasado que ya se vio se pinta al instante, sin esperar al servidor.
-  const guardado = diaGuardado(S.fecha);
+  const guardado = !forzar && diaGuardado(S.fecha);
   if (guardado) { S.data = guardado; $('banner').innerHTML = ''; pintar(); return; }
   $('upd').textContent = 'Actualizando…';
   try {
@@ -1684,7 +1685,7 @@ $('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[dat
 $('soloAlertas').addEventListener('click', ev => { S.solo = !S.solo; ev.currentTarget.setAttribute('aria-pressed', S.solo); if (S.data) pintar(); });
 $('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.demo) return; cargar(); });
 $('hoy').addEventListener('click', () => { S.fecha = ''; cargar(); });
-$('btnRef').addEventListener('click', cargar);
+$('btnRef').addEventListener('click', () => cargar(true));
 $('btnCfg').addEventListener('click', () => $('modalAjustes').classList.add('show'));
 // ================================================================ REPORTES
 // Reporte de conexiones por agente (día, semana, quincena, mes o rango) en Excel.
