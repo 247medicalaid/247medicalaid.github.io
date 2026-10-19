@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v189-202610190205">
+<meta name="app-build" content="v190-202610190214">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -341,11 +341,11 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .hor-chip.c-ped{background:#EEEBFB;color:#5B4BD1}
 .hor-chip.c-ok{background:#E3F6EC;color:#1C7C4A}
 .hor-chip.c-aus{background:var(--warn-50);color:#8A4B00}
-.hor-badge{display:inline-block;margin-left:6px;font:700 8.5px/1.5 inherit;letter-spacing:.03em;text-transform:uppercase;border:0;border-radius:5px;padding:1px 6px;vertical-align:middle;cursor:pointer}
-.hor-badge.c-ped{background:#EEEBFB;color:#5B4BD1}
-.hor-badge.c-ok{background:#E3F6EC;color:#1C7C4A}
-.hor-badge.c-aus{background:var(--warn-50);color:#8A4B00}
-.hor-badge:hover{filter:brightness(.95)}
+.hor-dnom{display:block}
+.hor-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.hor-badge{display:inline-flex;align-items:center;margin:0;font:700 8px/1.4 inherit;letter-spacing:.03em;text-transform:uppercase;border:0;border-radius:5px;padding:2px 6px;cursor:pointer;background:#1E3A5B;color:#fff}
+.hor-badge.c-ped,.hor-badge.c-ok,.hor-badge.c-aus{background:#1E3A5B;color:#fff}
+.hor-badge:hover{filter:brightness(1.18)}
 #rHorario{overflow-x:auto}
 .hor-tabla td{padding:4px 10px}
 .hor-tabla th{padding:7px 10px}
@@ -2780,6 +2780,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v190: badges de eventos más pequeños, en azul oscuro y en una segunda fila bajo el nombre del día -->
 <!-- v189: letra más pequeña en los badges de eventos -->
 <!-- v188: vista Today del agente — Your day arriba y Your schedule al final; filas compactas con In/Out/Lunch en una línea; eventos del día como badge con popup de detalle y cancelar -->
 <!-- v187: el letrero "update" ahora sí sale en la web de los agentes (el chequeo consulta el reloj.html real de github.io, no el cargador del host de agentes) -->
@@ -4963,7 +4964,7 @@ function pintarHorario(){
     const lap = ausTotal ? '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + d.aus.id + '" data-dia="' + d.fecha + '" data-kind="aus" title="Cancel this time off" aria-label="Cancel this time off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>'
       : (tieneEvento ? '<td class="ed"></td>'
       : (pasado ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>'));
-    return '<tr class="' + cls.trim() + '"><td class="d">' + esc(diaL(d.fecha) + ' ' + diaNum(d.fecha)) + extra + '</td>' + cuerpo + lap + '</tr>';
+    return '<tr class="' + cls.trim() + '"><td class="d"><span class="hor-dnom">' + esc(diaL(d.fecha) + ' ' + diaNum(d.fecha)) + '</span>' + (extra ? '<span class="hor-badges">' + extra + '</span>' : '') + '</td>' + cuerpo + lap + '</tr>';
   }).join('');
   const nel = $('rHorNav'); if(nel) nel.innerHTML = nav;
   cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
