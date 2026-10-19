@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- build mon-202610190241: flechas de dia < > en la fecha (no pasa de hoy) -->
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
+<style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -391,7 +393,9 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
   <div id="avisoCuentas"></div>
   <div id="avisoVersiones"></div>
   <div class="filters" role="toolbar" aria-label="Filtros">
+    <button class="chip chip-fnav" id="fPrev" type="button" aria-label="Día anterior" title="Día anterior">‹</button>
     <input type="date" id="fecha" aria-label="Fecha">
+    <button class="chip chip-fnav" id="fNext" type="button" aria-label="Día siguiente" title="Día siguiente">›</button>
     <button class="chip" id="hoy" type="button">Hoy</button>
     <span id="cuentas"></span>
     <span class="spacer"></span>
@@ -1685,6 +1689,22 @@ $('cuentas').addEventListener('click', ev => { const b = ev.target.closest('[dat
 $('soloAlertas').addEventListener('click', ev => { S.solo = !S.solo; ev.currentTarget.setAttribute('aria-pressed', S.solo); if (S.data) pintar(); });
 $('fecha').addEventListener('change', ev => { S.fecha = ev.target.value; if (S.demo) return; cargar(); });
 $('hoy').addEventListener('click', () => { S.fecha = ''; cargar(); });
+$('fPrev').addEventListener('click', () => pasoDia(-1));
+$('fNext').addEventListener('click', () => pasoDia(1));
+function hoyStr(){
+  const tz = (S.data && S.data.config && S.data.config.zona) || 'America/New_York';
+  const o = {}; new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date()).forEach(x => o[x.type] = x.value);
+  return o.year + '-' + o.month + '-' + o.day;
+}
+function pasoDia(delta){
+  const base = ($('fecha').value) || hoyStr();
+  const d = new Date(base + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + delta);
+  const nd = d.toISOString().slice(0, 10), hoy = hoyStr();
+  if (nd > hoy) return;                 // no ir al futuro
+  S.fecha = (nd === hoy) ? '' : nd;     // hoy = modo en vivo
+  $('fecha').value = nd;
+  cargar();
+}
 $('btnRef').addEventListener('click', () => cargar(true));
 $('btnCfg').addEventListener('click', () => $('modalAjustes').classList.add('show'));
 // ================================================================ REPORTES
