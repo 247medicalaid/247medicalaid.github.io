@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v187-202610182250">
+<meta name="app-build" content="v188-202610190157">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -341,6 +341,27 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .hor-chip.c-ped{background:#EEEBFB;color:#5B4BD1}
 .hor-chip.c-ok{background:#E3F6EC;color:#1C7C4A}
 .hor-chip.c-aus{background:var(--warn-50);color:#8A4B00}
+.hor-badge{display:inline-block;margin-left:6px;font:700 10px/1.45 inherit;letter-spacing:.02em;text-transform:uppercase;border:0;border-radius:6px;padding:1px 7px;vertical-align:middle;cursor:pointer}
+.hor-badge.c-ped{background:#EEEBFB;color:#5B4BD1}
+.hor-badge.c-ok{background:#E3F6EC;color:#1C7C4A}
+.hor-badge.c-aus{background:var(--warn-50);color:#8A4B00}
+.hor-badge:hover{filter:brightness(.95)}
+#rHorario{overflow-x:auto}
+.hor-tabla td{padding:4px 10px}
+.hor-tabla th{padding:7px 10px}
+.hor-tabla td:not(.d){white-space:nowrap}
+.hor-tabla td.d{white-space:normal;line-height:1.35}
+.dia-ov{position:fixed;inset:0;z-index:100000;background:rgba(4,20,31,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.dia-modal{background:var(--card,#fff);color:var(--text,#0b1f2a);border-radius:14px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;max-height:86vh;overflow-y:auto}
+.dia-modal-cab{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.dia-modal-cab b{flex:1;font-size:15px}
+.dia-x{border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:var(--text-muted);padding:0 4px}
+.dia-ev{padding:14px 16px;border-bottom:1px solid var(--line)}
+.dia-ev:last-child{border-bottom:0}
+.dia-ev-top{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:4px}
+.dia-ev-det{font-size:13px;color:var(--text-muted);margin-bottom:10px}
+.dia-ev-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dia-q{font-size:13px;color:var(--text-muted)}
 .hor-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .hor-cab h2{margin:0}
 .hor-cab .hor-nav{margin:0}
@@ -2759,6 +2780,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v188: vista Today del agente — Your day arriba y Your schedule al final; filas compactas con In/Out/Lunch en una línea; eventos del día como badge con popup de detalle y cancelar -->
 <!-- v187: el letrero "update" ahora sí sale en la web de los agentes (el chequeo consulta el reloj.html real de github.io, no el cargador del host de agentes) -->
 <!-- v186: en "Your schedule" el día muestra el número (ej. "Monday 19") -->
 <!-- v185: Users muestra la versión de la app de Windows por agente (✓/⚠ vs. desplegada); la app pasa &tcv= y reloj_tc_visto la guarda -->
@@ -4594,7 +4616,7 @@ function appLayout(){
   const docs = $('ovDocs').querySelector('.ventana'); docs.dataset.aw = 'docs';
   const upd = $('updAg'); upd.dataset.aw = 'upd'; upd.classList.remove('hidden');
   const chat = $('chatAg'); chat.append($('chatApp')); chat.dataset.aw = 'chat'; chat.classList.remove('hidden');
-  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), ...(hor ? [hor] : []), dia, upd, chat, per, sol, docs, perfil);
+  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), dia, ...(hor ? [hor] : []), upd, chat, per, sol, docs, perfil);
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
@@ -4864,6 +4886,50 @@ function irSemanaActual(){ cambiarSemanaA(lunesDe((S.yo && S.yo.hoy) || fechaHoy
 async function cambiarSemanaA(lunes){ const cont = $('rHorario'); if(cont) cont.style.opacity = '.5';
   try{ const dias = await api('miSemana', { lunes:lunes }); S.hor = { lunes:lunes, dias:dias || [] }; }catch(e){ if(cont) cont.style.opacity=''; return; }
   if(cont) cont.style.opacity = ''; pintarHorario(); }
+// (v188) Popup con los eventos (permisos / cambios) de un dia y la opcion de cancelar.
+function abrirEventosDia(fecha){
+  const d = ((S.hor && S.hor.dias) || []).find(x => x.fecha === fecha); if(!d) return;
+  const diaL = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'long' }).format(new Date(f + 'T12:00:00Z'));
+  const mdc = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
+  const rango = (a, b) => a && b ? h12(a) + ' \u2013 ' + h12(b) : a ? h12(a) : (b ? h12(b) : '\u2014');
+  const evs = [];
+  if(d.aus) evs.push({ kind:'aus', id:d.aus.id, cls:'c-aus', etq:(CLASE_TXT[d.aus.clase] || 'Off'), titulo:'Time off',
+    det:(d.aus.parcial ? rango(d.aus.horaIni, d.aus.horaFin) : 'All day') + ' \u00b7 ' + (CLASE_TXT[d.aus.clase] || 'Off') + ' \u00b7 ' + (d.aus.pagada ? 'Paid' : 'Unpaid') });
+  if(d.ped){ const ok = d.ped.estado === 'aprobada';
+    evs.push({ kind:'ped', id:d.ped.id, cls:ok ? 'c-ok' : 'c-ped', etq:ok ? 'Shift \u2713' : 'Shift \u2026', titulo:'Schedule change',
+      det:(ok ? 'Approved' : 'Pending approval') + (d.ped.permanente ? ' \u00b7 every ' + diaL(fecha) : ' \u00b7 this day only') }); }
+  if(!evs.length) return;
+  const ov = document.createElement('div'); ov.className = 'dia-ov';
+  ov.innerHTML = '<div class="dia-modal" role="dialog" aria-modal="true" aria-label="Day requests">' +
+    '<div class="dia-modal-cab"><b>' + esc(diaL(fecha) + ' \u00b7 ' + mdc(fecha)) + '</b><button class="dia-x" type="button" aria-label="Close">\u00d7</button></div>' +
+    evs.map((e, i) => '<div class="dia-ev" data-i="' + i + '"><div class="dia-ev-top"><span class="hor-chip ' + e.cls + '">' + esc(e.etq) + '</span><b>' + esc(e.titulo) + '</b></div>' +
+      '<div class="dia-ev-det">' + esc(e.det) + '</div>' +
+      '<div class="dia-ev-act"><button class="btn btn-peligro btn-sm dia-cancel" type="button">Cancel this request</button></div></div>').join('') +
+    '</div>';
+  document.body.appendChild(ov);
+  const onEsc = ev => { if(ev.key === 'Escape') cerrarOv(); };
+  const cerrarOv = () => { document.removeEventListener('keydown', onEsc); ov.remove(); };
+  document.addEventListener('keydown', onEsc);
+  ov.addEventListener('click', async ev => {
+    const tg = ev.target;
+    if(tg === ov || tg.closest('.dia-x')){ cerrarOv(); return; }
+    const row = tg.closest('.dia-ev'); if(!row) return;
+    const act = row.querySelector('.dia-ev-act');
+    if(tg.classList.contains('dia-cancel')){
+      act.innerHTML = '<span class="dia-q">Cancel this request?</span><button class="btn btn-peligro btn-sm dia-do" type="button">Yes, cancel</button><button class="btn btn-ghost btn-sm dia-keep" type="button">Keep</button>';
+    } else if(tg.classList.contains('dia-keep')){
+      act.innerHTML = '<button class="btn btn-peligro btn-sm dia-cancel" type="button">Cancel this request</button>';
+    } else if(tg.classList.contains('dia-do')){
+      const e = evs[Number(row.dataset.i)]; tg.disabled = true;
+      try{
+        await api('cancelarDia', { id:Number(e.id), fecha:fecha }); toast('Canceled.');
+        try{ const dias = await api('miSemana', { lunes:S.hor.lunes }); S.hor = { lunes:S.hor.lunes, dias:dias || [] }; }catch(x){}
+        pintarHorario(); if(typeof contarMias === 'function') contarMias();
+        cerrarOv();
+      }catch(x){ toast(x.message); tg.disabled = false; }
+    }
+  });
+}
 function pintarHorario(){
   const cont = $('rHorario'); if(!cont) return;
   const hoy = (S.yo && S.yo.hoy) || fechaHoy();
@@ -4875,6 +4941,7 @@ function pintarHorario(){
   const diaNum = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
   const rango = (a, b) => a && b ? h12(a) + ' \u2013 ' + h12(b) : a ? h12(a) : (b ? h12(b) : '\u2014');
   const chip = (txt, k) => '<span class="hor-chip c-' + k + '">' + esc(txt) + '</span>';
+  const evBadge = (fecha, cls, etq, tt) => '<button class="hor-badge ' + cls + '" type="button" data-dia-ev="' + fecha + '" title="' + esc(tt) + '">' + esc(etq) + '</button>';
   const esActual = S.hor.lunes === lunesDe(hoy), fin = sumarDias(S.hor.lunes, 6);
   const nav = '<div class="hor-nav"><button class="hor-navb" id="horPrev" type="button" aria-label="Previous week">\u2039</button>' +
     '<span class="hor-rotulo">' + esc(mdc(S.hor.lunes) + ' \u2013 ' + mdc(fin)) + (esActual ? '<span class="wk">\u00b7 This week</span>' : '') + '</span>' +
@@ -4889,8 +4956,8 @@ function pintarHorario(){
     else if(d.libre) cuerpo = '<td class="off" colspan="3">Day off</td>';
     else { cuerpo = '<td>' + esc(d.inicio ? h12(d.inicio) : '\u2014') + '</td><td>' + esc(d.fin ? h12(d.fin) : '\u2014') + '</td>' +
       '<td class="alm">' + esc((d.almIni || d.almFin) ? rango(d.almIni, d.almFin) : '\u2014') + '</td>';
-      if(d.aus && d.aus.parcial) extra += '<span class="hor-chip c-aus hor-chipx">' + esc('Time off ' + rango(d.aus.horaIni, d.aus.horaFin) + ' \u00b7 ' + (CLASE_TXT[d.aus.clase] || 'Off')) + chx(d.aus.id, 'aus') + '</span>'; }
-    if(d.ped) extra += '<span class="hor-chip c-' + (d.ped.estado === 'aprobada' ? 'ok' : 'ped') + ' hor-chipx">' + esc(d.ped.estado === 'aprobada' ? 'Change approved' : 'Change pending') + chx(d.ped.id, 'ped') + '</span>';
+      if(d.aus && d.aus.parcial) extra += evBadge(d.fecha, 'c-aus', (CLASE_TXT[d.aus.clase] || 'Off'), 'Time off ' + rango(d.aus.horaIni, d.aus.horaFin) + ' \u00b7 ' + (CLASE_TXT[d.aus.clase] || 'Off') + (d.aus.pagada ? '' : ' (unpaid)')); }
+    if(d.ped){ const _ok = d.ped.estado === 'aprobada'; extra += evBadge(d.fecha, _ok ? 'c-ok' : 'c-ped', _ok ? 'Shift \u2713' : 'Shift \u2026', 'Schedule change \u00b7 ' + (_ok ? 'Approved' : 'Pending approval') + (d.ped.permanente ? ' \u00b7 every ' + diaL(d.fecha) : '')); }
     const tieneEvento = d.ped || (d.aus && d.aus.parcial);
     const lap = ausTotal ? '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + d.aus.id + '" data-dia="' + d.fecha + '" data-kind="aus" title="Cancel this time off" aria-label="Cancel this time off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>'
       : (tieneEvento ? '<td class="ed"></td>'
@@ -4899,8 +4966,9 @@ function pintarHorario(){
   }).join('');
   const nel = $('rHorNav'); if(nel) nel.innerHTML = nav;
   cont.innerHTML = '<table class="hor-tabla"><thead><tr><th>Day</th><th>In</th><th>Out</th><th>Lunch</th><th class="ed" aria-label="Edit"></th></tr></thead><tbody>' + filas + '</tbody></table>' +
-    '<div class="hor-sub"><span>Use the pencil to request a change \u2014 or the \u2715 to cancel a day\u2019s request.</span>' + (esActual ? '' : '<button class="hor-hoybtn" id="horHoy" type="button">Back to this week</button>') + '</div>';
+    '<div class="hor-sub"><span>Use the pencil to request a change \u2014 tap a day\u2019s tag to see it or cancel it.</span>' + (esActual ? '' : '<button class="hor-hoybtn" id="horHoy" type="button">Back to this week</button>') + '</div>';
   cont.querySelectorAll('.hor-ed[data-dia]:not(.hor-x)').forEach(b => b.addEventListener('click', () => { const d = sem.find(x => x.fecha === b.dataset.dia); if(d) pedirCambioHorario(d); }));
+  cont.querySelectorAll('[data-dia-ev]').forEach(b => b.addEventListener('click', () => abrirEventosDia(b.dataset.diaEv)));
   cont.querySelectorAll('[data-cancel-sol]').forEach(b => b.addEventListener('click', async () => {
     const d = sem.find(x => x.fecha === b.dataset.dia); if(!d) return;
     const kind = b.dataset.kind;
