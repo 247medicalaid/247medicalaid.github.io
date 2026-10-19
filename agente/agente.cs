@@ -37,7 +37,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.9";
+        const string Version = "2.10";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
@@ -49,7 +49,7 @@ namespace Monitor247
         internal static string clave = "";
         static readonly byte[] Entropia = Encoding.UTF8.GetBytes("Monitor247-clave-equipo");
         internal static Func<byte[], bool, byte[]> Cifrador = Dpapi;
-        const int IntervaloSeg = 60;
+        const int IntervaloSeg = 120;
         const int MaxCola = 5000;
         const int MaxLote = 200;
         const int TopProgramas = 12;
