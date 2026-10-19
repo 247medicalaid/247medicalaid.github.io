@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v194-202610191623">
+<meta name="app-build" content="v195-202610191733">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2364,11 +2364,12 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="ajuste" id="ajAutoSal">
       <h2>Automatic clock out</h2>
-      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. Checked every 5 minutes.</p>
+      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. It runs once a night; use “Run now” for an immediate sweep (e.g. on payday, before closing the period).</p>
       <label class="chk-linea"><input type="checkbox" id="ajAuto"> Clock agents out automatically</label>
       <label class="aj-margen">Margin after their hours per day <input type="number" id="ajAutoMargen" min="0" max="240" step="5" inputmode="numeric"> min</label>
       <div class="ejemplo" id="ajAutoEjemplo"></div>
       <button class="btn btn-ink btn-sm" id="ajAutoGuardar" type="button">Save</button>
+      <button class="btn btn-ghost btn-sm" id="ajAutoAhora" type="button" style="margin-left:6px">Run now</button>
       <span class="nota" id="ajAutoEstado" style="margin-left:8px"></span>
     </div>
     <div class="ajuste">
@@ -2780,6 +2781,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v195: Auto Clock out pasa a barrida nocturna + botón "Run now" en Settings (paso 85) -->
 <!-- v194: "Paid" sin marcar por defecto (+ Time off y Approve); guardar/quitar time off instantáneo con recarga en 2º plano -->
 <!-- v193: FIX tamaño de badges (el shorthand font con inherit era inválido); ahora 8px real -->
 <!-- v192: badges mucho más pequeños (6px) -->
@@ -4097,6 +4099,7 @@ async function api(action, p){
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'antes') return q(sb.rpc('reloj_antes', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarAutoSalida') return q(sb.rpc('reloj_guardar_auto_salida', { p_activo:p.activo, p_margen:p.margen }));   // (v92, paso 54)
+  if(action === 'autoSalidaAhora') return q(sb.rpc('reloj_auto_salida_ahora'));   // (v195, paso 85)
   // (v93, paso 55) usuario de prueba: las filas las copia la base; los archivos, la página (como administrador)
   if(action === 'copiarAPrueba') return q(sb.rpc('reloj_copiar_a_prueba', { p_desde:p.desde, p_hacia:p.hacia }));
   if(action === 'pruebaEstado') return q(sb.rpc('reloj_prueba_estado', { p_usuario:p.usuario }));
@@ -7220,6 +7223,19 @@ $('ajAutoGuardar').addEventListener('click', async () => {
     await api('guardarAutoSalida', { activo, margen:mg });
     S.autoSalida = { activo, margen:mg }; $('ajAutoMargen').value = mg; ejemploAutoSalida();
     $('ajAutoEstado').textContent = activo ? 'Saved. Agents are clocked out after their hours per day + ' + mg + ' min.' : 'Saved. Automatic clock out is off.'; toast('Settings saved.');
+  }catch(e){ $('ajAutoEstado').textContent = e.message; }
+  b.disabled = false;
+});
+$('ajAutoAhora').addEventListener('click', async () => {
+  if(!(S.autoSalida && S.autoSalida.activo)){ $('ajAutoEstado').textContent = 'Turn on automatic clock out first (and Save).'; return; }
+  if(!(await confirmar('Run auto clock-out now?', 'Clocks out every agent still clocked in who already passed their hours per day + margin, at their real end time. Approved days are left alone.', 'Run it', false))) return;
+  const b = $('ajAutoAhora'); b.disabled = true; $('ajAutoEstado').textContent = '';
+  try{
+    const r = await api('autoSalidaAhora');
+    const n = (r && r.hechos && r.hechos.length) || 0;
+    const msg = n ? ('Clocked out ' + n + (n === 1 ? ' agent.' : ' agents.')) : 'No agents needed clocking out right now.';
+    $('ajAutoEstado').textContent = msg; toast(msg);
+    if(S.vista === 'hoja'){ S.hoja = null; cargarHoja(); }
   }catch(e){ $('ajAutoEstado').textContent = e.message; }
   b.disabled = false;
 });
@@ -12714,6 +12730,7 @@ async function demoApi(action, p){
     const ausAnio = {}; DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada').forEach(s => { (ausAnio[s.usuario] = ausAnio[s.usuario] || []).push(s); });
     return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias, ausAnio }; }
   if(action === 'pendientes') return DM.sols.filter(s => s.estado === 'pendiente').length;
+  if(action === 'autoSalidaAhora') return { ok:true, activo:true, hechos:[] };
   if(action === 'ausenciaAdmin'){
     const a = p.aus, ff = a.fechaFin || a.fecha;
     if(!a.clase) throw new Error('Choose the absence type.');
