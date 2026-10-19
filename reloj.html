@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v193-202610190231">
+<meta name="app-build" content="v194-202610191623">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2780,6 +2780,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v194: "Paid" sin marcar por defecto (+ Time off y Approve); guardar/quitar time off instantáneo con recarga en 2º plano -->
 <!-- v193: FIX tamaño de badges (el shorthand font con inherit era inválido); ahora 8px real -->
 <!-- v192: badges mucho más pequeños (6px) -->
 <!-- v191: badges aún más pequeños -->
@@ -7838,8 +7839,8 @@ function tlCampos(pre, fecha, op){
       '<label class="campo"><span>To</span><input type="date" id="' + pre + 'Hasta" value="' + fecha + '"' + min + max + '></label></div>' +
     '<div class="tl-horas hidden"><label class="campo"><span>Date</span><input type="date" id="' + pre + 'Dia" value="' + fecha + '"' + min + max + '></label>' +
       '<div class="dos-col"><label class="campo"><span>From</span><input type="time" id="' + pre + 'HIni"></label><label class="campo"><span>To</span><input type="time" id="' + pre + 'HFin"></label></div></div>' +
-    (op.pago ? '<div class="tl-pago"><label class="chk"><input type="checkbox" id="' + pre + 'Pagada" checked> Paid</label>' +
-      '<label class="campo" id="' + pre + 'HorasL"><span id="' + pre + 'HorasT">Paid hours per day</span><input type="number" id="' + pre + 'Horas" min="0.25" max="12" step="0.25" value="' + (op.horasDia || 8) + '"></label></div>' : '') +
+    (op.pago ? '<div class="tl-pago"><label class="chk"><input type="checkbox" id="' + pre + 'Pagada"> Paid</label>' +
+      '<label class="campo" id="' + pre + 'HorasL" style="visibility:hidden"><span id="' + pre + 'HorasT">Paid hours per day</span><input type="number" id="' + pre + 'Horas" min="0.25" max="12" step="0.25" value="' + (op.horasDia || 8) + '"></label></div>' : '') +
     '<p class="tl-anio" id="' + pre + 'Anio">Time off this year: …</p></div>';
 }
 function tlEnlazar(pre, op){
@@ -7863,10 +7864,9 @@ function tlEnlazar(pre, op){
   $(pre + 'Desde').addEventListener('change', () => { if($(pre + 'Hasta').value < $(pre + 'Desde').value) $(pre + 'Hasta').value = $(pre + 'Desde').value; });
   [pre + 'HIni', pre + 'HFin'].forEach(id => $(id).addEventListener('change', horasAuto));
   if(pago()){
-    const porTipo = () => { pago().checked = ['vacaciones', 'enfermedad'].includes($(pre + 'Clase').value); $(pre + 'HorasL').style.visibility = pago().checked ? '' : 'hidden'; };
-    $(pre + 'Clase').addEventListener('change', porTipo);
-    pago().addEventListener('change', () => { $(pre + 'HorasL').style.visibility = pago().checked ? '' : 'hidden'; });
-    porTipo();
+    const sync = () => { $(pre + 'HorasL').style.visibility = pago().checked ? '' : 'hidden'; };
+    pago().addEventListener('change', sync);
+    sync();
   }
 }
 // Lee el formulario: { clase, fecha, fechaFin, horaIni?, horaFin? } o { err }.
@@ -10615,7 +10615,7 @@ function rqHTML(s, r){
       '<div class="rq-fila"><span>New schedule</span><div class="rq-v cambio">' + esc(horCambioTxt(s)) + '</div></div>' +
       '<div class="rq-nota">If approved, the Monitor updates the schedule. Nothing is applied until then.</div></section></div>';
   } else if(s.tipo === 'ausencia'){
-    const n = diasEntre(s.fecha, s.fechaFin), pag = ['vacaciones', 'enfermedad'].includes(s.clase), parc = esParcial(s);
+    const n = diasEntre(s.fecha, s.fechaFin), pag = false, parc = esParcial(s);
     h += '<div class="rq-comp"><section class="rq-lado nuevo" style="grid-column:1 / -1"><h4>' + IC_CAL + 'Requested time off</h4>' +
       '<div class="rq-fila"><span>Account</span>' + cuentaV(emp) + '</div>' +
       '<div class="rq-fila"><span>Type</span><div class="rq-v">' + esc(CLASE_TXT[s.clase] || '') + '</div></div>' +
@@ -10701,7 +10701,7 @@ function abrirDecision(id, modo){
     h += '<div class="aviso info">' + IC.info + '<span>The ' + (s.tipo === 'turno' ? (s.almIni ? 'clock in, lunch and clock out' : 'clock in and clock out') : 'lunch start and end') +
       ' will be added to ' + esc(diaS(s.fecha)) + '. If that day was approved, it will need approval again.</span></div>';
   if(aprobar && s.tipo === 'ausencia'){
-    const pag = ['vacaciones','enfermedad'].includes(s.clase);
+    const pag = false;
     h += '<label class="chk"><input type="checkbox" id="xPagada"' + (pag ? ' checked' : '') + '> Paid time off</label>' +
       '<label class="campo" id="xHorasC"' + (pag ? '' : ' style="display:none"') + '><span>' + (esParcial(s) ? 'Paid hours' : 'Paid hours per day') + '</span><input type="number" id="xHoras" min="0" max="12" step="0.25" value="' +
         (esParcial(s) ? Math.round(minParcial(s) / 60 * 100) / 100 : (emp.horasDia || 8)) + '"></label>' +
@@ -10923,10 +10923,11 @@ async function guardarAusPH(){
   if(a.pagada && !(a.horas > 0 && a.horas <= 12)) return $('paErr').textContent = 'Paid hours must be between 0 and 12.';
   const b = $('paGuardar'); b.disabled = true; $('paErr').textContent = '';
   try{
-    await api('ausenciaAdmin', { aus:a });
+    const _res = await api('ausenciaAdmin', { aus:a });
     const n = diasEntre(a.fecha, a.fechaFin);
     toast(CLASE_TXT[a.clase] + ' added: ' + (n === 1 ? diaS(a.fecha) : diaS(a.fecha) + ' – ' + diaS(a.fechaFin)) + (a.horaIni ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + '.');
-    await recargarPH();
+    const _u = S.ph.usuario; let _ok = false; try{ _ok = patchAusLocal(_u, a, _res && _res.id); }catch(e){ _ok = false; }
+    if(_ok) refrescarTrasAus(_u); else await recargarPH();
   }catch(x){ $('paErr').textContent = x.message; b.disabled = false; }
 }
 async function quitarAusPH(id, f){
@@ -10934,8 +10935,36 @@ async function quitarAusPH(id, f){
   const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario), a = e && e.dias[f] && e.dias[f].ausencia; if(!a) return;
   const rango = a.fecha && a.fechaFin && a.fecha !== a.fechaFin ? diaS(a.fecha) + ' – ' + diaS(a.fechaFin) : diaS(f);
   if(!(await confirmar('Remove this time off?', esc(e.nombre) + ' · <b>' + esc(CLASE_TXT[a.clase]) + '</b> · ' + esc(rango) + '<br><br>All the days of this time off are removed. It stays in the history as removed.', 'Remove', true))) return;
-  try{ await api('quitarAusencia', { id }); toast('Time off removed.'); await recargarPH(); }
+  try{ await api('quitarAusencia', { id }); toast('Time off removed.');
+    const _u = S.ph.usuario; let _ok = false; try{ _ok = unpatchAusLocal(_u, a); }catch(e){ _ok = false; }
+    if(_ok) refrescarTrasAus(_u); else await recargarPH();
+  }
   catch(x){ $('phErr').textContent = x.message; }
+}
+// (v194) Parche local de la hoja: pone la ausencia en los dias afectados para refrescar el editor al instante.
+function patchAusLocal(u, a, id){
+  const h = S.hoja; if(!h) return false;
+  const e = h.empleados.find(x => x.usuario === u); if(!e) return false;
+  const parcial = !!(a.horaIni && a.horaFin), ff = parcial ? a.fecha : (a.fechaFin || a.fecha);
+  const au = { id:id, usuario:u, clase:a.clase, pagada:!!a.pagada, fecha:a.fecha, fechaFin:ff, horaIni:a.horaIni || null, horaFin:a.horaFin || null, horas:a.pagada ? (Number(a.horas) || 0) : 0 };
+  const dentro = f => h.fechas.indexOf(f) >= 0;
+  if(parcial){ if(dentro(a.fecha)) (e.dias[a.fecha] = e.dias[a.fecha] || {}).ausencia = au; }
+  else { for(let f = a.fecha; f <= ff; f = sumarDias(f, 1)) if(dentro(f)) (e.dias[f] = e.dias[f] || {}).ausencia = au; }
+  return true;
+}
+function unpatchAusLocal(u, a){
+  const h = S.hoja; if(!h || !a) return false;
+  const e = h.empleados.find(x => x.usuario === u); if(!e) return false;
+  h.fechas.forEach(f => { const d = e.dias[f]; if(d && d.ausencia && d.ausencia.id === a.id) delete d.ausencia; });
+  return true;
+}
+// Refresca el editor al instante (parche ya aplicado) y reconcilia la hoja completa en 2o plano.
+function refrescarTrasAus(u){
+  if(S.hoja && S.hoja.empleados.some(x => x.usuario === u)) abrirPeriodo(u);
+  S.yoEn = 0;
+  cargarHoja().then(() => {
+    if(S.hoja && S.hoja.empleados.some(x => x.usuario === u) && !$('ovHoras').classList.contains('hidden') && !(S.ph && S.ph.sucio) && !$('phTabla').querySelector('tr.ph-aus')) abrirPeriodo(u);
+  }).catch(() => {});
 }
 // Vuelve a leer la hoja y abre otra vez el editor del mismo empleado.
 async function recargarPH(){
