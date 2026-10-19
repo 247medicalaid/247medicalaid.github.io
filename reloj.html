@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v195-202610191733">
+<meta name="app-build" content="v196-202610191754">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2781,6 +2781,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v196: Chat en vivo por Supabase Realtime (suscripcion a reloj_chat_msg) con sondeo de respaldo -->
 <!-- v195: Auto Clock out pasa a barrida nocturna + botón "Run now" en Settings (paso 85) -->
 <!-- v194: "Paid" sin marcar por defecto (+ Time off y Approve); guardar/quitar time off instantáneo con recarga en 2º plano -->
 <!-- v193: FIX tamaño de badges (el shorthand font con inherit era inválido); ahora 8px real -->
@@ -10277,16 +10278,38 @@ $('cgSalir').addEventListener('click', async () => {
 
 /* actualizar solo: rápido con el chat abierto, despacio en el fondo (número del menú y notificación de Windows) */
 function chatArrancar(){
+  chatRTArrancar();
   if(S.chatTimer) return;
   let n = 0;
   S.chatTimer = setInterval(() => {
     n++;
-    if(document.hidden){ if(n % 5 === 0) chatFondo(); return; }
+    const rt = !!S.chatRTok;   // (v196) Realtime sano -> el sondeo baja a red de seguridad
+    if(document.hidden){ if(n % (rt ? 30 : 5) === 0) chatFondo(); return; }
     const c = chatS();
-    if(chatVisible()){ if(c.abierto) cargarChatMsgs(c.abierto, true); if(n % 2 === 0) cargarChat(true); chatAjustar(); }
-    else if(n % 3 === 0) chatFondo();
+    if(chatVisible()){ if(c.abierto && (!rt || n % 3 === 0)) cargarChatMsgs(c.abierto, true); if(n % (rt ? 8 : 2) === 0) cargarChat(true); chatAjustar(); }
+    else if(n % (rt ? 15 : 3) === 0) chatFondo();
   }, 4000);
   chatFondo();
+}
+// (v196) Chat en vivo por Supabase Realtime: en vez de preguntar por mensajes nuevos cada ~12 s
+// (reloj_chat_resumen, el sondeo #1), se suscribe a los INSERT de reloj_chat_msg y refresca al instante.
+// Si Realtime no conecta o se cae, S.chatRTok queda en false y el sondeo sigue igual que antes (red de seguridad).
+function chatRTArrancar(){
+  if(S.chatRT || !window.sb || typeof window.sb.channel !== 'function') return;
+  try{
+    S.chatRT = window.sb.channel('reloj-chat-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'reloj_chat_msg' }, chatRTtoque)
+      .subscribe((st) => { S.chatRTok = (st === 'SUBSCRIBED'); });
+  }catch(e){ S.chatRT = null; S.chatRTok = false; }
+}
+function chatRTtoque(){
+  clearTimeout(S.chatRTt);
+  S.chatRTt = setTimeout(() => {
+    if(document.hidden){ chatFondo(); return; }
+    const c = chatS();
+    if(chatVisible() && c.abierto) cargarChatMsgs(c.abierto, true);
+    chatFondo();
+  }, 400);
 }
 async function chatFondo(){
   const c = chatS(), antes = c.resumen.map(x => x.id + ':' + x.noLeidos).join();
