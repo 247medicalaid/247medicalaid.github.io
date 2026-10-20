@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v196-202610191754">
+<meta name="app-build" content="v197-202610200121">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2235,7 +2235,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <input id="auBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="auCuenta" aria-label="Account"><option value="">All accounts</option></select>
       <select id="auEstado" aria-label="Status"><option value="">Active and archived</option><option value="act">Active</option><option value="inact">Archived</option></select>
-      <select id="auOrden" aria-label="Sort"><option value="nombre">Sort: Name</option><option value="mas">Sort: Most days</option></select>
       <span class="esp" style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" id="auTodos" type="button">Expand all</button>
     </div>
@@ -2781,6 +2780,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v197: Time off ordena al hacer clic en los titulos de columna (quita el menu Sort) -->
 <!-- v196: Chat en vivo por Supabase Realtime (suscripcion a reloj_chat_msg) con sondeo de respaldo -->
 <!-- v195: Auto Clock out pasa a barrida nocturna + botón "Run now" en Settings (paso 85) -->
 <!-- v194: "Paid" sin marcar por defecto (+ Time off y Approve); guardar/quitar time off instantáneo con recarga en 2º plano -->
@@ -7980,10 +7980,18 @@ async function cargarAus(){
 }
 function ausVisibles(){
   if(!S.au) return [];
-  const fc = $('auCuenta').value, est = $('auEstado').value, busca = normal($('auBuscar').value.trim()), orden = $('auOrden').value;
+  const fc = $('auCuenta').value, est = $('auEstado').value, busca = normal($('auBuscar').value.trim());
+  const srt = S.auSort || (S.auSort = { col:'nombre', dir:1 });
+  const valAu = (p, c) => c === 'total' ? p.total : c === 'pag' ? p.pag : c === 'sinPag' ? p.sinPag : c === 'prox' ? p.prox : (p.t[c] || 0);
   return S.au.filas.filter(p => (p.e.activo || p.total || p.prox) && (!fc || (p.e.cuenta || '') === fc) &&
       (est === '' || (est === 'act' ? p.e.activo : !p.e.activo)) && (!busca || normal(p.e.nombre + ' ' + p.e.usuario).indexOf(busca) >= 0))
-    .sort((a, b) => orden === 'mas' ? (b.total - a.total) || a.e.nombre.localeCompare(b.e.nombre, 'en') : a.e.nombre.localeCompare(b.e.nombre, 'en'));
+    .sort((a, b) => {
+      let r = srt.col === 'nombre' ? a.e.nombre.localeCompare(b.e.nombre, 'en')
+            : srt.col === 'cuenta' ? (a.e.cuenta || '').localeCompare(b.e.cuenta || '', 'en')
+            : valAu(a, srt.col) - valAu(b, srt.col);
+      if(r) return r * srt.dir;
+      return a.e.nombre.localeCompare(b.e.nombre, 'en');
+    });
 }
 function pintarAus(){
   const au = S.au; if(!au) return;
@@ -8007,8 +8015,13 @@ function pintarAus(){
         '<td class="num">' + (x.horasPag ? auNum(x.horasPag) : '—') + '</td><td class="au-nota">' + esc(x.nota) + '</td><td class="nota">' + x.origen + '</td></tr>').join('') +
       '</tbody></table>' : '<span class="nota">No time off in ' + au.anio + '.</span>') + '</td></tr>';
   const todosSel = l.every(p => sel.has(p.e.usuario));
-  $('auTabla').innerHTML = '<table class="emps au"><thead><tr><th class="au-sel"><label class="selq" title="Select everyone shown"><input type="checkbox" id="auSelTodos" aria-label="Select everyone shown"' + (todosSel ? ' checked' : '') + '></label></th><th>Employee</th><th>Account</th><th class="num">Vacation</th><th class="num">Sick</th><th class="num">Personal</th><th class="num">Other</th>' +
-    '<th class="num tot">Days taken</th><th class="num">Paid</th><th class="num">Unpaid</th><th class="num" title="Approved time off after today">Scheduled</th><th></th></tr></thead><tbody>' +
+  const srt = S.auSort || (S.auSort = { col:'nombre', dir:1 });
+  const auFl = c => srt.col === c ? (srt.dir > 0 ? ' \u25B2' : ' \u25BC') : '';
+  const auTh = (c, label, cls, extra) => '<th class="' + (cls ? cls + ' ' : '') + 'auord" data-ord="' + c + '" role="button" tabindex="0" style="cursor:pointer;white-space:nowrap"' + (extra || '') + '>' + label + auFl(c) + '</th>';
+  $('auTabla').innerHTML = '<table class="emps au"><thead><tr><th class="au-sel"><label class="selq" title="Select everyone shown"><input type="checkbox" id="auSelTodos" aria-label="Select everyone shown"' + (todosSel ? ' checked' : '') + '></label></th>' +
+    auTh('nombre', 'Employee') + auTh('cuenta', 'Account') + auTh('vacaciones', 'Vacation', 'num') + auTh('enfermedad', 'Sick', 'num') + auTh('personal', 'Personal', 'num') + auTh('otro', 'Other', 'num') +
+    auTh('total', 'Days taken', 'num tot') + auTh('pag', 'Paid', 'num') + auTh('sinPag', 'Unpaid', 'num') + auTh('prox', 'Scheduled', 'num', ' title="Approved time off after today"') +
+    '<th></th></tr></thead><tbody>' +
     l.map(p => { const e = p.e, ab = abiertos.has(e.usuario), cc = colorCuenta(e.cuenta);
       return '<tr class="au-fila' + (ab ? ' abierta' : '') + '" data-u="' + esc(e.usuario) + '" tabindex="0" role="button" aria-expanded="' + ab + '">' +
         '<td class="au-sel"><label class="selq"><input type="checkbox" class="au-chk" data-u="' + esc(e.usuario) + '" aria-label="Select ' + esc(e.nombre) + '"' + (sel.has(e.usuario) ? ' checked' : '') + '></label></td>' +
@@ -8037,7 +8050,9 @@ $('auTabla').addEventListener('change', ev => {
 });
 $('auTabla').addEventListener('keydown', ev => { if(ev.target.closest('.au-sel')) return; const tr = ev.target.closest('tr.au-fila'); if(tr && (ev.key === 'Enter' || ev.key === ' ')){ ev.preventDefault(); auAlternar(tr.dataset.u); } });
 $('auAnio').addEventListener('change', () => { S.auAnio = Number($('auAnio').value); S.auAbiertos = new Set(); cargarAus(); });
-['auCuenta', 'auEstado', 'auOrden'].forEach(id => $(id).addEventListener('change', pintarAus));
+['auCuenta', 'auEstado'].forEach(id => $(id).addEventListener('change', pintarAus));
+$('auTabla').addEventListener('click', ev => { const th = ev.target.closest('th.auord'); if(!th) return; const s = S.auSort || (S.auSort = { col:'nombre', dir:1 }); if(s.col === th.dataset.ord) s.dir = -s.dir; else { s.col = th.dataset.ord; s.dir = (s.col === 'nombre' || s.col === 'cuenta') ? 1 : -1; } pintarAus(); });
+$('auTabla').addEventListener('keydown', ev => { const th = ev.target.closest('th.auord'); if(th && (ev.key === 'Enter' || ev.key === ' ')){ ev.preventDefault(); th.click(); } });
 $('auBuscar').addEventListener('input', pintarAus);
 $('auTodos').addEventListener('click', () => { const l = ausVisibles().filter(p => p.items.length), s = S.auAbiertos || (S.auAbiertos = new Set());
   const abrir = l.some(p => !s.has(p.e.usuario)); l.forEach(p => abrir ? s.add(p.e.usuario) : s.delete(p.e.usuario)); $('auTodos').textContent = abrir ? 'Collapse all' : 'Expand all'; pintarAus(); });
