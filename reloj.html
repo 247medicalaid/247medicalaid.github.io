@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v197-202610200121">
+<meta name="app-build" content="v198-202610200137">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2780,6 +2780,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
 <!-- v89: My profile con color (cada sección en su tarjeta con fondo suave e ícono) -->
+<!-- v198: badges del admin en un solo temporizador cada 3 min (antes 5 sondeos cada 60 s) -->
 <!-- v197: Time off ordena al hacer clic en los titulos de columna (quita el menu Sort) -->
 <!-- v196: Chat en vivo por Supabase Realtime (suscripcion a reloj_chat_msg) con sondeo de respaldo -->
 <!-- v195: Auto Clock out pasa a barrida nocturna + botón "Run now" en Settings (paso 85) -->
@@ -4562,12 +4563,13 @@ async function inicio(){
       $('btnMenu').classList.add('activo');
       $('tabReloj').classList.toggle('hidden', !yo.empleado);
       $('grpMio').classList.toggle('hidden', !yo.empleado);
-      actualizarBadge(); setInterval(() => { if(!document.hidden) actualizarBadge(); }, 60000);
-      actualizarDocBadge(); setInterval(() => { if(!document.hidden) actualizarDocBadge(); }, 60000);
       $('notifWrap').classList.remove('hidden');
-      actualizarBancoAviso(); setInterval(() => { if(!document.hidden) actualizarBancoAviso(); }, 60000);
-      actualizarIdAviso(); setInterval(() => { if(!document.hidden) actualizarIdAviso(); }, 60000);
-      actualizarInvBadgeSolo(); setInterval(() => { if(!document.hidden && S.vista !== 'inv') actualizarInvBadgeSolo(); }, 60000);
+      actualizarBadge(); actualizarDocBadge(); actualizarBancoAviso(); actualizarIdAviso(); actualizarInvBadgeSolo();
+      setInterval(() => {   // (v198) un solo temporizador cada 3 min (antes: 5 sondeos cada 60 s)
+        if(document.hidden) return;
+        actualizarBadge(); actualizarDocBadge(); actualizarBancoAviso(); actualizarIdAviso();
+        if(S.vista !== 'inv') actualizarInvBadgeSolo();
+      }, 180000);
       chatArrancar();
       const pedida = location.hash.slice(1);
       irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
