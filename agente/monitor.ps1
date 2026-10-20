@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.9'
+$Version = '2.12'
 # Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
 # al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
@@ -27,7 +27,7 @@ $script:Clave = ''
 $ColaFile   = Join-Path $DataDir 'cola.jsonl'
 $LogFile    = Join-Path $DataDir 'monitor.log'
 $Utf8       = New-Object System.Text.UTF8Encoding($false)
-$Intervalo  = 60
+$Intervalo  = 180
 $MaxCola    = 5000
 $MaxLote    = 200
 $TopProgs   = 12

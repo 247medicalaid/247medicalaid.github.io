@@ -37,7 +37,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.11";
+        const string Version = "2.12";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
