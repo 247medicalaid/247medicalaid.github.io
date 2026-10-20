@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v201-202610201841">
+<meta name="app-build" content="v202-202610202057">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6767,9 +6767,9 @@ $('eActivar').addEventListener('click', async () => {
   const b = $('eActivar'); b.disabled = true; $('eErr').textContent = '';
   try{
     if(desact) await api('archivarEmpleado', { usuario:e.usuario }); else await api('activarEmpleado', { usuario:e.usuario, activo:true });
-    // (v201) Si el empleado tiene agente enlazado en el Monitor, archivar lo da de baja alla y reactivar lo reactiva.
+    // (v201/v202) Si el empleado tiene agente enlazado en el Monitor, archivar lo da de baja INMEDIATA (fecha=ayer) alla y reactivar lo reactiva.
     // Best-effort: un fallo del Monitor no bloquea el archivado del Time Clock.
-    if(e.agenteMonitor){ try{ await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
+    if(e.agenteMonitor){ try{ const _ayer = new Date(Date.now()-864e5).toLocaleDateString('en-CA',{ timeZone:'America/New_York' }); await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', fecha: desact ? _ayer : '', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
     toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
     S.hoja = null; S.hojaHoy = null;
