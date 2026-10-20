@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v200-202610200158">
+<meta name="app-build" content="v201-202610201841">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6761,12 +6761,15 @@ $('eActivar').addEventListener('click', async () => {
   const e = S.emps.empleados.find(x => x.usuario === S.empEdit); if(!e) return;
   const desact = e.activo;
   const ok = await confirmar(desact ? 'Archive ' + e.nombre + '?' : 'Reactivate ' + e.nombre + '?',
-    desact ? 'Use this for someone who no longer works with you. They move to <b>Archived</b> with today\'s date, can\'t sign in to the Time Clock, and any invitation link they have stops working. Their hours, requests, documents and pay runs stay. If they come back, use Reactivate.'
-           : 'They\'ll be able to sign in to the Time Clock again with their email and password, and they leave Archived.', desact ? 'Archive' : 'Reactivate', desact);
+    desact ? 'Use this for someone who no longer works with you. They move to <b>Archived</b> with today\'s date, can\'t sign in to the Time Clock, and any invitation link they have stops working. Their hours, requests, documents and pay runs stay. Their Monitor agent (if linked) is deactivated too. If they come back, use Reactivate.'
+           : 'They\'ll be able to sign in to the Time Clock again with their email and password, and they leave Archived. Their Monitor agent (if linked) is reactivated too.', desact ? 'Archive' : 'Reactivate', desact);
   if(!ok) return;
   const b = $('eActivar'); b.disabled = true; $('eErr').textContent = '';
   try{
     if(desact) await api('archivarEmpleado', { usuario:e.usuario }); else await api('activarEmpleado', { usuario:e.usuario, activo:true });
+    // (v201) Si el empleado tiene agente enlazado en el Monitor, archivar lo da de baja alla y reactivar lo reactiva.
+    // Best-effort: un fallo del Monitor no bloquea el archivado del Time Clock.
+    if(e.agenteMonitor){ try{ await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
     toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
     S.hoja = null; S.hojaHoy = null;
