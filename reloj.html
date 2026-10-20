@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v202-202610202057">
+<meta name="app-build" content="v203-202610202107">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6765,6 +6765,7 @@ $('eActivar').addEventListener('click', async () => {
            : 'They\'ll be able to sign in to the Time Clock again with their email and password, and they leave Archived. Their Monitor agent (if linked) is reactivated too.', desact ? 'Archive' : 'Reactivate', desact);
   if(!ok) return;
   const b = $('eActivar'); b.disabled = true; $('eErr').textContent = '';
+  const _vent = $('ovEmp').querySelector('.ventana'); if(_vent) _vent.style.pointerEvents = 'none';   // (v203) bloquea clics mientras carga
   try{
     if(desact) await api('archivarEmpleado', { usuario:e.usuario }); else await api('activarEmpleado', { usuario:e.usuario, activo:true });
     // (v201/v202) Si el empleado tiene agente enlazado en el Monitor, archivar lo da de baja INMEDIATA (fecha=ayer) alla y reactivar lo reactiva.
@@ -6773,7 +6774,10 @@ $('eActivar').addEventListener('click', async () => {
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
     toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
     S.hoja = null; S.hojaHoy = null;
+    // (v203) Si cambio el agente del Monitor, refresca el panel del Monitor (iframe) para que no muestre datos viejos.
+    if(e.agenteMonitor){ const _mf = $('monFrame'); if(_mf && _mf.dataset.cargado){ try{ _mf.contentWindow.location.reload(); }catch(_e){ _mf.dataset.cargado = ''; } } }
   }catch(x){ $('eErr').textContent = x.message; }
+  if(_vent) _vent.style.pointerEvents = '';
   b.disabled = false;
 });
 $('eBorrar').addEventListener('click', async () => {
