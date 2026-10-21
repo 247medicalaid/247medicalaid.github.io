@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v211-202610211751">
+<meta name="app-build" content="v212-202610211832">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -765,6 +765,29 @@ tr.cerrado td{background:#F6FAFC}
 .ventana-ficha .ficha-grid .emp-mgr-chk small{color:var(--text-muted);font-size:12.5px}
 #ovEmp .ficha-sec{padding:13px 16px 12px;border-radius:14px;margin-top:14px;border:1px solid var(--line)}
 #ovEmp .ficha-sec.sec-id{background:#F5F7F9;border-color:#E6ECF0}
+.ve-cab{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}
+.ve-cab .ve-tit{min-width:0}
+.ve-cab h2{margin:0;font-size:20px}
+.ve-sub{font-size:13.5px;margin-top:2px}
+.ve-pills{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;flex:none}
+.ve-sec{border-radius:14px;padding:12px 15px;margin-top:12px;border:1px solid var(--line)}
+.ve-sec h3{margin:0 0 8px;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.ve-sec.sec-work{background:#F0F8F2;border-color:#D7EDDE}
+.ve-sec.sec-pay{background:#FBF6E9;border-color:#EFE4C4}
+.ve-sec.sec-personal{background:#FFF6EC;border-color:#F3E3CC}
+.ve-sec.sec-bank{background:#EEF6FC;border-color:#D6E9F6}
+.ve-sec.sec-app{background:#F5F7F9;border-color:#E6ECF0}
+.ve-sec.sec-notas{background:#FAF7F1;border-color:#EDE6D8}
+.ve-row{display:grid;grid-template-columns:155px 1fr;gap:10px;padding:4px 0;font-size:14px;align-items:center}
+.ve-row + .ve-row{border-top:1px solid rgba(0,0,0,.06)}
+.ve-k{color:var(--text-muted)}
+.ve-v{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+.ve-nada{color:var(--text-muted);font-weight:400}
+.ve-tag{background:#e6f4fa;color:#0A6A90;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px}
+.ve-notas{font-weight:400;white-space:pre-wrap}
+.u-ver-nom{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.u-ver-nom:hover b{text-decoration:underline}
+@media (max-width:560px){ .ve-row{grid-template-columns:1fr;gap:2px} .ve-row + .ve-row{padding-top:7px} }
 #ovEmp .ficha-sec.sec-work{background:#F0F8F2;border-color:#D7EDDE}
 #ovEmp .ficha-sec.sec-personal{background:#FFF6EC;border-color:#F3E3CC}
 #ovEmp .ficha-sec.sec-bank{background:#EEF6FC;border-color:#D6E9F6}
@@ -2412,7 +2435,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="cabecera">
       <h1>Users</h1>
       <span class="esp"></span>
-      <button class="btn btn-ghost btn-sm" id="uImportar" type="button">Import from Connecteam</button>
       <button class="btn btn-ink btn-sm" id="eNuevo">Add user</button>
     </div>
     <p class="nota" style="margin:-6px 0 12px;max-width:80ch">Agents sign in to the Time Clock with their email: add them here and they get an email to create their password. They only see their own Time Clock. Administrative staff are created in the portal.</p>
@@ -2564,6 +2586,15 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="err" id="dtErr" role="alert"></div>
     <div class="pie"><button class="btn btn-ghost hidden" id="dtVolver" type="button">← Back</button><button class="btn btn-peligro hidden" id="dtQuitar" type="button">Remove document</button>
       <span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Close</button><button class="btn btn-brand hidden" id="dtGuardar" type="button">Save</button></div>
+  </div>
+</div>
+
+<!-- v212: ver usuario (solo lectura) -->
+<div class="overlay hidden" id="ovVerEmp" role="dialog" aria-modal="true" aria-labelledby="veTitulo">
+  <div class="ventana" style="max-width:660px">
+    <div class="ve-cab"><div class="ve-tit"><h2 id="veTitulo"></h2><div class="ve-sub muted" id="veSub"></div></div><div class="ve-pills" id="vePills"></div></div>
+    <div id="veCuerpo"></div>
+    <div class="pie"><button class="btn btn-ghost" type="button" id="veEditar">Edit</button><span class="esp"></span><button class="btn btn-ink" type="button" id="veCerrar">Close</button></div>
   </div>
 </div>
 
@@ -6691,7 +6722,7 @@ function pintarEmps(){
   const cols = uColsVer(), o = S.uOrden || {};
   const th = (k, t, num) => '<th' + (num ? ' class="num"' : '') + ' aria-sort="' + (o.k === k ? (o.dir === 'desc' ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="u-orden' + (o.k === k ? ' on' : '') + '" data-orden="' + k + '">' + t +
     '<i aria-hidden="true">' + (o.k === k ? (o.dir === 'desc' ? '▼' : '▲') : '↕') + '</i></button></th>';
-  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><b>' + esc(e.nombre) + '</b>' + (e.prueba ? '<span class="pill-test" title="Test user: not included in the Pay run or the payroll exports">TEST</span>' : '') + (e.activo ? '' : ' <span class="pill pill-arch" title="Former employee">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
+  const fila = e => '<tr class="' + (e.activo ? '' : 'inact') + '"><td><button type="button" class="u-ver-nom" data-ver="' + esc(e.usuario) + '"><b>' + esc(e.nombre) + '</b></button>' + (e.prueba ? '<span class="pill-test" title="Test user: not included in the Pay run or the payroll exports">TEST</span>' : '') + (e.activo ? '' : ' <span class="pill pill-arch" title="Former employee">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>') + (e.activo ? estadoPill(e) + monDupPill(e) : '') +
       '<small>' + esc(e.email || e.usuario) + (e.departamento && !cols.some(c => c.k === 'departamento') ? ' · ' + esc(e.departamento) : '') + '</small></td>' +
     cols.map(c => '<td' + (c.num ? ' class="num"' : '') + '>' + c.h(e) + '</td>').join('') +
     '<td style="text-align:right"><span class="acc-fila">' + botonInvitar(e) + '<button class="btn btn-ghost btn-sm" data-u="' + esc(e.usuario) + '">Edit</button></span></td></tr>';
@@ -6706,6 +6737,7 @@ function pintarEmps(){
   $('empsTabla').innerHTML = '<table class="emps"><thead><tr>' + th('nombre', 'Name') + cols.map(c => th(c.k, c.t, c.num)).join('') + '<th></th></tr></thead>' + cuerpo + '</table>' +
     '<p class="nota u-cuenta">' + l.length + (l.length === 1 ? ' user' : ' users') + (por && UGRUPOS[por] ? ' · ' + uGrupos(l, por).length + ' groups by ' + UGRUPOS[por].t.toLowerCase() : '') + '</p>';
   $('empsTabla').querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => abrirEmp(b.dataset.u)));
+  $('empsTabla').querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => verEmp(b.dataset.ver)));
   $('empsTabla').querySelectorAll('[data-inv]').forEach(b => b.addEventListener('click', () => invitarDesdeLista(b.dataset.inv, b)));
   $('empsTabla').querySelectorAll('[data-rst]').forEach(b => b.addEventListener('click', () => { const e = S.emps.empleados.find(x => x.usuario === b.dataset.rst); if(e) resetClave(e, b); }));
 }
@@ -7038,6 +7070,48 @@ function abrirEmp(usuario){
     if(limpio) empFotoNueva();
   });
 }
+// (v212) Vista solo-lectura del usuario (por secciones, con colores)
+function verEmp(usuario){
+  const e = S.emps && S.emps.empleados.find(x => x.usuario === usuario); if(!e) return;
+  const cta = colorCuenta(e.cuenta);
+  $('veTitulo').textContent = e.nombre || e.usuario;
+  $('veSub').textContent = [e.titulo, e.departamento].filter(Boolean).join('  ·  ');
+  $('vePills').innerHTML = (e.prueba ? '<span class="pill-test" title="Test user">TEST</span>' : '') +
+    (e.activo ? '' : '<span class="pill pill-arch">Archived' + (e.archivadoEn ? ' · ' + esc(fechaUS(e.archivadoEn)) : '') + '</span>');
+  const F = v => (v != null && v !== '') ? v : '<span class="ve-nada">—</span>';
+  const row = (k, v) => '<div class="ve-row"><span class="ve-k">' + k + '</span><span class="ve-v">' + F(v) + '</span></div>';
+  const t = v => v ? esc(v) : '';
+  const sec = (cls, tit, cont) => '<div class="ve-sec ' + cls + '"><h3>' + tit + '</h3>' + cont + '</div>';
+  const dot = cta ? '<i class="punto-cta" style="background:' + cta + '"></i>' : '';
+  const tienePago = e.pagoHora !== '' && e.pagoHora != null && !isNaN(Number(e.pagoHora));
+  const work = row('Account', (e.cuenta ? dot + esc(e.cuenta) : '')) +
+    row('Department', t(e.departamento)) +
+    row('Direct manager', (e.jefe ? esc(e.jefe) : '') + (e.esManager ? ' <span class="ve-tag">Manager</span>' : '')) +
+    row('Start date', e.fechaIngreso ? esc(fechaUS(e.fechaIngreso)) : '') +
+    row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '');
+  const pay = row('Pay rate', tienePago ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '') +
+    row('Paid from', e.pagoCuenta === 'personal' ? 'Personal' : 'Nómina 247') +
+    (Number(e.aportesCop) > 0 ? row('Aportes', cop(e.aportesCop)) : '') +
+    (e.pagoFijoCop != null ? row('Fixed pay', cop(e.pagoFijoCop)) : '');
+  const personal = row('Mobile phone', t(e.telefono)) +
+    row('Email', t(e.email || e.usuario)) +
+    row('Birthday', e.cumpleanos ? esc(fechaUS(e.cumpleanos)) : '') +
+    row('Home address', t(e.direccion)) +
+    row('City', t(e.ciudad));
+  const bank = row('ID', [e.tipoId, e.numId].filter(Boolean).map(esc).join(' ')) +
+    row('Bank', t(e.banco)) +
+    row('Account number', t(e.cuentaBanco));
+  const app = row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') +
+    row('Windows app', appUsoHTML(e)) +
+    row('App version', tcvHTML(e));
+  $('veCuerpo').innerHTML = sec('sec-work', 'Work', work) + sec('sec-pay', 'Pay', pay) +
+    sec('sec-personal', 'Personal', personal) + sec('sec-bank', 'Bank information', bank) +
+    sec('sec-app', 'App & Monitor', app) + (e.notas ? sec('sec-notas', 'Notes', '<div class="ve-notas">' + esc(e.notas) + '</div>') : '');
+  $('veEditar').onclick = () => { cerrar('ovVerEmp'); abrirEmp(usuario); };
+  abrir('ovVerEmp');
+  const v = $('ovVerEmp').querySelector('.ventana'); if(v) v.scrollTop = 0;
+}
+$('veCerrar').addEventListener('click', () => cerrar('ovVerEmp'));
 $('eNuevo').addEventListener('click', () => abrirEmp(null));
 // Al escribir el nombre de alguien nuevo se proponen su agente del Monitor y su nombre en la nómina.
 ['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('change', () => {
@@ -9749,7 +9823,7 @@ function uimpCampos(x, e){
 function abrirUImp(){ S.uimp = { archivos:[], filas:[] };
   const tv = $('uiTipoId').value; llenarSelect('uiTipoId', listas().tiposId || [], ''); $('uiTipoId').value = tv && (listas().tiposId || []).includes(tv) ? tv : '';
   $('uiTipoId').options[0].textContent = '— (leave empty)'; $('uiArchivo').value = ''; $('uiErr').textContent = ''; pintarUImp(); abrir('ovUImp'); }
-$('uImportar').addEventListener('click', abrirUImp);
+/* v212: Import from Connecteam quitado */
 $('uiElegir').addEventListener('click', () => { $('uiArchivo').value = ''; $('uiArchivo').click(); });
 $('uiArchivo').addEventListener('change', async () => {
   const fs = [...$('uiArchivo').files]; if(!fs.length) return;
