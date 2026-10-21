@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v207-202610211625">
+<meta name="app-build" content="v208-202610211729">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -148,6 +148,9 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-diffs-list .rt{font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
 .py-diffs-list .du{font-variant-numeric:tabular-nums;font-weight:600;min-width:84px;text-align:right;white-space:nowrap}
 .btn-xs{padding:3px 10px;font-size:12px;flex:none}
+.py-diffs-all{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.py-diffs-list .rt b{color:var(--text)}
+@media (max-width:640px){ .py-diffs-list li{flex-wrap:wrap} .py-diffs-list .rt{flex-basis:100%;white-space:normal} }
 #cpOvEnvio .cp-envio-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 #cpOvEnvio .cp-envio-ops .btn{flex:1 1 auto}
 .py-docs{align-items:flex-start}
@@ -11333,7 +11336,7 @@ async function cargarPago(desde){
   const hasta = finQ(desde), ant = quinAnt(desde), tok = {};
   // la Timesheet queda en la misma quincena (si ya estaba dentro de ella, se deja como estaba)
   if(!S.periodo || quinDe(S.periodo.desde) !== desde){ S.periodo = { desde, hasta }; S.periodoDePago = true; }
-  S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[], refrescados:new Set(), live:{}, diffs:[] };
+  S.pr = { desde, hasta, tok, cargando:true, sucio:false, ed:{}, base:[], filas:[], refrescados:new Set(), revisados:new Set(), live:{}, diffs:[] };
   $('pyQuin').innerHTML = opcionesQuin(desde);
   $('pyTabla').innerHTML = '<div style="padding:28px;color:var(--text-muted)"><span class="spin dark"></span> Loading the pay period…</div>';
   ['pyParam','pyResumen','pyAvisos','pyEstado'].forEach(id => { $(id).innerHTML = ''; });
@@ -11404,7 +11407,7 @@ function armarBase(primera){
     const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(hojaE[i].dias[f] && hojaE[i].dias[f].ausencia));
     const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop);
     const tarLive = numO(x.tarifa), jLive = Number(x.pago) || 0;
-    pr.live[e.usuario] = { tar:tarLive, j:jLive, horas:x.horas, ot:x.ot };
+    pr.live[e.usuario] = { tar:tarLive, j:jLive, horas:x.horas, ot:x.ot, min:x.min, minOt:x.minOt };
     const cong = g && !pr.refrescados.has(e.usuario);   // (v126) al reabrir se conserva lo pagado; aplicar el perfil es explícito
     const tar = cong && g.tarifa != null ? numO(g.tarifa) : tarLive;
     const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar,
@@ -11424,26 +11427,40 @@ function armarBase(primera){
   recalcPago();
   pr.diffs = [];
   pr.base.forEach(b => { const g = pr.guardadas && pr.guardadas[b.usuario], lv = pr.live[b.usuario]; if(!g || !lv || pr.refrescados.has(b.usuario)) return;
-    const dRate = Math.abs((numO(b.tarifa) || 0) - (lv.tar || 0)) > 0.0001, dJ = Math.abs((Number(b.j) || 0) - (lv.j || 0)) > 0.005;
-    if(!dRate && !dJ) return;
-    const f = pr.filas.find(x => x.usuario === b.usuario) || {}, dias = f.dias || 0, l = f.l || 0;
-    const mLive = (lv.j || 0) + (dias && lv.tar != null ? r2(lv.tar * (b.horasDia || 8) * dias) : 0) + l;
-    pr.diffs.push({ usuario:b.usuario, nombre:(b.nom + ' ' + b.ape).trim(), ratePaid:numO(b.tarifa), rateLive:lv.tar, dUsd:r2(mLive - (Number(f.m) || 0)) }); });
+    const ed = pr.ed[b.usuario] || {};
+    const liveBase = Object.assign({}, b, { horas:lv.horas, ot:lv.ot, min:lv.min, minOt:lv.minOt, tarifa:lv.tar, j:lv.j });
+    const fLive = calcFila(liveBase, ed, pr.P);
+    const minPaid = Number(g.min) || 0, minLive = Number(lv.min) || 0, otPaid = Number(g.minOt) || 0, otLive = Number(lv.minOt) || 0;
+    const netoPaid = Math.round(Number(g.x) || 0), netoLive = Math.round(Number(fLive.x) || 0);
+    const dHoras = minPaid !== minLive || otPaid !== otLive, dNetoB = Math.abs(netoPaid - netoLive) >= 1;
+    const dRate = Math.abs((numO(b.tarifa) || 0) - (lv.tar || 0)) > 0.0001;
+    if(!dHoras && !dNetoB && !dRate) return;
+    pr.diffs.push({ usuario:b.usuario, nombre:(b.nom + ' ' + b.ape).trim(), minPaid, minLive, otPaid, otLive, netoPaid, netoLive, dNeto:netoLive - netoPaid }); });
 }
 // Aviso de diferencias al reabrir: conservar lo pagado, aplicar el perfil por agente (o a todos).
 function pintarDiffsPago(){
   const pr = S.pr, cont = $('pyDiffs'); if(!cont) return;
-  if(cerradaPago() || !pr.diffs || !pr.diffs.length){ cont.innerHTML = ''; return; }
-  const dUsd = n => (n < 0 ? '−$' : '+$') + Math.abs(n).toFixed(2);
+  if(!pr.revisados) pr.revisados = new Set();
+  const pend = (cerradaPago() || !pr.diffs) ? [] : pr.diffs.filter(d => !pr.revisados.has(d.usuario));
+  if(!pend.length){ cont.innerHTML = ''; return; }
+  const dN = n => (n < 0 ? '−' : '+') + cop(Math.abs(Math.round(n)));
+  const hM = (reg, ot) => hm(Math.round((Number(reg) || 0) + (Number(ot) || 0)));
   cont.innerHTML = '<div class="py-diffs"><div class="py-diffs-cab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>' +
-    '<div><b>' + pr.diffs.length + (pr.diffs.length === 1 ? ' person has' : ' people have') + ' a different rate in their profile than what was paid.</b>' +
-    '<span>Values were kept as paid. Apply the profile rate only if you meant to change it.</span></div>' +
-    '<button class="btn btn-ink btn-sm" id="pyDiffAll" type="button">Apply all</button></div><ul class="py-diffs-list">' +
-    pr.diffs.map(d => '<li><span class="nm">' + esc(d.nombre) + '</span><span class="rt">$' + Number(d.ratePaid).toFixed(2) + ' → $' + Number(d.rateLive).toFixed(2) + '/h</span>' +
-      '<span class="du">' + dUsd(d.dUsd) + ' USD</span><button class="btn btn-ghost btn-xs" data-dif="' + esc(d.usuario) + '" type="button">Apply</button></li>').join('') + '</ul></div>';
-  const aplicar = us => { us.forEach(u => pr.refrescados.add(u)); armarBase(false); marcarSucio(); pintarPago(); };
-  $('pyDiffAll').addEventListener('click', () => aplicar(pr.diffs.map(d => d.usuario)));
-  cont.querySelectorAll('[data-dif]').forEach(btn => btn.addEventListener('click', () => aplicar([btn.dataset.dif])));
+    '<div><b>' + pend.length + (pend.length === 1 ? ' person changed' : ' people changed') + ' since this pay run was paid.</b>' +
+    '<span>Nothing changes unless you approve it. Approve to pay the recalculated amount, or keep it as paid.</span></div>' +
+    '<div class="py-diffs-all"><button class="btn btn-ink btn-sm" id="pyDiffAll" type="button">Approve all</button>' +
+    '<button class="btn btn-ghost btn-sm" id="pyKeepAll" type="button">Keep all as paid</button></div></div><ul class="py-diffs-list">' +
+    pend.map(d => '<li><span class="nm">' + esc(d.nombre) + '</span>' +
+      '<span class="rt">Paid ' + hM(d.minPaid, d.otPaid) + ' · ' + cop(d.netoPaid) + ' <b>→</b> Now ' + hM(d.minLive, d.otLive) + ' · ' + cop(d.netoLive) + '</span>' +
+      '<span class="du">' + dN(d.dNeto) + '</span>' +
+      '<button class="btn btn-ink btn-xs" data-ap="' + esc(d.usuario) + '" type="button">Approve</button>' +
+      '<button class="btn btn-ghost btn-xs" data-keep="' + esc(d.usuario) + '" type="button">Keep</button></li>').join('') + '</ul></div>';
+  const aplicar = us => { us.forEach(u => { pr.refrescados.add(u); pr.revisados.add(u); }); armarBase(false); marcarSucio(); pintarPago(); };
+  const dejar = us => { us.forEach(u => pr.revisados.add(u)); pintarDiffsPago(); };
+  $('pyDiffAll').addEventListener('click', () => aplicar(pend.map(d => d.usuario)));
+  $('pyKeepAll').addEventListener('click', () => dejar(pend.map(d => d.usuario)));
+  cont.querySelectorAll('[data-ap]').forEach(btn => btn.addEventListener('click', () => aplicar([btn.dataset.ap])));
+  cont.querySelectorAll('[data-keep]').forEach(btn => btn.addEventListener('click', () => dejar([btn.dataset.keep])));
 }
 function recalcPago(){
   const pr = S.pr;
@@ -11768,8 +11785,10 @@ async function guardarPago(cerrarla){
   if(cerrarla){
     if(!pr.P.fechaPago || !pr.P.trm) return toast('To close the pay run, set the payment date and the TRM.', 'err');
     const t = totalesPago(pr.filas);
-    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + cop(t.neto) + ' to pay</b> (Nómina 247 ' + cop(t.neto247) + ', personal ' + cop(t.netoPersonal) +
-      ').<br><br>Closed pay runs don\'t change when hours are edited later. You can reopen it if something has to change.', 'Close pay run'))) return;
+    const pendRev = (pr.diffs || []).filter(d => !(pr.revisados && pr.revisados.has(d.usuario))).length;
+    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + cop(t.neto) + ' to pay</b> (Nómina 247 ' + cop(t.neto247) + ', personal ' + cop(t.netoPersonal) + ')' +
+      (pendRev ? '.<br><br><b>' + pendRev + ' recalculated change' + (pendRev === 1 ? '' : 's') + ' not reviewed</b> — kept as paid.' : '') +
+      '<br><br>Closed pay runs don\'t change when hours are edited later. You can reopen it if something has to change.', 'Close pay run'))) return;
   }
   const bs = ['pyGuardar','pyCerrar'].map(id => $(id)); bs.forEach(b => { b.disabled = true; });
   try{
@@ -11797,7 +11816,7 @@ $('pyReabrir').addEventListener('click', async () => {
     try{ await api('reabrirNomina', { id:pr.run.id, motivo:(window.__nmMotivo || '').trim() }); toast('Pay period unlocked.'); await cargarPago(pr.desde); }catch(e){ toast(e.message, 'err'); }
     return;
   }
-  if(!(await confirmar('Reopen this pay run?', 'It goes back to draft and is recalculated with the current hours. Edits you made (days, bonus, adjustments, paid from) are kept.', 'Reopen'))) return;
+  if(!(await confirmar('Reopen this pay run?', 'It goes back to draft and stays exactly as it was paid. If the hours recalculate to something different, you\'ll review each change to approve or keep. Your edits (days, bonus, adjustments, paid from) are kept.', 'Reopen'))) return;
   try{ await api('reabrirNomina', { id:pr.run.id }); toast('Pay run reopened.'); await cargarPago(pr.desde); }catch(e){ toast(e.message, 'err'); }
 });
 document.addEventListener('input', e => { if(e.target && e.target.id === 'nmMotivo') window.__nmMotivo = e.target.value; });
