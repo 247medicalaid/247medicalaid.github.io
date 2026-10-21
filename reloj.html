@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v213-202610211932">
+<meta name="app-build" content="v214-202610211953">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1862,6 +1862,14 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-fila-t{display:flex;gap:8px;align-items:flex-start;min-width:0;flex-wrap:wrap}.upd-fila-t b{font-size:15px}
 .upd-fila-t small{flex-basis:100%;color:var(--text-muted);font-size:12.5px}
 .upd-fila-l small,.upd-fila-n small{display:block;color:var(--text-muted);font-size:12.5px}
+.upd-fila-row{display:flex;align-items:stretch;gap:8px}
+.upd-fila-row .upd-fila{flex:1;min-width:0}
+.upd-recordar{flex:none;align-self:center;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:10px;padding:7px 12px;font:600 13px/1 var(--font-body);cursor:pointer;white-space:nowrap}
+.upd-recordar:hover{background:var(--sand)}
+.upd-recordar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.upd-recordar:disabled{opacity:.5;cursor:default}
+.ue-ops .ue-auto input[type=number]{width:52px;padding:3px 6px}
+@media (max-width:700px){ .upd-fila-row{flex-wrap:wrap} .upd-recordar{width:100%;justify-content:center} }
 .upd-fila-n{text-align:right}
 .upd-barra{display:block;height:6px;border-radius:99px;background:var(--sand-2);overflow:hidden;margin-bottom:4px}.upd-barra i{display:block;height:100%;background:#17A9DE}
 .upd-leidos{margin-top:16px}
@@ -3010,7 +3018,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <p class="ue-cuantos" id="ueCuantos" aria-live="polite"></p>
       </div>
     </div>
-    <div class="ue-sec ue-ops"><label><input type="checkbox" id="ueComs"> Allow comments</label><label><input type="checkbox" id="ueFijar"> Pin to the top</label></div>
+    <div class="ue-sec ue-ops"><label><input type="checkbox" id="ueComs"> Allow comments</label><label><input type="checkbox" id="ueFijar"> Pin to the top</label><label class="ue-auto"><input type="checkbox" id="ueAuto"> Auto-remind until read — every <input type="number" id="ueAutoH" min="1" max="168" value="4"> h</label></div>
     <div class="err" id="ueErr" role="alert"></div>
     <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" id="uePrev">Preview</button><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><button class="btn btn-ink" type="button" id="uePublicar">Publish</button></div>
   </div>
@@ -9925,6 +9933,7 @@ $('uiImportar').addEventListener('click', async () => {
    El administrador ve quién lo leyó y quién no. */
 const UPD_EMOJIS = ['👍', '❤️', '😂', '😮', '🙏', '👏'];
 const IC_UPD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const IC_BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
 const IC_UPD_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/></svg>';
 const updBytes = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round((n || 0) / 1024)) + ' KB';
 const updEsImg = a => /^image\//.test(a.mime || '') || /\.(png|jpe?g|gif|webp)$/i.test(a.nombre || '');
@@ -10148,25 +10157,31 @@ function pintarUpd(){
   const l = S.upd ? S.upd.upds : [];
   $('updLista').innerHTML = !l.length ? '<div class="vacio"><h2>No updates yet</h2><p>Write the first one with «New update».</p></div>' :
     l.map(u => { const t = u.dest.total, n = u.dest.leidos, coms = (u.coms || []).filter(c => !c.borrado).length, rs = (u.reacs || []).length, pct = t ? Math.round(n * 100 / t) : 0;
-      return '<button type="button" class="upd-fila" data-abrir-upd="' + u.id + '">' +
+      return '<div class="upd-fila-row"><button type="button" class="upd-fila" data-abrir-upd="' + u.id + '">' +
         '<span class="upd-fila-t">' + (u.fijado ? '<span class="upd-pin" title="Pinned">' + IC_UPD_PIN + '</span>' : '') + '<b>' + esc(u.titulo) + '</b>' +
           '<small>' + esc(updCuando(u.creado)) + ' · ' + esc(updDestinoTxt(u.destino)) + ((u.adjuntos || []).length ? ' · ' + u.adjuntos.length + ' file' + (u.adjuntos.length === 1 ? '' : 's') : '') + '</small></span>' +
         '<span class="upd-fila-l"><span class="upd-barra" aria-hidden="true"><i style="width:' + pct + '%"></i></span><small>Read by <b>' + n + '</b> of ' + t + '</small></span>' +
-        '<span class="upd-fila-n">' + (coms ? '<small>💬 ' + coms + '</small>' : '') + (rs ? '<small>' + [...new Set(u.reacs.map(r => r.emoji))].slice(0, 3).join('') + ' ' + rs + '</small>' : '') + '</span></button>'; }).join('');
+        '<span class="upd-fila-n">' + (coms ? '<small>💬 ' + coms + '</small>' : '') + (rs ? '<small>' + [...new Set(u.reacs.map(r => r.emoji))].slice(0, 3).join('') + ' ' + rs + '</small>' : '') + '</span></button>' + (t - n > 0 ? '<button type="button" class="upd-recordar" data-recordar="' + u.id + '" title="Remind the ' + (t - n) + ' who haven\'t read it yet">' + IC_BELL + '<span>Remind</span></button>' : '') + '</div>'; }).join('');
 }
-$('updLista').addEventListener('click', ev => { const b = ev.target.closest('[data-abrir-upd]'); if(b){ S.updAbierto = Number(b.dataset.abrirUpd); S.updPestana = 'leido'; pintarUpdFicha(); cargarUpdRecState(S.updAbierto); abrir('ovUpd'); } });
+$('updLista').addEventListener('click', ev => {
+  const rb = ev.target.closest('[data-recordar]'); if(rb){ updRecordarLista(Number(rb.dataset.recordar), rb); return; }
+  const b = ev.target.closest('[data-abrir-upd]'); if(b){ S.updAbierto = Number(b.dataset.abrirUpd); S.updPestana = 'leido'; pintarUpdFicha(); abrir('ovUpd'); } });
+async function updRecordarLista(id, btn){
+  if(btn) btn.disabled = true;
+  try{ await api('updRecordar', { id:id, ahora:true }); toast('Reminder sent to who hasn\'t read it yet.'); }
+  catch(e){ toast(e.message, 'err'); }
+  finally{ if(btn) btn.disabled = false; }
+}
 function pintarUpdFicha(){
   const u = S.upd && S.upd.upds.find(x => x.id === S.updAbierto); if(!u){ cerrar('ovUpd'); return; }
   const lei = u.dest.lista.filter(d => d.leidoEn).sort((a, b) => b.leidoEn - a.leidoEn), no = u.dest.lista.filter(d => !d.leidoEn).sort((a, b) => updNombre(a.usuario).localeCompare(updNombre(b.usuario))), pe = S.updPestana || 'leido';
   $('updFTitulo').textContent = 'Update';
   $('updFSub').textContent = 'To: ' + updDestinoTxt(u.destino) + ' · ' + u.dest.total + (u.dest.total === 1 ? ' person' : ' people');
   $('updFCuerpo').innerHTML = updTarjeta(u, true) +
-    '<div class="upd-rec" id="updRecBar"></div>' +
     '<div class="upd-leidos"><div class="upd-tabs" role="tablist"><button type="button" role="tab" data-upd-tab="leido" aria-selected="' + (pe === 'leido') + '">Read (' + lei.length + ')</button>' +
       '<button type="button" role="tab" data-upd-tab="no" aria-selected="' + (pe === 'no') + '">Not read yet (' + no.length + ')</button></div>' +
     '<ul class="upd-gente">' + (pe === 'leido' ? lei.map(d => '<li><span>' + esc(updNombre(d.usuario)) + '</span><small>' + esc(updCuando(d.leidoEn)) + '</small></li>').join('') || '<li class="muted">Nobody yet.</li>'
       : no.map(d => '<li><span>' + esc(updNombre(d.usuario)) + '</span></li>').join('') || '<li class="muted">Everyone has read it.</li>') + '</ul></div>';
-  pintarUpdRecBar();
 }
 $('updFCuerpo').addEventListener('click', ev => {
   const t = ev.target.closest('[data-upd-tab]'); if(t){ S.updPestana = t.dataset.updTab; pintarUpdFicha(); return; }
@@ -10188,6 +10203,8 @@ function abrirUpdEd(u){
   S.updEd = { id:u ? u.id : null, destino:u ? u.destino : { todos:true }, quedan:u ? (u.adjuntos || []).slice() : [], nuevos:[] };
   $('ueTitulo').textContent = u ? 'Edit update' : 'New update';
   $('ueTit').value = u ? u.titulo : ''; $('ueCuerpo').value = u ? u.cuerpo : '';
+  if($('ueAuto')){ $('ueAuto').checked = false; $('ueAutoH').value = 4;
+    if(u) api('updRecordar', { id:u.id }).then(r => { if(S.updEd && S.updEd.id === u.id && r){ $('ueAuto').checked = !!r.auto; if(r.cada) $('ueAutoH').value = r.cada; } }).catch(() => {}); }
   $('ueComs').checked = u ? u.comentarios : true; $('ueFijar').checked = u ? u.fijado : false;
   $('ueErr').textContent = ''; $('ueBuscar').value = '';
   $('uePublicar').textContent = u ? 'Save changes' : 'Publish';
@@ -10305,6 +10322,10 @@ $('uePublicar').addEventListener('click', async () => {
       adjuntos:ed.quedan.map(a => ({ archivo:a.archivo, nombre:a.nombre, mime:a.mime, bytes:a.bytes })) }, nuevos:ed.nuevos });
     cerrar('ovUpdEd'); toast(r.nuevo ? 'Update sent to ' + r.destinatarios + (r.destinatarios === 1 ? ' person.' : ' people.') : 'Update saved.');
     await cargarUpd(true);
+    try{ const auto = $('ueAuto') && $('ueAuto').checked, cada = Math.max(1, Math.min(168, Number($('ueAutoH') && $('ueAutoH').value) || 4));
+      let uid = ed.id || (r && r.id);
+      if(uid == null && S.upd && S.upd.upds && S.upd.upds.length){ const nw = S.upd.upds.slice().sort((a, b) => b.creado - a.creado)[0]; uid = nw && nw.id; }
+      if(uid != null) await api('updRecordar', { id:uid, auto:!!auto, cada:cada }); }catch(e){}
   }catch(e){ $('ueErr').textContent = e.message; }
   finally{ b.disabled = false; b.textContent = t0; }
 });
