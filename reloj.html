@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v214-202610211953">
+<meta name="app-build" content="v215-202610212028">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -10948,6 +10948,19 @@ function minutosLista(l){
     else if(ini != null){ t += Math.max(0, x - ini); ini = null; } });
   return t;
 }
+// (v215) Espejo de reloj__separar_marcas (paso 88): separa +1 min cualquier marca
+// que caiga en el mismo minuto (o antes) que la anterior, dejando orden estricto.
+// La lista ya debe venir ORDENADA como la deja el servidor.
+function separarMarcasCli(l){
+  let prev = -1;
+  return (l || []).map(m => { let cur = aMin(m.hora);
+    if(cur == null) return { tipo:m.tipo, hora:m.hora };
+    if(prev >= 0 && cur <= prev) cur = prev + 1;
+    if(cur > 1439) cur = 1439;
+    prev = cur;
+    return { tipo:m.tipo, hora:hhmm2(cur) };
+  });
+}
 // Antes y después de aprobar, como listas de marcas.
 function ladosSol(s, r){
   if(s.tipo === 'correccion'){
@@ -10960,7 +10973,13 @@ function ladosSol(s, r){
   if(s.tipo === 'turno'){ nuevas.push({ tipo:'entrada', hora:s.horaIni }, { tipo:'salida', hora:s.horaFin });
     if(s.almIni) nuevas.push({ tipo:'almuerzo_ini', hora:s.almIni }, { tipo:'almuerzo_fin', hora:s.almFin }); }
   else nuevas.push({ tipo:'almuerzo_ini', hora:s.horaIni }, { tipo:'almuerzo_fin', hora:s.horaFin });
-  return { antes:ordenarMarcas(hoy), despues:ordenarMarcas(hoy.concat(nuevas)) };
+  // Preview fiel a la aprobacion (paso 88): a igual minuto, las marcas EXISTENTES van
+  // antes que las PEDIDAS (como el 'order by x.hora, x.orden' del servidor); luego se
+  // separan +1 min las pegadas. Asi el total y el pareo coinciden con lo que se guardara.
+  const mezcla = hoy.map(m => ({ tipo:m.tipo, hora:m.hora, _o:0 }))
+    .concat(nuevas.map(m => ({ tipo:m.tipo, hora:m.hora, _o:1 })));
+  mezcla.sort((a, b) => (aMin(a.hora) - aMin(b.hora)) || (a._o - b._o) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo]));
+  return { antes:ordenarMarcas(hoy), despues:separarMarcasCli(mezcla) };
 }
 function cuentaV(emp){
   const c = emp && emp.cuenta, col = c ? colorCuenta(c) : null;
