@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v205-202610202119">
+<meta name="app-build" content="v206-202610210343">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1203,7 +1203,7 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .acceso .pie-acc{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-size:12.5px;color:var(--text-muted)}
 .acceso .pie-acc a{color:var(--brand-700);font-weight:600}
 /* Users: botones de estado y confirmación encima de la ficha */
-#ovConf{z-index:60}
+#ovConf{z-index:60}#ovAutoSal{z-index:80}
 .btn-peligro{border-color:#F3C3C5;background:var(--paper);color:var(--accent-600)}
 .btn-peligro:hover:not(:disabled){background:var(--accent-50)}
 .acc-emp.inactiva{background:var(--sand-2)}
@@ -2496,6 +2496,18 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   </div>
 </div>
 
+<!-- v206: auto clock-out interactivo -->
+<div class="overlay hidden" id="ovAutoSal" role="dialog" aria-modal="true" aria-labelledby="asTitulo">
+  <div class="ventana" style="max-width:440px">
+    <h2 id="asTitulo"></h2>
+    <p class="muted" id="asTexto" style="margin-top:6px"></p>
+    <div class="pie">
+      <button class="btn btn-ghost" id="asFin" type="button">End shift</button>
+      <button class="btn btn-ink" id="asSeguir" type="button">Continue working</button>
+    </div>
+  </div>
+</div>
+
 <!-- usuario (ficha completa) -->
 <div class="overlay hidden" id="ovPerfil" role="dialog" aria-modal="true" aria-labelledby="mpTitulo">
   <div class="ventana ventana-ficha">
@@ -3060,10 +3072,11 @@ async function pedirSalirDia(){
   if(await confirmar('Discard changes?', 'You have unsaved changes to the punches. If you leave now, they\'ll be lost. Use <b>Save changes</b> to keep them.', 'Discard changes', true)) cerrar('ovDia');
 }
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', e => { if(ov.id === 'ovEmp' && (e.target === ov || (e.target.closest && e.target.closest('[data-cerrar]')))){ e.stopPropagation(); return cerrarEmp(); }
+  ov.addEventListener('click', e => { if(ov.id === 'ovAutoSal') return; if(ov.id === 'ovEmp' && (e.target === ov || (e.target.closest && e.target.closest('[data-cerrar]')))){ e.stopPropagation(); return cerrarEmp(); }
     if((ov.id === 'ovImp' && S.impCorriendo) || (ov.id === 'ovBorrar' && S.borrando) || (ov.id === 'ovNomImp' && S.nmCorriendo)) return; if((e.target === ov && !(ov.id === 'ovHoras' && S.ph && S.ph.sucio)) || e.target.hasAttribute('data-cerrar')){ if(ov.id === 'ovDia' && diaEdSucio()){ pedirSalirDia(); return; } if(ov.id === 'ovSol' && solSucio()){ pedirSalirSol(); return; } ov.classList.add('hidden'); } });
 });
 document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
+  if(!$('ovAutoSal').classList.contains('hidden')) return;
   // (v74) la ficha de usuario: Esc cierra lo que esté encima; si la ficha queda arriba, pregunta antes de cerrarla
   if(!$('ovEmp').classList.contains('hidden')){
     if(!$('ovSalir').classList.contains('hidden')) return cerrar('ovSalir');
@@ -4723,6 +4736,109 @@ function appPanel(k){
 }
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
+// ====== v206: Auto clock-out interactivo ======
+function asPrueba(){ try{ return location.search.indexOf('asprueba') >= 0; }catch(e){ return false; } }
+// activo = interruptor real (Settings). ?asprueba=1 = override de prueba: enciende la ventana
+// para el turno abierto del usuario que la abre, aunque 'activo' esté apagado, sin tocar a nadie más.
+function asCfg(){
+  if(S.autoSalida && S.autoSalida.activo) return S.autoSalida;
+  if(asPrueba() && S.autoSalida) return Object.assign({}, S.autoSalida, { activo:true });
+  return null;
+}
+// Estado del turno abierto del propio agente: horas trabajadas en vivo y el instante en que cumple sus horas.
+function asInfo(){
+  try{
+    if(location.search.indexOf('demo') >= 0) return null;
+    const yo = S.yo, r = yo && yo.reloj;
+    if(!yo || !yo.empleado || !r || r.estado !== 'trabajando' || !r.desde) return null;
+    const hd = Number(yo.empleado.horasDia) || 8;
+    const baseMin = r.min - (yo.ahora - r.desde) / 60000;        // trabajado sin el tramo abierto
+    const workedMin = baseMin + (ahora() - r.desde) / 60000;     // trabajado en vivo
+    const finMs = r.desde + (hd * 60 - baseMin) * 60000;         // instante en que cumple hd horas
+    return { hd:hd, baseMin:baseMin, workedMin:workedMin, finMs:finMs, fecha:r.fecha, desde:r.desde };
+  }catch(e){ return null; }
+}
+// ¿Ya estaba en overtime? (marca en memoria, o trabajó bastante más que horas+margen: cubre recargas de página)
+function asContinuado(info){ const c = asCfg(); const m = c ? (Number(c.margen) || 30) : 30; return (S.as && S.as.continuado) || (!!info && info.workedMin > info.hd * 60 + m + 2); }
+function asAvisar(){
+  try{ if(typeof appMandar === 'function') appMandar({ tipo:'autoSalida', traer:true, sonido:true }); }catch(e){}
+  try{ const AC = window.AudioContext || window.webkitAudioContext; if(AC){ const c = new AC(); const o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.07; o.start(); setTimeout(() => { try{ o.stop(); c.close(); }catch(e){} }, 450); } }catch(e){}
+}
+function cerrarAutoSal(){ if(S.as){ clearInterval(S.as.timer); S.as.abierta = false; } cerrar('ovAutoSal'); }
+function mostrarAutoSal(info){
+  const cfg = asCfg(); if(!cfg) return;
+  if(!S.as) S.as = {};
+  const segs = Math.max(5, Number(cfg.timeout_seg) || 15);
+  S.as.abierta = true; S.as.tRestante = segs; S.as.info = info;
+  $('asTitulo').textContent = 'Your ' + info.hd + '-hour shift is complete';
+  $('asTexto').textContent = 'You’ve worked ' + hm(Math.max(0, Math.round(info.workedMin))) + ' today. Keep working, or end your shift?';
+  $('asFin').textContent = 'End shift (' + segs + ')';
+  abrir('ovAutoSal'); asAvisar();
+  clearInterval(S.as.timer);
+  S.as.timer = setInterval(() => {
+    if(!S.as || !S.as.abierta){ return; }
+    S.as.tRestante--; const b = $('asFin'); if(b) b.textContent = 'End shift (' + Math.max(0, S.as.tRestante) + ')';
+    if(S.as.tRestante <= 0){ clearInterval(S.as.timer); asTimeout(); }
+  }, 1000);
+}
+async function asContinuar(){
+  const cfg = asCfg(); cerrarAutoSal();
+  try{ await q(sb.rpc('reloj_auto_salida_continuar', {})); }catch(e){}
+  if(!S.as) S.as = {};
+  S.as.continuado = true; S.as.ultimoCont = ahora();
+  S.as.proxima = ahora() + Math.max(5, Number(cfg && cfg.reprompt) || 30) * 60000;
+  toast('OK, keep working. We’ll check again later.');
+}
+function asFinalizar(){
+  const info = (S.as && S.as.info) || asInfo(); cerrarAutoSal();
+  if(info && asContinuado(info)){ asCerrarConExtra(ahora()); return; }
+  (async () => { S.ocupado = true; try{ await q(sb.rpc('reloj_auto_salida_cerrar', { p_modo:'fin' })); }catch(e){} S.ocupado = false;
+    try{ await refrescarYo(0); if(S.vista === 'reloj') pintarReloj(); }catch(e){} toast('Clocked out. Have a good one!'); })();
+}
+function asTimeout(){
+  const info = (S.as && S.as.info) || asInfo(); cerrarAutoSal();
+  if(info && asContinuado(info)){ asCerrarConExtra((S.as && S.as.ultimoCont) || ahora()); return; }
+  (async () => { S.ocupado = true; try{ await q(sb.rpc('reloj_auto_salida_cerrar', { p_modo:'timeout' })); }catch(e){} S.ocupado = false;
+    try{ await refrescarYo(0); if(S.vista === 'reloj') pintarReloj(); }catch(e){} })();
+}
+// Cierra la base en las horas exactas y manda el extra como Add shift request (1 min de separación).
+async function asCerrarConExtra(hastaMs){
+  S.ocupado = true;
+  try{
+    const r = await q(sb.rpc('reloj_auto_salida_cerrar', { p_modo:'continuar_fin' }));
+    if(r && r.ok && r.extra_desde){
+      const desdeMs = Date.parse(r.extra_desde);
+      const inMs = Math.floor(desdeMs / 60000) * 60000 + 60000;   // minuto siguiente: deja 1 min para que el orden cuadre
+      const outMs = hastaMs || ahora();
+      if(outMs - inMs >= 60000){
+        const sol = { tipo:'turno', fecha:r.fecha, horaIni:hhmm(inMs), horaFin:hhmm(outMs), almIni:'', almFin:'', motivo:'Agente selecciona continuar trabajando' };
+        try{ await api('solicitar', { sol:sol }); }catch(e){}
+      }
+    }
+  }catch(e){}
+  S.ocupado = false;
+  try{ await refrescarYo(0); if(S.vista === 'reloj') pintarReloj(); }catch(e){}
+  toast('Shift ended. Any extra time is pending your admin’s approval.');
+}
+function chequearAutoSalida(){
+  try{
+    if(!window.S || !S.yo) return;
+    const cfg = asCfg(), info = asInfo();
+    if(!cfg || !info){ if(S.as && S.as.abierta) cerrarAutoSal(); if(S.as){ S.as.continuado = false; S.as.ultimoCont = 0; S.as.proxima = 0; S.as.fechaTurno = ''; S.as.desde = 0; } return; }
+    if(!S.as) S.as = { fechaTurno:'', desde:0, continuado:false, ultimoCont:0, proxima:0, abierta:false, tRestante:0, timer:null };
+    if(S.as.fechaTurno !== info.fecha || Math.abs((S.as.desde || 0) - info.desde) > 1500){ if(S.as.abierta) cerrarAutoSal(); S.as.fechaTurno = info.fecha; S.as.desde = info.desde; S.as.continuado = false; S.as.ultimoCont = 0; S.as.proxima = 0; }
+    if(S.as.abierta || S.ocupado) return;
+    if(asPrueba()){ mostrarAutoSal(info); return; }   // prueba: dispara ya, sin esperar el umbral
+    const margen = Math.max(0, Number(cfg.margen) || 30), umbral = info.finMs + margen * 60000;
+    if(!S.as.continuado){ if(ahora() >= umbral) mostrarAutoSal(info); }
+    else { if(ahora() >= S.as.proxima) mostrarAutoSal(info); }
+  }catch(e){}
+}
+(function(){ const s = document.getElementById('asSeguir'), f = document.getElementById('asFin');
+  if(s) s.addEventListener('click', asContinuar); if(f) f.addEventListener('click', asFinalizar); })();
+setInterval(chequearAutoSalida, 15000);
+// ====== fin v206 ======
+
 function appRecordatorios(yo, r, t){
   const out = [], seg = ms => Math.round((ms - t) / 1000), hd = (yo.empleado && yo.empleado.horasDia) || 8, almMax = (yo.config && yo.config.almuerzoMax) || 60;
   const abierto = r.estado !== 'fuera' && r.desde ? (yo.ahora - r.desde) / 60000 : 0;
@@ -5416,6 +5532,7 @@ function pedirMarca(tipo){
   marcar(tipo);
 }
 async function marcar(tipo){
+  if(tipo === 'salida' && asCfg()){ const _i = asInfo(); if(_i && asContinuado(_i)){ cerrarAutoSal(); asCerrarConExtra(ahora()); return; } }
   S.ocupado = true;
   // (v158) evita ponches duplicados entre la web y la app: revalida el estado real antes de enviar
   try{ const yo0 = await api('yo'); aplicarYo(yo0); if(S.vista === 'reloj') pintarReloj(); }catch(e){}
