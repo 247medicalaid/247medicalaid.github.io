@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v209-202610211736">
+<meta name="app-build" content="v210-202610211743">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -149,6 +149,8 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-diffs-list .du{font-variant-numeric:tabular-nums;font-weight:600;min-width:84px;text-align:right;white-space:nowrap}
 .btn-xs{padding:3px 10px;font-size:12px;flex:none}
 .py-diffs-all{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.py-diffs-list .py-nuevo{font-style:normal;font-size:11px;background:#e6f4fa;color:#0A6A90;padding:1px 6px;border-radius:999px;margin-left:5px}
+.py-diffs-list .rt .nada{color:var(--text-muted)}
 .py-diffs-list .rt b{color:var(--text)}
 @media (max-width:640px){ .py-diffs-list li{flex-wrap:wrap} .py-diffs-list .rt{flex-basis:100%;white-space:normal} }
 #cpOvEnvio .cp-envio-ops{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
@@ -11403,6 +11405,7 @@ function armarBase(primera){
   const hojaE = pr.hoja.empleados.filter(e => !e.prueba), emps = hojaE.map(e => recortarEmp(e, corte));   // (v93) sin usuarios de prueba
   const fp = filasPayroll(pr.hoja, emps);
   pr.asumidos = asum; pr.corte = corte; if(!pr.refrescados) pr.refrescados = new Set(); pr.live = {};
+  pr.haySnap = Object.keys(pr.guardadas || {}).length > 0; pr.nuevos = [];
   pr.base = [];
   fp.forEach((x, i) => {
     const e = emps[i], g = pr.guardadas[e.usuario], aj = pr.ajustes[e.usuario];
@@ -11424,6 +11427,11 @@ function armarBase(primera){
       pr.ed[e.usuario] = ed;
     }
     ed.ajusteSug = aj ? aj.monto : 0; ed.ajusteNota = aj ? aj.nota : ''; if(!aj) ed.ajusteSi = false;
+    if(pr.haySnap && !g && !pr.refrescados.has(e.usuario) && (base.min > 0 || fijo != null)){
+      const fN = calcFila(base, ed, pr.P);
+      pr.nuevos.push({ usuario:e.usuario, nombre:(base.nom + ' ' + base.ape).trim(), minLive:x.min, otLive:x.minOt, netoLive:Math.round(Number(fN.x) || 0) });
+      return;
+    }
     pr.base.push(base);
   });
   recalcPago();
@@ -11438,6 +11446,7 @@ function armarBase(primera){
     const dRate = Math.abs((numO(b.tarifa) || 0) - (lv.tar || 0)) > 0.0001;
     if(!dHoras && !dNetoB && !dRate) return;
     pr.diffs.push({ usuario:b.usuario, nombre:(b.nom + ' ' + b.ape).trim(), minPaid, minLive, otPaid, otLive, netoPaid, netoLive, dNeto:netoLive - netoPaid }); });
+  (pr.nuevos || []).forEach(nv => pr.diffs.push({ usuario:nv.usuario, nombre:nv.nombre, nuevo:true, minPaid:0, otPaid:0, netoPaid:0, minLive:nv.minLive, otLive:nv.otLive, netoLive:nv.netoLive, dNeto:nv.netoLive }));
 }
 // Aviso de diferencias al reabrir: conservar lo pagado, aplicar el perfil por agente (o a todos).
 function pintarDiffsPago(){
@@ -11448,15 +11457,15 @@ function pintarDiffsPago(){
   const dN = n => (n < 0 ? '−' : '+') + cop(Math.abs(Math.round(n)));
   const hM = (reg, ot) => hm(Math.round((Number(reg) || 0) + (Number(ot) || 0)));
   cont.innerHTML = '<div class="py-diffs"><div class="py-diffs-cab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>' +
-    '<div><b>' + pend.length + (pend.length === 1 ? ' person changed' : ' people changed') + ' since this pay run was paid.</b>' +
+    '<div><b>' + pend.length + (pend.length === 1 ? ' change' : ' changes') + ' since this pay run was paid.</b>' +
     '<span>Nothing changes unless you approve it. Approve to pay the recalculated amount, or keep it as paid.</span></div>' +
     '<div class="py-diffs-all"><button class="btn btn-ink btn-sm" id="pyDiffAll" type="button">Approve all</button>' +
     '<button class="btn btn-ghost btn-sm" id="pyKeepAll" type="button">Keep all as paid</button></div></div><ul class="py-diffs-list">' +
-    pend.map(d => '<li><span class="nm">' + esc(d.nombre) + '</span>' +
-      '<span class="rt">Paid ' + hM(d.minPaid, d.otPaid) + ' · ' + cop(d.netoPaid) + ' <b>→</b> Now ' + hM(d.minLive, d.otLive) + ' · ' + cop(d.netoLive) + '</span>' +
+    pend.map(d => '<li><span class="nm">' + esc(d.nombre) + (d.nuevo ? ' <i class="py-nuevo">new</i>' : '') + '</span>' +
+      '<span class="rt">' + (d.nuevo ? '<span class="nada">Not in the paid run</span>' : 'Paid ' + hM(d.minPaid, d.otPaid) + ' · ' + cop(d.netoPaid)) + ' <b>→</b> Now ' + hM(d.minLive, d.otLive) + ' · ' + cop(d.netoLive) + '</span>' +
       '<span class="du">' + dN(d.dNeto) + '</span>' +
-      '<button class="btn btn-ink btn-xs" data-ap="' + esc(d.usuario) + '" type="button">Approve</button>' +
-      '<button class="btn btn-ghost btn-xs" data-keep="' + esc(d.usuario) + '" type="button">Keep</button></li>').join('') + '</ul></div>';
+      '<button class="btn btn-ink btn-xs" data-ap="' + esc(d.usuario) + '" type="button">' + (d.nuevo ? 'Add' : 'Approve') + '</button>' +
+      '<button class="btn btn-ghost btn-xs" data-keep="' + esc(d.usuario) + '" type="button">' + (d.nuevo ? 'Leave out' : 'Keep') + '</button></li>').join('') + '</ul></div>';
   const aplicar = us => { us.forEach(u => { pr.refrescados.add(u); pr.revisados.add(u); }); armarBase(false); marcarSucio(); pintarPago(); };
   const dejar = us => { us.forEach(u => pr.revisados.add(u)); pintarDiffsPago(); };
   $('pyDiffAll').addEventListener('click', () => aplicar(pend.map(d => d.usuario)));
