@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v212-202610211832">
+<meta name="app-build" content="v213-202610211932">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1808,6 +1808,15 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .lateral .grupo{padding-top:16px}
 @media (min-width:700px) and (max-width:999px){ .lateral .sep-riel,.lateral .sep-lat{display:block;height:1px;background:rgba(255,255,255,.12);margin:10px 8px 6px} }
 /* Updates (v62) */
+.upd-rec{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--sand);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:12px 0}
+.upd-rec-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.upd-rec-k{font-weight:700;font-size:13px}
+.upd-rec-n{font-size:12.5px;color:var(--accent-600);background:var(--accent-50);padding:1px 8px;border-radius:999px;font-weight:600}
+.upd-rec-n.ok{color:#12805C;background:#E7F6EF}
+.upd-rec-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.upd-rec-on{font-size:12.5px;color:#0A6A90;background:#e6f4fa;padding:2px 9px;border-radius:999px;font-weight:600}
+.upd-rec-auto{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text-muted)}
+.upd-rec-auto input{padding:4px 6px}
 .upd-lista{display:flex;flex-direction:column;gap:12px;max-width:760px}
 .upd-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative}
 .upd-card.nuevo{border-color:#9FD6EE;box-shadow:inset 3px 0 0 #17A9DE}
@@ -2521,6 +2530,18 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pie">
       <button class="btn btn-ghost" id="cNo">Cancel</button>
       <button class="btn btn-ink" id="cSi"></button>
+    </div>
+  </div>
+</div>
+
+<!-- v213: recordatorio de update sin leer -->
+<div class="overlay hidden" id="ovUpdRec" role="dialog" aria-modal="true" aria-labelledby="urTitulo">
+  <div class="ventana" style="max-width:440px">
+    <h2 id="urTitulo">You have an update pending to read</h2>
+    <p class="muted" id="urTexto" style="margin-top:6px"></p>
+    <div class="pie">
+      <button class="btn btn-ghost" id="urCancel" type="button">Cancel</button>
+      <button class="btn btn-ink" id="urIr" type="button">Go see the Update</button>
     </div>
   </div>
 </div>
@@ -3820,6 +3841,8 @@ async function updSB(action, p){
     return r;
   }
   if(action === 'updLeido') return q(sb.rpc('reloj_upd_leido', { p_ids:p.ids }));
+  if(action === 'updRecordar') return q(sb.rpc('reloj_upd_recordar', { p_id:p.id, p_auto:(p.auto === undefined ? null : p.auto), p_cada:(p.cada == null ? null : p.cada), p_ahora:!!p.ahora }));
+  if(action === 'updRecordatorios') return q(sb.rpc('reloj_upd_recordatorios'));
   if(action === 'updComentar') return q(sb.rpc('reloj_upd_comentar', { p_id:p.id, p_texto:p.texto }));
   if(action === 'updComBorrar') return q(sb.rpc('reloj_upd_com_borrar', { p_id:p.id }));
   if(action === 'updReaccionar') return q(sb.rpc('reloj_upd_reaccionar', { p_id:p.id, p_emoji:p.emoji }));
@@ -10043,7 +10066,42 @@ async function actualizarUpdAg(){
   try{ const antes = (S.updPend || []).map(x => x.id).join(); S.updPend = await api('updPend'); updContar(); popUpd();
     if(antes !== S.updPend.map(x => x.id).join()){ if(appWin()) appEstado(); if(document.body.dataset.aw === 'upd' && S.updAg) cargarUpdAg(true); } }
   catch(e){}
+  try{ S.updRecs = await api('updRecordatorios'); chequearUpdRec(); }catch(e){}
 }
+// (v213) Recordatorio de updates sin leer: ventana al frente + sonido; Go see / Cancel.
+function urLast(id){ try{ return Number(localStorage.getItem('updrec_' + id)) || 0; }catch(e){ return 0; } }
+function urSet(id, v){ try{ localStorage.setItem('updrec_' + id, String(v)); }catch(e){} }
+function chequearUpdRec(){
+  try{
+    if(!S.awListo || S.ocupado) return;
+    if(!$('ovUpdRec') || !$('ovUpdRec').classList.contains('hidden')) return;   // una a la vez
+    const now = ahora();
+    for(const r of (S.updRecs || [])){
+      const last = urLast(r.id), cadaMs = Math.max(1, Number(r.cada) || 4) * 3600000, anchor = r.en || r.creado || now;
+      let due = false;
+      if(r.en && r.en > last) due = true;                          // recordatorio o activación nuevos
+      else if(r.auto && last && now - last >= cadaMs) due = true;  // auto: pasó el intervalo
+      else if(r.auto && !last && now - anchor >= 0) due = true;    // auto: primera vez
+      if(due){ mostrarUpdRec(r); return; }
+    }
+  }catch(e){}
+}
+function mostrarUpdRec(r){
+  S.urActual = r.id;
+  $('urTexto').textContent = r.titulo || 'You have an update to read.';
+  abrir('ovUpdRec'); urSet(r.id, ahora());
+  try{ asAvisar(); }catch(e){}
+}
+function cerrarUpdRec(){ cerrar('ovUpdRec'); S.urActual = null; }
+(function(){ const c = $('urCancel'), g = $('urIr');
+  if(c) c.addEventListener('click', cerrarUpdRec);
+  if(g) g.addEventListener('click', () => {
+    const id = S.urActual; cerrarUpdRec(); if(id == null) return;
+    api('updLeido', { ids:[id] }).catch(() => {});
+    S.updRecs = (S.updRecs || []).filter(x => x.id !== id);
+    if(typeof popIrUpd === 'function') popIrUpd(id);
+    setTimeout(() => { try{ if(S.updAg) cargarUpdAg(true); if(appWin()) appEstado(); }catch(e){} }, 300);
+  }); })();
 
 /* ── ADMIN: vista «Updates» ── */
 async function cargarUpd(callado){
@@ -10055,6 +10113,37 @@ async function cargarUpd(callado){
   }catch(e){ $('updLista').innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
 }
 function updNombre(u){ const e = S.emps && S.emps.empleados.find(x => x.usuario === u); return e ? e.nombre : u; }
+async function cargarUpdRecState(id){
+  S.updRecState = null; pintarUpdRecBar();
+  try{ const r = await api('updRecordar', { id }); if(S.updAbierto === id){ S.updRecState = r; pintarUpdRecBar(); } }
+  catch(e){ if(S.updAbierto === id){ S.updRecState = { needsSql:true }; pintarUpdRecBar(); } }
+}
+async function updRecAccion(p, msg){
+  const id = S.updAbierto; if(id == null) return;
+  try{ const r = await api('updRecordar', Object.assign({ id:id }, p)); S.updRecState = r; pintarUpdRecBar(); toast(msg); }
+  catch(e){ toast(e.message, 'err'); }
+}
+function pintarUpdRecBar(){
+  const bar = $('updRecBar'); if(!bar) return;
+  const st = S.updRecState;
+  if(!st){ bar.innerHTML = '<span class="muted">\u2026</span>'; return; }
+  if(st.needsSql){ bar.innerHTML = '<span class="muted">Reminders need SQL step 87 in Supabase.</span>'; return; }
+  const falta = st.falta || 0, dis = falta ? '' : ' disabled';
+  const izq = '<span class="upd-rec-k">Remind unread</span>' + (falta ? '<span class="upd-rec-n">' + falta + ' not read</span>' : '<span class="upd-rec-n ok">All read</span>');
+  let acc;
+  if(st.auto){
+    acc = '<span class="upd-rec-on">Auto-reminding every ' + (st.cada || 4) + ' h</span>' +
+      '<button class="btn btn-ink btn-sm" type="button" id="urAhora"' + dis + '>Send reminder now</button>' +
+      '<button class="btn btn-ghost btn-sm" type="button" id="urAutoOff">Turn off</button>';
+  } else {
+    acc = '<button class="btn btn-ink btn-sm" type="button" id="urAhora"' + dis + '>Send reminder now</button>' +
+      '<label class="upd-rec-auto">Auto every <input type="number" id="urCada" min="1" max="168" value="' + (st.cada || 4) + '"> h <button class="btn btn-ghost btn-sm" type="button" id="urAutoOn"' + dis + '>Start</button></label>';
+  }
+  bar.innerHTML = '<div class="upd-rec-l">' + izq + '</div><div class="upd-rec-r">' + acc + '</div>';
+  if($('urAhora')) $('urAhora').onclick = () => updRecAccion({ ahora:true }, 'Reminder sent to who hasn\u2019t read it.');
+  if($('urAutoOn')) $('urAutoOn').onclick = () => updRecAccion({ auto:true, cada:Math.max(1, Math.min(168, Number($('urCada').value) || 4)) }, 'Auto-remind on until everyone reads it.');
+  if($('urAutoOff')) $('urAutoOff').onclick = () => updRecAccion({ auto:false }, 'Auto-remind off.');
+}
 function pintarUpd(){
   const l = S.upd ? S.upd.upds : [];
   $('updLista').innerHTML = !l.length ? '<div class="vacio"><h2>No updates yet</h2><p>Write the first one with «New update».</p></div>' :
@@ -10065,17 +10154,19 @@ function pintarUpd(){
         '<span class="upd-fila-l"><span class="upd-barra" aria-hidden="true"><i style="width:' + pct + '%"></i></span><small>Read by <b>' + n + '</b> of ' + t + '</small></span>' +
         '<span class="upd-fila-n">' + (coms ? '<small>💬 ' + coms + '</small>' : '') + (rs ? '<small>' + [...new Set(u.reacs.map(r => r.emoji))].slice(0, 3).join('') + ' ' + rs + '</small>' : '') + '</span></button>'; }).join('');
 }
-$('updLista').addEventListener('click', ev => { const b = ev.target.closest('[data-abrir-upd]'); if(b){ S.updAbierto = Number(b.dataset.abrirUpd); S.updPestana = 'leido'; pintarUpdFicha(); abrir('ovUpd'); } });
+$('updLista').addEventListener('click', ev => { const b = ev.target.closest('[data-abrir-upd]'); if(b){ S.updAbierto = Number(b.dataset.abrirUpd); S.updPestana = 'leido'; pintarUpdFicha(); cargarUpdRecState(S.updAbierto); abrir('ovUpd'); } });
 function pintarUpdFicha(){
   const u = S.upd && S.upd.upds.find(x => x.id === S.updAbierto); if(!u){ cerrar('ovUpd'); return; }
   const lei = u.dest.lista.filter(d => d.leidoEn).sort((a, b) => b.leidoEn - a.leidoEn), no = u.dest.lista.filter(d => !d.leidoEn).sort((a, b) => updNombre(a.usuario).localeCompare(updNombre(b.usuario))), pe = S.updPestana || 'leido';
   $('updFTitulo').textContent = 'Update';
   $('updFSub').textContent = 'To: ' + updDestinoTxt(u.destino) + ' · ' + u.dest.total + (u.dest.total === 1 ? ' person' : ' people');
   $('updFCuerpo').innerHTML = updTarjeta(u, true) +
+    '<div class="upd-rec" id="updRecBar"></div>' +
     '<div class="upd-leidos"><div class="upd-tabs" role="tablist"><button type="button" role="tab" data-upd-tab="leido" aria-selected="' + (pe === 'leido') + '">Read (' + lei.length + ')</button>' +
       '<button type="button" role="tab" data-upd-tab="no" aria-selected="' + (pe === 'no') + '">Not read yet (' + no.length + ')</button></div>' +
     '<ul class="upd-gente">' + (pe === 'leido' ? lei.map(d => '<li><span>' + esc(updNombre(d.usuario)) + '</span><small>' + esc(updCuando(d.leidoEn)) + '</small></li>').join('') || '<li class="muted">Nobody yet.</li>'
       : no.map(d => '<li><span>' + esc(updNombre(d.usuario)) + '</span></li>').join('') || '<li class="muted">Everyone has read it.</li>') + '</ul></div>';
+  pintarUpdRecBar();
 }
 $('updFCuerpo').addEventListener('click', ev => {
   const t = ev.target.closest('[data-upd-tab]'); if(t){ S.updPestana = t.dataset.updTab; pintarUpdFicha(); return; }
