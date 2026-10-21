@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v208-202610211729">
+<meta name="app-build" content="v209-202610211736">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4655,6 +4655,7 @@ function appLayout(){
     AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span>Agent</span>' +
+    '<button class="aw-item" type="button" id="awRefrescar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh</span></button>' +
     '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
   // (v91) títulos de grupo como en el menú del administrador (app y web)
   [['g1', 'My day'], ['g2', 'Communication'], ['g3', 'Me']].forEach(([c, tx]) => { const g = document.createElement('div'); g.className = 'aw-grupo ' + c; g.textContent = tx; nav.querySelector('.aw-sep').before(g); });
@@ -4678,6 +4679,7 @@ function appLayout(){
     appPanel(b.dataset.awi);
   }));
   $('awSalir').addEventListener('click', () => $('btnSalir').click());
+  $('awRefrescar').addEventListener('click', () => location.reload());
   // el número de solicitudes del agente (el mismo que el botón «View your requests»)
   const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = (n.textContent.match(/\d+/) || [''])[0]; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
   new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
