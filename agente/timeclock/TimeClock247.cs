@@ -1,4 +1,4 @@
-﻿// 247 Time Clock para Windows (versión 1.0.2: ventana más angosta y más alta; la página puede fijar el tamaño)
+﻿// 247 Time Clock para Windows (versión 1.0.5: aviso al frente + sonido cuando la página pide la salida interactiva)
 // ------------------------------------------------------------------------------------------------
 // Muestra la versión web del Reloj (https://247medicalaid.github.io/reloj.html) dentro de una ventana
 // propia (WebView2, el motor de Edge que ya trae Windows) y le agrega lo que el navegador no puede:
@@ -36,14 +36,14 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: System.Reflection.AssemblyDescription("Time Clock de 24/7 Medical Aid para Windows")]
 [assembly: System.Reflection.AssemblyCompany("24/7 Medical Aid - Call Center")]
 [assembly: System.Reflection.AssemblyProduct("247 Time Clock")]
-[assembly: System.Reflection.AssemblyVersion("1.0.4.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.4.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.5.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.5.0")]
 
 namespace TimeClock247
 {
     static class Programa
     {
-        public const string Version = "1.0.4";
+        public const string Version = "1.0.5";
         public const string Url = "https://247medicalaid.github.io/reloj.html?app=win";
         // La versión realmente instalada la escribe el actualizador en version.txt; si no, usa la constante.
         public static string UrlReloj()
@@ -268,6 +268,16 @@ namespace TimeClock247
             return new int[] { an, al };
         }
 
+        // Mensaje {tipo:'autoSalida', traer, sonido}: la página mostró la ventana de salida interactiva
+        // y pide que la app la traiga al frente y suene (por si el agente está en otra ventana).
+        public static bool[] LeerAutoSalida(string json)
+        {
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, object> o = js.Deserialize<Dictionary<string, object>>(json);
+            if (o == null || Texto(o, "tipo") != "autoSalida") return null;
+            return new bool[] { Bool(o, "traer"), Bool(o, "sonido") };
+        }
+
         static string Texto(Dictionary<string, object> o, string k) { object v; return o.TryGetValue(k, out v) && v != null ? Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture) : ""; }
         static bool Bool(Dictionary<string, object> o, string k) { object v; return o.TryGetValue(k, out v) && v is bool && (bool)v; }
         static int Entero(Dictionary<string, object> o, string k) { return Entero(o, k, 0); }
@@ -440,6 +450,7 @@ namespace TimeClock247
             ventana.CerrarPedido += AlCerrarVentana;
             ventana.TerminarPedido += delegate { Terminar(); };
             ventana.PaginaLista += delegate { PedirEstado(); };
+            ventana.AvisoAutoSalida += AlAvisoAutoSalida;
             if (enBandeja) ventana.IniciarEscondida(); else ventana.Mostrar();
 
             // si abren el programa otra vez (acceso directo), la copia que ya corre muestra su ventana
@@ -463,6 +474,14 @@ namespace TimeClock247
         }
 
         void Mostrar() { ventana.Mostrar(); }
+
+        // La página avisó que se cumplieron las horas (ventana de salida interactiva): suena y trae la ventana al frente.
+        void AlAvisoAutoSalida(bool traer, bool sonido)
+        {
+            if (sonido) { try { System.Media.SystemSounds.Exclamation.Play(); } catch (Exception e) { Registro.Escribir("Sonido: " + e.Message); } }
+            if (traer)  { try { ventana.Mostrar(); } catch (Exception e) { Registro.Escribir("AutoSalida traer: " + e.Message); } }
+            Registro.Escribir("AutoSalida: aviso al frente" + (sonido ? " + sonido" : ""));
+        }
 
         void PedirEstado()
         {
@@ -617,6 +636,7 @@ namespace TimeClock247
         public event Action CerrarPedido;
         public event Action PaginaLista;
         public event Action TerminarPedido;
+        public event Action<bool, bool> AvisoAutoSalida;   // {tipo:'autoSalida'}: traer al frente, sonar
 
         WebView2 web;   // se vuelve a crear si el motor de WebView2 se cae o no arranca
         readonly Ajustes ajustes;
@@ -877,6 +897,8 @@ namespace TimeClock247
             try { json = e.TryGetWebMessageAsString(); } catch { return; }
             try
             {
+                bool[] aviso = EstadoReloj.LeerAutoSalida(json);
+                if (aviso != null) { if (AvisoAutoSalida != null) AvisoAutoSalida(aviso[0], aviso[1]); return; }
                 int[] tam = EstadoReloj.LeerVentana(json);
                 if (tam != null) { CambiarTamano(tam[0], tam[1]); return; }
                 EstadoReloj est = EstadoReloj.Leer(json);
