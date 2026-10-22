@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v226-202610222139">
+<meta name="app-build" content="v227-202610222148">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -30,6 +30,22 @@
   }
   addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferred=e; if(document.body) mkChip(); else addEventListener('DOMContentLoaded',mkChip); });
   addEventListener('appinstalled',function(){ if(chip){ chip.remove(); chip=null; } deferred=null; });
+  // Botón ATRÁS de Android (solo como app instalada): cerrar overlay/menú antes de salir
+  if(app){
+    var reArm=function(){ try{ history.pushState({tc:1},''); }catch(_){} };
+    addEventListener('load',function(){ setTimeout(reArm,0); });
+    addEventListener('popstate',function(){
+      try{
+        var ovs=[].slice.call(document.querySelectorAll('.overlay')).filter(function(o){ return !o.classList.contains('hidden'); });
+        if(ovs.length){ document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); reArm(); return; }
+        var menu=document.getElementById('tabs');
+        if(menu && menu.classList.contains('abierto')){ menu.classList.remove('abierto'); var b=document.getElementById('btnMenu'); if(b) b.setAttribute('aria-expanded','false'); reArm(); return; }
+        var cab=document.getElementById('chatConvCab'); var atras=cab && cab.querySelector('#chatAtras');
+        if(atras && atras.offsetParent!==null){ atras.click(); reArm(); return; }
+      }catch(_){ reArm(); return; }
+      history.back();
+    });
+  }
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
