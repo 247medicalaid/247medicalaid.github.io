@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v216-202610220140">
+<meta name="app-build" content="v217-202610220146">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -556,6 +556,8 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph tr.cambio td{background:#FFF9E8}
 .ph tr.cambio td.phdia::before{content:"● ";color:var(--warn)}
 .ph tr.malo td{background:var(--accent-50)}
+.ph tr.malo td{border-bottom-color:transparent}
+.ph tr.ph-msg td{background:var(--accent-50);color:var(--accent-600);font-size:12px;font-weight:600;white-space:normal;text-align:left;padding:1px 12px 7px}
 .ph tr.bloq td{color:#9AAAB5}
 .ph tr.bloq input{background:var(--sand)}
 .ph .x{border:0;background:none;color:var(--text-muted);cursor:pointer;font-size:17px;padding:2px 6px;border-radius:6px}
@@ -11403,9 +11405,13 @@ function revisarFilaPH(tr){
   tr.classList.toggle('cambio', ahora !== tr.dataset.orig && !err);
   tr.classList.toggle('malo', !!err);
   tr.classList.toggle('tocado', ahora !== tr.dataset.orig);   // v99: un error que ya venía así no es un cambio
-  let msg = tr.querySelector('.msg');
-  if(err){ if(!msg){ msg = document.createElement('div'); msg.className = 'msg'; tr.querySelector('.hrs').appendChild(msg); } msg.textContent = err; }
-  else if(msg) msg.remove();
+  // (v217) El aviso va en una fila aparte debajo del turno, a todo lo ancho (no apretado en Hours).
+  let mrow = tr.nextElementSibling;
+  if(!(mrow && mrow.classList.contains('ph-msg'))) mrow = null;
+  if(err){
+    if(!mrow){ mrow = document.createElement('tr'); mrow.className = 'ph-msg'; mrow.innerHTML = '<td colspan="8"></td>'; tr.after(mrow); }
+    mrow.firstElementChild.textContent = err;
+  } else if(mrow){ mrow.remove(); }
   tr.title = err;
   contarPH();
 }
