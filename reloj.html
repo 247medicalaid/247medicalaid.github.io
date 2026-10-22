@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v221-202610221912">
+<meta name="app-build" content="v222-202610222004">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1720,7 +1720,13 @@ body.aw-app .chat{height:calc(100vh - 200px)}
 .chat-msg:hover .chat-x,.chat-x:focus-visible,.chat-x.seguro{opacity:1}
 .chat-x.seguro{font-size:12px;color:var(--accent-600, #C62828);background:var(--paper);left:-62px;border:1px solid var(--line)}
 .chat-msg:not(.mio) .chat-x.seguro{left:auto;right:-62px}
-.chat-form{border-top:1px solid var(--line);background:var(--paper);padding:10px 12px}
+.chat-form{border-top:1px solid var(--line);background:var(--paper);padding:10px 12px;position:relative}
+.chat-emoji-pop{position:absolute;left:10px;bottom:calc(100% - 4px);z-index:30;width:min(296px,calc(100% - 20px));max-height:232px;overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px}
+.chat-emoji-pop h6{margin:7px 4px 3px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted)}
+.chat-emoji-pop h6:first-child{margin-top:2px}
+.chat-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:1px}
+.chat-emoji-grid button{border:0;background:none;cursor:pointer;font-size:20px;line-height:1;padding:4px;border-radius:8px}
+.chat-emoji-grid button:hover{background:var(--sand)}
 .chat-form-f{display:flex;align-items:flex-end;gap:8px}
 .chat-form textarea{flex:1;resize:none;min-height:40px;max-height:140px;padding:9px 12px;border:1px solid var(--line);border-radius:20px;font:inherit;font-size:14.5px;line-height:1.4}
 .chat-clip{border:0;background:none;cursor:pointer;padding:8px;border-radius:50%;flex:none}.chat-clip:hover{background:var(--sand)}
@@ -2365,7 +2371,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <div class="chat-msgs" id="chatMsgs"></div>
         <form class="chat-form hidden" id="chatForm">
           <div class="chat-adj hidden" id="chatAdj"></div>
-          <div class="chat-form-f"><button type="button" class="chat-clip" id="chatAdjBtn" aria-label="Attach a photo or file" title="Attach a photo or file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg></button>
+          <div class="chat-emoji-pop hidden" id="chatEmojiPanel" role="menu" aria-label="Emojis"></div>
+          <div class="chat-form-f"><button type="button" class="chat-clip" id="chatEmojiBtn" aria-label="Add emoji" title="Emoji" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><line x1="9" y1="9.5" x2="9.01" y2="9.5"/><line x1="15" y1="9.5" x2="15.01" y2="9.5"/></svg></button><button type="button" class="chat-clip" id="chatAdjBtn" aria-label="Attach a photo or file" title="Attach a photo or file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg></button>
             <textarea id="chatTexto" rows="1" maxlength="4000" placeholder="Write a message…" aria-label="Write a message"></textarea>
             <button class="btn btn-ink" type="submit" id="chatEnviar">Send</button></div>
           <input type="file" id="chatAdjIn" class="hidden">
@@ -10528,6 +10535,25 @@ $('chatForm').addEventListener('submit', async ev => {
   finally{ b.disabled = false; t.focus(); }
 });
 $('chatTexto').addEventListener('keydown', ev => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); $('chatForm').requestSubmit(); } });
+// (v222) selector de emojis del chat
+const CHAT_EMOJIS = [
+  { t:'Smileys', e:['\u{1F600}','\u{1F603}','\u{1F604}','\u{1F601}','\u{1F606}','\u{1F605}','\u{1F602}','\u{1F923}','\u{1F642}','\u{1F643}','\u{1F609}','\u{1F60A}','\u{1F60D}','\u{1F618}','\u{1F60B}','\u{1F60E}','\u{1F929}','\u{1F973}','\u{1F914}','\u{1F917}','\u{1F60F}','\u{1F634}','\u{1F62D}','\u{1F622}','\u{1F62E}','\u{1F624}','\u{1F621}','\u{1F92F}','\u{1F631}','\u{1F97A}','\u{1F633}','\u{1F644}'] },
+  { t:'Gestures', e:['\u{1F44D}','\u{1F44E}','\u{1F44F}','\u{1F64C}','\u{1F64F}','\u{1F44C}','\u270C\uFE0F','\u{1F91E}','\u{1F919}','\u{1F4AA}','\u{1F44B}','\u{1F91D}','\u{1FAE1}','\u{1F440}','\u{1FAF6}'] },
+  { t:'Hearts', e:['\u2764\uFE0F','\u{1F9E1}','\u{1F49B}','\u{1F49A}','\u{1F499}','\u{1F49C}','\u{1F5A4}','\u{1F90D}','\u{1F494}','\u{1F4AF}'] },
+  { t:'Work', e:['\u2705','\u274C','\u2B50','\u{1F525}','\u{1F389}','\u{1F38A}','\u2728','\u26A1','\u{1F4A1}','\u{1F4CC}','\u{1F4CE}','\u{1F4DE}','\u{1F4F1}','\u{1F4BB}','\u{1F4E7}','\u{1F4C5}','\u{1F550}','\u2615','\u{1F680}','\u{1F4CA}','\u2714\uFE0F','\u{1F4AC}'] }
+];
+function chatEmojiRender(){ const p = $('chatEmojiPanel'); if(p.dataset.listo) return;
+  p.innerHTML = CHAT_EMOJIS.map(g => '<h6>' + esc(g.t) + '</h6><div class="chat-emoji-grid">' + g.e.map(e => '<button type="button" data-emoji="' + e + '">' + e + '</button>').join('') + '</div>').join('');
+  p.dataset.listo = '1'; }
+function chatEmojiCerrar(){ $('chatEmojiPanel').classList.add('hidden'); const b = $('chatEmojiBtn'); if(b) b.setAttribute('aria-expanded', 'false'); }
+function chatInsertarEmoji(e){ const t = $('chatTexto'); if(!t) return; const s = t.selectionStart == null ? t.value.length : t.selectionStart, en = t.selectionEnd == null ? t.value.length : t.selectionEnd;
+  if(t.value.length + e.length > 4000) return;
+  t.value = t.value.slice(0, s) + e + t.value.slice(en); const pos = s + e.length; try{ t.setSelectionRange(pos, pos); }catch(_){}
+  t.focus(); t.dispatchEvent(new Event('input')); }
+$('chatEmojiBtn').addEventListener('click', ev => { ev.stopPropagation(); const p = $('chatEmojiPanel'), abrir = p.classList.contains('hidden'); chatEmojiRender(); p.classList.toggle('hidden', !abrir); $('chatEmojiBtn').setAttribute('aria-expanded', String(abrir)); if(abrir) p.scrollTop = 0; });
+$('chatEmojiPanel').addEventListener('click', ev => { const b = ev.target.closest('[data-emoji]'); if(b) chatInsertarEmoji(b.dataset.emoji); });
+document.addEventListener('click', ev => { const p = $('chatEmojiPanel'); if(!p || p.classList.contains('hidden')) return; if(!p.contains(ev.target) && !$('chatEmojiBtn').contains(ev.target)) chatEmojiCerrar(); });
+document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && $('chatEmojiPanel') && !$('chatEmojiPanel').classList.contains('hidden')) chatEmojiCerrar(); });
 $('chatTexto').addEventListener('input', () => { const t = $('chatTexto'); t.style.height = ''; t.style.height = Math.min(140, t.scrollHeight) + 'px'; t.classList.toggle('alto', t.scrollHeight > 140); });
 // (v72) cualquier archivo menos programas y páginas (la misma regla está en Supabase, paso 46)
 const CHAT_BLOQ = /\.(exe|msi|bat|cmd|com|scr|ps1|vbs|vbe|js|jse|wsf|jar|apk|dll|lnk|reg|hta|sh|html?|svg|xhtml)$/i;
@@ -14633,5 +14659,5 @@ try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cad
 
 })();
 </script>
-<!-- redeploy 202610221916 --></body>
+</body>
 </html>
