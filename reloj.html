@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v215-202610212028">
+<meta name="app-build" content="v216-202610220140">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -11393,7 +11393,11 @@ function revisarFilaPH(tr){
     else if(d != null && b != null && c == null) err = 'Fill in both lunch times.';
   }
   const R = S.redondeo || 1, rr = v => v == null ? null : Math.round(v / R) * R;
-  const mins = vacio || err || d == null ? null : (rr(d) - rr(a)) - (b != null ? rr(c) - rr(b) : 0);
+  // (v216) Mostrar el total aunque haya un aviso de validación, si el tramo tiene sentido
+  // (entrada y salida, y salida después de entrada). El almuerzo se descuenta como max(0, fin-ini),
+  // así un lunch start = lunch end cuenta como 0 y el total queda visible (el aviso va debajo).
+  const puedeHoras = !vacio && a != null && d != null && rr(d) > rr(a);
+  const mins = puedeHoras ? (rr(d) - rr(a)) - (b != null && c != null ? Math.max(0, rr(c) - rr(b)) : 0) : null;
   tr.querySelector('.hrs').textContent = mins == null ? (vacio ? '—' : '') : hm(mins);
   const ahora = CAMPOS_PH.map(k => val[k] || '').join('|');
   tr.classList.toggle('cambio', ahora !== tr.dataset.orig && !err);
