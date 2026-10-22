@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v219-202610220218">
+<meta name="app-build" content="v220-202610221835">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -978,6 +978,17 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .cifra{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;min-width:140px}
 .cifra b{font-family:var(--font-display);font-size:26px;font-weight:800;display:block;line-height:1.1}
 .cifra .st{font-size:13px;color:var(--text-muted);font-weight:500}
+button.cifra{font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,background .12s}
+button.cifra:hover{border-color:var(--brand-500)}
+button.cifra[aria-pressed="true"]{background:var(--text);border-color:var(--text)}
+button.cifra[aria-pressed="true"] b,button.cifra[aria-pressed="true"] .st{color:#fff}
+button.cifra[aria-pressed="true"] .st-fuera i,button.cifra[aria-pressed="true"] .st-sin i{border-color:rgba(255,255,255,.85)}
+button.cifra:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
+.hoy-group{display:inline-flex;align-items:center;gap:7px;font:600 13px var(--font-body);color:var(--text);cursor:pointer}
+.hoy-group input{width:16px;height:16px;accent-color:var(--brand-500);cursor:pointer}
+.tabla-hoy tr.grp td{background:var(--sand);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 12px;font-weight:600;position:sticky;left:0}
+.grp-cta{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--line);font-size:12.5px;font-weight:700}
+.grp-n{color:var(--text-muted);font-weight:700;margin-left:8px;font-variant-numeric:tabular-nums}
 /* v100: filtro de Today */
 .hoy-filtro{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 12px}
 .hoy-filtro .rot{font-size:13px;color:var(--text-muted);font-weight:600;margin-right:4px}
@@ -5658,16 +5669,12 @@ function pintarHoy(){
     const d = e.dias[f];
     return { e, d, estado: d ? d.estado : 'sin', fl: d ? d.banderas : [] };
   });
-  const cuenta = k => filas.filter(x => x.estado === k).length;
-  $('hoyResumen').innerHTML = [['trabajando'],['almuerzo'],['fuera'],['sin']].map(([k]) =>
-    '<div class="cifra"><b class="num">' + cuenta(k) + '</b>' + estadoHTML(k) + '</div>').join('') +
-    '<div class="cifra"><b class="num">' + filas.filter(x => nivelMax(x.fl) === 'alerta').length + '</b><span class="st">' + icono('alerta') + 'With alerts</span></div>';
   $('hoyAvisos').innerHTML = avisosMonitor(h);
   const peso = x => (nivelMax(x.fl) === 'alerta' ? 0 : nivelMax(x.fl) === 'aviso' ? 1 : 2) * 10 +
     ({ trabajando:0, almuerzo:1, sin:2, fuera:3 })[x.estado];
   filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'en'));
   if(!filas.length){
-    $('hoyFiltro').innerHTML = '';
+    $('hoyResumen').innerHTML = ''; $('hoyFiltro').innerHTML = '';
     $('hoyLista').innerHTML = '<div class="vacio"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
     return;
   }
@@ -5675,19 +5682,30 @@ function pintarHoy(){
   const grupo = x => { const d = x.d;
     if(!d || !d.marcas.length) return d && d.ausencia ? 'aus' : 'sin';
     return d.estado === 'trabajando' || d.estado === 'almuerzo' ? 'dentro' : 'salio'; };
-  const FILTROS = [['todos', 'All', () => true], ['dentro', 'Clocked in', x => grupo(x) === 'dentro'], ['salio', 'Clocked out', x => grupo(x) === 'salio'],
-    ['sin', 'Not clocked in', x => grupo(x) === 'sin'], ['aus', 'Time off', x => grupo(x) === 'aus'], ['alerta', 'With alerts', x => nivelMax(x.fl) === 'alerta']];
+  const FILTROS = [
+    ['todos', 'All', () => true],
+    ['trabajando', 'Working', x => x.estado === 'trabajando'],
+    ['almuerzo', 'On lunch', x => x.estado === 'almuerzo'],
+    ['salio', 'Clocked out', x => grupo(x) === 'salio'],
+    ['sin', 'Not clocked in', x => grupo(x) === 'sin'],
+    ['aus', 'Time off', x => grupo(x) === 'aus'],
+    ['alerta', 'With alerts', x => nivelMax(x.fl) === 'alerta']];
   const nF = Object.fromEntries(FILTROS.map(([k, , fn]) => [k, filas.filter(fn).length]));
   if(!FILTROS.some(([k]) => k === S.hoyFiltro)) S.hoyFiltro = 'todos';
   const visibles = FILTROS.filter(([k]) => k !== 'aus' || nF.aus || S.hoyFiltro === 'aus');
-  $('hoyFiltro').innerHTML = '<span class="rot">Show</span>' + visibles.map(([k, txt]) =>
-    '<button type="button" data-hf="' + k + '" aria-pressed="' + (S.hoyFiltro === k) + '">' + txt + ' <span class="n">' + nF[k] + '</span></button>').join('');
-  $('hoyFiltro').querySelectorAll('[data-hf]').forEach(b => b.addEventListener('click', () => { S.hoyFiltro = b.dataset.hf; pintarHoy(); }));
+  const DOTF = { trabajando:'trabajando', almuerzo:'almuerzo', salio:'fuera', sin:'sin' };
+  const etqF = (k, txt) => k === 'alerta' ? '<span class="st">' + icono('alerta') + txt + '</span>'
+    : DOTF[k] ? '<span class="st st-' + DOTF[k] + '"><i></i>' + txt + '</span>' : '<span class="st">' + txt + '</span>';
+  $('hoyResumen').innerHTML = visibles.map(([k, txt]) =>
+    '<button type="button" class="cifra cifra-f" data-hf="' + k + '" aria-pressed="' + (S.hoyFiltro === k) + '"><b class="num">' + nF[k] + '</b>' + etqF(k, txt) + '</button>').join('');
+  $('hoyResumen').querySelectorAll('[data-hf]').forEach(b => b.addEventListener('click', () => { S.hoyFiltro = b.dataset.hf; pintarHoy(); }));
+  $('hoyFiltro').innerHTML = '<label class="hoy-group"><input type="checkbox" id="hoyAgrupar"' + (S.hoyAgrupar ? ' checked' : '') + '> Group by account</label>';
+  $('hoyAgrupar').addEventListener('change', ev => { S.hoyAgrupar = ev.target.checked; pintarHoy(); });
   pintarColsHoy();
   const fnF = FILTROS.find(([k]) => k === S.hoyFiltro)[2], lista = filas.filter(fnF);
   if(!lista.length){
-    const nada = { dentro:'Nobody is clocked in right now.', salio:'Nobody has clocked out yet today.', sin:'Everyone has clocked in today.',
-      aus:'Nobody is on time off today.', alerta:'No alerts today.' }[S.hoyFiltro];
+    const nada = { trabajando:'Nobody is working right now.', almuerzo:'Nobody is on lunch right now.', salio:'Nobody has clocked out yet today.',
+      sin:'Everyone has clocked in today.', aus:'Nobody is on time off today.', alerta:'No alerts today.' }[S.hoyFiltro] || 'Nothing to show.';
     $('hoyLista').innerHTML = '<div class="vacio"><p>' + nada + '</p></div>';
     return;
   }
@@ -5806,7 +5824,8 @@ function ordenarHoy(lista){
 }
 function pintarTablaHoy(lista, f){
   asegurarColores(() => { if(S.vista === 'hoy' && S.hojaHoy) pintarHoy(); });
-  const cols = colsHoy(), ord = leerLS(ORD_HOY_CLAVE, null), anchos = leerLS(ANCHOS_HOY_CLAVE, {});
+  const agrupar = !!S.hoyAgrupar;
+  const cols = colsHoy().filter(c => !(agrupar && c.k === 'cuenta')), ord = leerLS(ORD_HOY_CLAVE, null), anchos = leerLS(ANCHOS_HOY_CLAVE, {});
   const prev = $('hoyLista').querySelector('.tabla-hoy-wrap'), scr = prev ? [prev.scrollTop, prev.scrollLeft] : null;
   lista = ordenarHoy(lista);
   const todas = [{ k:'nombre', t:'Name', cls:'c-nom' }].concat(cols);
@@ -5816,13 +5835,21 @@ function pintarTablaHoy(lista, f){
       '<div class="th-in"><button type="button" class="ord-h" data-ord="' + c.k + '" title="Sort by ' + esc(c.t) + '">' + esc(c.t) +
       '<span class="fl-ord" aria-hidden="true">' + (st === 'asc' ? '↑' : st === 'desc' ? '↓' : '') + '</span></button>' +
       '<span class="rz" data-rz="' + c.k + '" title="Drag to resize"></span></div></th>'; };
+  const filaHTML = x => '<tr data-u="' + esc(x.e.usuario) + '"><td class="c-nom"><button type="button" class="nom-hoy" title="Open ' + esc(x.e.nombre) + '\'s day">' +
+    '<span class="av-hoy" style="background:' + avColor(x.e.usuario) + '" aria-hidden="true">' + esc(avIni(x.e.nombre)) + '</span>' + esc(x.e.nombre) + '</button></td>' +
+    cols.map(c => '<td class="' + [c.num ? 'num' : '', c.cls || ''].join(' ').trim() + '">' + c.h(x) + '</td>').join('') + '</tr>';
+  let cuerpo;
+  if(agrupar){
+    const grupos = {}; lista.forEach(x => { const c = x.e.cuenta || ''; (grupos[c] = grupos[c] || []).push(x); });
+    cuerpo = Object.keys(grupos).sort((a, b) => a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'en')).map(c => {
+      const col = c ? colorCuenta(c) : null;
+      return '<tr class="grp"><td colspan="' + todas.length + '"><span class="grp-cta"' + (col ? ' style="background:' + col + ';color:' + tintaDe(col) + '"' : '') + '>' +
+        (c ? esc(c) : 'No account') + '</span><span class="grp-n">' + grupos[c].length + '</span></td></tr>' + grupos[c].map(filaHTML).join('');
+    }).join('');
+  } else cuerpo = lista.map(filaHTML).join('');
   $('hoyLista').innerHTML = '<div class="tabla-hoy-wrap"><table class="tabla-hoy' + (fija ? ' fija' : '') + '"><colgroup>' +
     todas.map(c => '<col data-k="' + c.k + '"' + (fija ? ' style="width:' + (anchos[c.k] || (c.k === 'nombre' ? 200 : c.k === 'alertas' ? 260 : 120)) + 'px"' : '') + '>').join('') +
-    '</colgroup><thead><tr>' + todas.map(th).join('') + '</tr></thead><tbody>' +
-    lista.map(x => '<tr data-u="' + esc(x.e.usuario) + '"><td class="c-nom"><button type="button" class="nom-hoy" title="Open ' + esc(x.e.nombre) + '\'s day">' +
-      '<span class="av-hoy" style="background:' + avColor(x.e.usuario) + '" aria-hidden="true">' + esc(avIni(x.e.nombre)) + '</span>' + esc(x.e.nombre) + '</button></td>' +
-      cols.map(c => '<td class="' + [c.num ? 'num' : '', c.cls || ''].join(' ').trim() + '">' + c.h(x) + '</td>').join('') + '</tr>').join('') +
-    '</tbody></table></div>';
+    '</colgroup><thead><tr>' + todas.map(th).join('') + '</tr></thead><tbody>' + cuerpo + '</tbody></table></div>';
   $('hoyLista').querySelectorAll('tr[data-u]').forEach(tr => tr.addEventListener('click', () => abrirDia(tr.dataset.u, f, S.hojaHoy)));
   const wrap = $('hoyLista').querySelector('.tabla-hoy-wrap'), tabla = wrap.querySelector('table');
   if(fija) tabla.style.width = [...tabla.querySelectorAll('col')].reduce((s, c) => s + parseFloat(c.style.width), 0) + 'px';
