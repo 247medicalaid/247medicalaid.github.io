@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v224-202610222049">
+<meta name="app-build" content="v225-202610222111">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1912,6 +1912,10 @@ ul.upd-gente li small{color:var(--text-muted)}
 .ue-color-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:7px;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;width:max-content}
 .ue-color-pop button{width:22px;height:22px;border:1px solid rgba(0,0,0,.15);border-radius:50%;cursor:pointer;padding:0}
 .ue-color-pop button:hover{transform:scale(1.12)}
+#ueSizeBtn{gap:1px}.ue-size-a{font-size:11px;font-weight:700;line-height:1}.ue-size-a2{font-size:15px;font-weight:700;line-height:1}.ue-size-caret{font-size:9px;margin-left:1px;color:var(--text-muted)}
+.ue-size-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:5px;min-width:122px}
+.ue-size-pop button{display:flex;align-items:center;width:100%;border:0;background:none;cursor:pointer;padding:5px 10px;border-radius:7px;color:var(--text);line-height:1.1}
+.ue-size-pop button:hover{background:var(--sand)}
 .ue-emoji-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;box-sizing:border-box;width:296px;max-width:78vw;max-height:232px;overflow-x:hidden;overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px}
 .ue-emoji-pop h6{margin:7px 4px 3px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted)}
 .ue-emoji-pop h6:first-child{margin-top:2px}
@@ -3047,6 +3051,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           <button type="button" class="ue-fmt" data-cmd="bold" title="Bold" aria-label="Bold"><b>B</b></button>
           <button type="button" class="ue-fmt" data-cmd="italic" title="Italic" aria-label="Italic"><i>I</i></button>
           <button type="button" class="ue-fmt" data-cmd="underline" title="Underline" aria-label="Underline"><u>U</u></button>
+          <span class="ue-pop-wrap"><button type="button" class="ue-fmt" id="ueSizeBtn" title="Font size" aria-label="Font size" aria-haspopup="true" aria-expanded="false"><span class="ue-size-a">A</span><span class="ue-size-a2">A</span><span class="ue-size-caret">▾</span></button>
+            <div class="ue-size-pop hidden" id="ueSizePop" role="menu" aria-label="Font size"></div></span>
           <span class="ue-sep"></span>
           <span class="ue-pop-wrap"><button type="button" class="ue-fmt" id="ueColorBtn" title="Text color" aria-label="Text color" aria-haspopup="true" aria-expanded="false"><span class="ue-color-a">A</span><span class="ue-color-barra"></span></button>
             <div class="ue-color-pop hidden" id="ueColorPop" role="menu" aria-label="Text color"></div></span>
@@ -10019,6 +10025,7 @@ function ueColorHex(v){ if(!v) return ''; v = String(v).trim();
   m = v.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
   if(m){ const h = n => ('0' + Math.max(0, Math.min(255, +n)).toString(16)).slice(-2); return '#' + h(m[1]) + h(m[2]) + h(m[3]); }
   return ''; }
+function ueTamPx(v){ if(!v) return ''; const m = String(v).trim().match(/^(\d{1,3}(?:\.\d+)?)px$/i); if(!m) return ''; const n = Math.max(10, Math.min(48, parseFloat(m[1]))); return n + 'px'; }
 // enlaces en una porción de texto ya escapada
 function updLinkify(txt){ return ueEscTxt(txt).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'\"])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
 // porción de texto en modo render: separa [imgN], pone imágenes y enlaces
@@ -10052,7 +10059,9 @@ function updWalk(node, modo, imgs, usados){
     if(tag === 'i' || tag === 'em' || st.fontStyle === 'italic'){ ab += '<em>'; ce = '</em>' + ce; }
     if(tag === 'u' || /underline/.test(st.textDecoration || '') || /underline/.test(st.textDecorationLine || '')){ ab += '<u>'; ce = '</u>' + ce; }
     const col = ueColorHex(st.color || '') || (tag === 'font' ? ueColorHex(n.getAttribute && n.getAttribute('color')) : '');
-    if(col){ ab += '<span style="color:' + col + '">'; ce = '</span>' + ce; }
+    const siz = ueTamPx(st.fontSize || '');
+    let est = ''; if(col) est += 'color:' + col + ';'; if(siz) est += 'font-size:' + siz + ';';
+    if(est){ ab += '<span style="' + est.replace(/;$/, '') + '">'; ce = '</span>' + ce; }
     if(ab){ out += ab + inner + ce; }
     else if(tag === 'div' || tag === 'p'){ const brk = (modo === 'editar' ? '<br>' : '\n');
       if(out && !out.endsWith('\n') && !out.endsWith('<br>')) out += brk;   // separar de la línea anterior
@@ -10421,9 +10430,21 @@ $('ueCuerpo').addEventListener('input', () => { const ed = $('ueCuerpo'); if(ed.
   function cerrarColor(){ if(cp){ cp.classList.add('hidden'); $('ueColorBtn').setAttribute('aria-expanded', 'false'); } }
   const cb = $('ueColorBtn');
   if(cb){ cb.addEventListener('mousedown', e => e.preventDefault());
-    cb.addEventListener('click', ev => { ev.stopPropagation(); const ab = cp.classList.contains('hidden'); ueEmojiCerrarU(); cp.classList.toggle('hidden', !ab); cb.setAttribute('aria-expanded', String(ab)); }); }
+    cb.addEventListener('click', ev => { ev.stopPropagation(); const ab = cp.classList.contains('hidden'); ueEmojiCerrarU(); cerrarTam(); cp.classList.toggle('hidden', !ab); cb.setAttribute('aria-expanded', String(ab)); }); }
   if(cp) cp.addEventListener('mousedown', e => e.preventDefault());
   if(cp) cp.addEventListener('click', ev => { const b = ev.target.closest('[data-color]'); if(!b) return; $('ueCuerpo').focus(); try{ document.execCommand('foreColor', false, b.dataset.color); }catch(_){} cerrarColor(); });
+  // Tamaño de letra
+  const UE_SIZES = [{ t:'Small', px:13 }, { t:'Normal', px:15 }, { t:'Large', px:20 }, { t:'Huge', px:26 }];
+  function ueAplicarTamano(px){ const ed = $('ueCuerpo'); ed.focus();
+    try{ document.execCommand('fontSize', false, '7'); }catch(_){}
+    ed.querySelectorAll('font[size="7"]').forEach(f => { const s = document.createElement('span'); s.style.fontSize = px + 'px'; while(f.firstChild) s.appendChild(f.firstChild); f.parentNode.replaceChild(s, f); }); }
+  const sp = $('ueSizePop'), sb = $('ueSizeBtn');
+  if(sp) sp.innerHTML = UE_SIZES.map(s => '<button type="button" data-size="' + s.px + '"><span style="font-size:' + s.px + 'px">' + esc(s.t) + '</span></button>').join('');
+  function cerrarTam(){ if(sp){ sp.classList.add('hidden'); if(sb) sb.setAttribute('aria-expanded', 'false'); } }
+  if(sb){ sb.addEventListener('mousedown', e => e.preventDefault());
+    sb.addEventListener('click', ev => { ev.stopPropagation(); const ab = sp.classList.contains('hidden'); cerrarColor(); if(window.ueEmojiCerrarU) window.ueEmojiCerrarU(); sp.classList.toggle('hidden', !ab); sb.setAttribute('aria-expanded', String(ab)); }); }
+  if(sp) sp.addEventListener('mousedown', e => e.preventDefault());
+  if(sp) sp.addEventListener('click', ev => { const b = ev.target.closest('[data-size]'); if(!b) return; ueAplicarTamano(+b.dataset.size); cerrarTam(); });
   // Emojis (reusa CHAT_EMOJIS de v222)
   const ep = $('ueEmojiPop'), eb = $('ueEmojiBtn');
   function ueEmojiRenderU(){ if(!ep || ep.dataset.listo) return;
@@ -10431,14 +10452,15 @@ $('ueCuerpo').addEventListener('input', () => { const ed = $('ueCuerpo'); if(ed.
     ep.dataset.listo = '1'; }
   window.ueEmojiCerrarU = function(){ if(ep){ ep.classList.add('hidden'); if(eb) eb.setAttribute('aria-expanded', 'false'); } };
   if(eb){ eb.addEventListener('mousedown', e => e.preventDefault());
-    eb.addEventListener('click', ev => { ev.stopPropagation(); const ab = ep.classList.contains('hidden'); cerrarColor(); ueEmojiRenderU(); ep.classList.toggle('hidden', !ab); eb.setAttribute('aria-expanded', String(ab)); if(ab) ep.scrollTop = 0; }); }
+    eb.addEventListener('click', ev => { ev.stopPropagation(); const ab = ep.classList.contains('hidden'); cerrarColor(); cerrarTam(); ueEmojiRenderU(); ep.classList.toggle('hidden', !ab); eb.setAttribute('aria-expanded', String(ab)); if(ab) ep.scrollTop = 0; }); }
   if(ep) ep.addEventListener('mousedown', e => e.preventDefault());
   if(ep) ep.addEventListener('click', ev => { const b = ev.target.closest('[data-emoji]'); if(!b) return; ueInsertar(b.dataset.emoji); });
   document.addEventListener('click', ev => {
     if(cp && !cp.classList.contains('hidden') && !cp.contains(ev.target) && !$('ueColorBtn').contains(ev.target)) cerrarColor();
     if(ep && !ep.classList.contains('hidden') && !ep.contains(ev.target) && !eb.contains(ev.target)) ueEmojiCerrarU();
+    if(sp && !sp.classList.contains('hidden') && !sp.contains(ev.target) && !sb.contains(ev.target)) cerrarTam();
   });
-  document.addEventListener('keydown', ev => { if(ev.key === 'Escape'){ cerrarColor(); if(window.ueEmojiCerrarU) ueEmojiCerrarU(); } });
+  document.addEventListener('keydown', ev => { if(ev.key === 'Escape'){ cerrarColor(); cerrarTam(); if(window.ueEmojiCerrarU) ueEmojiCerrarU(); } });
 })();
 $('ueArchivos').addEventListener('click', ev => { const b = ev.target.closest('[data-ue-x]'); if(!b) return; const k = b.dataset.ueX, i = Number(k.slice(1));
   if(k[0] === 'q') S.updEd.quedan.splice(i, 1); else S.updEd.nuevos.splice(i, 1); pintarUpdEd(); });
