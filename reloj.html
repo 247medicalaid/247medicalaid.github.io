@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v223-202610222011">
+<meta name="app-build" content="v224-202610222049">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1902,6 +1902,25 @@ ul.upd-gente li small{color:var(--text-muted)}
 #ovUpd .upd-card{border:0;padding:0}
 .ue-sec{border-top:1px solid var(--line);padding:12px 0 4px;margin-top:6px}
 #ueCuerpo.ue-drag{outline:2px dashed var(--brand-500);outline-offset:2px;background:var(--brand-50)}
+.ue-rico-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
+.ue-barra{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:5px 6px;border-bottom:1px solid var(--line);background:var(--sand)}
+.ue-fmt{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 7px;border:0;background:none;cursor:pointer;border-radius:7px;font-size:15px;color:var(--text);line-height:1}
+.ue-fmt:hover{background:var(--paper)}
+.ue-sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.ue-pop-wrap{position:relative;display:inline-flex}
+#ueColorBtn{flex-direction:column;gap:1px}.ue-color-a{font-weight:700;font-size:13px;line-height:1}.ue-color-barra{width:16px;height:3px;border-radius:2px;background:linear-gradient(90deg,#D64545,#E08A1E,#2F9E44,#3B82C4,#9B59B6)}
+.ue-color-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:7px;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;width:max-content}
+.ue-color-pop button{width:22px;height:22px;border:1px solid rgba(0,0,0,.15);border-radius:50%;cursor:pointer;padding:0}
+.ue-color-pop button:hover{transform:scale(1.12)}
+.ue-emoji-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;box-sizing:border-box;width:296px;max-width:78vw;max-height:232px;overflow-x:hidden;overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px}
+.ue-emoji-pop h6{margin:7px 4px 3px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted)}
+.ue-emoji-pop h6:first-child{margin-top:2px}
+.ue-emoji-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:1px}
+.ue-emoji-grid button{border:0;background:none;cursor:pointer;font-size:19px;line-height:1;padding:5px 0;width:100%;min-width:0;border-radius:8px}
+.ue-emoji-grid button:hover{background:var(--sand)}
+.ue-rico{min-height:150px;max-height:340px;overflow-y:auto;padding:10px 12px;font-size:14.5px;line-height:1.55;outline:none;white-space:pre-wrap;overflow-wrap:anywhere}
+.ue-rico:empty:before{content:attr(data-ph);color:var(--text-muted)}
+.ue-rico a{color:var(--brand-700, #1F4E79)}
 .ue-sec > b{font-size:14px}
 .ue-archivos{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .ue-archivos li{display:flex;align-items:center;gap:10px;position:relative;border:1px solid var(--line);border-radius:10px;padding:6px 32px 6px 8px;font-size:13.5px}
@@ -3022,7 +3041,20 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <div class="ventana ventana-ficha">
     <h2 id="ueTitulo">New update</h2>
     <label class="campo"><span>Title</span><input id="ueTit" maxlength="200" autocomplete="off"></label>
-    <label class="campo"><span>Message</span><textarea id="ueCuerpo" rows="7" maxlength="20000" placeholder="Write the message. Links work."></textarea></label>
+    <label class="campo"><span>Message</span>
+      <div class="ue-rico-wrap">
+        <div class="ue-barra" role="toolbar" aria-label="Formatting">
+          <button type="button" class="ue-fmt" data-cmd="bold" title="Bold" aria-label="Bold"><b>B</b></button>
+          <button type="button" class="ue-fmt" data-cmd="italic" title="Italic" aria-label="Italic"><i>I</i></button>
+          <button type="button" class="ue-fmt" data-cmd="underline" title="Underline" aria-label="Underline"><u>U</u></button>
+          <span class="ue-sep"></span>
+          <span class="ue-pop-wrap"><button type="button" class="ue-fmt" id="ueColorBtn" title="Text color" aria-label="Text color" aria-haspopup="true" aria-expanded="false"><span class="ue-color-a">A</span><span class="ue-color-barra"></span></button>
+            <div class="ue-color-pop hidden" id="ueColorPop" role="menu" aria-label="Text color"></div></span>
+          <span class="ue-pop-wrap"><button type="button" class="ue-fmt" id="ueEmojiBtn" title="Emoji" aria-label="Add emoji" aria-haspopup="true" aria-expanded="false">🙂</button>
+            <div class="ue-emoji-pop hidden" id="ueEmojiPop" role="menu" aria-label="Emojis"></div></span>
+        </div>
+        <div id="ueCuerpo" class="ue-rico" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" data-ph="Write the message. Links work."></div>
+      </div></label>
     <div class="ue-sec"><b>Photos and files</b> <small class="muted">Up to 10 · 15 MB each · drag &amp; drop or paste images into the message</small>
       <ul class="ue-archivos" id="ueArchivos"></ul>
       <button class="btn btn-ghost btn-sm" type="button" id="ueAdjuntar">Add photos or files</button>
@@ -4955,7 +4987,7 @@ function appRecordatorios(yo, r, t){
   if(typeof chatRecordatorios === 'function') out.push(...chatRecordatorios());
   // v62: comunicados sin leer (los 3 más nuevos)
   (S.updPend || []).slice(0, 3).forEach(u => out.push({ id:'upd|' + u.id + '|' + yo.hoy, en:0, titulo:'New update: ' + u.titulo.slice(0, 80),
-    texto:(u.cuerpo || '').replace(/\s+/g, ' ').trim().slice(0, 140) || 'Open the Time Clock to read it.' }));
+    texto:updPlano(u.cuerpo).slice(0, 140) || 'Open the Time Clock to read it.' }));
   // v58: falta la foto del documento de identidad (una vez al día)
   const idp = typeof idPendAgente === 'function' ? idPendAgente() : null;
   if(idp) out.push({ id:'idfoto|' + yo.hoy, en:0, titulo:idp.k === 'rechazado' ? 'Your ID photo was rejected' : 'Your ID photo is missing',
@@ -9978,22 +10010,62 @@ const updEsImg = a => /^image\//.test(a.mime || '') || /\.(png|jpe?g|gif|webp)$/
 function updTexto(t){
   return esc(t || '').replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 }
-// (v145) Cuerpo con imágenes incrustadas donde haya marcadores [imgN] (N = imagen adjunta #N).
-function updCuerpoHTML(cuerpo, imgs){
-  const txt = cuerpo || '', re = /\[img(\d+)\]/gi, usados = new Set();
+// (v224) Cuerpo con FORMATO: HTML limitado (strong/em/u/span[color]) + enlaces + imágenes [imgN].
+//   El cuerpo puede venir con etiquetas de formato; se SANEA (solo se emiten las permitidas) y el
+//   texto se escapa, así que nada ajeno (scripts, atributos, etc.) llega al DOM.
+function ueEscTxt(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function ueColorHex(v){ if(!v) return ''; v = String(v).trim();
+  let m = v.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/); if(m) return v.toLowerCase();
+  m = v.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/);
+  if(m){ const h = n => ('0' + Math.max(0, Math.min(255, +n)).toString(16)).slice(-2); return '#' + h(m[1]) + h(m[2]) + h(m[3]); }
+  return ''; }
+// enlaces en una porción de texto ya escapada
+function updLinkify(txt){ return ueEscTxt(txt).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'\"])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
+// porción de texto en modo render: separa [imgN], pone imágenes y enlaces
+function updTextoImgs(txt, imgs, usados){
+  const re = /\[img(\d+)\]/gi; let out = '', last = 0, m;
   const tag = a => a && a.url
     ? '<a class="upd-img-in" href="' + esc(a.url) + '" target="_blank" rel="noopener" title="' + esc(a.nombre) + '"><img src="' + esc(a.url) + '" alt="' + esc(a.nombre) + '" loading="lazy"></a>'
     : (a ? '<span class="upd-img-x">' + esc(a.nombre) + '</span>' : '');
-  let html = '', last = 0, m;
-  while((m = re.exec(txt))){
-    html += updTexto(txt.slice(last, m.index));
-    const n = parseInt(m[1], 10) - 1, a = imgs[n];
-    if(a){ usados.add(n); html += tag(a); } else { html += updTexto(m[0]); }   // marcador sin imagen → literal
-    last = m.index + m[0].length;
-  }
-  html += updTexto(txt.slice(last));
-  return { html, usados };
-}
+  while((m = re.exec(txt))){ out += updLinkify(txt.slice(last, m.index));
+    const n = parseInt(m[1], 10) - 1, a = (imgs || [])[n];
+    if(a){ if(usados) usados.add(n); out += tag(a); } else { out += updLinkify(m[0]); }
+    last = m.index + m[0].length; }
+  out += updLinkify(txt.slice(last));
+  return out; }
+// recorre un nodo y emite SOLO formato permitido. modo 'render' | 'editar'. (imgs/usados solo en render)
+function updWalk(node, modo, imgs, usados){
+  let out = '';
+  node.childNodes.forEach(n => {
+    if(n.nodeType === 3){
+      if(modo === 'editar') out += ueEscTxt(n.nodeValue).replace(/\n/g, '<br>');
+      else if(modo === 'guardar') out += ueEscTxt(n.nodeValue);
+      else out += updTextoImgs(n.nodeValue, imgs, usados);
+      return; }
+    if(n.nodeType !== 1) return;
+    const tag = n.tagName.toLowerCase();
+    if(tag === 'br'){ out += (modo === 'editar' ? '<br>' : '\n'); return; }
+    if(tag === 'script' || tag === 'style') return;            // nunca
+    const inner = updWalk(n, modo, imgs, usados), st = n.style || {};
+    let ab = '', ce = '';
+    if(tag === 'b' || tag === 'strong' || st.fontWeight === 'bold' || (parseInt(st.fontWeight, 10) >= 600)){ ab += '<strong>'; ce = '</strong>' + ce; }
+    if(tag === 'i' || tag === 'em' || st.fontStyle === 'italic'){ ab += '<em>'; ce = '</em>' + ce; }
+    if(tag === 'u' || /underline/.test(st.textDecoration || '') || /underline/.test(st.textDecorationLine || '')){ ab += '<u>'; ce = '</u>' + ce; }
+    const col = ueColorHex(st.color || '') || (tag === 'font' ? ueColorHex(n.getAttribute && n.getAttribute('color')) : '');
+    if(col){ ab += '<span style="color:' + col + '">'; ce = '</span>' + ce; }
+    if(ab){ out += ab + inner + ce; }
+    else if(tag === 'div' || tag === 'p'){ const brk = (modo === 'editar' ? '<br>' : '\n');
+      if(out && !out.endsWith('\n') && !out.endsWith('<br>')) out += brk;   // separar de la línea anterior
+      out += inner; }
+    else { out += inner; }
+  });
+  return out; }
+function updParse(s){ const d = new DOMParser().parseFromString('<div id="ue-raiz">' + (s || '') + '</div>', 'text/html'); return d.getElementById('ue-raiz'); }
+function updCuerpoHTML(cuerpo, imgs){ const usados = new Set();
+  const html = updWalk(updParse(cuerpo), 'render', imgs || [], usados);
+  return { html, usados }; }
+// texto plano (notificaciones, recortes): sin etiquetas ni marcadores
+function updPlano(cuerpo){ const r = updParse(cuerpo); r.querySelectorAll('script,style').forEach(e => e.remove()); const t = r.textContent || ''; return t.replace(/\[img\d+\]/gi, ' ').replace(/\s+/g, ' ').trim(); }
 // Cuerpo (con marcadores) + galería de las imágenes que no se ubicaron en el texto.
 function updCuerpoYGaleria(u, imgs){
   const cb = updCuerpoHTML(u.cuerpo, imgs), sobran = imgs.filter((a, i) => !cb.usados.has(i));
@@ -10239,7 +10311,7 @@ $('updFBorrar').addEventListener('click', async () => {
 function abrirUpdEd(u){
   S.updEd = { id:u ? u.id : null, destino:u ? u.destino : { todos:true }, quedan:u ? (u.adjuntos || []).slice() : [], nuevos:[] };
   $('ueTitulo').textContent = u ? 'Edit update' : 'New update';
-  $('ueTit').value = u ? u.titulo : ''; $('ueCuerpo').value = u ? u.cuerpo : '';
+  $('ueTit').value = u ? u.titulo : ''; ueSetTexto(u ? u.cuerpo : '');
   if($('ueAuto')){ $('ueAuto').checked = false; $('ueAutoH').value = 4;
     if(u) api('updRecordar', { id:u.id }).then(r => { if(S.updEd && S.updEd.id === u.id && r){ $('ueAuto').checked = !!r.auto; if(r.cada) $('ueAutoH').value = r.cada; } }).catch(() => {}); }
   $('ueComs').checked = u ? u.comentarios : true; $('ueFijar').checked = u ? u.fijado : false;
@@ -10293,16 +10365,13 @@ $('ueGrupos').addEventListener('change', ev => {
 $('ueAdjuntar').addEventListener('click', () => { $('ueArchivo').value = ''; $('ueArchivo').click(); });
 function updEsImgF(f){ return /^image\//.test((f && f.type) || '') || updEsImg({ mime:f && f.type, nombre:f && f.name }); }
 // Inserta texto en el cuerpo: en el cursor si está enfocado, si no al final; en su propia línea.
-function updInsertarCuerpo(txt){
-  const ta = $('ueCuerpo'); if(!ta) return;
-  const foco = document.activeElement === ta;
-  const s = foco ? ta.selectionStart : ta.value.length, e = foco ? ta.selectionEnd : ta.value.length;
-  const v = ta.value, antes = v.slice(0, s), despues = v.slice(e);
-  const pre = (antes && !antes.endsWith('\n')) ? '\n' : '', post = (despues && !despues.startsWith('\n')) ? '\n' : '';
-  const ins = pre + txt + post;
-  ta.value = antes + ins + despues;
-  const caret = (antes + ins).length; ta.selectionStart = ta.selectionEnd = caret; ta.focus();
-}
+// guardar/leer/insertar en el editor con formato
+function ueGetTexto(){ const ed = $('ueCuerpo'); if(!ed) return ''; return updWalk(ed, 'guardar', null, null).replace(/\n{3,}/g, '\n\n').replace(/\s+$/, ''); }
+function ueSetTexto(s){ const ed = $('ueCuerpo'); if(!ed) return; ed.innerHTML = updWalk(updParse(s), 'editar', null, null); }
+function ueFocoFin(){ const ed = $('ueCuerpo'); ed.focus(); const sel = window.getSelection(); if(!sel) return;
+  if(!sel.rangeCount || !ed.contains(sel.anchorNode)){ const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); } }
+function ueInsertar(txt){ const ed = $('ueCuerpo'); if(!ed) return; ueFocoFin(); document.execCommand('insertText', false, txt); }
+function updInsertarCuerpo(txt){ ueInsertar('\n' + txt + '\n'); }
 // marcar=true: por cada imagen agregada, pone su marcador [imgN] en el cursor (pegar/soltar).
 function updAgregarArchivos(fs, marcar){
   const ed = S.updEd; if(!ed) return; $('ueErr').textContent = '';
@@ -10320,13 +10389,15 @@ function updAgregarArchivos(fs, marcar){
 $('ueArchivo').addEventListener('change', () => { updAgregarArchivos([...$('ueArchivo').files], false); });
 // (v146) Pegar imágenes del portapapeles → se adjuntan y se coloca su marcador en el cursor
 $('ueCuerpo').addEventListener('paste', ev => {
-  const items = ev.clipboardData && ev.clipboardData.items; if(!items) return;
+  const dt = ev.clipboardData; if(!dt) return;
   const imgs = [];
-  for(const it of items){ if(it.kind === 'file' && /^image\//.test(it.type || '')){ const f = it.getAsFile(); if(f) imgs.push(f); } }
-  if(!imgs.length) return;                        // sin imágenes: se pega el texto como siempre
+  for(const it of (dt.items || [])){ if(it.kind === 'file' && /^image\//.test(it.type || '')){ const f = it.getAsFile(); if(f) imgs.push(f); } }
   ev.preventDefault();
-  updAgregarArchivos(imgs.map(f => (f.name && f.name !== 'image.png') ? f : new File([f], 'pegado-' + Date.now() + '.png', { type:f.type || 'image/png' })), true);
+  if(imgs.length){ updAgregarArchivos(imgs.map(f => (f.name && f.name !== 'image.png') ? f : new File([f], 'pegado-' + Date.now() + '.png', { type:f.type || 'image/png' })), true); return; }
+  document.execCommand('insertText', false, dt.getData('text/plain') || '');   // solo texto plano
 });
+// al vaciar del todo, dejar el editor limpio para que muestre el placeholder
+$('ueCuerpo').addEventListener('input', () => { const ed = $('ueCuerpo'); if(ed.textContent === '' && !ed.querySelector('img')) ed.innerHTML = ''; });
 // (v146) Arrastrar y soltar: se adjunta y se coloca el marcador de cada imagen
 (function(){ const v = document.querySelector('#ovUpdEd .ventana'); if(!v) return;
   const hl = on => { const c = $('ueCuerpo'); if(c) c.classList.toggle('ue-drag', on); };
@@ -10334,6 +10405,40 @@ $('ueCuerpo').addEventListener('paste', ev => {
   v.addEventListener('dragover', ev => { if(tieneArchivos(ev.dataTransfer)){ ev.preventDefault(); hl(true); } });
   v.addEventListener('dragleave', ev => { if(!v.contains(ev.relatedTarget)) hl(false); });
   v.addEventListener('drop', ev => { if(!(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length)) return; ev.preventDefault(); hl(false); updAgregarArchivos([...ev.dataTransfer.files], true); });
+})();
+// (v224) Barra de formato del cuerpo del comunicado
+(function(){
+  try{ document.execCommand('styleWithCSS', false, false); }catch(_){}
+  const UE_COLORS = ['#D64545', '#E08A1E', '#2F9E44', '#0CA678', '#3B82C4', '#5C6BC0', '#9B59B6', '#E05299', '#555E68', '#111827'];
+  // Negrita / Cursiva / Subrayado
+  document.querySelectorAll('.ue-barra .ue-fmt[data-cmd]').forEach(b => {
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => { $('ueCuerpo').focus(); try{ document.execCommand(b.dataset.cmd, false, null); }catch(_){} });
+  });
+  // Paleta de color
+  const cp = $('ueColorPop');
+  if(cp) cp.innerHTML = UE_COLORS.map(c => '<button type="button" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('');
+  function cerrarColor(){ if(cp){ cp.classList.add('hidden'); $('ueColorBtn').setAttribute('aria-expanded', 'false'); } }
+  const cb = $('ueColorBtn');
+  if(cb){ cb.addEventListener('mousedown', e => e.preventDefault());
+    cb.addEventListener('click', ev => { ev.stopPropagation(); const ab = cp.classList.contains('hidden'); ueEmojiCerrarU(); cp.classList.toggle('hidden', !ab); cb.setAttribute('aria-expanded', String(ab)); }); }
+  if(cp) cp.addEventListener('mousedown', e => e.preventDefault());
+  if(cp) cp.addEventListener('click', ev => { const b = ev.target.closest('[data-color]'); if(!b) return; $('ueCuerpo').focus(); try{ document.execCommand('foreColor', false, b.dataset.color); }catch(_){} cerrarColor(); });
+  // Emojis (reusa CHAT_EMOJIS de v222)
+  const ep = $('ueEmojiPop'), eb = $('ueEmojiBtn');
+  function ueEmojiRenderU(){ if(!ep || ep.dataset.listo) return;
+    ep.innerHTML = (typeof CHAT_EMOJIS !== 'undefined' ? CHAT_EMOJIS : []).map(g => '<h6>' + esc(g.t) + '</h6><div class="ue-emoji-grid">' + g.e.map(e => '<button type="button" data-emoji="' + e + '">' + e + '</button>').join('') + '</div>').join('');
+    ep.dataset.listo = '1'; }
+  window.ueEmojiCerrarU = function(){ if(ep){ ep.classList.add('hidden'); if(eb) eb.setAttribute('aria-expanded', 'false'); } };
+  if(eb){ eb.addEventListener('mousedown', e => e.preventDefault());
+    eb.addEventListener('click', ev => { ev.stopPropagation(); const ab = ep.classList.contains('hidden'); cerrarColor(); ueEmojiRenderU(); ep.classList.toggle('hidden', !ab); eb.setAttribute('aria-expanded', String(ab)); if(ab) ep.scrollTop = 0; }); }
+  if(ep) ep.addEventListener('mousedown', e => e.preventDefault());
+  if(ep) ep.addEventListener('click', ev => { const b = ev.target.closest('[data-emoji]'); if(!b) return; ueInsertar(b.dataset.emoji); });
+  document.addEventListener('click', ev => {
+    if(cp && !cp.classList.contains('hidden') && !cp.contains(ev.target) && !$('ueColorBtn').contains(ev.target)) cerrarColor();
+    if(ep && !ep.classList.contains('hidden') && !ep.contains(ev.target) && !eb.contains(ev.target)) ueEmojiCerrarU();
+  });
+  document.addEventListener('keydown', ev => { if(ev.key === 'Escape'){ cerrarColor(); if(window.ueEmojiCerrarU) ueEmojiCerrarU(); } });
 })();
 $('ueArchivos').addEventListener('click', ev => { const b = ev.target.closest('[data-ue-x]'); if(!b) return; const k = b.dataset.ueX, i = Number(k.slice(1));
   if(k[0] === 'q') S.updEd.quedan.splice(i, 1); else S.updEd.nuevos.splice(i, 1); pintarUpdEd(); });
@@ -10343,7 +10448,7 @@ function updPrevObj(){
   const urlDe = f => f._url || (f._url = URL.createObjectURL(f));
   const adj = (ed.quedan || []).slice().concat((ed.nuevos || []).map(f => ({ nombre:f.name, mime:f.type, bytes:f.size, url:(/^image\//.test(f.type || '') ? urlDe(f) : '') })));
   return { id:0, titulo:($('ueTit').value.trim() || '(No title)'), autorNombre:(updNombre(S.updYo) || 'You'),
-    creado:Date.now(), editado:null, cuerpo:$('ueCuerpo').value, comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
+    creado:Date.now(), editado:null, cuerpo:ueGetTexto(), comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
     leido:Date.now(), reacs:[], coms:[], adjuntos:adj };
 }
 $('uePrev').addEventListener('click', () => { $('upPrevBody').innerHTML = updTarjeta(updPrevObj(), true); abrir('ovUpdPrev'); });
@@ -10355,7 +10460,7 @@ $('uePublicar').addEventListener('click', async () => {
   b.disabled = true; const t0 = b.textContent; b.innerHTML = '<span class="spin"></span> ' + (ed.nuevos.length ? 'Uploading…' : 'Saving…'); $('ueErr').textContent = '';
   try{
     const d = ed.destino.todos ? { todos:true } : { todos:false, grupos:ed.destino.grupos || [], usuarios:ed.destino.usuarios || [] };
-    const r = await api('updPublicar', { upd:{ id:ed.id, titulo:tit, cuerpo:$('ueCuerpo').value.replace(/\s+$/, ''), destino:d, comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
+    const r = await api('updPublicar', { upd:{ id:ed.id, titulo:tit, cuerpo:ueGetTexto(), destino:d, comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
       adjuntos:ed.quedan.map(a => ({ archivo:a.archivo, nombre:a.nombre, mime:a.mime, bytes:a.bytes })) }, nuevos:ed.nuevos });
     cerrar('ovUpdEd'); toast(r.nuevo ? 'Update sent to ' + r.destinatarios + (r.destinatarios === 1 ? ' person.' : ' people.') : 'Update saved.');
     await cargarUpd(true);
@@ -10815,7 +10920,7 @@ function popIrChat(id){
 }
 function popUpd(){
   (S.updPend || []).slice(0, 3).forEach(u => popMostrar('upd|' + u.id, { icono:'<span class="pop-ic">' + IC_UPD + '</span>', titulo:'New update: ' + u.titulo,
-    texto:(u.cuerpo || '').replace(/\s+/g, ' ').trim().slice(0, 140), boton:'Read', abrir:() => popIrUpd(u.id) }));
+    texto:updPlano(u.cuerpo).slice(0, 140), boton:'Read', abrir:() => popIrUpd(u.id) }));
   popTitulo();
 }
 // en el navegador (no en la app de Windows): ofrecer las notificaciones del sistema
