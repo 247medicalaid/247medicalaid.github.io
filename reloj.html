@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v220-202610221835">
+<meta name="app-build" content="v221-202610221912">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1712,6 +1712,7 @@ body.aw-app .chat{height:calc(100vh - 200px)}
 .chat-msg.borrado .chat-burbuja{background:transparent;color:var(--text-muted);font-size:13px}
 .chat-txt{white-space:pre-wrap}.chat-txt a{color:var(--brand-700, #1F4E79)}
 .chat-h{display:block;text-align:right;font-size:10.5px;color:var(--text-muted);margin-top:1px}
+.chat-visto{align-self:flex-end;font-size:11px;color:var(--text-muted);margin:2px 4px 0;cursor:default}
 .chat-img{display:block;margin:2px 0 4px}.chat-img img{display:block;max-width:min(320px,100%);max-height:300px;border-radius:10px}
 .chat-file{margin:2px 0 4px;background:var(--paper)}
 .chat-x{position:absolute;top:50%;transform:translateY(-50%);left:-30px;border:0;background:none;color:var(--text-muted);font-size:17px;cursor:pointer;opacity:0;padding:2px 6px;border-radius:6px}
@@ -3891,7 +3892,7 @@ async function chatSB(action, p){
     const [ms, mb, bor, cop] = await Promise.all([
       Number(p.desde) ? q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).gt('id', desde).order('id').limit(500))
             : q(sb.from('reloj_chat_msg').select('*').eq('chat_id', id).gt('id', min).order('id', { ascending:false }).limit(200)).then(l => l.reverse()),
-      q(sb.from('reloj_chat_miembro').select('usuario,nombre,rol,salio').eq('chat_id', id)),
+      q(sb.from('reloj_chat_miembro').select('usuario,nombre,rol,salio,leido:leido_hasta,leido_en').eq('chat_id', id)),
       Number(p.desde) ? q(sb.from('reloj_chat_msg').select('id,usuario,nombre,creado,borrado').eq('chat_id', id).eq('borrado', true).lte('id', desde).gt('id', Math.max(min, desde - 400))) : [],
       adm ? q(sb.from('reloj_chat_msg_borrado').select('*').eq('chat_id', id)).catch(() => []) : null]);
     let copias = null;
@@ -10430,14 +10431,16 @@ async function cargarChatMsgs(id, callado){
     const inf0 = c.resumen.find(z => z.id === id), min = c.modo === 'todos' || !inf0 ? 0 : Number(inf0.desde) || 0;
     const r = await api('chatMsgs', { id, desde, min });
     if(c.abierto !== id) return;
+    const vistoAntes = (c.miembros[id] || []).map(m => m.usuario + ':' + (m.leido || 0)).join('|');
     c.miembros[id] = r.miembros;
+    const vistoCambio = vistoAntes !== (r.miembros || []).map(m => m.usuario + ':' + (m.leido || 0)).join('|');
     const nuevos = r.msgs.filter(m => !l.some(x => x.id === m.id));
     // también los cambios (borrados) de los que ya estaban
     const cambios = (r.cambios || []);
     c.msgs[id] = l.map(m => cambios.find(x => x.id === m.id) || m).concat(nuevos);
     if(r.copias){ const antes = JSON.stringify(c.msgs[id].map(m => !!m.copia)); c.msgs[id].forEach(m => { m.copia = r.copias[m.id] || null; });
       if(callado && antes !== JSON.stringify(c.msgs[id].map(m => !!m.copia))) cambios.push(1); }
-    if(!callado || nuevos.length || cambios.length) pintarChatConv(nuevos.length > 0);
+    if(!callado || nuevos.length || cambios.length || vistoCambio) pintarChatConv(nuevos.length > 0);
     const ult = c.msgs[id].length ? c.msgs[id][c.msgs[id].length - 1].id : 0, x = c.resumen.find(z => z.id === id);
     if(ult && x && x.noLeidos && chatVisible() && !document.hidden){ x.noLeidos = 0; chatContar(); pintarChatLista(); popQuitar('chat|' + id + '|'); popTitulo(); api('chatLeido', { id, hasta:ult }).catch(() => {}); }
   }catch(e){ if(!callado) $('chatMsgs').innerHTML = '<div class="err" style="padding:14px">' + esc(e.message) + '</div>'; }
@@ -10459,6 +10462,18 @@ function chatAjustar(){
   if(el.style.height !== h + 'px'){ const m = $('chatMsgs'), abajo = m && m.scrollHeight - m.scrollTop - m.clientHeight < 80; el.style.height = h + 'px'; if(abajo) m.scrollTop = m.scrollHeight; }
 }
 window.addEventListener('resize', () => chatAjustar());
+function chatVistoHTML(m, otros, grupo){
+  const vistos = otros.filter(o => (o.leido || 0) >= m.id);
+  let txt, title = '';
+  if(!grupo){
+    const o = otros[0];
+    txt = (o && (o.leido || 0) >= m.id) ? ('Seen' + (o.leido_en ? ' ' + hora(Date.parse(o.leido_en)) : '')) : 'Sent';
+  }else{
+    txt = !vistos.length ? 'Sent' : vistos.length === otros.length ? 'Seen by everyone' : ('Seen by ' + vistos.length + '/' + otros.length);
+    title = vistos.map(o => (o.nombre || o.usuario) + (o.leido_en ? ' \u00b7 ' + hora(Date.parse(o.leido_en)) : '')).join('\n');
+  }
+  return '<small class="chat-visto"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(txt) + '</small>';
+}
 function pintarChatConv(bajar){
   setTimeout(chatAjustar, 0);
   const c = chatS(), id = c.abierto, inf = id && chatInfo(id);
@@ -10474,6 +10489,8 @@ function pintarChatConv(bajar){
     esc(bp.map(b => chatHora(Date.parse(b.en))).join(', ')) + (pend.length ? '' : ' · kept') + '</span>' +
     (pend.length ? '<button type="button" class="btn btn-sm btn-ghost" id="chatKeep">Keep</button>' : '') + '<button type="button" class="btn btn-sm chat-elim" id="chatElim">Delete permanently</button></div>';
   const l = c.msgs[id] || [], caja = $('chatMsgs'), abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 80;
+  const otrosMb = (c.miembros[id] || []).filter(m => !m.salio && m.usuario !== c.yo);
+  let ultMioId = 0; l.forEach(m => { if(m.usuario === c.yo && !m.borrado) ultMioId = m.id; });
   let dia = '', html = '';
   l.forEach((m, i) => {
     const d = fmt(m.creado, { weekday:'long', month:'short', day:'numeric' }); if(d !== dia){ dia = d; html += '<div class="chat-dia"><span>' + esc(d) + '</span></div>'; }
@@ -10489,6 +10506,7 @@ function pintarChatConv(bajar){
           '<a class="upd-file chat-file"' + (a.url ? ' href="' + esc(a.url) + '" target="_blank" rel="noopener"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span>' + esc(a.nombre) + '<small>' + updBytes(a.bytes) + '</small></span></a>') : '') +
         (m.texto ? '<span class="chat-txt">' + updTexto(m.texto) + '</span>' : '')) +
         '<small class="chat-h">' + esc(hora(m.creado)) + '</small></div>' +
+      (mio && !m.borrado && m.id === ultMioId && otrosMb.length ? chatVistoHTML(m, otrosMb, inf.grupo) : '') +
       (!m.borrado && (mio || adm) ? '<button type="button" class="chat-x" data-msg-x="' + m.id + '" aria-label="Delete message" title="Delete">×</button>'
         : m.borrado && m.copia && adm ? '<button type="button" class="chat-x" data-msg-x="' + m.id + '" aria-label="Delete permanently" title="Delete permanently">×</button>' : '') + '</div>';
   });
@@ -13010,7 +13028,7 @@ function demoChat(action, p){
     .concat([{ usuario:'carloshtl75', nombre:'Carlos Tobon', cuenta:'', admin:true, cuentaCreada:true }]).sort((a, b) => a.nombre.localeCompare(b.nombre));
   if(action === 'chatMsgs'){ if(!admin && !mio(p.id)) throw new Error('That conversation no longer exists.');
     const ms = DM.chatMsgs.filter(m => m.c === p.id), d = Number(p.desde) || 0;
-    return { msgs:demoCopia(ms.filter(m => m.id > d)).map(m => Object.assign(m, { adjunto:m.adjunto })), miembros:DM.chatMb.filter(m => m.c === p.id).map(m => ({ usuario:m.usuario, nombre:m.nombre, rol:m.rol, salio:m.salio })),
+    return { msgs:demoCopia(ms.filter(m => m.id > d)).map(m => Object.assign(m, { adjunto:m.adjunto })), miembros:DM.chatMb.filter(m => m.c === p.id).map(m => { const lm = DM.chatMsgs.find(g => g.c === m.c && g.id === m.leido); return { usuario:m.usuario, nombre:m.nombre, rol:m.rol, salio:m.salio, leido:m.leido, leido_en:lm ? new Date(lm.creado + 60000).toISOString() : null }; }),
       cambios:d ? demoCopia(ms.filter(m => m.id <= d && m.borrado)) : [] }; }
   if(action === 'chatEnviar'){
     if(!mio(p.id)) throw new Error('That conversation no longer exists.');
@@ -14615,5 +14633,5 @@ try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cad
 
 })();
 </script>
-<!-- redeploy 202610221900 --></body>
+</body>
 </html>
