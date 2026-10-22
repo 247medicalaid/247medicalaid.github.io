@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v217-202610220146">
+<meta name="app-build" content="v218-202610220157">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -11218,6 +11218,15 @@ function diaSimple(marcas){
   return ['', 'entrada', 'entrada,salida', 'entrada,almuerzo_ini', 'entrada,almuerzo_ini,almuerzo_fin', 'entrada,almuerzo_ini,almuerzo_fin,salida'].includes(t);
 }
 const aMin = x => { if(!x) return null; const [h, m] = x.split(':').map(Number); return h * 60 + m; };
+// (v218) Tooltip de una casilla del editor de horas: dice el ORIGEN de la marca
+// (Auto Clock out, corrección del admin, importada) además de la hora exacta, para decidir.
+function phTipPH(m, exacta){
+  if(!m) return '';
+  if(m.origen === 'auto') return (m.motivo || 'Automatic clock-out') + ' · ' + exacta;
+  if(m.origen === 'admin') return 'Corrected' + (m.autor ? ' by ' + m.autor : '') + (m.motivo ? ': ' + m.motivo : '') + ' · ' + exacta;
+  if(m.origen === 'importado') return 'Imported · ' + exacta;
+  return 'Exact punch: ' + exacta;   // agente (marca normal)
+}
 function abrirPeriodo(usuario){
   const h = S.hoja; if(!h) return;
   const lista = empsVisibles().map(e => e.usuario);
@@ -11260,10 +11269,10 @@ function abrirPeriodo(usuario){
         '<td><button class="btn-link" type="button" data-dia="' + f + '">Edit day</button></td>' + ausTd(f, d) + '</tr>';
       return;
     }
-    const v = {}, vR = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); vR[m.tipo] = hora(m.msReal || m.ms); });
+    const v = {}, vR = {}, vM = {}; marcas.forEach(m => { v[m.tipo] = hhmm(m.ms); vR[m.tipo] = hora(m.msReal || m.ms); vM[m.tipo] = m; });
     const orig = CAMPOS_PH.map(k => v[k] || '').join('|');
     t += '<tr data-f="' + f + '" data-orig="' + orig + '">' + diaTd +
-      CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '"' + (vR[k] ? ' title="Exact punch: ' + vR[k] + '"' : '') + ' aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
+      CAMPOS_PH.map((k, j) => '<td><input type="time" data-k="' + k + '" value="' + (v[k] || '') + '"' + (vM[k] ? ' title="' + esc(phTipPH(vM[k], vR[k])) + '"' : '') + ' aria-label="' + esc(diaS(f)) + ' ' + ['clock in','lunch start','lunch end','clock out'][j] + '"></td>').join('') +
       '<td class="hrs num"></td><td><button class="x" type="button" title="Clear this day" aria-label="Clear ' + esc(diaS(f)) + '">×</button></td>' + ausTd(f, d) + '</tr>';
   });
   $('phTabla').innerHTML = t + '</tbody>';
