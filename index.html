@@ -905,6 +905,30 @@ function entrar(){
   pintarApps();
   $('tabAdmin').classList.toggle('hidden', S.user.rol !== 'admin');
   irA('apps');
+  if(/[?&]goto=reloj(\b|=|&|$)/.test(location.search)) irAReloj();
+}
+// (PWA TimeClock Admin) Abrir el Time Clock apenas la sesión de Supabase esté lista.
+let _yendoReloj = false;
+async function irAReloj(){
+  if(_yendoReloj) return; _yendoReloj = true;
+  try{
+    let ov = document.getElementById('gotoOverlay');
+    if(!ov){
+      ov = document.createElement('div'); ov.id = 'gotoOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#04141F;color:#fff;font:600 15px Inter,system-ui,sans-serif';
+      ov.innerHTML = '<div style="width:34px;height:34px;border:3px solid rgba(255,255,255,.25);border-top-color:#17A9DE;border-radius:50%;animation:gspin 1s linear infinite"></div><div>Opening Time Clock…</div><style>@keyframes gspin{to{transform:rotate(360deg)}}</style>';
+      document.body.appendChild(ov);
+    }
+    // Esperar la sesión de Supabase (reloj.html la lee); hasta ~10 s.
+    let lista = false;
+    for(let i = 0; i < 50; i++){
+      try{ const { data } = await window.sb.auth.getSession(); if(data && data.session){ lista = true; break; } }catch(_){}
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if(lista){ location.replace('./reloj.html'); return; }
+    // Si no se pudo confirmar la sesión, quedarse en el portal (el usuario abre la baldosa).
+    if(ov) ov.remove(); _yendoReloj = false;
+  }catch(_){ _yendoReloj = false; const ov = document.getElementById('gotoOverlay'); if(ov) ov.remove(); }
 }
 
 function salir(){
