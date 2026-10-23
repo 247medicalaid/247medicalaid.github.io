@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v244-202610231835">
+<meta name="app-build" content="v244-202610231843">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -13552,7 +13552,7 @@ function demoUpd(action, p){
     if(!quienes.length) throw new Error(admin ? 'Nobody would get this update: choose another group.' : 'You can only send updates to the agents of your account(s).');
     const rol = admin ? 'General Manager' : ((S.mgr && S.mgr.rol) || 'Supervisor');
     const id = ++DM.updId; DM.upds.push({ id, titulo:tit, cuerpo:x.cuerpo || '', autor:yo, autorNombre:nom, autorRol:rol, creado:Date.now(), editado:null, destino:x.destino, comentarios:!!x.comentarios, fijado:!!x.fijado, adjuntos:adj, borrado:false });
-    const dests = quienes.map(e => e.usuario); if(!admin && !dests.includes('carloshtl75')) dests.push('carloshtl75');
+    const dests = quienes.map(e => e.usuario).filter(usr => usr !== yo); if(!admin && !dests.includes('carloshtl75')) dests.push('carloshtl75');
     dests.forEach(usuario => DM.updDest.push({ u:id, usuario, leido:null }));
     return { ok:true, id, destinatarios:dests.length, nuevo:true };
   }
