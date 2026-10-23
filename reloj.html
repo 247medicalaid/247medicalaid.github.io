@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v237-202610231432">
+<meta name="app-build" content="v238-202610231521">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2774,9 +2774,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="ficha-grid">
         <label class="campo c4" style="--w:205px"><span>Account</span><select id="eCuenta"></select><small class="cta-mon" id="eCuentaMon"></small></label>
         <label class="campo c4" style="--w:205px"><span>Department</span><select id="eDepto"></select></label>
-        <label class="campo c4" style="--w:205px"><span>Direct manager</span><select id="eJefe"></select></label>
+        <label class="campo c4" style="--w:205px"><span>Managed by</span><input id="eJefe" type="text" readonly placeholder="\u2014"></label>
         <input id="eCargo" type="hidden"><datalist id="eCargoLista"></datalist>
-        <label class="emp-mgr-chk" for="eEsManager"><input type="checkbox" id="eEsManager"><span>This user is a manager</span><small>They appear in the Direct manager list for other users.</small></label>
+        <label class="emp-mgr-chk" for="eEsManager"><input type="checkbox" id="eEsManager"><span id="eMgrLabel">Manager of this account</span><small id="eMgrNota">Pick the account first.</small></label>
         <div class="fila-mon-emp">
           <label class="campo campo-mon" style="--w:210px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
           <input id="eNomina" type="hidden">
@@ -4206,6 +4206,7 @@ async function api(action, p){
   if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
   // (v139) marcar/desmarcar a un usuario como manager (paso 63)
   if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
+  if(action === 'setCuentaManager') return q(sb.rpc('reloj_set_cuenta_manager', { p_cuenta:p.cuenta || '', p_usuario:p.usuario || null }));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
@@ -4477,19 +4478,23 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 
 async function empleadosSB(){
   await sesionSB();
-  const [emps, perfiles, , monSB] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
+  const [emps, perfiles, , monSB, mgrRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
     q(sb.from('perfiles').select('usuario,nombre,activo,rol,invitado_en,activado_en')).catch(() => q(sb.from('perfiles').select('usuario,nombre,activo,rol'))), cargarConfig(),
-    monitorSB().catch(() => null)]);
+    monitorSB().catch(() => null),
+    q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => [])]);
+  const cuentaMgr = {}; (mgrRows || []).forEach(x => { if(x && x.cuenta) cuentaMgr[x.cuenta] = x.usuario; });
+  const derivarMgr = lista => { const nom = {}; lista.forEach(e => { nom[e.usuario] = e.nombre; }); const esMgr = new Set(Object.values(cuentaMgr));
+    lista.forEach(e => { e.esManager = esMgr.has(e.usuario); const mu = cuentaMgr[e.cuenta] || ''; e.jefe = (mu && mu !== e.usuario) ? (nom[mu] || '') : ''; }); return lista; };
   if(monSB && monSB.agentes.length){
     S.cuentasMon = monSB.cuentas.length ? monSB.cuentas : S.cuentasMon;
     S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93) el paso 55 ya agregó la columna
-    return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })),
+    return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })),
       monitor:monSB.agentes, cuentas:monSB.cuentas };
   }
   // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
   if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
   S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93)
-  return { empleados:emps.map(empJS), portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
+  return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
 
 /* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
@@ -6998,7 +7003,23 @@ $('uGrupo').addEventListener('change', () => { uGuardarPref('grupo', $('uGrupo')
 $('eCargo').addEventListener('focus', () => { const t = new Set((S.emps ? S.emps.empleados : []).map(e => (e.titulo || '').trim()).filter(Boolean));
   $('eCargoLista').innerHTML = [...t].sort().map(x => '<option value="' + esc(x) + '">').join(''); });
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
-const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', jefe:'eJefe', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
+// (v238) Actualiza el bloque de manager de cuenta en la ficha segun la cuenta elegida.
+function actualizarMgrNota(){
+  const chk = $('eEsManager'), lbl = $('eMgrLabel'), nota = $('eMgrNota');
+  const cta = ($('eCuenta') && $('eCuenta').value) || '';
+  const mgrDe = (S.emps && S.emps.cuentaMgr) || {}, self = S.empEdit || null;
+  const nom = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nom[x.usuario] = x.nombre; });
+  const mgrU = cta ? (mgrDe[cta] || '') : '';
+  if($('eJefe')) $('eJefe').value = (mgrU && mgrU !== self) ? (nom[mgrU] || mgrU) : '';
+  if(lbl) lbl.textContent = cta ? ('Manager of ' + cta) : 'Manager of this account';
+  if(!chk) return;
+  if(!cta){ chk.disabled = true; chk.checked = false; if(nota) nota.textContent = 'Pick the account first.'; return; }
+  chk.disabled = false;
+  if(mgrU && mgrU !== self){ if(nota) nota.innerHTML = 'Currently <b>' + esc(nom[mgrU] || mgrU) + '</b> \u2014 turning this on replaces them.'; }
+  else if(mgrU === self && self){ if(nota) nota.textContent = 'This user manages ' + cta + '.'; }
+  else { if(nota) nota.textContent = 'Gives this user manager options for ' + cta + '.'; }
+}
+const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
 // Listas de Settings → Lists para los campos que se eligen.
@@ -7280,12 +7301,10 @@ function abrirEmp(usuario){
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
   (function(){ const self = e ? e.usuario : null;
-    const mgrs = ((S.emps && S.emps.empleados) || []).filter(x => x.esManager && x.usuario !== self && x.activo !== false).map(x => x.nombre).filter(Boolean).sort((a, b) => a.localeCompare(b, 'en'));
-    const sel = $('eJefe'); if(sel){ const actual = e ? (e.jefe || '') : '';
-      let o = ['<option value="">\u2014 None \u2014</option>'].concat([...new Set(mgrs)].map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>'));
-      if(actual && mgrs.indexOf(actual) < 0) o.push('<option value="' + esc(actual) + '" selected>' + esc(actual) + ' (not a manager)</option>');
-      sel.innerHTML = o.join(''); sel.value = actual; }
-    const chk = $('eEsManager'); if(chk) chk.checked = e ? !!e.esManager : false; })();
+    const cta = e ? (e.cuenta || '') : (($('eCuenta') && $('eCuenta').value) || '');
+    const mgrU = ((S.emps && S.emps.cuentaMgr) || {})[cta] || '';
+    const chk = $('eEsManager'); if(chk) chk.checked = !!(self && mgrU === self);
+    actualizarMgrNota(); })();
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
   pintarNominaAviso(); pintarMonNota(); pintarQuien();
   $('eErr').textContent = '';
@@ -7427,7 +7446,7 @@ function pintarMonNota(){
 $('eMonitor').addEventListener('change', pintarMonNota);
 ['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('input', pintarMonNota));
 $('eMonitor').addEventListener('change', () => { const m = monAgente($('eMonitor').value); if(m && m.cuenta) proponerCuenta(m.cuenta); else pintarCuentaMon(); });
-$('eCuenta').addEventListener('change', pintarCuentaMon);
+$('eCuenta').addEventListener('change', () => { pintarCuentaMon(); actualizarMgrNota(); });
 $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:S.empEdit || '', nombre:nombreFicha(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:S.empEdit ? !!(S.emps.empleados.find(x => x.usuario === S.empEdit) || {}).activo : true };
@@ -7444,14 +7463,20 @@ $('eGuardar').addEventListener('click', async () => {
     // (si el agente ya es de otro usuario, no se pregunta: el guardado lo frena con su propio mensaje)
     if(m0 && !monDueno(m0.agente, S.empEdit) && monClave(m0.agente) !== monClave(datos.nombre) && parecidoNombres(m0.agente, datos.nombre) !== 'parecido'
        && !(await avisoRenombreMon(m0, datos.nombre))) return; }
+  { const _u0 = S.empEdit, cta0 = ($('eCuenta') && $('eCuenta').value) || '', mgrDe0 = (S.emps && S.emps.cuentaMgr) || {};
+    const quiere0 = !!($('eEsManager') || {}).checked && !!cta0, actual0 = mgrDe0[cta0] || '';
+    if(quiere0 && actual0 && actual0 !== _u0){
+      const nom0 = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === actual0) || {}).nombre || actual0;
+      if(!(await confirmar('Replace account manager?', '<b>' + esc(cta0) + '</b> is currently managed by <b>' + esc(nom0) + '</b>. Make this user the manager instead?', 'Replace', false))) return; } }
   const b = $('eGuardar'); b.disabled = true;
   const monAntes = monAgente(datos.agenteMonitor);
   try{
     let r = await api('guardarEmpleado', { empleado:datos });
     try{ const _u = datos.usuario || ((r.empleados || []).find(x => (x.email || '').toLowerCase() === datos.email) || {}).usuario;
-      if(_u){ const _ya = !!((r.empleados || []).find(x => x.usuario === _u) || {}).esManager, _q = !!($('eEsManager') || {}).checked;
-        if(_q !== _ya){ await api('setManager', { usuario:_u, esManager:_q }); const _e = (r.empleados || []).find(x => x.usuario === _u); if(_e) _e.esManager = _q; } } }
-    catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Marking a manager needs SQL step 63 in Supabase.' : 'Could not save the manager flag.', 'err'); }
+      if(_u){ const _cta = datos.cuenta || '', _mgrDe = (S.emps && S.emps.cuentaMgr) || {};
+        const _era = _mgrDe[_cta] === _u, _q = !!($('eEsManager') || {}).checked && !!_cta;
+        if(_q !== _era){ await api('setCuentaManager', { cuenta:_cta, usuario:_q ? _u : null }); } } }
+    catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Assigning an account manager needs SQL step 98 in Supabase.' : 'Could not save the account manager.', 'err'); }
     // Time Clock → Monitor: la misma cuenta en los dos lados.
     let avisoMon = '', renombrado = null;
     // (v78) el agente del Monitor toma el nombre del usuario (el nombre de la ficha es el que manda)
@@ -7470,7 +7495,7 @@ $('eGuardar').addEventListener('click', async () => {
         avisoMon = 'ok';
       }catch(x){ avisoMon = x.message; }
     }
-    S.emps = r; pintarEmps(); cerrar('ovEmp');
+    { const _res = r.res; S.emps = await api('empleados'); S.emps.res = _res; } pintarEmps(); cerrar('ovEmp');
     S.hoja = null; S.hojaHoy = null;
     const res = r.res || {};
     // Nuevo: se le manda la invitación. Si cambió el email de un agente con cuenta, la cuenta se pone al día y le llega
@@ -13494,6 +13519,7 @@ function demoChat2(action, p){
 async function demoApi(action, p){
   demoInit();
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
+  if(action === 'setCuentaManager'){ DM.cuentaMgr = DM.cuentaMgr || {}; if(p.usuario) DM.cuentaMgr[p.cuenta] = p.usuario; else delete DM.cuentaMgr[p.cuenta]; try{ const s = new Set(Object.values(DM.cuentaMgr)); (DM.emps || []).forEach(e => e.esManager = s.has(e.usuario)); }catch(x){} return { ok:true }; }
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
     if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
