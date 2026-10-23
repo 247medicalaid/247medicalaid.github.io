@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v229-202610230250">
+<meta name="app-build" content="v230-202610230301">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -11262,11 +11262,22 @@ function ladoHTML(titulo, clase, l, otro, emp, icono){
   else h += '<div class="rq-fila"><span>Punches</span><div class="rq-v rq-txt' + (clase === 'nuevo' && marcasTxt(l) !== marcasTxt(otro) ? ' cambio' : '') + '">' + esc(marcasTxt(l)) + '</div></div>';
   return h + '<div class="rq-tot' + (clase === 'nuevo' && min !== minO ? ' cambio' : '') + '"><span>Total hours</span><span>' + (cerrado ? hm(min) : hm(min) + '+') + '</span></div></section>';
 }
-// (v229) true si las marcas (en orden de hora) no forman un turno válido: entrada[,almuerzo_ini,almuerzo_fin],salida
+// (v230) true si quedan marcas FUERA DE ORDEN. Misma máquina de estados que armarDia
+// (permite varios turnos: fuera→trabajando→almuerzo→trabajando→fuera). A igual minuto, el
+// cierre (salida / almuerzo_fin) va antes que la apertura (entrada / almuerzo_ini), como el motor.
 function solConflicto(l){
-  const seq = (l || []).slice().sort((x, y) => (aMin(x.hora) || 0) - (aMin(y.hora) || 0)).map(m => m.tipo).join(',');
-  if(!seq) return false;
-  return !['entrada,salida', 'entrada,almuerzo_ini,almuerzo_fin,salida', 'entrada'].includes(seq);
+  const cierra = { salida:0, almuerzo_fin:0, entrada:1, almuerzo_ini:1 };
+  const ord = (l || []).map(m => ({ t:m.tipo, k:(aMin(m.hora) || 0) * 2 + (cierra[m.tipo] == null ? 1 : cierra[m.tipo]) }))
+    .sort((a, b) => a.k - b.k);
+  let estado = 'fuera', inval = 0;
+  ord.forEach(m => {
+    if(m.t === 'entrada' && estado === 'fuera') estado = 'trabajando';
+    else if(m.t === 'almuerzo_ini' && estado === 'trabajando') estado = 'almuerzo';
+    else if(m.t === 'almuerzo_fin' && estado === 'almuerzo') estado = 'trabajando';
+    else if(m.t === 'salida' && estado === 'trabajando') estado = 'fuera';
+    else inval++;
+  });
+  return inval > 0;
 }
 function rqHTML(s, r){
   const emp = r.emps.find(e => e.usuario === s.usuario) || {};
