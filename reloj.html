@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v244-202610231832">
+<meta name="app-build" content="v244-202610231835">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -10805,7 +10805,7 @@ $('uePublicar').addEventListener('click', async () => {
     const r = await api('updPublicar', { upd:{ id:ed.id, titulo:tit, cuerpo:ueGetTexto(), destino:d, comentarios:$('ueComs').checked, fijado:$('ueFijar').checked,
       adjuntos:ed.quedan.map(a => ({ archivo:a.archivo, nombre:a.nombre, mime:a.mime, bytes:a.bytes })) }, nuevos:ed.nuevos });
     cerrar('ovUpdEd'); toast(r.nuevo ? 'Update sent to ' + r.destinatarios + (r.destinatarios === 1 ? ' person.' : ' people.') : 'Update saved.');
-    await cargarUpd(true);
+    await (S.updAdmin ? cargarUpd : cargarUpdAg)(true);
     try{ const auto = $('ueAuto') && $('ueAuto').checked, cada = Math.max(1, Math.min(168, Number($('ueAutoH') && $('ueAutoH').value) || 4));
       let uid = ed.id || (r && r.id);
       if(uid == null && S.upd && S.upd.upds && S.upd.upds.length){ const nw = S.upd.upds.slice().sort((a, b) => b.creado - a.creado)[0]; uid = nw && nw.id; }
