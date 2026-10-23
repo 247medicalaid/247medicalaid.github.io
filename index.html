@@ -2,11 +2,35 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
 <title>24/7 Medical Aid — Operations Portal</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304141F'/%3E%3Cpath d='M9 22h6M12 10v12M20 10v12M17 15h6' stroke='%23ED3237' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TimeClock">
+<script>
+(function(){
+  var app=false;
+  try{ app=matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: minimal-ui)').matches||navigator.standalone===true||/[?&]app=1/.test(location.search); }catch(_){}
+  if(app) document.documentElement.setAttribute('data-app','1');
+  if('serviceWorker' in navigator) addEventListener('load',function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+  var deferred=null, chip=null;
+  function mkChip(){
+    if(chip||app||!document.body) return;
+    chip=document.createElement('button'); chip.type='button'; chip.id='pwaInstall'; chip.textContent='\u2b07 Instalar app'; chip.setAttribute('aria-label','Install app');
+    chip.style.cssText='position:fixed;z-index:99999;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:#17A9DE;color:#04141F;border:0;border-radius:999px;padding:13px 20px;font:700 15px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(4,20,31,.45);cursor:pointer';
+    document.body.appendChild(chip);
+    chip.addEventListener('click',async function(){ if(!deferred) return; chip.disabled=true; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; if(chip){ chip.remove(); chip=null; } });
+  }
+  addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferred=e; if(document.body) mkChip(); else addEventListener('DOMContentLoaded',mkChip); });
+  addEventListener('appinstalled',function(){ if(chip){ chip.remove(); chip=null; } deferred=null; });
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
