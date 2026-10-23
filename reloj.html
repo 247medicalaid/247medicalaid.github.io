@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v248-202610232000">
+<meta name="app-build" content="v249-202610232022">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2967,8 +2967,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <label class="campo" style="margin:0 0 14px;max-width:320px"><span>Reports to</span><select id="eReportaSel"></select></label>
     <div style="font-weight:600;margin-bottom:8px">Manages accounts</div>
     <div id="eMgrCuentas" class="emp-mgr-chips"></div>
-    <div style="font-weight:600;margin:16px 0 6px">Who supervises their updates</div>
-    <p class="nota" style="margin:0 0 8px">The people above this person. Unchecked ones won't get a copy of their updates. By default, everyone above does.</p>
+    <div id="eWatchTit" class="hidden" style="font-weight:600;margin:16px 0 6px">Which accounts' updates do they monitor?</div>
+    <p id="eWatchNota" class="nota hidden" style="margin:0 0 8px">Updates sent in these accounts will also come to this manager. Uncheck any they don't want to monitor. By default, all their accounts are monitored.</p>
     <div id="eWatchCuadro" class="emp-mgr-chips"></div>
     <div class="pie"><span class="esp"></span><button class="btn btn-brand" type="button" data-cerrar>Done</button></div>
   </div>
@@ -4259,7 +4259,7 @@ async function api(action, p){
   if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
   if(action === 'setCuentaManager') return q(sb.rpc('reloj_set_cuenta_manager', { p_cuenta:p.cuenta || '', p_usuario:p.usuario || null }));
   if(action === 'setReporta') return q(sb.rpc('reloj_set_reporta', { p_usuario:p.usuario, p_jefe:p.jefe || null }));
-  if(action === 'setWatchers') return q(sb.rpc('reloj_set_watchers', { p_usuario:p.usuario, p_watchers:(p.watchers === undefined ? null : p.watchers) }));
+  if(action === 'setMonitorea') return q(sb.rpc('reloj_set_monitorea', { p_usuario:p.usuario, p_cuentas:(p.cuentas === undefined ? null : p.cuentas) }));
   if(action === 'mgrConsola') return q(sb.rpc('reloj_mgr_consola'));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
@@ -4532,15 +4532,15 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 
 async function empleadosSB(){
   await sesionSB();
-  const [emps, perfiles, , monSB, mgrRows, reportaRows, watchRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
+  const [emps, perfiles, , monSB, mgrRows, reportaRows, monitRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
     q(sb.from('perfiles').select('usuario,nombre,activo,rol,invitado_en,activado_en')).catch(() => q(sb.from('perfiles').select('usuario,nombre,activo,rol'))), cargarConfig(),
     monitorSB().catch(() => null),
     q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => []),
     q(sb.from('reloj_reporta').select('usuario,jefe')).catch(() => []),
-    q(sb.from('reloj_upd_watchers').select('usuario,watchers')).catch(() => [])]);
+    q(sb.from('reloj_upd_monitorea').select('usuario,cuentas')).catch(() => [])]);
   const cuentaMgr = {}; (mgrRows || []).forEach(x => { if(x && x.cuenta) cuentaMgr[x.cuenta] = x.usuario; });
   const reportaA = {}; (reportaRows || []).forEach(x => { if(x && x.usuario && x.jefe) reportaA[x.usuario] = x.jefe; });
-  const watchMap = {}; (watchRows || []).forEach(x => { if(x && x.usuario) watchMap[x.usuario] = x.watchers || []; });
+  const monitMap = {}; (monitRows || []).forEach(x => { if(x && x.usuario) monitMap[x.usuario] = x.cuentas || []; });
   const derivarMgr = lista => { const nom = {}; lista.forEach(e => { nom[e.usuario] = e.nombre; });
     const gestDir = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gestDir[u] = gestDir[u] || []).push(c); });
     const repOf = {}; Object.keys(reportaA).forEach(u => { const j = reportaA[u]; if(j) (repOf[j] = repOf[j] || []).push(u); });
@@ -4555,7 +4555,7 @@ async function empleadosSB(){
       e.esManager = lv >= 1 || e.usuario === gmU;
       e.rolManager = e.usuario === gmU ? 'General Manager' : rolDe(lv);
       e.reportaA = reportaA[e.usuario] || '';
-      e.watchers = Object.prototype.hasOwnProperty.call(watchMap, e.usuario) ? (watchMap[e.usuario] || []) : null;
+      e.monitorea = Object.prototype.hasOwnProperty.call(monitMap, e.usuario) ? (monitMap[e.usuario] || []) : null;
       e.jefeManager = e.usuario === gmU ? '' : (e.reportaA ? (nom[e.reportaA] || e.reportaA) : gmNom);
       const mu = cuentaMgr[e.cuenta] || ''; e.jefe = (mu && mu !== e.usuario) ? (nom[mu] || '') : ((!e.esManager && e.usuario !== gmU) ? gmNom : ''); }); return lista; };
   if(monSB && monSB.agentes.length){
@@ -7112,26 +7112,23 @@ function pintarReportaSel(){
   const self = S.empEdit || null;
   const act = ((S.emps && S.emps.empleados) || []).filter(e => e.activo !== false && e.usuario !== self).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
   selEl.innerHTML = '<option value="">General Manager (default)</option>' + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.reportaSel || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
-  selEl.onchange = () => { S.reportaSel = selEl.value || ''; S.watchSel = new Set(cadenaSupervisa(S.empEdit)); actualizarMgrNota(); pintarWatch(); };
+  selEl.onchange = () => { S.reportaSel = selEl.value || ''; actualizarMgrNota(); };
 }
-function cadenaSupervisa(usuario){
-  const rep = (S.emps && S.emps.reportaA) || {}, gm = S.gm || '';
-  const seen = new Set(usuario ? [usuario] : []); const out = [];
-  let cur = (usuario && usuario === S.empEdit) ? (S.reportaSel || '') : (usuario ? (rep[usuario] || '') : '');
-  while(cur && !seen.has(cur)){ seen.add(cur); out.push(cur); cur = rep[cur] || ''; }
-  if(gm && usuario !== gm && !seen.has(gm)) out.push(gm);
-  return out;
+function empEditObj(){ return ((S.emps && S.emps.empleados) || []).find(x => x.usuario === S.empEdit) || null; }
+function pintarMonit(){
+  const cont = $('eWatchCuadro'), tit = $('eWatchTit'), nota = $('eWatchNota'); if(!cont) return;
+  const self = empEditObj(), ctas = self ? (self.gestiona || []) : [];
+  const esMgrArr = !!(self && self.rolManager && self.rolManager !== 'Supervisor');
+  if(tit) tit.classList.toggle('hidden', !esMgrArr);
+  if(nota) nota.classList.toggle('hidden', !esMgrArr);
+  cont.classList.toggle('hidden', !esMgrArr);
+  if(!esMgrArr){ cont.innerHTML = ''; return; }
+  const sel = S.monitSel || (S.monitSel = new Set());
+  cont.innerHTML = ctas.length ? ctas.map(c => '<label class="emp-mgr-chip"><input type="checkbox" data-monit value="' + esc(c) + '"' + (sel.has(c) ? ' checked' : '') + '> ' + esc(c) + '</label>').join('')
+    : '<p class="nota">No accounts in their scope yet.</p>';
 }
-function pintarWatch(){
-  const cont = $('eWatchCuadro'); if(!cont) return;
-  const nom = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nom[x.usuario] = x.nombre; });
-  if(S.gm && !nom[S.gm]) nom[S.gm] = nombreGM();
-  const chain = cadenaSupervisa(S.empEdit || null), sel = S.watchSel || (S.watchSel = new Set());
-  cont.innerHTML = chain.length ? chain.map(u => '<label class="emp-mgr-chip"><input type="checkbox" data-watch value="' + esc(u) + '"' + (sel.has(u) ? ' checked' : '') + '> ' + esc(nom[u] || u) + '</label>').join('')
-    : '<p class="nota">No one is above this person yet. Set \u201cReports to\u201d first.</p>';
-}
-if($('eWatchCuadro')) $('eWatchCuadro').addEventListener('change', ev => { const c = ev.target.closest('[data-watch]'); if(!c) return; const s = S.watchSel || (S.watchSel = new Set()); if(c.checked) s.add(c.value); else s.delete(c.value); });
-if($('eMgrBtn')) $('eMgrBtn').addEventListener('click', () => { pintarReportaSel(); pintarMgrCuentas(); pintarWatch(); abrir('ovMgr'); });
+if($('eWatchCuadro')) $('eWatchCuadro').addEventListener('change', ev => { const c = ev.target.closest('[data-monit]'); if(!c) return; const s = S.monitSel || (S.monitSel = new Set()); if(c.checked) s.add(c.value); else s.delete(c.value); });
+if($('eMgrBtn')) $('eMgrBtn').addEventListener('click', () => { pintarReportaSel(); pintarMgrCuentas(); pintarMonit(); abrir('ovMgr'); });
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
@@ -7415,8 +7412,8 @@ function abrirEmp(usuario){
   });
   S.mgrSel = new Set(e ? (e.gestiona || []) : []);
   S.reportaSel = e ? (e.reportaA || '') : '';
-  { const _w = e ? e.watchers : null; S.watchSel = new Set((_w === null || _w === undefined) ? cadenaSupervisa(e ? e.usuario : null) : _w); }
-  pintarReportaSel(); pintarMgrCuentas(); pintarWatch(); actualizarMgrNota();
+  { const _m = e ? e.monitorea : null; S.monitSel = new Set((_m === null || _m === undefined) ? (e ? (e.gestiona || []) : []) : _m); }
+  pintarReportaSel(); pintarMgrCuentas(); pintarMonit(); actualizarMgrNota();
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
   pintarNominaAviso(); pintarMonNota(); pintarQuien();
   $('eErr').textContent = '';
@@ -7596,7 +7593,7 @@ $('eGuardar').addEventListener('click', async () => {
         for(const c of _add){ const sup = _mgrDe[c] || ''; if(!sup || sup === _u) await api('setCuentaManager', { cuenta:c, usuario:_u }); else await api('setReporta', { usuario:sup, jefe:_u }); }
         for(const c of _del){ const sup = _mgrDe[c] || ''; if(sup === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); else if(sup && _repA[sup] === _u && ![..._sel].some(x => (_mgrDe[x] || '') === sup)) await api('setReporta', { usuario:sup, jefe:null }); }
         { const _repOrig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).reportaA || '', _repNew = S.reportaSel || ''; if(_repNew !== _repOrig && _repNew !== _u) await api('setReporta', { usuario:_u, jefe:_repNew || null }); }
-        { const _wsel = S.watchSel || new Set(), _wchain = cadenaSupervisa(_u), _wselArr = [..._wsel].filter(x => _wchain.includes(x)).sort(), _wdef = _wselArr.length === _wchain.length, _worig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).watchers, _worep = (_worig == null) ? null : _worig.slice().sort(), _wnew = _wdef ? null : _wselArr; if(JSON.stringify(_worep) !== JSON.stringify(_wnew)) await api('setWatchers', { usuario:_u, watchers:_wnew }); } } }
+        { const _emp = ((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}, _scope = (_emp.gestiona || []); const _msel = S.monitSel || new Set(), _mselArr = [..._msel].filter(x => _scope.includes(x)).sort(), _mdef = _mselArr.length === _scope.length, _morig = _emp.monitorea, _morep = (_morig == null) ? null : _morig.slice().sort(), _mnew = _mdef ? null : _mselArr; if(JSON.stringify(_morep) !== JSON.stringify(_mnew)) await api('setMonitorea', { usuario:_u, cuentas:_mnew }); } } }
     catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Assigning account managers needs SQL steps 98 + 98b in Supabase.' : 'Could not save the account managers.', 'err'); }
     // Time Clock → Monitor: la misma cuenta en los dos lados.
     let avisoMon = '', renombrado = null;
@@ -13723,7 +13720,7 @@ async function demoApi(action, p){
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
   if(action === 'setCuentaManager'){ DM.cuentaMgr = DM.cuentaMgr || {}; if(p.usuario) DM.cuentaMgr[p.cuenta] = p.usuario; else delete DM.cuentaMgr[p.cuenta]; try{ const s = new Set(Object.values(DM.cuentaMgr)); (DM.emps || []).forEach(e => e.esManager = s.has(e.usuario)); }catch(x){} return { ok:true }; }
   if(action === 'setReporta'){ DM.reportaA = DM.reportaA || {}; if(p.jefe) DM.reportaA[p.usuario] = p.jefe; else delete DM.reportaA[p.usuario]; return { ok:true }; }
-  if(action === 'setWatchers'){ DM.watchers = DM.watchers || {}; if(p.watchers == null) delete DM.watchers[p.usuario]; else DM.watchers[p.usuario] = p.watchers; return { ok:true }; }
+  if(action === 'setMonitorea'){ DM.monitorea = DM.monitorea || {}; if(p.cuentas == null) delete DM.monitorea[p.usuario]; else DM.monitorea[p.usuario] = p.cuentas; return { ok:true }; }
   if(action === 'mgrConsola'){ await new Promise(r => setTimeout(r, 80)); return demoUpd('mgrConsola', p || {}); }
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
@@ -13796,7 +13793,7 @@ async function demoApi(action, p){
     delete DM.aprob[p.usuario + '|' + p.fecha]; return { corregido:true };
   }
   if(action === 'empleados'){ const m = await monitorSB(); S.cuentasMon = m.cuentas; S.gm = S.gm || 'carloshtl75';
-    const cuentaMgr = DM.cuentaMgr || {}, reportaA = DM.reportaA || {}, watchers = DM.watchers || {};
+    const cuentaMgr = DM.cuentaMgr || {}, reportaA = DM.reportaA || {}, monitorea = DM.monitorea || {};
     const nom = {}; DM.emps.forEach(e => { nom[e.usuario] = e.nombre; });
     const gestDir = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gestDir[u] = gestDir[u] || []).push(c); });
     const repOf = {}; Object.keys(reportaA).forEach(u => { const j = reportaA[u]; if(j) (repOf[j] = repOf[j] || []).push(u); });
@@ -13805,7 +13802,7 @@ async function demoApi(action, p){
     const memoN = {}, nivel = (u, seen) => { if(memoN[u] != null) return memoN[u]; seen = seen || new Set(); if(seen.has(u)) return 0; seen.add(u); const reps = repOf[u] || []; let lv; if(!reps.length) lv = (gestDir[u] || []).length > 0 ? 1 : 0; else { let mx = 0; reps.forEach(r => { const rl = nivel(r, seen); if(rl > mx) mx = rl; }); lv = mx + 1; } memoN[u] = lv; return lv; };
     const rolDe = lv => lv >= 3 ? 'Sector Manager' : lv === 2 ? 'Account Manager' : lv === 1 ? 'Supervisor' : '';
     const empsD = DM.emps.map(e => { const lv = nivel(e.usuario);
-      return Object.assign({}, e, { gestiona:gestRec(e.usuario).slice().sort((a, b) => a.localeCompare(b, 'en')), esManager:lv >= 1 || e.usuario === gmU, rolManager:e.usuario === gmU ? 'General Manager' : rolDe(lv), reportaA:reportaA[e.usuario] || '', jefeManager:e.usuario === gmU ? '' : (reportaA[e.usuario] ? (nom[reportaA[e.usuario]] || reportaA[e.usuario]) : gmNom), watchers: Object.prototype.hasOwnProperty.call(watchers, e.usuario) ? (watchers[e.usuario] || []) : null }); });
+      return Object.assign({}, e, { gestiona:gestRec(e.usuario).slice().sort((a, b) => a.localeCompare(b, 'en')), esManager:lv >= 1 || e.usuario === gmU, rolManager:e.usuario === gmU ? 'General Manager' : rolDe(lv), reportaA:reportaA[e.usuario] || '', jefeManager:e.usuario === gmU ? '' : (reportaA[e.usuario] ? (nom[reportaA[e.usuario]] || reportaA[e.usuario]) : gmNom), monitorea: Object.prototype.hasOwnProperty.call(monitorea, e.usuario) ? (monitorea[e.usuario] || []) : null }); });
     return { empleados:empsD, cuentaMgr, reportaA, cuentas:m.cuentas, monitor:m.agentes, portal:demoPortal() }; }
   if(action === 'solicitar'){ const f0 = p.sol.fecha, f1 = p.sol.tipo === 'ausencia' ? (p.sol.fechaFin || f0) : f0;
     for(let f = f0; f && f <= f1; f = sumarDias(f, 1)) if(DM.aprob[yoU + '|' + f]) throw new Error(enIngles('El día ' + f + ' ya está aprobado. Pídele a tu supervisor que quite la aprobación si hay que cambiar algo.')); }
