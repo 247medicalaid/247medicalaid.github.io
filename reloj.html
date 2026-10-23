@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v231-202610230334">
+<meta name="app-build" content="v232-202610230420">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -24,6 +24,9 @@
 .rq-aviso{display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:10px 12px;background:var(--warn-50);border:1px solid #F0D28C;border-radius:10px;color:var(--warn);font-size:13px;line-height:1.4}
 .rq-aviso svg{width:17px;height:17px;flex:none;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .rq-aviso b{font-weight:700}
+.hoja thead th button.apf{all:unset;display:block;width:100%;box-sizing:border-box;cursor:pointer;border-radius:8px;padding:2px 0;transition:background .12s,color .12s}
+.hoja thead th button.apf:hover{background:var(--brand-50);color:var(--brand-700)}
+.hoja thead th button.apf:focus-visible{outline:2px solid var(--brand-500);outline-offset:-1px}
 @media (max-width:520px){ #seCampos{grid-template-columns:1fr} }
 </style>
 <link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
@@ -6229,7 +6232,8 @@ function pintarHoja(){
     (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
   if(S.selPeriodo !== h.desde + '|' + h.hasta){ S.selHoja = new Set(); S.selPeriodo = h.desde + '|' + h.hasta; }
   let t = '<table class="hoja"><thead><tr><th class="nombre"><label class="selq" title="Select everyone shown"><input type="checkbox" id="hSelTodos" aria-label="Select everyone shown"></label>' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
-    h.fechas.map(f => '<th class="' + (finde(f) ? 'fin' : '') + '">' + esc(diaC(f)) + '<br>' + diaN(f) + '</th>').join('') +
+    h.fechas.map(f => { const fut = f > h.hoy, inner = esc(diaC(f)) + '<br>' + diaN(f);
+      return '<th class="' + (finde(f) ? 'fin' : '') + '">' + (fut ? inner : '<button type="button" class="apf" data-apf="' + f + '" title="Approve ' + esc(fechaL(f)) + ' for everyone shown">' + inner + '</button>') + '</th>'; }).join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
     '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
     '</tr></thead><tbody>';
@@ -6286,6 +6290,7 @@ function pintarHoja(){
   t += '</tbody></table>';
   $('hojaTabla').innerHTML = t;
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
+  $('hojaTabla').querySelectorAll('[data-apf]').forEach(b => b.addEventListener('click', () => aprobarFecha(b.dataset.apf)));
   $('hojaTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrirPeriodo(b.dataset.editar)));
   enlazarSeleccion();
   $('hojaTabla').querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => { const o = ordenHoja(); o.por = b.dataset.ord; o.grupo = false; guardarOrden(); pintarHoja(); }));
@@ -6296,8 +6301,37 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (gray = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
+}
+// (v232) Aprobar una FECHA para todos los empleados visibles. Incluye días con issues;
+// solo salta los que no tienen salida (incompleto / aún abierto) y los ya aprobados.
+async function aprobarFecha(f){
+  const h = S.hoja; if(!h) return;
+  if(f > h.hoy){ toast('That day is in the future.', 'err'); return; }
+  const lista = empsVisibles(), items = [], sinSalida = [], conAlerta = [];
+  let min = 0, yaAp = 0;
+  lista.forEach(e => { const d = e.dias[f];
+    if(!d || !d.marcas || !d.marcas.length) return;            // sin marcas o solo ausencia
+    if(d.aprobado){ yaAp++; return; }
+    if(d.incompleto || d.enCurso){ sinSalida.push(e.nombre); return; }   // falta la salida / aún abierto
+    items.push({ usuario:e.usuario, fecha:f }); min += d.min;
+    if(d.banderas && d.banderas.some(b => b.n === 'alerta')) conAlerta.push(e.nombre);
+  });
+  if(!items.length){ toast(yaAp ? 'Everyone shown is already approved on ' + diaS(f) + '.' : 'No closed days to approve on ' + diaS(f) + '.', yaAp ? undefined : 'err'); return; }
+  const l8 = x => x.slice(0, 8).map(esc).join('<br>') + (x.length > 8 ? '<br>…' : '');
+  const txt = '<b>' + items.length + (items.length === 1 ? ' day' : ' days') + ' · ' + hm(min) + ' h</b> on <b>' + esc(diaS(f)) + '</b> for everyone shown.' +
+    (conAlerta.length ? '<br><br>' + conAlerta.length + (conAlerta.length === 1 ? ' has an alert' : ' of these have alerts') + ' you may want to review — they\'ll still be approved:<br>' + l8(conAlerta) : '') +
+    (sinSalida.length ? '<br><br>' + sinSalida.length + (sinSalida.length === 1 ? ' day has no clock-out' : ' days have no clock-out') + ' and stay unapproved:<br>' + l8(sinSalida) : '') +
+    (yaAp ? '<br><br>' + yaAp + ' already approved.' : '');
+  if(!(await confirmar('Approve ' + fechaL(f) + '?', txt, 'Approve ' + items.length + (items.length === 1 ? ' day' : ' days'), false))) return;
+  try{
+    const r = await api('aprobar', { items });
+    const salt = (r && r.saltados) || [];
+    toast('Approved ' + (r.hechos != null ? r.hechos : items.length) + (items.length === 1 ? ' day' : ' days') + ' on ' + diaS(f) + '.' + (salt.length ? ' ' + salt.length + ' skipped: ' + enIngles(salt[0].por) : ''), salt.length ? 'err' : undefined);
+    S.selHoja = new Set(); S.yoEn = 0;
+    await cargarHoja();
+  }catch(x){ toast(x.message, 'err'); }
 }
 function diasLimpios(){
   const out = [];
