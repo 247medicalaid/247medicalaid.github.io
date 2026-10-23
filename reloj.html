@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v239-202610231624">
+<meta name="app-build" content="v240-202610231707">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -838,7 +838,16 @@ tr.cerrado td{background:#F6FAFC}
 .ventana-ficha .ficha-grid .emp-mgr-chk input{width:17px;height:17px;flex:none;accent-color:var(--brand-600);cursor:pointer}
 .ventana-ficha .ficha-grid .emp-mgr-chk span{font-weight:600;color:var(--text)}
 .ventana-ficha .ficha-grid .emp-mgr-chk small{color:var(--text-muted);font-size:12.5px}
-.ventana-ficha .ficha-grid .emp-mgr-box{flex-basis:100%;width:100%;grid-column:1/-1;margin:2px 0}
+.ventana-ficha .ficha-grid .emp-mgr-row{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0}
+.emp-mgr-rowlbl{font-weight:600;color:var(--text)}
+.emp-mgr-sum{color:var(--text-muted);font-size:14px}
+.emp-mgr-sum.es{color:var(--brand-600);font-weight:600}
+.roles-lista{margin-top:12px;overflow-x:auto}
+.roles-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.roles-tabla th{text-align:left;font-size:12.5px;color:var(--text-muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.roles-tabla td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.roles-tabla tbody tr{cursor:pointer}
+.roles-tabla tbody tr:hover td{background:var(--sand)}
 .emp-mgr-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:7px}
 .emp-mgr-head > span:first-child{font-weight:600;color:var(--text)}
 .emp-mgr-rol{font-size:12.5px;font-weight:700;color:var(--brand-600)}
@@ -2512,6 +2521,12 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <!-- ADMIN: SETTINGS -->
   <section id="vAjustes" class="hidden">
     <div class="cabecera"><h1>Settings</h1></div>
+    <div class="ajuste" id="ajRoles">
+      <h2>Managers &amp; supervisors</h2>
+      <p class="nota">Pick the General Manager (the top of the org). Below are everyone who manages an account, with their title and accounts. Set who manages each account in <b>Users</b> (open a person &rarr; <b>Manage accounts</b>). A person with 1 account is a <b>Supervisor</b>; with 2+ accounts, an <b>Account Manager</b>.</p>
+      <label class="chk-linea" style="gap:10px;flex-wrap:wrap">General Manager <select id="ajGM" style="min-width:220px"></select> <button class="btn btn-ink btn-sm" id="ajGMGuardar" type="button">Save</button> <span class="nota" id="ajGMEstado"></span></label>
+      <div id="ajRolesLista" class="roles-lista"></div>
+    </div>
     <div class="ajuste">
       <h2>Hour rounding</h2>
       <p class="nota">When hours are calculated (Timesheet, approvals, exports and My clock), each punch is rounded to the nearest step. The real punch times are kept exactly as they were.</p>
@@ -2787,7 +2802,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo c4" style="--w:205px"><span>Department</span><select id="eDepto"></select></label>
         <label class="campo c4" style="--w:205px"><span id="eJefeLbl">Supervisor</span><input id="eJefe" type="text" readonly placeholder="—"></label>
         <input id="eCargo" type="hidden"><datalist id="eCargoLista"></datalist>
-        <div class="emp-mgr-box"><div class="emp-mgr-head"><span>Manages accounts</span><span id="eMgrTitulo" class="emp-mgr-rol"></span></div><div id="eMgrCuentas" class="emp-mgr-chips"></div><small id="eMgrNota">Pick the accounts this person manages. 1 account = Supervisor, 2+ = Account Manager.</small></div>
+        <div class="emp-mgr-row"><span class="emp-mgr-rowlbl">Manages accounts</span><span id="eMgrSum" class="emp-mgr-sum">Not a manager</span><button type="button" class="btn btn-ghost btn-sm" id="eMgrBtn">Manage accounts…</button></div>
         <div class="fila-mon-emp">
           <label class="campo campo-mon" style="--w:210px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
           <input id="eNomina" type="hidden">
@@ -2934,6 +2949,16 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- v234: anotar time off en su propio diálogo (antes era inline dentro de la tabla con scroll) -->
+<!-- v240: elegir las cuentas que maneja una persona, en su propio dialogo -->
+<div class="overlay hidden" id="ovMgr" role="dialog" aria-modal="true" aria-labelledby="eMgrTit">
+  <div class="ventana" style="max-width:580px">
+    <h2 id="eMgrTit">Manages accounts</h2>
+    <div class="se-sub" id="eMgrTitulo" style="font-weight:700;color:var(--brand-600);margin:2px 0"></div>
+    <p class="nota" id="eMgrNota" style="margin:2px 0 12px">Pick the accounts this person manages. 1 account = Supervisor, 2+ = Account Manager.</p>
+    <div id="eMgrCuentas" class="emp-mgr-chips"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-brand" type="button" data-cerrar>Done</button></div>
+  </div>
+</div>
 <div class="overlay hidden" id="ovAus" role="dialog" aria-modal="true" aria-labelledby="paTitulo">
   <div class="ventana" style="max-width:560px">
     <h2 id="paTitulo">Add time off</h2>
@@ -3925,7 +3950,7 @@ const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -7018,6 +7043,7 @@ $('eCargo').addEventListener('focus', () => { const t = new Set((S.emps ? S.emps
   $('eCargoLista').innerHTML = [...t].sort().map(x => '<option value="' + esc(x) + '">').join(''); });
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
 // (v238) Actualiza el bloque de manager de cuenta en la ficha segun la cuenta elegida.
+function nombreGM(){ const g = S.gm || ''; if(!g) return 'General Manager'; const e = ((S.emps && S.emps.empleados) || []).find(x => x.usuario === g); return e ? e.nombre : 'General Manager'; }
 function actualizarMgrNota(){
   const sel = S.mgrSel || (S.mgrSel = new Set());
   const cta = ($('eCuenta') && $('eCuenta').value) || '';
@@ -7025,8 +7051,9 @@ function actualizarMgrNota(){
   const nom = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nom[x.usuario] = x.nombre; });
   const n = sel.size, rol = n >= 2 ? 'Account Manager' : (n === 1 ? 'Supervisor' : '');
   if($('eMgrTitulo')) $('eMgrTitulo').textContent = rol ? (rol + (n > 1 ? ' \u00b7 ' + n + ' accounts' : '')) : '';
+  if($('eMgrSum')){ $('eMgrSum').textContent = n === 0 ? 'Not a manager' : n === 1 ? ('Supervisor \u00b7 ' + [...sel][0]) : ('Account Manager \u00b7 ' + n + ' accounts'); $('eMgrSum').classList.toggle('es', n > 0); }
   const lbl = $('eJefeLbl'), jf = $('eJefe');
-  if(n > 0){ if(lbl) lbl.textContent = 'Manager'; if(jf) jf.value = 'General Manager'; }
+  if(n > 0){ if(lbl) lbl.textContent = 'Manager'; if(jf) jf.value = (self && self === S.gm) ? '\u2014' : nombreGM(); }
   else { if(lbl) lbl.textContent = 'Supervisor'; const mu = cta ? (mgrDe[cta] || '') : ''; if(jf) jf.value = (mu && mu !== self) ? (nom[mu] || mu) : ''; }
 }
 function pintarMgrCuentas(){
@@ -7041,6 +7068,7 @@ function pintarMgrCuentas(){
     : '<span class="nota" style="margin:0">No accounts yet.</span>';
   cont.querySelectorAll('[data-cta]').forEach(b => b.addEventListener('click', () => { const c = b.dataset.cta; if(sel.has(c)) sel.delete(c); else sel.add(c); pintarMgrCuentas(); actualizarMgrNota(); }));
 }
+if($('eMgrBtn')) $('eMgrBtn').addEventListener('click', () => { pintarMgrCuentas(); abrir('ovMgr'); });
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
@@ -7359,7 +7387,7 @@ function verEmp(usuario){
   const work = row('Account', (e.cuenta ? dot + esc(e.cuenta) : '')) +
     row('Department', t(e.departamento)) +
     (e.esManager
-      ? row('Manager', 'General Manager <span class="ve-tag">' + esc(e.rolManager || 'Manager') + '</span>') + row('Manages', (e.gestiona || []).map(esc).join(', '))
+      ? row('Manager', (e.usuario === (S.gm || '') ? '\u2014' : esc(nombreGM())) + ' <span class="ve-tag">' + esc(e.rolManager || 'Manager') + '</span>') + row('Manages', (e.gestiona || []).map(esc).join(', '))
       : row('Supervisor', e.jefe ? esc(e.jefe) : '')) +
     row('Start date', e.fechaIngreso ? esc(fechaUS(e.fechaIngreso)) : '') +
     row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '');
@@ -7598,7 +7626,29 @@ $('ajListasGuardar').addEventListener('click', async () => {
   }catch(e){ $('ajListasEstado').textContent = e.message; }
   b.disabled = false;
 });
+function pintarRoles(){
+  const go = () => {
+    const emps = (S.emps && S.emps.empleados) || [];
+    const act = emps.filter(e => e.activo !== false).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
+    const gmSel = $('ajGM'); if(gmSel) gmSel.innerHTML = '<option value="">\u2014 None \u2014</option>' + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.gm || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
+    if($('ajGMEstado')) $('ajGMEstado').textContent = '';
+    const mgrs = emps.filter(e => e.esManager).sort((a, b) => (b.gestiona || []).length - (a.gestiona || []).length || a.nombre.localeCompare(b.nombre, 'en'));
+    const cont = $('ajRolesLista'); if(!cont) return;
+    cont.innerHTML = mgrs.length ? '<table class="roles-tabla"><thead><tr><th>Name</th><th>Title</th><th>Accounts</th></tr></thead><tbody>' +
+      mgrs.map(e => '<tr data-u="' + esc(e.usuario) + '"><td><b>' + esc(e.nombre) + '</b>' + (e.usuario === (S.gm || '') ? ' <span class="ve-tag">GM</span>' : '') + '</td><td>' + esc(e.rolManager || '') + '</td><td>' + ((e.gestiona || []).map(esc).join(', ') || '\u2014') + '</td></tr>').join('') +
+      '</tbody></table>' : '<p class="nota">No managers or supervisors yet. Set them in Users.</p>';
+    cont.querySelectorAll('[data-u]').forEach(tr => tr.addEventListener('click', () => abrirEmp(tr.dataset.u)));
+  };
+  if(!S.emps){ api('empleados').then(r => { S.emps = r; go(); }).catch(() => {}); } else go();
+}
+if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
+  const v = $('ajGM').value || '', b = $('ajGMGuardar'); b.disabled = true; if($('ajGMEstado')) $('ajGMEstado').textContent = 'Saving\u2026';
+  try{ await api('guardarConfig', { clave:'general_manager', valor:v }); S.gm = v; if($('ajGMEstado')) $('ajGMEstado').textContent = 'Saved.'; toast('General Manager saved.'); pintarRoles(); }
+  catch(e){ if($('ajGMEstado')) $('ajGMEstado').textContent = ''; toast(e.message, 'err'); }
+  b.disabled = false;
+});
 function pintarAjustes(){
+  pintarRoles();
   pintarListas(); pintarImportaciones(); pintarReglasPago();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
@@ -13856,7 +13906,7 @@ async function demoApi(action, p){
     filas.reloj_paystubs = DM.paystubs.filter(x => x.usuario === u).length; DM.paystubs = DM.paystubs.filter(x => x.usuario !== u);
     return { ok:true, usuario:u, nombre:e.nombre, filas, borrar };
   }
-  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else S.listas = p.valor; return { ok:true }; }
+  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else if(p.clave === 'general_manager') S.gm = p.valor; else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
       DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
