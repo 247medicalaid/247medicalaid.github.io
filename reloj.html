@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v243-202610231748">
+<meta name="app-build" content="v244-202610231826">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1937,6 +1937,15 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-cab{flex:1;min-width:0}.upd-cab h3{font-size:16.5px;margin:0;line-height:1.3}
 .upd-cab small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:2px}
 .upd-nuevo{display:inline-block;vertical-align:2px;font-size:11px;font-weight:700;background:#17A9DE;color:#fff;border-radius:999px;padding:1px 8px;margin-left:4px}
+.upd-ag-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}.upd-ag-top .upd-ag-t{margin:0}
+.upd-origen{display:inline-block;font-weight:700;color:var(--brand-600,#17A9DE);font-size:11px;text-transform:uppercase;letter-spacing:.02em}
+.upd-card.upd-sent{border-left:3px solid var(--brand-600,#17A9DE)}
+.upd-sent-tag{display:inline-block;font-size:11px;font-weight:700;background:var(--brand-600,#17A9DE);color:#fff;border-radius:999px;padding:1px 8px;margin-bottom:6px}
+.upd-mon{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.upd-mon-ver{font-weight:600}
+.upd-mon-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.upd-mon-list li{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 8px;border-radius:8px;background:var(--surface,#f6f8fa)}
+.upd-mon-list li.ok{color:#0CA678}.upd-mon-list li.falta{color:var(--muted,#667)}.upd-mon-list li small{opacity:.8}
+.upd-rem{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:13px}.upd-rem .upd-rem-h{width:58px}
 .upd-pin svg{width:18px;height:18px;fill:none;stroke:var(--brand-700, #1F4E79);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
 .upd-texto{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.55;margin:10px 0 0}
 .upd-texto a{color:var(--brand-700, #1F4E79)}
@@ -3252,7 +3261,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <section class="chat-ag hidden" id="chatAg"></section>
 <!-- Updates del agente (se mueve al panel de la app) -->
 <div id="updAvisoAg"></div>
-<section class="upd-ag hidden" id="updAg"><h2 class="upd-ag-t">Updates</h2><div id="updAgLista" class="upd-lista"></div></section>
+<section class="upd-ag hidden" id="updAg"><div class="upd-ag-top"><h2 class="upd-ag-t">Updates</h2><button class="btn btn-brand btn-sm hidden" id="updAgNuevo" type="button">New update</button></div><div id="updAgLista" class="upd-lista"></div></section>
 
 <div id="popCaja" class="pop-caja" aria-live="assertive"></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -4009,7 +4018,7 @@ async function updSB(action, p){
     const rutas = [...new Set(ups.flatMap(u => (u.adjuntos || []).map(a => a.archivo)))], urls = {};
     if(rutas.length){ const { data } = await sb.storage.from(BUCKET_UPD).createSignedUrls(rutas, 3600); (data || []).forEach(x => { if(x.signedUrl) urls[x.path] = x.signedUrl; }); }
     return { yo, upds:ups.map(u => { const id = Number(u.id), ds = dest.filter(d => Number(d.upd_id) === id), mio = ds.find(d => d.usuario === yo);
-      return { id, titulo:u.titulo, cuerpo:u.cuerpo || '', autor:u.autor, autorNombre:u.autor_nombre || '', creado:Date.parse(u.creado), editado:u.editado ? Date.parse(u.editado) : null,
+      return { id, titulo:u.titulo, cuerpo:u.cuerpo || '', autor:u.autor, autorNombre:u.autor_nombre || '', autorRol:u.autor_rol || '', mio:(u.autor === yo), recordarAuto:!!u.recordar_auto, recordarCada:u.recordar_cada || 4, creado:Date.parse(u.creado), editado:u.editado ? Date.parse(u.editado) : null,
         destino:u.destino || {}, comentarios:!!u.comentarios, fijado:!!u.fijado, adjuntos:(u.adjuntos || []).map(a => Object.assign({}, a, { url:urls[a.archivo] || '' })),
         leido:admin ? undefined : mio && mio.leido_en ? Date.parse(mio.leido_en) : null,
         dest:{ total:ds.length, leidos:ds.filter(d => d.leido_en).length, lista:ds.map(d => ({ usuario:d.usuario, leidoEn:d.leido_en ? Date.parse(d.leido_en) : null })) },
@@ -4246,6 +4255,7 @@ async function api(action, p){
   if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
   if(action === 'setCuentaManager') return q(sb.rpc('reloj_set_cuenta_manager', { p_cuenta:p.cuenta || '', p_usuario:p.usuario || null }));
   if(action === 'setReporta') return q(sb.rpc('reloj_set_reporta', { p_usuario:p.usuario, p_jefe:p.jefe || null }));
+  if(action === 'mgrConsola') return q(sb.rpc('reloj_mgr_consola'));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
@@ -10372,8 +10382,36 @@ function updQuienes(d, emps){
   return act.filter(e => us.includes(e.usuario) || gs.some(g => normal(g.v) === normal(g.t === 'cuenta' ? e.cuenta : g.t === 'titulo' ? e.titulo : e.ciudad)));
 }
 
-/* ── una tarjeta (la usan el agente y el administrador) ── */
+/* ── (v244) Manager: Updates por cuenta ── */
+function esMgr(){ return !S.updAdmin && !!(S.mgr && S.mgr.esManager); }
+function updDir(){
+  if(esMgr() && S.mgr.agentes) return S.mgr.agentes.map(a => Object.assign({ activo:true, titulo:'', ciudad:'' }, a));
+  return (S.emps && S.emps.empleados) ? S.emps.empleados : [];
+}
+function updNomDe(u){
+  const d = updDir().find(x => x.usuario === u); if(d) return d.nombre;
+  if(S.mgr && S.mgr.gm && S.mgr.gm.usuario === u) return S.mgr.gm.nombre;
+  return u;
+}
+const UPD_ORIGEN = { 'General Manager':'From the office', 'Administraci\u00f3n':'From the office', 'Sector Manager':'From your sector manager', 'Account Manager':'From your account manager', 'Supervisor':'From your supervisor' };
+function origenUpd(u){ return (u && u.autorRol && UPD_ORIGEN[u.autorRol]) || ''; }
+function updTarjetaEnviado(u){
+  const leidos = (u.dest && u.dest.leidos) || 0, total = (u.dest && u.dest.total) || 0;
+  const abierto = (S.updMonAbiertos || (S.updMonAbiertos = {}))[u.id];
+  const lista = ((u.dest && u.dest.lista) || []).slice().sort((a, b) => ((a.leidoEn ? 1 : 0) - (b.leidoEn ? 1 : 0)) || updNomDe(a.usuario).localeCompare(updNomDe(b.usuario), 'en'));
+  return '<article class="upd-card upd-sent" data-upd="' + u.id + '">' +
+    '<header><span class="upd-sent-tag">Sent</span><div class="upd-cab"><h3>' + esc(u.titulo) + '</h3>' +
+      '<small>' + esc(updCuando(u.creado)) + ' \u00b7 To: ' + esc(updDestinoTxt(u.destino)) + '</small></div></header>' +
+    updCuerpoYGaleria(u, (u.adjuntos || []).filter(updEsImg)) +
+    '<div class="upd-mon">' +
+      '<button type="button" class="btn-link upd-mon-ver" data-mon aria-expanded="' + !!abierto + '">Read by <b>' + leidos + '</b> of <b>' + total + '</b></button>' +
+      (abierto ? '<ul class="upd-mon-list">' + lista.map(d => '<li class="' + (d.leidoEn ? 'ok' : 'falta') + '"><span>' + esc(updNomDe(d.usuario)) + '</span><small>' + (d.leidoEn ? 'read ' + esc(updCuando(d.leidoEn)) : 'pending') + '</small></li>').join('') + '</ul>' : '') +
+      '<label class="upd-rem"><input type="checkbox" data-rem-auto' + (u.recordarAuto ? ' checked' : '') + '> Auto-remind until read \u2014 every <input type="number" class="upd-rem-h" data-rem-h min="1" max="168" value="' + (u.recordarCada || 4) + '"> h</label>' +
+    '</div></article>';
+}
+/* \u2500\u2500 una tarjeta (la usan el agente y el administrador) \u2500\u2500 */
 function updTarjeta(u, completo){
+  if(!completo && u.mio && esMgr()) return updTarjetaEnviado(u);
   const imgs = (u.adjuntos || []).filter(updEsImg), arch = (u.adjuntos || []).filter(a => !updEsImg(a));
   const reac = {}; (u.reacs || []).forEach(r => { (reac[r.emoji] = reac[r.emoji] || []).push(r); });
   const coms = (u.coms || []).filter(c => !c.borrado), abiertos = S.updComsAbiertos || (S.updComsAbiertos = {});
@@ -10381,7 +10419,7 @@ function updTarjeta(u, completo){
   return '<article class="upd-card' + (u.leido === null ? ' nuevo' : '') + '" data-upd="' + u.id + '">' +
     '<header>' + (u.fijado ? '<span class="upd-pin" title="Pinned">' + IC_UPD_PIN + '</span>' : '') +
       '<div class="upd-cab"><h3>' + esc(u.titulo) + (u.leido === null ? ' <span class="upd-nuevo">New</span>' : '') + '</h3>' +
-      '<small>' + esc(u.autorNombre || u.autor) + ' · ' + esc(updCuando(u.creado)) + (u.editado ? ' · edited' : '') + '</small></div></header>' +
+      '<small>' + (origenUpd(u) ? '<span class="upd-origen">' + esc(origenUpd(u)) + '</span> · ' : '') + esc(u.autorNombre || u.autor) + ' · ' + esc(updCuando(u.creado)) + (u.editado ? ' · edited' : '') + '</small></div></header>' +
     updCuerpoYGaleria(u, imgs) +
     (arch.length ? '<div class="upd-arch">' + arch.map(a => '<a class="upd-file" ' + (a.url ? 'href="' + esc(a.url) + '" target="_blank" rel="noopener"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span>' + esc(a.nombre) + '<small>' + updBytes(a.bytes) + '</small></span></a>').join('') + '</div>' : '') +
     '<div class="upd-reac" role="group" aria-label="Reactions">' + UPD_EMOJIS.map(e => { const l = reac[e] || [], mio = l.some(r => r.usuario === S.updYo);
@@ -10397,6 +10435,11 @@ function updTarjeta(u, completo){
 async function updClic(ev, recargar){
   const card = ev.target.closest('[data-upd]'); if(!card) return;
   const id = Number(card.dataset.upd), r = ev.target.closest('[data-reac]'), vc = ev.target.closest('[data-coms]'), cx = ev.target.closest('[data-com-x]');
+  const mon = ev.target.closest('[data-mon]');
+  if(mon){ const a = S.updMonAbiertos || (S.updMonAbiertos = {}); a[id] = !a[id]; pintarUpdAg(); return; }
+  const remc = ev.target.closest('[data-rem-auto]');
+  if(remc){ const hh = card.querySelector('[data-rem-h]'), cada = Math.max(1, Math.min(168, Number(hh && hh.value) || 4));
+    try{ await api('updRecordar', { id, auto:remc.checked, cada }); toast(remc.checked ? 'Auto-remind on.' : 'Auto-remind off.'); }catch(e){ toast(e.message, 'err'); remc.checked = !remc.checked; } return; }
   try{
     if(r){ r.disabled = true; await api('updReaccionar', { id, emoji:r.dataset.reac }); await recargar(); }
     if(vc){ const a = S.updComsAbiertos || (S.updComsAbiertos = {}); a[id] = !a[id]; if(S.updAdmin) pintarUpdFicha(); else pintarUpdAg();
@@ -10421,7 +10464,12 @@ function updTeclas(ev){   // Enter envía, Shift+Enter salta de línea
 async function cargarUpdAg(callado){
   const c = $('updAgLista'); if(!c) return;
   if(!callado && !S.updAg) c.innerHTML = '<div style="padding:24px"><span class="spin dark"></span> Loading…</div>';
-  try{ const r = await api('updLista'); S.updAg = r; S.updYo = r.yo; S.updAdmin = false; pintarUpdAg(); }
+  try{
+    if(S.mgr === undefined){ try{ S.mgr = await api('mgrConsola'); }catch(e){ S.mgr = { esManager:false }; } }
+    const r = await api('updLista'); S.updAg = r; S.updYo = r.yo; S.updAdmin = false;
+    if($('updAgNuevo')) $('updAgNuevo').classList.toggle('hidden', !esMgr());
+    pintarUpdAg();
+  }
   catch(e){ c.innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
 }
 function pintarUpdAg(){
@@ -10510,7 +10558,7 @@ async function cargarUpd(callado){
     if(S.updAbierto && !$('ovUpd').classList.contains('hidden')) pintarUpdFicha();
   }catch(e){ $('updLista').innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
 }
-function updNombre(u){ const e = S.emps && S.emps.empleados.find(x => x.usuario === u); return e ? e.nombre : u; }
+function updNombre(u){ return updNomDe(u); }
 async function cargarUpdRecState(id){
   S.updRecState = null; pintarUpdRecBar();
   try{ const r = await api('updRecordar', { id }); if(S.updAbierto === id){ S.updRecState = r; pintarUpdRecBar(); } }
@@ -10589,7 +10637,7 @@ $('updFBorrar').addEventListener('click', async () => {
 
 /* ── ADMIN: escribir o editar un comunicado ── */
 function abrirUpdEd(u){
-  S.updEd = { id:u ? u.id : null, destino:u ? u.destino : { todos:true }, quedan:u ? (u.adjuntos || []).slice() : [], nuevos:[] };
+  S.updEd = { id:u ? u.id : null, destino:u ? u.destino : (esMgr() ? { todos:false, grupos:((S.mgr && S.mgr.cuentas) || []).map(c => ({ t:'cuenta', v:c })), usuarios:[] } : { todos:true }), quedan:u ? (u.adjuntos || []).slice() : [], nuevos:[] };
   $('ueTitulo').textContent = u ? 'Edit update' : 'New update';
   $('ueTit').value = u ? u.titulo : ''; ueSetTexto(u ? u.cuerpo : '');
   if($('ueAuto')){ $('ueAuto').checked = false; $('ueAutoH').value = 4;
@@ -10601,7 +10649,7 @@ function abrirUpdEd(u){
 }
 $('updNuevo').addEventListener('click', () => abrirUpdEd(null));
 function updGruposDisp(){
-  const act = (S.emps ? S.emps.empleados : []).filter(e => e.activo), out = {};
+  const act = updDir().filter(e => e.activo), out = {};
   ['cuenta', 'titulo', 'ciudad'].forEach(t => { const m = new Map();
     act.forEach(e => { const raw = String((t === 'cuenta' ? e.cuenta : t === 'titulo' ? e.titulo : e.ciudad) || '').trim(), k = normal(raw); if(!k) return;
       const x = m.get(k) || { v:raw, n:0 }; x.n++; m.set(k, x); });
@@ -10609,8 +10657,9 @@ function updGruposDisp(){
   return out;
 }
 function pintarUpdEd(){
-  const ed = S.updEd, d = ed.destino, nuevo = !ed.id, emps = S.emps ? S.emps.empleados : [];
+  const ed = S.updEd, d = ed.destino, nuevo = !ed.id, emps = updDir(), mgr = esMgr();
   $('ueTodos').checked = !!d.todos; $('ueElegir').checked = !d.todos;
+  { const lt = $('ueTodos') && $('ueTodos').closest('.ue-radio'); if(lt) lt.classList.toggle('hidden', mgr && nuevo); }
   $('ueDestino').classList.toggle('hidden', !nuevo); $('ueDestinoFijo').classList.toggle('hidden', nuevo);
   $('ueDestinoFijo').textContent = nuevo ? '' : 'To: ' + updDestinoTxt(d) + '. The recipients don\'t change when you edit.';
   $('ueGrupos').classList.toggle('hidden', !!d.todos);
@@ -10766,6 +10815,7 @@ $('uePublicar').addEventListener('click', async () => {
 });
 // agente: clics en el panel
 $('updAgLista').addEventListener('click', ev => updClic(ev, callado => cargarUpdAg(true)));
+if($('updAgNuevo')) $('updAgNuevo').addEventListener('click', () => abrirUpdEd(null));
 $('updAgLista').addEventListener('submit', ev => updEnviarCom(ev, () => cargarUpdAg(true)));
 $('updAgLista').addEventListener('keydown', updTeclas);
 
@@ -13457,8 +13507,8 @@ function demoUpdIni(){
   const h = Date.now();
   DM.upds = [
     { id:2, titulo:'Office closed on Monday', cuerpo:'Hi team,\nThe office will be closed on Monday for the holiday. Calls go to the answering service.\nMore info: https://example.com/holidays',
-      autor:'carloshtl75', autorNombre:'Carlos Tobon', creado:h - 2 * 3600e3, editado:null, destino:{ todos:true }, comentarios:true, fijado:true, adjuntos:[], borrado:false },
-    { id:1, titulo:'New script for Total Sleep', cuerpo:'Please use the new greeting starting today.', autor:'carloshtl75', autorNombre:'Carlos Tobon', creado:h - 3 * 86400e3, editado:null,
+      autor:'carloshtl75', autorNombre:'Carlos Tobon', autorRol:'General Manager', creado:h - 2 * 3600e3, editado:null, destino:{ todos:true }, comentarios:true, fijado:true, adjuntos:[], borrado:false },
+    { id:1, titulo:'New script for Total Sleep', cuerpo:'Please use the new greeting starting today.', autor:'carloshtl75', autorNombre:'Carlos Tobon', autorRol:'General Manager', creado:h - 3 * 86400e3, editado:null,
       destino:{ grupos:[{ t:'cuenta', v:'Total Sleep' }] }, comentarios:true, fijado:false, adjuntos:[], borrado:false }
   ];
   DM.updId = 2; DM.updComId = 1;
@@ -13472,14 +13522,23 @@ function demoUpd(action, p){
   const admin = !S.demoAgente, yo = admin ? 'carloshtl75' : 'laura.a', nom = admin ? 'Carlos Tobon' : 'Laura Acevedo';
   const mio = id => admin || DM.updDest.some(d => d.u === id && d.usuario === yo);
   const vivo = id => { const u = DM.upds.find(x => x.id === id && !x.borrado); if(!u || !mio(id)) throw new Error('That update no longer exists.'); return u; };
+  if(action === 'mgrConsola'){
+    const gm = { usuario:'carloshtl75', nombre:'Carlos Tobon' };
+    if(admin) return { esManager:false, rol:'', cuentas:[], agentes:[], gm };
+    const cuentas = ['Total Sleep'];
+    const agentes = (DM.emps || []).filter(e => e.activo && cuentas.includes(e.cuenta)).map(e => ({ usuario:e.usuario, nombre:e.nombre, cuenta:e.cuenta }));
+    return { esManager:true, rol:'Supervisor', cuentas, agentes, gm };
+  }
+  if(action === 'updRecordatorios') return [];
+  if(action === 'updRecordar'){ const u = DM.upds.find(x => x.id === p.id); if(u){ if(p.auto !== undefined && p.auto !== null) u.recordarAuto = !!p.auto; if(p.cada) u.recordarCada = p.cada; } return { ok:true, id:p.id, auto:!!(u && u.recordarAuto), cada:(u && u.recordarCada) || 4, falta:0 }; }
   if(action === 'updLista') return { yo, upds:DM.upds.filter(u => !u.borrado && mio(u.id)).sort((a, b) => (b.fijado - a.fijado) || b.creado - a.creado).map(u => {
     const ds = DM.updDest.filter(d => d.u === u.id), m = ds.find(d => d.usuario === yo);
-    return Object.assign(demoCopia(u), { adjuntos:u.adjuntos.map(a => Object.assign({}, a)), leido:admin ? undefined : m && m.leido ? m.leido : null,
+    return Object.assign(demoCopia(u), { adjuntos:u.adjuntos.map(a => Object.assign({}, a)), leido:admin ? undefined : m && m.leido ? m.leido : null, mio:(u.autor === yo), recordarAuto:!!u.recordarAuto, recordarCada:u.recordarCada || 4,
       dest:{ total:ds.length, leidos:ds.filter(d => d.leido).length, lista:ds.map(d => ({ usuario:d.usuario, leidoEn:d.leido })) },
       coms:demoCopia(DM.updComs.filter(c => c.u === u.id)), reacs:demoCopia(DM.updReacs.filter(r => r.u === u.id)) }); }) };
   if(action === 'updPend') return DM.upds.filter(u => !u.borrado && DM.updDest.some(d => d.u === u.id && d.usuario === yo && !d.leido)).sort((a, b) => b.creado - a.creado).map(u => ({ id:u.id, titulo:u.titulo, cuerpo:u.cuerpo }));
   if(action === 'updPublicar'){
-    if(!admin) throw new Error('Only an administrator can publish updates.');
+    if(!admin && !(S.mgr && S.mgr.esManager)) throw new Error('Only an administrator can publish updates.');
     const x = p.upd, tit = String(x.titulo || '').trim(); if(!tit) throw new Error('Write the title of the update.');
     const adj = (x.adjuntos || []).concat((p.nuevos || []).map(f => ({ archivo:'u/demo/' + f.name, nombre:f.name, mime:f.type || docMime(f.name), bytes:f.size, url:URL.createObjectURL(f) })));
     if(adj.length > 10) throw new Error('Up to 10 files per update.');
@@ -13487,11 +13546,15 @@ function demoUpd(action, p){
     adj.forEach(a => { const v = DM.upds.flatMap(u => u.adjuntos).find(b => b.archivo === a.archivo); if(!a.url && v) a.url = v.url; });
     if(x.id){ const u = vivo(x.id); Object.assign(u, { titulo:tit, cuerpo:x.cuerpo || '', comentarios:!!x.comentarios, fijado:!!x.fijado, adjuntos:adj, editado:Date.now() });
       return { ok:true, id:u.id, destinatarios:DM.updDest.filter(d => d.u === u.id).length, nuevo:false }; }
-    const quienes = updQuienes(x.destino, DM.emps.map(e => Object.assign({ titulo:'', ciudad:'' }, e)));
-    if(!quienes.length) throw new Error('Nobody would get this update: choose another group.');
-    const id = ++DM.updId; DM.upds.push({ id, titulo:tit, cuerpo:x.cuerpo || '', autor:yo, autorNombre:nom, creado:Date.now(), editado:null, destino:x.destino, comentarios:!!x.comentarios, fijado:!!x.fijado, adjuntos:adj, borrado:false });
-    quienes.forEach(e => DM.updDest.push({ u:id, usuario:e.usuario, leido:null }));
-    return { ok:true, id, destinatarios:quienes.length, nuevo:true };
+    let quienes = updQuienes(x.destino, DM.emps.map(e => Object.assign({ titulo:'', ciudad:'' }, e)));
+    const cuentasMgr = admin ? null : ((S.mgr && S.mgr.cuentas) || []);
+    if(!admin){ if(x.destino && x.destino.todos) quienes = []; else quienes = quienes.filter(e => cuentasMgr.includes(e.cuenta)); }
+    if(!quienes.length) throw new Error(admin ? 'Nobody would get this update: choose another group.' : 'You can only send updates to the agents of your account(s).');
+    const rol = admin ? 'General Manager' : ((S.mgr && S.mgr.rol) || 'Supervisor');
+    const id = ++DM.updId; DM.upds.push({ id, titulo:tit, cuerpo:x.cuerpo || '', autor:yo, autorNombre:nom, autorRol:rol, creado:Date.now(), editado:null, destino:x.destino, comentarios:!!x.comentarios, fijado:!!x.fijado, adjuntos:adj, borrado:false });
+    const dests = quienes.map(e => e.usuario); if(!admin && !dests.includes('carloshtl75')) dests.push('carloshtl75');
+    dests.forEach(usuario => DM.updDest.push({ u:id, usuario, leido:null }));
+    return { ok:true, id, destinatarios:dests.length, nuevo:true };
   }
   if(action === 'updBorrar'){ if(!admin) throw new Error('Only an administrator can publish updates.'); const u = vivo(p.id); u.borrado = true; return { ok:true, archivos:[] }; }
   if(action === 'updLeido'){ let n = 0; DM.updDest.forEach(d => { if(p.ids.includes(d.u) && d.usuario === yo && !d.leido){ d.leido = Date.now(); n++; } }); return n; }
@@ -13618,6 +13681,7 @@ async function demoApi(action, p){
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
   if(action === 'setCuentaManager'){ DM.cuentaMgr = DM.cuentaMgr || {}; if(p.usuario) DM.cuentaMgr[p.cuenta] = p.usuario; else delete DM.cuentaMgr[p.cuenta]; try{ const s = new Set(Object.values(DM.cuentaMgr)); (DM.emps || []).forEach(e => e.esManager = s.has(e.usuario)); }catch(x){} return { ok:true }; }
   if(action === 'setReporta'){ DM.reportaA = DM.reportaA || {}; if(p.jefe) DM.reportaA[p.usuario] = p.jefe; else delete DM.reportaA[p.usuario]; return { ok:true }; }
+  if(action === 'mgrConsola'){ await new Promise(r => setTimeout(r, 80)); return demoUpd('mgrConsola', p || {}); }
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
     if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
