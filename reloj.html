@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v246-202610231923">
+<meta name="app-build" content="v247-202610231946">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2963,7 +2963,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <div class="ventana" style="max-width:580px">
     <h2 id="eMgrTit">Manager role</h2>
     <div class="se-sub" id="eMgrTitulo" style="font-weight:700;color:var(--brand-600);margin:2px 0"></div>
-    <p class="nota" id="eMgrNota" style="margin:2px 0 14px">1 account = Supervisor, 2+ = Account Manager. Someone with managers reporting to them is a Sector Manager.</p>
+    <p class="nota" id="eMgrNota" style="margin:2px 0 14px">Pick the accounts this person is responsible for. If an account already has a supervisor, that supervisor will report to this person (making them their Account Manager).</p>
     <label class="campo" style="margin:0 0 14px;max-width:320px"><span>Reports to</span><select id="eReportaSel"></select></label>
     <div style="font-weight:600;margin-bottom:8px">Manages accounts</div>
     <div id="eMgrCuentas" class="emp-mgr-chips"></div>
@@ -4542,13 +4542,18 @@ async function empleadosSB(){
   const reportaA = {}; (reportaRows || []).forEach(x => { if(x && x.usuario && x.jefe) reportaA[x.usuario] = x.jefe; });
   const watchMap = {}; (watchRows || []).forEach(x => { if(x && x.usuario) watchMap[x.usuario] = x.watchers || []; });
   const derivarMgr = lista => { const nom = {}; lista.forEach(e => { nom[e.usuario] = e.nombre; });
-    const gest = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gest[u] = gest[u] || []).push(c); });
-    const tieneReportes = new Set(Object.values(reportaA));
+    const gestDir = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gestDir[u] = gestDir[u] || []).push(c); });
+    const repOf = {}; Object.keys(reportaA).forEach(u => { const j = reportaA[u]; if(j) (repOf[j] = repOf[j] || []).push(u); });
     const gmU = S.gm || '', gmNom = gmU ? (nom[gmU] || 'General Manager') : 'General Manager';
-    lista.forEach(e => { e.gestiona = (gest[e.usuario] || []).slice().sort((a, b) => a.localeCompare(b, 'en'));
-      const esSector = tieneReportes.has(e.usuario);
-      e.esManager = e.gestiona.length > 0 || esSector;
-      e.rolManager = esSector ? 'Sector Manager' : (e.gestiona.length >= 2 ? 'Account Manager' : (e.gestiona.length === 1 ? 'Supervisor' : ''));
+    const memoG = {}, gestRec = (u, seen) => { if(memoG[u]) return memoG[u]; seen = seen || new Set(); if(seen.has(u)) return []; seen.add(u);
+      const set = new Set(gestDir[u] || []); (repOf[u] || []).forEach(r => gestRec(r, seen).forEach(c => set.add(c))); const arr = [...set]; memoG[u] = arr; return arr; };
+    const memoN = {}, nivel = (u, seen) => { if(memoN[u] != null) return memoN[u]; seen = seen || new Set(); if(seen.has(u)) return 0; seen.add(u);
+      const reps = repOf[u] || []; let lv; if(!reps.length) lv = (gestDir[u] || []).length > 0 ? 1 : 0; else { let mx = 0; reps.forEach(r => { const rl = nivel(r, seen); if(rl > mx) mx = rl; }); lv = mx + 1; } memoN[u] = lv; return lv; };
+    const rolDe = lv => lv >= 3 ? 'Sector Manager' : lv === 2 ? 'Account Manager' : lv === 1 ? 'Supervisor' : '';
+    lista.forEach(e => { e.gestiona = gestRec(e.usuario).slice().sort((a, b) => a.localeCompare(b, 'en'));
+      const lv = nivel(e.usuario);
+      e.esManager = lv >= 1 || e.usuario === gmU;
+      e.rolManager = e.usuario === gmU ? 'General Manager' : rolDe(lv);
       e.reportaA = reportaA[e.usuario] || '';
       e.watchers = Object.prototype.hasOwnProperty.call(watchMap, e.usuario) ? (watchMap[e.usuario] || []) : null;
       e.jefeManager = e.usuario === gmU ? '' : (e.reportaA ? (nom[e.reportaA] || e.reportaA) : gmNom);
@@ -7079,10 +7084,11 @@ function actualizarMgrNota(){
   const mgrDe = (S.emps && S.emps.cuentaMgr) || {}, self = S.empEdit || null;
   const nom = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nom[x.usuario] = x.nombre; });
   const reportaA = (S.emps && S.emps.reportaA) || {};
-  const esSector = !!(self && new Set(Object.values(reportaA)).has(self));
-  const n = sel.size, esMgr = n > 0 || esSector;
-  const rol = esSector ? 'Sector Manager' : (n >= 2 ? 'Account Manager' : (n === 1 ? 'Supervisor' : ''));
-  if($('eMgrTitulo')) $('eMgrTitulo').textContent = rol ? (rol + (n > 1 ? ' \u00b7 ' + n + ' accounts' : '')) : '';
+  const yaReportan = !!(self && Object.values(reportaA).includes(self));
+  const sumaSups = [...sel].some(c => mgrDe[c] && mgrDe[c] !== self);
+  const n = sel.size, esMgr = n > 0 || yaReportan;
+  const rol = (yaReportan || sumaSups) ? 'Account Manager' : (n ? 'Supervisor' : '');
+  if($('eMgrTitulo')) $('eMgrTitulo').textContent = rol ? (rol + (n ? ' \u00b7 ' + n + (n === 1 ? ' account' : ' accounts') : '')) : '';
   if($('eMgrSum')){ $('eMgrSum').textContent = !esMgr ? 'Not a manager' : (rol + (n ? ' \u00b7 ' + (n === 1 ? [...sel][0] : n + ' accounts') : '')); $('eMgrSum').classList.toggle('es', esMgr); }
   const lbl = $('eJefeLbl'), jf = $('eJefe');
   const jefeNom = S.reportaSel ? (nom[S.reportaSel] || S.reportaSel) : nombreGM();
@@ -7573,19 +7579,22 @@ $('eGuardar').addEventListener('click', async () => {
        && !(await avisoRenombreMon(m0, datos.nombre))) return; }
   { const _u0 = S.empEdit, sel0 = S.mgrSel || new Set(), mgrDe0 = (S.emps && S.emps.cuentaMgr) || {};
     const nomDe0 = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nomDe0[x.usuario] = x.nombre; });
-    const reemp = [...sel0].filter(c => mgrDe0[c] && mgrDe0[c] !== _u0);
-    if(reemp.length){
-      const lst = reemp.map(c => esc(c) + ' (' + esc(nomDe0[mgrDe0[c]] || mgrDe0[c]) + ')').join('<br>');
-      if(!(await confirmar('Replace current managers?', 'These accounts already have a manager. Making this user their manager replaces:<br><br>' + lst, 'Replace', false))) return; } }
+    const repA0 = (S.emps && S.emps.reportaA) || {};
+    const orig0 = new Set((((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u0) || {}).gestiona || []);
+    const sups0 = [...new Set([...sel0].filter(c => !orig0.has(c) && mgrDe0[c] && mgrDe0[c] !== _u0 && repA0[mgrDe0[c]] !== _u0).map(c => mgrDe0[c]))];
+    if(sups0.length){
+      const lst = sups0.map(u => esc(nomDe0[u] || u)).join('<br>');
+      if(!(await confirmar('Make them the manager above?', 'These accounts already have a supervisor. They will report to this person (nobody is replaced):<br><br>' + lst, 'Make manager', false))) return; } }
   const b = $('eGuardar'); b.disabled = true;
   const monAntes = monAgente(datos.agenteMonitor);
   try{
     let r = await api('guardarEmpleado', { empleado:datos });
     try{ const _u = datos.usuario || ((r.empleados || []).find(x => (x.email || '').toLowerCase() === datos.email) || {}).usuario;
       if(_u){ const _sel = S.mgrSel || new Set(), _orig = new Set((((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).gestiona || []), _mgrDe = (S.emps && S.emps.cuentaMgr) || {};
+        const _repA = (S.emps && S.emps.reportaA) || {};
         const _add = [..._sel].filter(c => !_orig.has(c)), _del = [..._orig].filter(c => !_sel.has(c));
-        for(const c of _add){ await api('setCuentaManager', { cuenta:c, usuario:_u }); }
-        for(const c of _del){ if(_mgrDe[c] === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); }
+        for(const c of _add){ const sup = _mgrDe[c] || ''; if(!sup || sup === _u) await api('setCuentaManager', { cuenta:c, usuario:_u }); else await api('setReporta', { usuario:sup, jefe:_u }); }
+        for(const c of _del){ const sup = _mgrDe[c] || ''; if(sup === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); else if(sup && _repA[sup] === _u && ![..._sel].some(x => (_mgrDe[x] || '') === sup)) await api('setReporta', { usuario:sup, jefe:null }); }
         { const _repOrig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).reportaA || '', _repNew = S.reportaSel || ''; if(_repNew !== _repOrig && _repNew !== _u) await api('setReporta', { usuario:_u, jefe:_repNew || null }); }
         { const _wsel = S.watchSel || new Set(), _wchain = cadenaSupervisa(_u), _wselArr = [..._wsel].filter(x => _wchain.includes(x)).sort(), _wdef = _wselArr.length === _wchain.length, _worig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).watchers, _worep = (_worig == null) ? null : _worig.slice().sort(), _wnew = _wdef ? null : _wselArr; if(JSON.stringify(_worep) !== JSON.stringify(_wnew)) await api('setWatchers', { usuario:_u, watchers:_wnew }); } } }
     catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Assigning account managers needs SQL steps 98 + 98b in Supabase.' : 'Could not save the account managers.', 'err'); }
