@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v241-202610231718">
+<meta name="app-build" content="v242-202610231728">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4521,9 +4521,10 @@ async function empleadosSB(){
   const cuentaMgr = {}; (mgrRows || []).forEach(x => { if(x && x.cuenta) cuentaMgr[x.cuenta] = x.usuario; });
   const derivarMgr = lista => { const nom = {}; lista.forEach(e => { nom[e.usuario] = e.nombre; });
     const gest = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gest[u] = gest[u] || []).push(c); });
+    const gmU = S.gm || '', gmNom = gmU ? (nom[gmU] || 'General Manager') : 'General Manager';
     lista.forEach(e => { e.gestiona = (gest[e.usuario] || []).slice().sort((a, b) => a.localeCompare(b, 'en')); e.esManager = e.gestiona.length > 0;
       e.rolManager = e.gestiona.length >= 2 ? 'Account Manager' : (e.gestiona.length === 1 ? 'Supervisor' : '');
-      const mu = cuentaMgr[e.cuenta] || ''; e.jefe = (mu && mu !== e.usuario) ? (nom[mu] || '') : ''; }); return lista; };
+      const mu = cuentaMgr[e.cuenta] || ''; e.jefe = (mu && mu !== e.usuario) ? (nom[mu] || '') : ((!e.esManager && e.usuario !== gmU) ? gmNom : ''); }); return lista; };
   if(monSB && monSB.agentes.length){
     S.cuentasMon = monSB.cuentas.length ? monSB.cuentas : S.cuentasMon;
     S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93) el paso 55 ya agregó la columna
@@ -7054,7 +7055,7 @@ function actualizarMgrNota(){
   if($('eMgrSum')){ $('eMgrSum').textContent = n === 0 ? 'Not a manager' : n === 1 ? ('Supervisor \u00b7 ' + [...sel][0]) : ('Account Manager \u00b7 ' + n + ' accounts'); $('eMgrSum').classList.toggle('es', n > 0); }
   const lbl = $('eJefeLbl'), jf = $('eJefe');
   if(n > 0){ if(lbl) lbl.textContent = 'Manager'; if(jf) jf.value = (self && self === S.gm) ? '\u2014' : nombreGM(); }
-  else { if(lbl) lbl.textContent = 'Supervisor'; const mu = cta ? (mgrDe[cta] || '') : ''; if(jf) jf.value = (mu && mu !== self) ? (nom[mu] || mu) : ''; }
+  else { if(lbl) lbl.textContent = 'Supervisor'; const mu = cta ? (mgrDe[cta] || '') : ''; if(jf) jf.value = (mu && mu !== self) ? (nom[mu] || mu) : ((self && self === S.gm) ? '\u2014' : nombreGM()); }
 }
 function pintarMgrCuentas(){
   const cont = $('eMgrCuentas'); if(!cont) return;
