@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v232-202610230420">
+<meta name="app-build" content="v233-202610231239">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -11609,7 +11609,7 @@ function abrirPeriodo(usuario){
     return '<td class="aus"><button class="btn-link mas" type="button" data-aus="' + f + '">+ Time off</button></td>';
   };
   h.fechas.forEach(f => {
-    const d = e.dias[f], marcas = d ? d.marcas : [], futuro = f > h.hoy, finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
+    const d = e.dias[f], marcas = d && d.marcas ? d.marcas : [], futuro = f > h.hoy, finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
     const tags = (d && d.aprobado ? '<span class="tag ok">✓</span>' : '') + (d && d.ausencia ? '<span class="tag">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '');
     const diaTd = '<td class="phdia' + (finde ? ' fin' : '') + '">' + esc(diaS(f).replace(/,.*$/, '')) + ' ' + diaN(f) + tags + '</td>';
     if(futuro){
@@ -11716,8 +11716,11 @@ function patchAusLocal(u, a, id){
   const parcial = !!(a.horaIni && a.horaFin), ff = parcial ? a.fecha : (a.fechaFin || a.fecha);
   const au = { id:id, usuario:u, clase:a.clase, pagada:!!a.pagada, fecha:a.fecha, fechaFin:ff, horaIni:a.horaIni || null, horaFin:a.horaFin || null, horas:a.pagada ? (Number(a.horas) || 0) : 0 };
   const dentro = f => h.fechas.indexOf(f) >= 0;
-  if(parcial){ if(dentro(a.fecha)) (e.dias[a.fecha] = e.dias[a.fecha] || {}).ausencia = au; }
-  else { for(let f = a.fecha; f <= ff; f = sumarDias(f, 1)) if(dentro(f)) (e.dias[f] = e.dias[f] || {}).ausencia = au; }
+  // (v233) Forma de un día de SOLO-ausencia, igual que construirHoja, para no dejarlo sin 'marcas'.
+  const diaBase = () => ({ estado:'fuera', enCurso:false, incompleto:false, desde:null, min:0, alm:0, banderas:[], ubic:null, marcas:[], aprobado:null, monitor:null, ausencia:null });
+  const poner = f => { const d = e.dias[f] || (e.dias[f] = diaBase()); if(!d.marcas) d.marcas = []; if(!d.banderas) d.banderas = []; d.ausencia = au; };
+  if(parcial){ if(dentro(a.fecha)) poner(a.fecha); }
+  else { for(let f = a.fecha; f <= ff; f = sumarDias(f, 1)) if(dentro(f)) poner(f); }
   return true;
 }
 function unpatchAusLocal(u, a){
