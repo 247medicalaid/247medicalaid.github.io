@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v251-202610232059">
+<meta name="app-build" content="v252-202610232110">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -699,6 +699,18 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ajuste.peligro{border-color:#F3B8BA;background:linear-gradient(0deg,var(--accent-50),var(--accent-50)) top/100% 4px no-repeat,var(--paper)}
 .ajuste.peligro h2{color:var(--accent-600)}
 .ajuste.peligro .botones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.set-grupo{margin:0 0 30px}
+.set-grupo-cab{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.set-ic{width:38px;height:38px;border-radius:11px;background:var(--g-soft);color:var(--g);display:grid;place-items:center;flex:none}
+.set-ic svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.set-grupo-tit{font-size:14px;font-weight:800;color:var(--g);letter-spacing:.03em;text-transform:uppercase;margin:0}
+.set-grupo-sub{font-size:13px;color:var(--text-muted);margin:2px 0 0}
+.set-grupo .ajuste{border-left:4px solid var(--g)}
+.set-grupo .ajuste h2{color:var(--g-ink)}
+.sg-team{--g:#0E86B4;--g-soft:#EFF8FD;--g-ink:#0A6A90}
+.sg-clock{--g:#0E9F6E;--g-soft:#E7F7F0;--g-ink:#0B7E57}
+.sg-pay{--g:#B9770E;--g-soft:#FBF2DF;--g-ink:#8A5806}
+.sg-tools{--g:#7A5AF0;--g-soft:#EEEAFD;--g-ink:#5B3FD0}
 .borrar-lista{margin:10px 0 4px 18px;font-size:14px;color:var(--text-muted)}
 .borrar-lista li{margin:2px 0}
 #bConfirma{width:100%;font-size:16px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;letter-spacing:.08em}
@@ -2532,12 +2544,24 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <!-- ADMIN: SETTINGS -->
   <section id="vAjustes" class="hidden">
     <div class="cabecera"><h1>Settings</h1></div>
+    <div class="set-grupo sg-team">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><h2 class="set-grupo-tit">Team &amp; organization</h2><p class="set-grupo-sub">The org chart and the options people can be given.</p></div></div>
     <div class="ajuste" id="ajRoles">
       <h2>Managers &amp; supervisors</h2>
       <p class="nota">Pick the General Manager (the top of the org). Below are everyone who manages an account, with their title and accounts. Set who manages each account in <b>Users</b> (open a person &rarr; <b>Manage accounts</b>). A person with 1 account is a <b>Supervisor</b>; with 2+ accounts, an <b>Account Manager</b>.</p>
       <label class="chk-linea" style="gap:10px;flex-wrap:wrap">General Manager <select id="ajGM" style="min-width:220px"></select> <button class="btn btn-ink btn-sm" id="ajGMGuardar" type="button">Save</button> <span class="nota" id="ajGMEstado"></span></label>
       <div id="ajRolesLista" class="roles-lista"></div>
     </div>
+    <div class="ajuste">
+      <h2>Lists</h2>
+      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Accounts come from the Monitor.</p>
+      <div class="listas" id="ajListas"></div>
+      <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
+      <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
+    </div>
+    </div>
+    <div class="set-grupo sg-clock">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><h2 class="set-grupo-tit">Clock &amp; hours</h2><p class="set-grupo-sub">How punches are rounded, located and auto-closed.</p></div></div>
     <div class="ajuste">
       <h2>Hour rounding</h2>
       <p class="nota">When hours are calculated (Timesheet, approvals, exports and My clock), each punch is rounded to the nearest step. The real punch times are kept exactly as they were.</p>
@@ -2559,11 +2583,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="ajUbicGuardar" type="button">Save</button>
       <span class="nota" id="ajUbicEstado" style="margin-left:8px"></span>
     </div>
-    <div class="ajuste" id="ajPrueba">
-      <h2>Test user</h2>
-      <p class="nota">Copy an agent's punches, approved days, requests and time off, documents and paystubs (with their files) to your test user — the test user also sees that agent's payment summary. Then sign in as the test user to see and try the agent view with real information. You can only copy to the test user (never a real agent); if it already has data you'll be warned, and copying replaces it. «Clear test user data» empties it when you're done. Whatever the test user had is replaced; the agent's own data isn't changed. The profile and the chat aren't copied. Test users show in the Timesheet with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or the payroll exports.</p>
-      <div id="prCuerpo"></div>
-    </div>
     <div class="ajuste" id="ajAutoSal">
       <h2>Automatic clock out</h2>
       <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. It runs once a night; use “Run now” for an immediate sweep (e.g. on payday, before closing the period).</p>
@@ -2574,13 +2593,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="ajAutoAhora" type="button" style="margin-left:6px">Run now</button>
       <span class="nota" id="ajAutoEstado" style="margin-left:8px"></span>
     </div>
-    <div class="ajuste">
-      <h2>Lists</h2>
-      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Accounts come from the Monitor.</p>
-      <div class="listas" id="ajListas"></div>
-      <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
-      <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
     </div>
+    <div class="set-grupo sg-pay">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><div><h2 class="set-grupo-tit">Payroll</h2><p class="set-grupo-sub">Default dollar rate and withholdings for each pay run.</p></div></div>
     <div class="ajuste" id="ajPago">
       <h2>Pay run</h2>
       <p class="nota">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. These are the <b>default</b> values for each new pay run; you can still change them in a pay run. Rete ICA is withheld only from people paid from Nómina 247.</p>
@@ -2593,13 +2608,14 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="ajPagoGuardar" type="button">Save</button>
       <span class="nota" id="ajPagoEstado" style="margin-left:8px"></span>
     </div>
-    <div class="ajuste" id="ajImp">
-      <h2>Import from Connecteam</h2>
-      <p class="nota">Bring your hours history from Connecteam so it isn't lost. In Connecteam, export the <b>Timesheet overview</b> as Excel for the dates you want and upload that file here. You'll see a preview before anything is saved. Days that already have punches in the Time Clock are skipped, so importing the same dates twice doesn't duplicate anything.</p>
-      <input type="file" id="impArchivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
-      <button class="btn btn-ink btn-sm" id="impElegir" type="button">Choose Connecteam file…</button>
-      <span class="nota" id="impEstado" style="margin-left:8px"></span>
-      <div id="impLista"></div>
+    </div>
+    <div class="set-grupo sg-tools">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/></svg></span><div><h2 class="set-grupo-tit">Tools</h2><p class="set-grupo-sub">A sandbox user to preview the agent view with real data.</p></div></div>
+    <div class="ajuste" id="ajPrueba">
+      <h2>Test user</h2>
+      <p class="nota">Copy an agent's punches, approved days, requests and time off, documents and paystubs (with their files) to your test user — the test user also sees that agent's payment summary. Then sign in as the test user to see and try the agent view with real information. You can only copy to the test user (never a real agent); if it already has data you'll be warned, and copying replaces it. «Clear test user data» empties it when you're done. Whatever the test user had is replaced; the agent's own data isn't changed. The profile and the chat aren't copied. Test users show in the Timesheet with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or the payroll exports.</p>
+      <div id="prCuerpo"></div>
+    </div>
     </div>
   </section>
 
@@ -8121,8 +8137,6 @@ function rangoImp(a, b){
 }
 S.imp = null; S.impCorriendo = false;
 
-$('impElegir').addEventListener('click', () => $('impArchivo').click());
-$('impArchivo').addEventListener('change', async ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) await prepararImport(f); });
 
 async function prepararImport(file){
   $('impEstado').textContent = 'Reading ' + file.name + '…'; $('impElegir').disabled = true;
