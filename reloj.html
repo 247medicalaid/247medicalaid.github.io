@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v242-202610231728">
+<meta name="app-build" content="v243-202610231748">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2952,9 +2952,11 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v240: elegir las cuentas que maneja una persona, en su propio dialogo -->
 <div class="overlay hidden" id="ovMgr" role="dialog" aria-modal="true" aria-labelledby="eMgrTit">
   <div class="ventana" style="max-width:580px">
-    <h2 id="eMgrTit">Manages accounts</h2>
+    <h2 id="eMgrTit">Manager role</h2>
     <div class="se-sub" id="eMgrTitulo" style="font-weight:700;color:var(--brand-600);margin:2px 0"></div>
-    <p class="nota" id="eMgrNota" style="margin:2px 0 12px">Pick the accounts this person manages. 1 account = Supervisor, 2+ = Account Manager.</p>
+    <p class="nota" id="eMgrNota" style="margin:2px 0 14px">1 account = Supervisor, 2+ = Account Manager. Someone with managers reporting to them is a Sector Manager.</p>
+    <label class="campo" style="margin:0 0 14px;max-width:320px"><span>Reports to</span><select id="eReportaSel"></select></label>
+    <div style="font-weight:600;margin-bottom:8px">Manages accounts</div>
     <div id="eMgrCuentas" class="emp-mgr-chips"></div>
     <div class="pie"><span class="esp"></span><button class="btn btn-brand" type="button" data-cerrar>Done</button></div>
   </div>
@@ -4243,6 +4245,7 @@ async function api(action, p){
   // (v139) marcar/desmarcar a un usuario como manager (paso 63)
   if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
   if(action === 'setCuentaManager') return q(sb.rpc('reloj_set_cuenta_manager', { p_cuenta:p.cuenta || '', p_usuario:p.usuario || null }));
+  if(action === 'setReporta') return q(sb.rpc('reloj_set_reporta', { p_usuario:p.usuario, p_jefe:p.jefe || null }));
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
@@ -4514,27 +4517,34 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 
 async function empleadosSB(){
   await sesionSB();
-  const [emps, perfiles, , monSB, mgrRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
+  const [emps, perfiles, , monSB, mgrRows, reportaRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
     q(sb.from('perfiles').select('usuario,nombre,activo,rol,invitado_en,activado_en')).catch(() => q(sb.from('perfiles').select('usuario,nombre,activo,rol'))), cargarConfig(),
     monitorSB().catch(() => null),
-    q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => [])]);
+    q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => []),
+    q(sb.from('reloj_reporta').select('usuario,jefe')).catch(() => [])]);
   const cuentaMgr = {}; (mgrRows || []).forEach(x => { if(x && x.cuenta) cuentaMgr[x.cuenta] = x.usuario; });
+  const reportaA = {}; (reportaRows || []).forEach(x => { if(x && x.usuario && x.jefe) reportaA[x.usuario] = x.jefe; });
   const derivarMgr = lista => { const nom = {}; lista.forEach(e => { nom[e.usuario] = e.nombre; });
     const gest = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gest[u] = gest[u] || []).push(c); });
+    const tieneReportes = new Set(Object.values(reportaA));
     const gmU = S.gm || '', gmNom = gmU ? (nom[gmU] || 'General Manager') : 'General Manager';
-    lista.forEach(e => { e.gestiona = (gest[e.usuario] || []).slice().sort((a, b) => a.localeCompare(b, 'en')); e.esManager = e.gestiona.length > 0;
-      e.rolManager = e.gestiona.length >= 2 ? 'Account Manager' : (e.gestiona.length === 1 ? 'Supervisor' : '');
+    lista.forEach(e => { e.gestiona = (gest[e.usuario] || []).slice().sort((a, b) => a.localeCompare(b, 'en'));
+      const esSector = tieneReportes.has(e.usuario);
+      e.esManager = e.gestiona.length > 0 || esSector;
+      e.rolManager = esSector ? 'Sector Manager' : (e.gestiona.length >= 2 ? 'Account Manager' : (e.gestiona.length === 1 ? 'Supervisor' : ''));
+      e.reportaA = reportaA[e.usuario] || '';
+      e.jefeManager = e.usuario === gmU ? '' : (e.reportaA ? (nom[e.reportaA] || e.reportaA) : gmNom);
       const mu = cuentaMgr[e.cuenta] || ''; e.jefe = (mu && mu !== e.usuario) ? (nom[mu] || '') : ((!e.esManager && e.usuario !== gmU) ? gmNom : ''); }); return lista; };
   if(monSB && monSB.agentes.length){
     S.cuentasMon = monSB.cuentas.length ? monSB.cuentas : S.cuentasMon;
     S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93) el paso 55 ya agregó la columna
-    return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })),
+    return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, reportaA, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })),
       monitor:monSB.agentes, cuentas:monSB.cuentas };
   }
   // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
   if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
   S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93)
-  return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
+  return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, reportaA, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
 
 /* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
@@ -7050,11 +7060,15 @@ function actualizarMgrNota(){
   const cta = ($('eCuenta') && $('eCuenta').value) || '';
   const mgrDe = (S.emps && S.emps.cuentaMgr) || {}, self = S.empEdit || null;
   const nom = {}; ((S.emps && S.emps.empleados) || []).forEach(x => { nom[x.usuario] = x.nombre; });
-  const n = sel.size, rol = n >= 2 ? 'Account Manager' : (n === 1 ? 'Supervisor' : '');
+  const reportaA = (S.emps && S.emps.reportaA) || {};
+  const esSector = !!(self && new Set(Object.values(reportaA)).has(self));
+  const n = sel.size, esMgr = n > 0 || esSector;
+  const rol = esSector ? 'Sector Manager' : (n >= 2 ? 'Account Manager' : (n === 1 ? 'Supervisor' : ''));
   if($('eMgrTitulo')) $('eMgrTitulo').textContent = rol ? (rol + (n > 1 ? ' \u00b7 ' + n + ' accounts' : '')) : '';
-  if($('eMgrSum')){ $('eMgrSum').textContent = n === 0 ? 'Not a manager' : n === 1 ? ('Supervisor \u00b7 ' + [...sel][0]) : ('Account Manager \u00b7 ' + n + ' accounts'); $('eMgrSum').classList.toggle('es', n > 0); }
+  if($('eMgrSum')){ $('eMgrSum').textContent = !esMgr ? 'Not a manager' : (rol + (n ? ' \u00b7 ' + (n === 1 ? [...sel][0] : n + ' accounts') : '')); $('eMgrSum').classList.toggle('es', esMgr); }
   const lbl = $('eJefeLbl'), jf = $('eJefe');
-  if(n > 0){ if(lbl) lbl.textContent = 'Manager'; if(jf) jf.value = (self && self === S.gm) ? '\u2014' : nombreGM(); }
+  const jefeNom = S.reportaSel ? (nom[S.reportaSel] || S.reportaSel) : nombreGM();
+  if(esMgr){ if(lbl) lbl.textContent = 'Manager'; if(jf) jf.value = (self && self === S.gm) ? '\u2014' : jefeNom; }
   else { if(lbl) lbl.textContent = 'Supervisor'; const mu = cta ? (mgrDe[cta] || '') : ''; if(jf) jf.value = (mu && mu !== self) ? (nom[mu] || mu) : ((self && self === S.gm) ? '\u2014' : nombreGM()); }
 }
 function pintarMgrCuentas(){
@@ -7069,7 +7083,14 @@ function pintarMgrCuentas(){
     : '<span class="nota" style="margin:0">No accounts yet.</span>';
   cont.querySelectorAll('[data-cta]').forEach(b => b.addEventListener('click', () => { const c = b.dataset.cta; if(sel.has(c)) sel.delete(c); else sel.add(c); pintarMgrCuentas(); actualizarMgrNota(); }));
 }
-if($('eMgrBtn')) $('eMgrBtn').addEventListener('click', () => { pintarMgrCuentas(); abrir('ovMgr'); });
+function pintarReportaSel(){
+  const selEl = $('eReportaSel'); if(!selEl) return;
+  const self = S.empEdit || null;
+  const act = ((S.emps && S.emps.empleados) || []).filter(e => e.activo !== false && e.usuario !== self).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
+  selEl.innerHTML = '<option value="">General Manager (default)</option>' + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.reportaSel || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
+  selEl.onchange = () => { S.reportaSel = selEl.value || ''; actualizarMgrNota(); };
+}
+if($('eMgrBtn')) $('eMgrBtn').addEventListener('click', () => { pintarReportaSel(); pintarMgrCuentas(); abrir('ovMgr'); });
 const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', titulo:'eCargo', fechaIngreso:'eIngreso', pagoHora:'ePago',
   telefono:'eTel', email:'eEmail', tipoId:'eTipoId', numId:'eNumId', cumpleanos:'eCumple', ciudad:'eCiudad', direccion:'eDir',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
@@ -7352,7 +7373,8 @@ function abrirEmp(usuario){
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
   S.mgrSel = new Set(e ? (e.gestiona || []) : []);
-  pintarMgrCuentas(); actualizarMgrNota();
+  S.reportaSel = e ? (e.reportaA || '') : '';
+  pintarReportaSel(); pintarMgrCuentas(); actualizarMgrNota();
   { const pn = partirNombre(e); $('eNombre').value = pn[0]; $('eApellidos').value = pn[1]; }
   pintarNominaAviso(); pintarMonNota(); pintarQuien();
   $('eErr').textContent = '';
@@ -7388,7 +7410,7 @@ function verEmp(usuario){
   const work = row('Account', (e.cuenta ? dot + esc(e.cuenta) : '')) +
     row('Department', t(e.departamento)) +
     (e.esManager
-      ? row('Manager', (e.usuario === (S.gm || '') ? '\u2014' : esc(nombreGM())) + ' <span class="ve-tag">' + esc(e.rolManager || 'Manager') + '</span>') + row('Manages', (e.gestiona || []).map(esc).join(', '))
+      ? row('Manager', (e.usuario === (S.gm || '') ? '\u2014' : esc(e.jefeManager || nombreGM())) + ' <span class="ve-tag">' + esc(e.rolManager || 'Manager') + '</span>') + ((e.gestiona || []).length ? row('Manages', (e.gestiona || []).map(esc).join(', ')) : '')
       : row('Supervisor', e.jefe ? esc(e.jefe) : '')) +
     row('Start date', e.fechaIngreso ? esc(fechaUS(e.fechaIngreso)) : '') +
     row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '');
@@ -7527,7 +7549,8 @@ $('eGuardar').addEventListener('click', async () => {
       if(_u){ const _sel = S.mgrSel || new Set(), _orig = new Set((((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).gestiona || []), _mgrDe = (S.emps && S.emps.cuentaMgr) || {};
         const _add = [..._sel].filter(c => !_orig.has(c)), _del = [..._orig].filter(c => !_sel.has(c));
         for(const c of _add){ await api('setCuentaManager', { cuenta:c, usuario:_u }); }
-        for(const c of _del){ if(_mgrDe[c] === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); } } }
+        for(const c of _del){ if(_mgrDe[c] === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); }
+        { const _repOrig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).reportaA || '', _repNew = S.reportaSel || ''; if(_repNew !== _repOrig && _repNew !== _u) await api('setReporta', { usuario:_u, jefe:_repNew || null }); } } }
     catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Assigning account managers needs SQL steps 98 + 98b in Supabase.' : 'Could not save the account managers.', 'err'); }
     // Time Clock → Monitor: la misma cuenta en los dos lados.
     let avisoMon = '', renombrado = null;
@@ -7635,8 +7658,8 @@ function pintarRoles(){
     if($('ajGMEstado')) $('ajGMEstado').textContent = '';
     const mgrs = emps.filter(e => e.esManager).sort((a, b) => (b.gestiona || []).length - (a.gestiona || []).length || a.nombre.localeCompare(b.nombre, 'en'));
     const cont = $('ajRolesLista'); if(!cont) return;
-    cont.innerHTML = mgrs.length ? '<table class="roles-tabla"><thead><tr><th>Name</th><th>Title</th><th>Accounts</th></tr></thead><tbody>' +
-      mgrs.map(e => '<tr data-u="' + esc(e.usuario) + '"><td><b>' + esc(e.nombre) + '</b>' + (e.usuario === (S.gm || '') ? ' <span class="ve-tag">GM</span>' : '') + '</td><td>' + esc(e.rolManager || '') + '</td><td>' + ((e.gestiona || []).map(esc).join(', ') || '\u2014') + '</td></tr>').join('') +
+    cont.innerHTML = mgrs.length ? '<table class="roles-tabla"><thead><tr><th>Name</th><th>Title</th><th>Accounts</th><th>Reports to</th></tr></thead><tbody>' +
+      mgrs.map(e => '<tr data-u="' + esc(e.usuario) + '"><td><b>' + esc(e.nombre) + '</b>' + (e.usuario === (S.gm || '') ? ' <span class="ve-tag">GM</span>' : '') + '</td><td>' + esc(e.rolManager || '') + '</td><td>' + ((e.gestiona || []).map(esc).join(', ') || '\u2014') + '</td><td>' + esc(e.jefeManager || '\u2014') + '</td></tr>').join('') +
       '</tbody></table>' : '<p class="nota">No managers or supervisors yet. Set them in Users.</p>';
     cont.querySelectorAll('[data-u]').forEach(tr => tr.addEventListener('click', () => abrirEmp(tr.dataset.u)));
   };
@@ -13594,6 +13617,7 @@ async function demoApi(action, p){
   demoInit();
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
   if(action === 'setCuentaManager'){ DM.cuentaMgr = DM.cuentaMgr || {}; if(p.usuario) DM.cuentaMgr[p.cuenta] = p.usuario; else delete DM.cuentaMgr[p.cuenta]; try{ const s = new Set(Object.values(DM.cuentaMgr)); (DM.emps || []).forEach(e => e.esManager = s.has(e.usuario)); }catch(x){} return { ok:true }; }
+  if(action === 'setReporta'){ DM.reportaA = DM.reportaA || {}; if(p.jefe) DM.reportaA[p.usuario] = p.jefe; else delete DM.reportaA[p.usuario]; return { ok:true }; }
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
     if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
