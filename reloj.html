@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v233-202610231239">
+<meta name="app-build" content="v234-202610231323">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2904,6 +2904,17 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost" id="phGuardarSig" type="button">Save &amp; next</button>
       <button class="btn btn-ink" id="phGuardar" type="button">Save all</button>
     </div>
+  </div>
+</div>
+
+<!-- v234: anotar time off en su propio diálogo (antes era inline dentro de la tabla con scroll) -->
+<div class="overlay hidden" id="ovAus" role="dialog" aria-modal="true" aria-labelledby="paTitulo">
+  <div class="ventana" style="max-width:560px">
+    <h2 id="paTitulo">Add time off</h2>
+    <div class="sub" id="paSub" style="margin:2px 0 12px;color:var(--text-muted)"></div>
+    <div id="paBody" class="ph-tl"></div>
+    <div class="err" id="paErr" role="alert" style="margin-top:8px"></div>
+    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar id="paCancelar">Cancel</button><button class="btn btn-brand" type="button" id="paGuardar">Add time off</button></div>
   </div>
 </div>
 
@@ -11667,18 +11678,15 @@ new MutationObserver(() => {
 }).observe($('ovDia'), { attributes:true, attributeFilter:['class'] });
 /* ── Anotar / quitar una ausencia desde «Edit hours» (paso 27) ── */
 function abrirAusPH(f){
-  const viejo = $('phTabla').querySelector('tr.ph-aus'); if(viejo){ const ya = viejo.dataset.f === f; viejo.remove(); if(ya) return; }
-  const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario), tr = $('phTabla').querySelector('tr[data-f="' + f + '"], tr[data-fut="' + f + '"]'); if(!tr) return;
-  const fila = document.createElement('tr'); fila.className = 'ph-aus'; fila.dataset.f = f;
-  fila.innerHTML = '<td colspan="8"><div class="ph-aus-f ph-tl">' + tlCampos('pa', f, { pago:true, horasDia:e.horasDia || 8 }) +
-    '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>' +
-    '<div class="pa-acc"><button class="btn btn-brand btn-sm" type="button" id="paGuardar">Add time off</button><button class="btn btn-ghost btn-sm" type="button" id="paCancelar">Cancel</button></div>' +
-    '<p class="err" id="paErr" role="alert"></p></div></td>';
-  tr.after(fila);
+  const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario); if(!e) return;
+  $('paSub').innerHTML = esc(e.nombre) + ' \u00b7 ' + esc(diaS(f));
+  $('paBody').innerHTML = tlCampos('pa', f, { pago:true, horasDia:e.horasDia || 8 }) +
+    '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>';
   tlEnlazar('pa', { horasDia:e.horasDia || 8 });
-  $('paCancelar').addEventListener('click', () => fila.remove());
-  $('paGuardar').addEventListener('click', guardarAusPH);
-  $('paClase').focus();
+  $('paErr').textContent = '';
+  const bG = $('paGuardar'); bG.disabled = false; bG.onclick = guardarAusPH;
+  abrir('ovAus');
+  const c = $('paClase'); if(c) setTimeout(() => c.focus(), 60);
   const anio = fechaHoy().slice(0, 4);
   api('ausAnio', { usuario:e.usuario }).then(l => { if($('paAnio')) $('paAnio').innerHTML = e.nombre.split(' ')[0] + '\'s time off in ' + anio + ': ' + resumenAnio(l, anio); })
     .catch(() => { if($('paAnio')) $('paAnio').textContent = ''; });
@@ -11694,6 +11702,7 @@ async function guardarAusPH(){
     const _res = await api('ausenciaAdmin', { aus:a });
     const n = diasEntre(a.fecha, a.fechaFin);
     toast(CLASE_TXT[a.clase] + ' added: ' + (n === 1 ? diaS(a.fecha) : diaS(a.fecha) + ' – ' + diaS(a.fechaFin)) + (a.horaIni ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + '.');
+    cerrar('ovAus');
     const _u = S.ph.usuario; let _ok = false; try{ _ok = patchAusLocal(_u, a, _res && _res.id); }catch(e){ _ok = false; }
     if(_ok) refrescarTrasAus(_u); else await recargarPH();
   }catch(x){ $('paErr').textContent = x.message; b.disabled = false; }
