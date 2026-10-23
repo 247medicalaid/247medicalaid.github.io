@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v244-202610231843">
+<meta name="app-build" content="v245-202610231901">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2534,6 +2534,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <h2>Managers &amp; supervisors</h2>
       <p class="nota">Pick the General Manager (the top of the org). Below are everyone who manages an account, with their title and accounts. Set who manages each account in <b>Users</b> (open a person &rarr; <b>Manage accounts</b>). A person with 1 account is a <b>Supervisor</b>; with 2+ accounts, an <b>Account Manager</b>.</p>
       <label class="chk-linea" style="gap:10px;flex-wrap:wrap">General Manager <select id="ajGM" style="min-width:220px"></select> <button class="btn btn-ink btn-sm" id="ajGMGuardar" type="button">Save</button> <span class="nota" id="ajGMEstado"></span></label>
+      <label class="chk-linea" style="gap:10px;flex-wrap:wrap;margin-top:10px">Every update also goes to: <label style="font-weight:400;gap:6px"><input type="checkbox" id="ajCCJefe"> the sender's manager</label> <label style="font-weight:400;gap:6px"><input type="checkbox" id="ajCCGM"> the General Manager</label> <button class="btn btn-ink btn-sm" id="ajCCGuardar" type="button">Save</button> <span class="nota" id="ajCCEstado"></span></label>
       <div id="ajRolesLista" class="roles-lista"></div>
     </div>
     <div class="ajuste">
@@ -3962,6 +3963,7 @@ const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
+    if(x.clave === 'updates_cc' && x.valor && typeof x.valor === 'object') S.updCC = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
 }
 async function sesionSB(){
@@ -7666,6 +7668,10 @@ function pintarRoles(){
     const act = emps.filter(e => e.activo !== false).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
     const gmSel = $('ajGM'); if(gmSel) gmSel.innerHTML = '<option value="">\u2014 None \u2014</option>' + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.gm || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
     if($('ajGMEstado')) $('ajGMEstado').textContent = '';
+    { const cc = S.updCC || { jefe:true, gm:true };
+      if($('ajCCJefe')) $('ajCCJefe').checked = cc.jefe !== false;
+      if($('ajCCGM')) $('ajCCGM').checked = cc.gm !== false;
+      if($('ajCCEstado')) $('ajCCEstado').textContent = ''; }
     const mgrs = emps.filter(e => e.esManager).sort((a, b) => (b.gestiona || []).length - (a.gestiona || []).length || a.nombre.localeCompare(b.nombre, 'en'));
     const cont = $('ajRolesLista'); if(!cont) return;
     cont.innerHTML = mgrs.length ? '<table class="roles-tabla"><thead><tr><th>Name</th><th>Title</th><th>Accounts</th><th>Reports to</th></tr></thead><tbody>' +
@@ -7679,6 +7685,12 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
   const v = $('ajGM').value || '', b = $('ajGMGuardar'); b.disabled = true; if($('ajGMEstado')) $('ajGMEstado').textContent = 'Saving\u2026';
   try{ await api('guardarConfig', { clave:'general_manager', valor:v }); S.gm = v; if($('ajGMEstado')) $('ajGMEstado').textContent = 'Saved.'; toast('General Manager saved.'); pintarRoles(); }
   catch(e){ if($('ajGMEstado')) $('ajGMEstado').textContent = ''; toast(e.message, 'err'); }
+  b.disabled = false;
+});
+if($('ajCCGuardar')) $('ajCCGuardar').addEventListener('click', async () => {
+  const v = { jefe:$('ajCCJefe').checked, gm:$('ajCCGM').checked }, b = $('ajCCGuardar'); b.disabled = true; if($('ajCCEstado')) $('ajCCEstado').textContent = 'Saving\u2026';
+  try{ await api('guardarConfig', { clave:'updates_cc', valor:v }); S.updCC = v; if($('ajCCEstado')) $('ajCCEstado').textContent = 'Saved.'; toast('Updates setting saved.'); }
+  catch(e){ if($('ajCCEstado')) $('ajCCEstado').textContent = ''; toast(e.message, 'err'); }
   b.disabled = false;
 });
 function pintarAjustes(){
@@ -13552,7 +13564,12 @@ function demoUpd(action, p){
     if(!quienes.length) throw new Error(admin ? 'Nobody would get this update: choose another group.' : 'You can only send updates to the agents of your account(s).');
     const rol = admin ? 'General Manager' : ((S.mgr && S.mgr.rol) || 'Supervisor');
     const id = ++DM.updId; DM.upds.push({ id, titulo:tit, cuerpo:x.cuerpo || '', autor:yo, autorNombre:nom, autorRol:rol, creado:Date.now(), editado:null, destino:x.destino, comentarios:!!x.comentarios, fijado:!!x.fijado, adjuntos:adj, borrado:false });
-    const dests = quienes.map(e => e.usuario).filter(usr => usr !== yo); if(!admin && !dests.includes('carloshtl75')) dests.push('carloshtl75');
+    const cc = DM.updCC || { jefe:true, gm:true };
+    const dests = quienes.map(e => e.usuario).filter(usr => usr !== yo);
+    if(!admin){
+      if(cc.jefe !== false){ const jf = (DM.reportaA && DM.reportaA[yo]) || 'carloshtl75'; if(jf && jf !== yo && !dests.includes(jf)) dests.push(jf); }
+      if(cc.gm !== false){ if('carloshtl75' !== yo && !dests.includes('carloshtl75')) dests.push('carloshtl75'); }
+    }
     dests.forEach(usuario => DM.updDest.push({ u:id, usuario, leido:null }));
     return { ok:true, id, destinatarios:dests.length, nuevo:true };
   }
@@ -13995,7 +14012,7 @@ async function demoApi(action, p){
     filas.reloj_paystubs = DM.paystubs.filter(x => x.usuario === u).length; DM.paystubs = DM.paystubs.filter(x => x.usuario !== u);
     return { ok:true, usuario:u, nombre:e.nombre, filas, borrar };
   }
-  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else if(p.clave === 'general_manager') S.gm = p.valor; else S.listas = p.valor; return { ok:true }; }
+  if(action === 'guardarConfig'){ if(p.clave === 'redondeo') S.redondeo = p.valor; else if(p.clave === 'ubicacion') S.ubicObligatoria = p.valor; else if(p.clave === 'general_manager') S.gm = p.valor; else if(p.clave === 'updates_cc'){ S.updCC = p.valor; DM.updCC = p.valor; } else S.listas = p.valor; return { ok:true }; }
   if(action === 'corregirLote'){
     p.dias.forEach(d => { const k = p.usuario + '|' + d.fecha;
       DM.marcas[k] = d.marcas.map(m => ({ tipo:m.tipo, ms:wall(d.fecha, m.hora), origen:'admin', motivo:p.motivo || 'Timesheet adjustment' })); delete DM.aprob[k]; });
