@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v247-202610231946">
+<meta name="app-build" content="v248-202610232000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -13797,11 +13797,15 @@ async function demoApi(action, p){
   }
   if(action === 'empleados'){ const m = await monitorSB(); S.cuentasMon = m.cuentas; S.gm = S.gm || 'carloshtl75';
     const cuentaMgr = DM.cuentaMgr || {}, reportaA = DM.reportaA || {}, watchers = DM.watchers || {};
-    const gest = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gest[u] = gest[u] || []).push(c); });
-    const tieneRep = new Set(Object.values(reportaA));
-    const empsD = DM.emps.map(e => { const g = (gest[e.usuario] || []).slice(); const esSector = tieneRep.has(e.usuario);
-      return Object.assign({}, e, { gestiona:g, esManager:g.length > 0 || esSector, reportaA:reportaA[e.usuario] || '',
-        watchers: Object.prototype.hasOwnProperty.call(watchers, e.usuario) ? (watchers[e.usuario] || []) : null }); });
+    const nom = {}; DM.emps.forEach(e => { nom[e.usuario] = e.nombre; });
+    const gestDir = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gestDir[u] = gestDir[u] || []).push(c); });
+    const repOf = {}; Object.keys(reportaA).forEach(u => { const j = reportaA[u]; if(j) (repOf[j] = repOf[j] || []).push(u); });
+    const gmU = S.gm || '', gmNom = gmU ? (nom[gmU] || 'General Manager') : 'General Manager';
+    const memoG = {}, gestRec = (u, seen) => { if(memoG[u]) return memoG[u]; seen = seen || new Set(); if(seen.has(u)) return []; seen.add(u); const set = new Set(gestDir[u] || []); (repOf[u] || []).forEach(r => gestRec(r, seen).forEach(c => set.add(c))); const arr = [...set]; memoG[u] = arr; return arr; };
+    const memoN = {}, nivel = (u, seen) => { if(memoN[u] != null) return memoN[u]; seen = seen || new Set(); if(seen.has(u)) return 0; seen.add(u); const reps = repOf[u] || []; let lv; if(!reps.length) lv = (gestDir[u] || []).length > 0 ? 1 : 0; else { let mx = 0; reps.forEach(r => { const rl = nivel(r, seen); if(rl > mx) mx = rl; }); lv = mx + 1; } memoN[u] = lv; return lv; };
+    const rolDe = lv => lv >= 3 ? 'Sector Manager' : lv === 2 ? 'Account Manager' : lv === 1 ? 'Supervisor' : '';
+    const empsD = DM.emps.map(e => { const lv = nivel(e.usuario);
+      return Object.assign({}, e, { gestiona:gestRec(e.usuario).slice().sort((a, b) => a.localeCompare(b, 'en')), esManager:lv >= 1 || e.usuario === gmU, rolManager:e.usuario === gmU ? 'General Manager' : rolDe(lv), reportaA:reportaA[e.usuario] || '', jefeManager:e.usuario === gmU ? '' : (reportaA[e.usuario] ? (nom[reportaA[e.usuario]] || reportaA[e.usuario]) : gmNom), watchers: Object.prototype.hasOwnProperty.call(watchers, e.usuario) ? (watchers[e.usuario] || []) : null }); });
     return { empleados:empsD, cuentaMgr, reportaA, cuentas:m.cuentas, monitor:m.agentes, portal:demoPortal() }; }
   if(action === 'solicitar'){ const f0 = p.sol.fecha, f1 = p.sol.tipo === 'ausencia' ? (p.sol.fechaFin || f0) : f0;
     for(let f = f0; f && f <= f1; f = sumarDias(f, 1)) if(DM.aprob[yoU + '|' + f]) throw new Error(enIngles('El día ' + f + ' ya está aprobado. Pídele a tu supervisor que quite la aprobación si hay que cambiar algo.')); }
