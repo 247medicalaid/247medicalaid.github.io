@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v253-202610252319">
+<meta name="app-build" content="v254-202610252346">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -711,6 +711,13 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .sg-clock{--g:#0E9F6E;--g-soft:#E7F7F0;--g-ink:#0B7E57}
 .sg-pay{--g:#B9770E;--g-soft:#FBF2DF;--g-ink:#8A5806}
 .sg-tools{--g:#7A5AF0;--g-soft:#EEEAFD;--g-ink:#5B3FD0}
+.sg-brand{--g:#DB2777;--g-soft:#FCE7F3;--g-ink:#9D174E}
+.marca-logo-fila{display:flex;gap:14px;align-items:center;margin:10px 0 2px;flex-wrap:wrap}
+.marca-logo-prev{width:132px;height:58px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;background:var(--sand);overflow:hidden;flex:none}
+.marca-logo-prev img{max-width:120px;max-height:48px}
+.marca-colores-fila{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.campo-color{display:flex;flex-direction:column;gap:4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.campo-color input[type=color]{width:56px;height:34px;padding:0;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
 .borrar-lista{margin:10px 0 4px 18px;font-size:14px;color:var(--text-muted)}
 .borrar-lista li{margin:2px 0}
 #bConfirma{width:100%;font-size:16px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;letter-spacing:.08em}
@@ -2544,6 +2551,33 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <!-- ADMIN: SETTINGS -->
   <section id="vAjustes" class="hidden">
     <div class="cabecera"><h1>Settings</h1></div>
+    <div class="set-grupo sg-brand">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><div><h2 class="set-grupo-tit">Appearance</h2><p class="set-grupo-sub">Your logo, company name and colors. Changes apply to everyone.</p></div></div>
+      <div class="ajuste" id="ajMarca">
+        <h2>Brand</h2>
+        <p class="nota">What everyone sees across the Time Clock: the company name, the logo in the header and the login, and the colors.</p>
+        <div class="ficha-grid" style="grid-template-columns:1fr 1fr">
+          <label class="campo"><span>Company name</span><input id="ajMarcaNombre" type="text" maxlength="120" placeholder="24/7 Medical Aid"></label>
+          <label class="campo"><span>App name</span><input id="ajMarcaApp" type="text" maxlength="60" placeholder="Time Clock"></label>
+        </div>
+        <div class="marca-logo-fila">
+          <div class="marca-logo-prev" id="ajMarcaLogoPrev"></div>
+          <div class="marca-logo-ctrl">
+            <input type="file" id="ajMarcaLogoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden">
+            <button class="btn btn-ghost btn-sm" type="button" id="ajMarcaLogoBtn">Upload logo&hellip;</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="ajMarcaLogoDef">Use default</button>
+            <p class="nota" style="margin:6px 0 0">PNG, JPG, SVG or WebP &middot; keep it small (an SVG or an image under ~250&nbsp;KB works best).</p>
+          </div>
+        </div>
+        <div class="marca-colores-fila">
+          <label class="campo-color"><span>Main color</span><input id="ajMarcaBrand" type="color" value="#0E86B4"></label>
+          <label class="campo-color"><span>Accent color</span><input id="ajMarcaAccent" type="color" value="#C81F29"></label>
+          <button class="btn-link" type="button" id="ajMarcaColDef">Reset to default colors</button>
+        </div>
+        <button class="btn btn-ink btn-sm" id="ajMarcaGuardar" type="button">Save appearance</button>
+        <span class="nota" id="ajMarcaEstado" style="margin-left:8px"></span>
+      </div>
+    </div>
     <div class="set-grupo sg-team">
       <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><h2 class="set-grupo-tit">Team &amp; organization</h2><p class="set-grupo-sub">The org chart and the options people can be given.</p></div></div>
     <div class="ajuste" id="ajRoles">
@@ -3307,23 +3341,46 @@ const HOSTS_RELOJ = ['247medicalaid.github.io', 'timeclock.247medical-aid.com'];
 const DEMO   = new URLSearchParams(location.search).has('demo') || HOSTS_RELOJ.indexOf(location.hostname) < 0;
 // (v253) Marca y locale configurables. Un despliegue puede poner window.MARCA = {...} antes de este script;
 // lo que no defina, toma el valor de 24/7 por defecto. Así el TimeClock es genérico sin tocar el código.
-const MARCA = Object.assign({
+const MARCA_DEFAULT = {
   nombre: '24/7 Medical Aid',
   appName: 'Time Clock',
   logoUrl: 'https://247medical-aid.com/logo-247-dark.svg',
   zona: 'America/New_York',
   zonaLabel: 'Orlando time',
-  colores: null           // ej. { '--brand-600':'#0E86B4', '--accent-600':'#C81F29' } para re-tematizar
-}, (window.MARCA || {}));
+  logo: null, brand: null, accent: null, colores: null
+};
+const MARCA = Object.assign({}, MARCA_DEFAULT, (window.MARCA || {}));
+const MARCA_BASE = Object.assign({}, MARCA);   // defaults + override del despliegue; la config del servidor se superpone
+const MARCA_COL_DEF = { brand:'#0E86B4', accent:'#C81F29' };   // colores de 24/7 (si se eligen estos, NO se re-tematiza)
+const _MARCA_VARS = ['--brand-700', '--brand-600', '--brand-500', '--brand-100', '--brand-50', '--accent-600', '--accent-500', '--accent-50'];
+function _mcHx(h){ h = String(h || '').replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+function _mcRgb(a){ return '#' + a.map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join(''); }
+function _mcMix(c, o, p){ return c.map((x, i) => x + (o[i] - x) * p); }
+function _mcRamp(brand, accent){
+  const W = [255, 255, 255], K = [0, 0, 0], v = {};
+  if(brand && /^#[0-9A-Fa-f]{6}$/.test(brand)){ const c = _mcHx(brand);
+    v['--brand-600'] = _mcRgb(c); v['--brand-700'] = _mcRgb(_mcMix(c, K, .18)); v['--brand-500'] = _mcRgb(_mcMix(c, W, .14));
+    v['--brand-100'] = _mcRgb(_mcMix(c, W, .80)); v['--brand-50'] = _mcRgb(_mcMix(c, W, .92)); }
+  if(accent && /^#[0-9A-Fa-f]{6}$/.test(accent)){ const c = _mcHx(accent);
+    v['--accent-600'] = _mcRgb(c); v['--accent-500'] = _mcRgb(_mcMix(c, W, .12)); v['--accent-50'] = _mcRgb(_mcMix(c, W, .90)); }
+  return v;
+}
 function aplicarMarca(){
   try{
     document.title = MARCA.appName + ' \u00b7 ' + MARCA.nombre;
-    const mi = document.querySelector('#marcaWeb img');
-    if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = MARCA.logoUrl; mi.alt = MARCA.nombre; }
+    const mi = document.querySelector('#marcaWeb img'), logo = MARCA.logo || MARCA.logoUrl;
+    if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
     const ma = document.querySelector('#marcaWeb .txt.app');
     if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = MARCA.appName;
-    if(MARCA.colores) for(const k in MARCA.colores) document.documentElement.style.setProperty(k, MARCA.colores[k]);
+    const vars = Object.assign({}, _mcRamp(MARCA.brand, MARCA.accent), MARCA.colores || {});
+    _MARCA_VARS.forEach(k => document.documentElement.style.removeProperty(k));
+    for(const k in vars) document.documentElement.style.setProperty(k, vars[k]);
   }catch(e){}
+}
+function setMarca(cfg){
+  Object.keys(MARCA).forEach(k => { if(!(k in MARCA_BASE)) delete MARCA[k]; });
+  Object.assign(MARCA, MARCA_BASE, cfg || {});
+  aplicarMarca();
 }
 aplicarMarca();
 
@@ -4008,7 +4065,8 @@ const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'updates_cc' && x.valor && typeof x.valor === 'object') S.updCC = x.valor;
-    if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor); }); }catch(e){}
+    if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
+    if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor); }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -4456,6 +4514,7 @@ async function api(action, p){
     }
     return { ok:true };
   }
+  if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -7719,6 +7778,51 @@ function enlazarLista(div){
   div.querySelector('.nueva button').onclick = agregar;
   nueva.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
 }
+function pintarMarcaLogo(suf){ const p = $('ajMarcaLogoPrev'); if(!p) return; p.innerHTML = suf ? '<img src="' + esc(suf) + '" alt="logo">' : '<span class="nota">No logo</span>'; }
+function pintarMarcaAjuste(){
+  if(!$('ajMarca')) return;
+  $('ajMarcaNombre').value = MARCA.nombre || '';
+  $('ajMarcaApp').value = MARCA.appName || '';
+  S.marcaLogo = undefined; S.marcaColDef = false;
+  pintarMarcaLogo(MARCA.logo || MARCA.logoUrl || '');
+  $('ajMarcaBrand').value = (MARCA.brand && /^#[0-9A-Fa-f]{6}$/.test(MARCA.brand)) ? MARCA.brand : MARCA_COL_DEF.brand;
+  $('ajMarcaAccent').value = (MARCA.accent && /^#[0-9A-Fa-f]{6}$/.test(MARCA.accent)) ? MARCA.accent : MARCA_COL_DEF.accent;
+  $('ajMarcaEstado').textContent = '';
+}
+if($('ajMarcaLogoBtn')) $('ajMarcaLogoBtn').addEventListener('click', () => $('ajMarcaLogoFile').click());
+if($('ajMarcaLogoFile')) $('ajMarcaLogoFile').addEventListener('change', ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if(!f) return;
+  if(f.size > 250 * 1024){ $('ajMarcaEstado').textContent = 'That logo is too big (max ~250 KB). Use a smaller image or an SVG.'; return; }
+  const rd = new FileReader();
+  rd.onload = () => { S.marcaLogo = rd.result; pintarMarcaLogo(rd.result); $('ajMarcaEstado').textContent = 'Logo ready \u2014 click Save appearance.'; };
+  rd.onerror = () => { $('ajMarcaEstado').textContent = 'Couldn\'t read that file.'; };
+  rd.readAsDataURL(f);
+});
+if($('ajMarcaLogoDef')) $('ajMarcaLogoDef').addEventListener('click', () => { S.marcaLogo = null; pintarMarcaLogo(MARCA.logoUrl || ''); $('ajMarcaEstado').textContent = 'Will use the default logo on save.'; });
+if($('ajMarcaColDef')) $('ajMarcaColDef').addEventListener('click', () => { $('ajMarcaBrand').value = MARCA_COL_DEF.brand; $('ajMarcaAccent').value = MARCA_COL_DEF.accent; S.marcaColDef = true; $('ajMarcaEstado').textContent = 'Colors will reset to default on save.'; });
+['ajMarcaBrand', 'ajMarcaAccent'].forEach(id => { const el = $(id); if(el) el.addEventListener('input', () => { S.marcaColDef = false; }); });
+if($('ajMarcaGuardar')) $('ajMarcaGuardar').addEventListener('click', async () => {
+  const b = $('ajMarcaGuardar'); b.disabled = true; $('ajMarcaEstado').textContent = 'Saving\u2026';
+  try{
+    const val = {};
+    const nom = $('ajMarcaNombre').value.trim(); if(nom) val.nombre = nom;
+    const app = $('ajMarcaApp').value.trim(); if(app) val.appName = app;
+    if(S.marcaLogo === null){ /* quitar: no se envía logo => vuelve al default */ }
+    else if(typeof S.marcaLogo === 'string'){ val.logo = S.marcaLogo; }
+    else if(MARCA.logo){ val.logo = MARCA.logo; }
+    if(!S.marcaColDef){
+      const bch = ($('ajMarcaBrand').value || '').toLowerCase(), ach = ($('ajMarcaAccent').value || '').toLowerCase();
+      if(bch && bch !== MARCA_COL_DEF.brand.toLowerCase()) val.brand = bch;
+      if(ach && ach !== MARCA_COL_DEF.accent.toLowerCase()) val.accent = ach;
+    }
+    if(MARCA.zona && MARCA.zona !== MARCA_BASE.zona) val.zona = MARCA.zona;
+    if(MARCA.zonaLabel && MARCA.zonaLabel !== MARCA_BASE.zonaLabel) val.zonaLabel = MARCA.zonaLabel;
+    await api('guardarMarca', { valor:val });
+    setMarca(val);
+    $('ajMarcaEstado').textContent = 'Saved.'; toast('Appearance saved.');
+  }catch(e){ $('ajMarcaEstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 $('ajListasGuardar').addEventListener('click', async () => {
   const val = {};
   if(S.cuentasMon && S.cuentasMon.length) val.cuentas = S.cuentasMon.slice();
@@ -7759,7 +7863,7 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -14046,6 +14150,7 @@ async function demoApi(action, p){
     imp.deshecha_en = new Date().toISOString();
     return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne, restauradas:nr };
   }
+  if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
