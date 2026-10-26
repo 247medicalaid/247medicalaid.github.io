@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v258-202610262143">
+<meta name="app-build" content="v259-202610262149">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1112,6 +1112,11 @@ button.cifra:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px
 .hoy-filtro button[aria-pressed="true"] .n{color:#fff;opacity:.75}
 .hoy-filtro button:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
 .cabecera{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:16px}
+.hoy-nav{display:inline-flex;align-items:center;gap:8px}
+.hoy-nav-b{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:8px;cursor:pointer;font-size:18px;line-height:1;padding:0}
+.hoy-nav-b:hover:not(:disabled){border-color:var(--brand-500);color:var(--brand-700)}
+.hoy-nav-b:disabled{opacity:.4;cursor:default}
+#hoyFecha{min-width:160px;text-align:center}
 .cabecera h1{font-size:clamp(22px,3vw,28px)}
 .cabecera .esp{flex:1}
 .lista-hoy{display:grid;gap:8px}
@@ -2296,7 +2301,12 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <section id="vHoy" class="hidden">
     <div class="cabecera">
       <h1>Today</h1>
-      <span class="muted cap" id="hoyFecha" style="display:inline-block"></span>
+      <div class="hoy-nav">
+        <button class="hoy-nav-b" id="hoyPrev" type="button" title="Previous day" aria-label="Previous day">&lsaquo;</button>
+        <span class="muted cap" id="hoyFecha" style="display:inline-block"></span>
+        <button class="hoy-nav-b" id="hoyNext" type="button" title="Next day" aria-label="Next day">&rsaquo;</button>
+        <button class="btn btn-ghost btn-sm" id="hoyHoyBtn" type="button" style="display:none">Today</button>
+      </div>
       <span class="esp"></span>
       <span class="nota" id="hoyAct"></span>
       <button class="btn btn-ghost btn-sm" id="hoyRefrescar">Refresh</button>
@@ -5375,7 +5385,7 @@ function irA(v){
   if(S.yo && S.yo.esAdmin){ try{ history.replaceState(null, '', '#' + v); }catch(e){} }
   clearInterval(S.timerReloj); clearInterval(S.timerHoy); clearInterval(S.timerRelojPoll);
   if(v === 'reloj'){ pintarReloj(); S.timerReloj = setInterval(tic, 1000); S.timerRelojPoll = setInterval(() => { if(!document.hidden) refrescarYo(0); }, 120000); refrescarYo(3000); }
-  if(v === 'hoy'){ cargarHoy(); S.timerHoy = setInterval(() => { if(!document.hidden) cargarHoy(true); }, 120000); }
+  if(v === 'hoy'){ S.hoyFecha = null; cargarHoy(); S.timerHoy = setInterval(() => { if(!document.hidden && (!S.hoyFecha || S.hoyFecha === fechaHoy())) cargarHoy(true); }, 120000); }
   if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else if(S.periodoDePago){ S.periodoDePago = false; ponerPeriodo(S.periodo.desde, S.periodo.hasta); } else cargarHoja(); }
   if(v === 'emps') cargarEmps();
   if(v === 'sols') cargarSols();
@@ -6005,15 +6015,18 @@ async function marcar(tipo){
 async function cargarHoy(silencioso){
   if(!silencioso && !S.hojaHoy) $('hoyLista').innerHTML = '<div class="vacio"><span class="spin dark"></span> Loading…</div>';
   try{
-    const hoy = fechaHoy();
-    S.hojaHoy = await api('hoja', { desde:hoy, hasta:hoy });
+    const f = S.hoyFecha || fechaHoy();
+    S.hojaHoy = await api('hoja', { desde:f, hasta:f });
     pintarHoy();
     if(!DEMO){ const raw = S.hojaHoy._raw; monPedir(S.hojaHoy.fechas, () => { if(S.hojaHoy && S.hojaHoy._raw === raw){ S.hojaHoy = rehacer(S.hojaHoy); if(S.vista === 'hoy') pintarHoy(); } }); }
   }catch(e){ if(!silencioso) toast(e.message, 'err'); }
 }
 function pintarHoy(){
-  const h = S.hojaHoy, f = h.hoy;
+  const h = S.hojaHoy, f = S.hoyFecha || h.hoy;
   $('hoyFecha').textContent = fechaL(f);
+  { const esHoy = !S.hoyFecha || S.hoyFecha === fechaHoy();
+    if($('hoyNext')) $('hoyNext').disabled = esHoy;
+    if($('hoyHoyBtn')) $('hoyHoyBtn').style.display = esHoy ? 'none' : ''; }
   $('hoyAct').textContent = 'Updated ' + hora(h.ahora) + (h.seg ? ' · ' + seg(h.seg) : '');
   const filas = h.empleados.map(e => {
     const d = e.dias[f];
@@ -6075,6 +6088,9 @@ function pintarHoy(){
   $('hoyLista').querySelectorAll('.fila-hoy').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, f, S.hojaHoy)));
 }
 $('hoyRefrescar').addEventListener('click', () => cargarHoy());
+$('hoyPrev').addEventListener('click', () => { S.hoyFecha = sumarDias(S.hoyFecha || fechaHoy(), -1); cargarHoy(); });
+$('hoyNext').addEventListener('click', () => { const n = sumarDias(S.hoyFecha || fechaHoy(), 1); S.hoyFecha = (n >= fechaHoy()) ? null : n; cargarHoy(); });
+$('hoyHoyBtn').addEventListener('click', () => { S.hoyFecha = null; cargarHoy(); });
 $('btnRefrescar').addEventListener('click', () => location.reload());
 
 /* ── v102: Today como tabla (estilo Connecteam) y columnas a elegir ── */
