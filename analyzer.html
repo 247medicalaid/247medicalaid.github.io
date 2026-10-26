@@ -35,7 +35,10 @@ body{background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace;min-h
 .header-meta{font-size:11px;letter-spacing:1px;color:var(--muted);}
 
 /* ─── UPLOAD ─── */
-.upload-row{display:grid;grid-template-columns:2fr 1.35fr 2fr 1.05fr;gap:14px;padding:18px 32px;
+/* Tres grupos desde que salio Cardio & Gastro: Ooma, Weave/Alonso (dos zonas)
+   y RingCentral. Una columna de mas, vacia, estruja a las demas y parte los
+   textos en varias lineas. */
+.upload-row{display:grid;grid-template-columns:1.6fr 2fr 1.05fr;gap:14px;padding:18px 32px;
   border-bottom:1px solid var(--border);align-items:start;}
 .upload-row input[type=file]{display:none;}
 .upload-group{display:flex;flex-direction:row;gap:8px;border:1.5px solid var(--group-color,var(--advantage));border-radius:10px;padding:7px;position:relative;}
@@ -649,27 +652,20 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
 </div>
 
 <div class="upload-row">
-  <div class="upload-group" style="--group-color:var(--cardio);">
-    <div class="upload-group-label" style="color:var(--cardio);">NEXTIVA · CARDIO &amp; GASTRO</div>
-    <div class="upload-zone" id="zone-nextiva" ondragover="drag(event,'nextiva')" ondragleave="dleave(event,'nextiva')" ondrop="drop(event,'nextiva')"" onclick="document.getElementById('fn').click()" style="border:1px dashed var(--cardio);border-radius:6px;">
-      <div class="uz-platform" style="color:var(--cardio)">LLAMADAS ATENDIDAS</div>
-      <div class="uz-icon">📞</div>
-      <div class="uz-title" id="fn-title">Subir CSV Nextiva</div>
-      <div class="uz-sub" id="fn-sub">Cardio + Gastro (atendidas)</div>
-    </div>
-    <div class="upload-zone" id="zone-nextivaAll" ondragover="drag(event,'nextivaAll')" ondragleave="dleave(event,'nextivaAll')" ondrop="drop(event,'nextivaAll')"" onclick="document.getElementById('fna').click()" style="border:1px dashed var(--cardio);border-radius:6px;">
-      <div class="uz-platform" style="color:var(--cardio)">TODAS LAS LLAMADAS</div>
-      <div class="uz-icon">📵</div>
-      <div class="uz-title" id="fna-title">Ext. 4444 · 7700 · 7701</div>
-      <div class="uz-sub" id="fna-sub">Para calcular abandonadas</div>
-    </div>
-  </div>
+  <!-- Cardiovascular y Gastroenterology salieron del analisis el 26 de octubre
+       de 2026: ya no se analizan sus llamadas. Se quito de la pantalla el grupo
+       de carga de Nextiva (las dos zonas) y los dos botones de PRACTICA; todo el
+       codigo que las procesaba sigue intacto y no hace nada sin archivo cargado,
+       igual que se hizo con Advantage Medical. Devolverlas es volver a poner
+       este HTML y esos dos botones. Los <input type=file> fn y fna siguen ahi:
+       quedan sin uso, pero loadFile('nextiva') y loadFile('nextivaAll') no se
+       tocaron. -->
 
   <div class="upload-zone" id="zone-ooma" ondragover="drag(event,'ooma')" ondragleave="dleave(event,'ooma')" ondrop="drop(event,'ooma')"" onclick="document.getElementById('fo').click()">
     <div class="uz-platform">OOMA · MAB PULMONARY</div>
     <div class="uz-icon">🫁</div>
     <div class="uz-title" id="fo-title">Subir CSV de Ooma</div>
-    <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · 1004 Alejandra · 1003 Diana</div>
+    <div class="uz-sub" id="fo-sub">Ext 1010 Farouk · 1004 Alejandra · 1007 Oscar · 1003 Diana</div>
     <div class="uz-sub" style="margin-top:4px;opacity:.75">Varios archivos, o de uno en uno para sumar meses</div>
     <span class="uz-limpiar" id="fo-limpiar" style="display:none" onclick="event.stopPropagation();limpiarOoma()">✕ Vaciar y empezar de nuevo</span>
   </div>
@@ -717,8 +713,6 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
 <div class="controls">
   <span class="ctrl-label">PRÁCTICA:</span>
   <button class="ctrl-btn active" onclick="setFilter('all',this)">Todas</button>
-  <button class="ctrl-btn cardio" onclick="setFilter('Cardiovascular',this)">Cardiovascular</button>
-  <button class="ctrl-btn gastro" onclick="setFilter('Gastroenterology',this)">Gastroenterology</button>
   <button class="ctrl-btn mab" onclick="setFilter('MAB Pulmonary',this)">MAB Pulmonary</button>
     <button class="ctrl-btn alonso" onclick="setFilter('Alonso Medical',this)">Alonso Medical</button>
     <button class="ctrl-btn tsm" onclick="setFilter('Total Sleep',this)">Total Sleep</button>
@@ -754,7 +748,7 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
 <div class="main" id="main">
   <div class="empty-state">
     <div class="ei">📊</div>
-    <p>Sube los archivos CSV de Nextiva y/o Ooma<br>para ver el análisis completo por práctica médica.</p>
+    <p>Sube los reportes de llamadas de Ooma, Weave o RingCentral<br>para ver el análisis completo por práctica médica.</p>
   </div>
 </div>
 
@@ -824,7 +818,7 @@ const NEXTIVA_PRACTICES = {
 const OOMA_EXT_DIR = {
   '1000':'Virtual Receptionist', '1001':'Dr Jerry Pinto',   '1002':'Ingrid Pinto',
   '1003':'C.C Diana',            '1004':'C.C Alejandra Osorio', '1005':'Krystal Lent',
-  '1006':'Paola Cruz',           '1007':'Shakiyla Gamble',  '1008':'Maria Jordan',
+  '1006':'Paola Cruz',           '1007':'C.C Oscar Palacio','1008':'Maria Jordan',
   '1009':'Brenda Barr',          '1010':'C.C Farouk Nasser','1013':'Theresa Black',
   '1016':'Holly Bell',           '1017':'PFT REP TEST',     '1019':'Billing',
   '1021':'Meliza Echeverry',     '2001':'Outside Work',     '2010':'Ring Group two',
@@ -835,17 +829,26 @@ const OOMA_EXT_DIR = {
 const OOMA_EXT_SISTEMA = ['1000','2001','2010','2011','2014','2015','2020'];
 
 // Agentes del call center — los únicos que aparecen en la tabla de agentes.
-const OOMA_EXT = { '1010':'Farouk Nasser', '1004':'Alejandra Osorio', '1003':'Diana' };
+// Oscar Palacio entro el 26 de octubre de 2026 en la ext 1007, que antes era de
+// Shakiyla Gamble (oficina). Por eso 1007 ya no cuenta como personal de oficina:
+// esExtOficina() excluye toda extension que este en OOMA_EXT.
+const OOMA_EXT = {
+  '1010':'Farouk Nasser', '1004':'Alejandra Osorio',
+  '1007':'Oscar Palacio', '1003':'Diana Aristizabal'
+};
 const OOMA_DISPLAY = {
   '1010':'Farouk Nasser — Ext 1010',
   '1004':'Alejandra Osorio — Ext 1004',
-  '1003':'Diana — Ext 1003'
+  '1007':'Oscar Palacio — Ext 1007',
+  '1003':'Diana Aristizabal — Ext 1003'
 };
 // Reparto de entrantes sin agente identificado: mitad y mitad.
-// Diana está en check out y por ahora solo hace salientes, así que no entra aquí.
-// Es solo el valor por defecto: el reparto real se calcula sobre quién contestó
-// de verdad en el reporte (ver oomaPoolReparto), así que el día que Diana vuelva
-// a atender llamadas entra sola, sin tocar el código.
+// ESTO ES SOLO EL VALOR POR DEFECTO, para un reporte en el que nadie aparezca
+// contestando entrantes. El reparto real se calcula sobre quien contesto de
+// verdad en el reporte (ver OOMA_POOL dentro de analyzeOoma), asi que un agente
+// entra solo en cuanto empieza a atender el telefono y sale solo cuando deja de
+// hacerlo, sin tocar el codigo. Por eso Oscar (1007) y Diana (1003) no estan en
+// esta lista: no hay que mantenerla al dia agente por agente.
 const OOMA_SPLIT_EXTS = ['1010','1004'];
 // Un agente entra al reparto si contestó al menos esta fracción de lo que
 // contestó el que más contestó. Evita que dos llamadas sueltas de alguien que
@@ -862,9 +865,22 @@ const OOMA_CC_VOICEMAIL = '2015';
 // Local Name del CSV → agente del call center (para las salientes).
 // La ext 1004 pasó por "CC Lady" y "CC Angela" antes de ser Alejandra: se
 // aceptan las tres formas para que los reportes históricos sigan cuadrando.
+// Se aceptan varias formas del mismo nombre porque el panel de Ooma no es
+// consistente con el prefijo (CC / C.C / sin prefijo). Esta tabla hace dos
+// cosas: atribuye las salientes a su agente, y es la que usa el panel de
+// oficina para NO contar esas salientes como de la oficina (nombresCC). Si
+// falta una forma, las salientes de ese agente se van al panel de oficina.
 const OOMA_LOCALNAME = {
-  'CC Diana':'Diana — Ext 1003',
-  'C.C Diana':'Diana — Ext 1003',
+  'CC Diana':'Diana Aristizabal — Ext 1003',
+  'C.C Diana':'Diana Aristizabal — Ext 1003',
+  'CC Diana Aristizabal':'Diana Aristizabal — Ext 1003',
+  'C.C Diana Aristizabal':'Diana Aristizabal — Ext 1003',
+  'Diana Aristizabal':'Diana Aristizabal — Ext 1003',
+  'CC Oscar':'Oscar Palacio — Ext 1007',
+  'C.C Oscar':'Oscar Palacio — Ext 1007',
+  'CC Oscar Palacio':'Oscar Palacio — Ext 1007',
+  'C.C Oscar Palacio':'Oscar Palacio — Ext 1007',
+  'Oscar Palacio':'Oscar Palacio — Ext 1007',
   'CC Lady':'Alejandra Osorio — Ext 1004',
   'CC Angela':'Alejandra Osorio — Ext 1004',
   'CC Alejandra Osorio':'Alejandra Osorio — Ext 1004',
@@ -1542,6 +1558,24 @@ function analyzeOoma(rows){
       }
     });
 
+    // (a2) EN QUE DIAS APARECE TRABAJANDO CADA AGENTE.
+    // Una llamada repartida solo puede ser de alguien que ese dia estaba. El
+    // reporte lo dice: si no contesto ni llamo ni una vez en todo el dia, no
+    // estaba al telefono.
+    //
+    // Sin esto el reparto se iba hacia atras en el tiempo. Oscar entro el 22 de
+    // octubre de 2026 y recibia entre 4 y 12 llamadas de CADA dia del mes
+    // anterior a su llegada — 98 llamadas que no eran de nadie que estuviera —, y
+    // Diana, que solo cubre el telefono dias sueltos, recibia unas ocho diarias
+    // todo el mes. Lo que el analizador puede saber es quien estaba; lo que no
+    // puede saber es inventarlo.
+    //
+    // Se congela aqui, antes de repartir, porque el reparto escribe en 'hablado'
+    // y si no quedaria contando como presencia lo que el propio reparto le puso.
+    const presente = {};
+    TODOS.forEach(e => { presente[e] = new Set(Object.keys(hablado[e])); });
+    const trabajaba = (ext, dk) => presente[ext].has(dk);
+
     // Solapamiento real: la llamada empieza antes de que termine otra suya.
     const libre = (ext, ini, fin) => !ocupado[ext].some(([s,f]) => ini < f && fin > s);
 
@@ -1564,8 +1598,9 @@ function analyzeOoma(rows){
       const ini = item.t.getTime(), fin = ini + item.d*1000;
       const dk = dayKey(item.t);
       // Primero los agentes de teléfono; si están todos ocupados, el de check out.
-      let libres = OOMA_POOL.filter(e => libre(e, ini, fin));
-      if(!libres.length) libres = OOMA_RESERVA.filter(e => libre(e, ini, fin));
+      // En los dos casos, solo los que ese dia aparecen trabajando.
+      let libres = OOMA_POOL.filter(e => trabajaba(e, dk) && libre(e, ini, fin));
+      if(!libres.length) libres = OOMA_RESERVA.filter(e => trabajaba(e, dk) && libre(e, ini, fin));
       if(!libres.length){
         // Nadie libre: no fue de ninguno de ellos.
         rows[item.idx]._sinAgente = true;
@@ -1605,7 +1640,23 @@ function analyzeOoma(rows){
       perdidas.push({idx, t});
     });
     perdidas.sort((x,y) => x.t - y.t);
-    perdidas.forEach((item,i) => marcar(item.idx, OOMA_POOL[i % OOMA_POOL.length], '_reassignedMissed'));
+    // Por turnos, pero solo entre los que ese dia estaban: si no, a un agente
+    // ausente se le cargan perdidas de un dia que no trabajo. El turno se lleva
+    // por dia para que el reparto sea parejo dentro de cada uno.
+    const turnoDia = {};
+    perdidas.forEach(item => {
+      const dk = dayKey(item.t);
+      // Los de telefono que estaban ese dia; si ninguno, cualquier agente que
+      // estuviera; y si no estaba nadie —un mensaje de sabado o domingo— la
+      // perdida no es de nadie y se queda sin dueño en vez de cargarsela a un
+      // ausente. Antes el reparto por turnos se hacia sobre la lista fija y le
+      // ponia perdidas de fin de semana a Farouk y a Alejandra.
+      let usar = OOMA_POOL.filter(e => trabajaba(e, dk));
+      if(!usar.length) usar = Object.keys(OOMA_EXT).filter(e => trabajaba(e, dk)).sort();
+      if(!usar.length){ rows[item.idx]._sinAgente = true; return; }
+      const i = (turnoDia[dk] = (turnoDia[dk] || 0) + 1) - 1;
+      marcar(item.idx, usar[i % usar.length], '_reassignedMissed');
+    });
   })();
 
   rows.forEach(r=>{
@@ -2972,7 +3023,7 @@ function resumenOoma(){
   const limpiar= document.getElementById('fo-limpiar');
   if(!n){
     if(titulo) titulo.textContent = 'Subir CSV de Ooma';
-    if(sub)    sub.textContent = 'Ext 1010 Farouk · Ext 1004 Alejandra · Ext 1003 Diana';
+    if(sub)    sub.textContent = 'Ext 1010 Farouk · 1004 Alejandra · 1007 Oscar · 1003 Diana';
     if(limpiar) limpiar.style.display = 'none';
     document.getElementById('zone-ooma').classList.remove('loaded');
     return;
