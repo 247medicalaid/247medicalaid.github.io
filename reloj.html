@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v255-202610252357">
+<meta name="app-build" content="v256-202610262124">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1180,6 +1180,10 @@ table.tabla-hoy{border-collapse:separate;border-spacing:0;width:100%;font-size:1
 .tabla-hoy .c-al{white-space:normal;min-width:240px;font-size:13px;line-height:1.35;color:var(--text-muted)}
 .tabla-hoy .c-al span{display:flex;gap:6px;align-items:flex-start}
 .tabla-hoy .c-al span + span{margin-top:3px}
+.tabla-hoy .c-ausn,.tabla-hoy .c-ausmin{white-space:nowrap;color:var(--text-muted)}
+.tabla-hoy .c-ausn{min-width:92px}
+.tabla-hoy .c-ausmin{min-width:120px}
+.tabla-hoy .c-ausn .aus-n{display:inline-block;min-width:22px;padding:1px 7px;border-radius:999px;background:var(--amber-100,#fff2d6);color:var(--amber-800,#8a5a00);font-weight:700;font-size:13px}
 @media (max-width:720px){
   .tabla-hoy .c-nom{min-width:150px}
   .tabla-hoy th,.tabla-hoy td{padding:10px 10px}
@@ -3585,7 +3589,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
     let s = 0; dia.bloques.forEach(b => { s += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); });
     s = Math.round(s / 60000); if(s >= CFG.AUSENCIA_MIN){ n++; mins += s; }
   });
-  if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' PC absence' : ' PC absences') + ' during the clocked shift: ' + mins + ' min total.', min:mins });
+  if(n) f.push({ c:'PC_AUSENCIAS', n:'aviso', t:n + (n === 1 ? ' PC absence' : ' PC absences') + ' during the clocked shift: ' + mins + ' min total.', min:mins, nAus:n });
   return f;
 }
 
@@ -6102,9 +6106,11 @@ const COLS_HOY = [
   { k:'depto', t:'Department', def:false, h:x => x.e.departamento ? esc(x.e.departamento) : vacioC },
   { k:'ausencia', t:'Time off', def:false, h:x => { const a = x.d && x.d.ausencia; if(!a) return vacioC;
       return esc(CLASE_TXT[a.clase]) + (esParcial(a) ? ' · ' + esc(franjaTxt(a)) : '') + (a.pagada ? '' : ' · unpaid'); } },
-  { k:'alertas', t:'Alerts', def:true, cls:'c-al', h:x => { const l = x.fl.filter(b => b.n !== 'info'); return l.length ? l.map(b => '<span>' + icono(b.n) + esc(b.t) + '</span>').join('') : vacioC; } }
+  { k:'ausN', t:'# Absences', def:true, num:true, cls:'c-ausn', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span class="aus-n" title="PC absences of ' + CFG.AUSENCIA_MIN + '+ min during the clocked shift">' + b.nAus + '</span>' : vacioC; } },
+  { k:'ausMin', t:'T. Time Absences', def:true, num:true, cls:'c-ausmin', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span title="Total PC absence time during the clocked shift">' + b.min + ' min</span>' : vacioC; } },
+  { k:'alertas', t:'General Alerts', def:true, cls:'c-al', h:x => { const l = x.fl.filter(b => b.n !== 'info' && b.c !== 'PC_AUSENCIAS'); return l.length ? l.map(b => '<span>' + icono(b.n) + esc(b.t) + '</span>').join('') : vacioC; } }
 ];
-const COLS_HOY_CLAVE = 'reloj_hoy_cols_v1';
+const COLS_HOY_CLAVE = 'reloj_hoy_cols_v2';
 function colsHoy(){
   let g = null; try{ g = JSON.parse(localStorage.getItem(COLS_HOY_CLAVE) || 'null'); }catch(e){}
   const v = new Set(Array.isArray(g) ? g : COLS_HOY.filter(c => c.def).map(c => c.k));
@@ -6150,7 +6156,9 @@ const ORD_HOY = {
   almMin: x => x.d && x.d.alm ? x.d.alm : null,
   depto: x => (x.e.departamento || '').toLowerCase() || null,
   ausencia: x => x.d && x.d.ausencia ? CLASE_TXT[x.d.ausencia.clase] : null,
-  alertas: x => { const n = nivelMax(x.fl.filter(b => b.n !== 'info')); return n === 'alerta' ? 0 : n === 'aviso' ? 1 : null; }
+  ausN: x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? b.nAus : null; },
+  ausMin: x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? b.min : null; },
+  alertas: x => { const n = nivelMax(x.fl.filter(b => b.n !== 'info' && b.c !== 'PC_AUSENCIAS')); return n === 'alerta' ? 0 : n === 'aviso' ? 1 : null; }
 };
 const ORD_HOY_CLAVE = 'reloj_hoy_orden_v1', ANCHOS_HOY_CLAVE = 'reloj_hoy_anchos_v1';
 const leerLS = (k, def) => { try{ const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? def : v; }catch(e){ return def; } };
