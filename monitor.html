@@ -7,6 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
+<!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1178,7 +1179,7 @@ function fila(a, d){
     const et = estadoTxt(e.texto);
     // 'Autorizado' se explica solo (y con su motivo): no es estar fuera de horario.
     const txt = (e.texto === 'Día libre' || e.texto === 'Desactivado') ? e.texto
-              : e.texto === 'Autorizado' ? e.texto + (e.motivo ? ' · ' + e.motivo : '')
+              : e.texto === 'Autorizado' ? e.texto + (e.motivo ? ' · ' + motivoEN(e.motivo) : '')
               : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
@@ -2116,8 +2117,8 @@ async function pintarAutorizaciones(){
       const txt = mismoDia ? fCortaISO(t.desde.slice(0,10)) + ' ' + t.desde.slice(11) + '–' + t.hasta.slice(11)
                            : fCortaISO(t.desde.slice(0,10)) + ' – ' + fCortaISO(t.hasta.slice(0,10));
       return '<div class="fila"><span class="fechas">' + esc(txt) + '</span>' +
-             '<span class="det">' + esc(t.motivo) + (t.nota ? ' · ' + esc(t.nota) : '') + '</span>' +
-             '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + t.motivo) + '" type="button">Quitar autorización</button></div>';
+             '<span class="det">' + esc(motivoEN(t.motivo)) + (t.nota ? ' · ' + esc(t.nota) : '') + '</span>' +
+             '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + motivoEN(t.motivo)) + '" type="button">Quitar autorización</button></div>';
     }).join('');
   } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
 }
@@ -2147,7 +2148,13 @@ function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
   $('auDesdeF').value = a.f; $('auDesdeH').value = a.h;
   $('auHastaF').value = b.f; $('auHastaH').value = b.h;
   const sel = $('auMotivo');
-  if (!sel.options.length) MOTIVOS_AUT.forEach(m => sel.add(new Option(m, m)));
+  if (!sel.options.length) {
+    [['mon', 'Monitor only'], ['ts', 'Affects the timesheet']].forEach(([g, etq]) => {
+      const og = document.createElement('optgroup'); og.label = etq;
+      MOTIVOS_AUT.filter(m => m.g === g).forEach(m => og.appendChild(new Option(m.en, m.v)));
+      sel.appendChild(og);
+    });
+  }
   $('auNota').value = '';
   const inicial = autFila ? 'autorizado' : (autEraDesc ? 'descanso' : 'perdido');
   document.querySelectorAll('input[name="auQue"]').forEach(r => { r.checked = (r.value === inicial); });
@@ -2172,8 +2179,24 @@ function pintarMiMarca(ag){
   $('auMarcaQue').textContent = 'Este tramo lo marcaste tú ' + como + (m ? ' (' + hora(m.ini) + ' – ' + hora(m.fin) + ')' : '') + '.';
 }
 
-const MOTIVOS_AUT = ['Conectado desde otro equipo', 'Sin la aplicación instalada', 'Permiso autorizado',
-  'Vacaciones', 'Enfermedad', 'Problema técnico', 'Capacitación o reunión', 'Cita médica o diligencia', 'Otro'];
+// Valor GUARDADO estable (español) + etiqueta en inglés + grupo. No cambiar los valores: son dato histórico
+// y los lee el backend. 'Cita médica o diligencia' se fusiona en Enfermedad (Sick): ya no es opción nueva.
+const MOTIVOS_AUT = [
+  // Monitor only (solo explican el PC; la persona puede estar trabajando) — va primero: default seguro.
+  { v:'Conectado desde otro equipo', en:'Working from another computer', g:'mon' },
+  { v:'Sin la aplicación instalada', en:'App not installed', g:'mon' },
+  { v:'Problema técnico', en:'Technical issue', g:'mon' },
+  { v:'Capacitación o reunión', en:'Training or meeting', g:'mon' },
+  { v:'Otro', en:'Other', g:'mon' },
+  // Affects the timesheet (crean ausencia en el TimeSheet vía el sync inverso).
+  { v:'Vacaciones', en:'Vacation', g:'ts' },
+  { v:'Enfermedad', en:'Sick', g:'ts' },
+  { v:'Permiso autorizado', en:'Authorized leave', g:'ts' }
+];
+// Mapa valor->inglés para mostrar el motivo consistente (incluye el valor viejo fusionado).
+const MOTIVO_EN = { 'Cita médica o diligencia':'Sick' };
+MOTIVOS_AUT.forEach(m => { MOTIVO_EN[m.v] = m.en; });
+function motivoEN(v){ return v ? (MOTIVO_EN[v] || v) : v; }
 
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-aut]');
