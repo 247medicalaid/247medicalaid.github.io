@@ -10,6 +10,7 @@
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
+<!-- modalfit: el modal de autorizar cabe en pantalla (columna flex, cuerpo con scroll, botones fijos) 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -324,6 +325,10 @@ details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
 .modal-bg.show{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
+#modalAut .modal{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+#modalAut .modal>h3{flex:0 0 auto}
+#modalAut .auBody{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0 -4px;padding:0 4px}
+#modalAut .modal>.acc{flex:0 0 auto;margin-top:16px}
 .modal h3{margin:0 0 4px;font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:17px}
 .modal p.sub{margin:0 0 16px;color:var(--text-2);font-size:13px}
 .modal label{display:block;font-size:12.5px;font-weight:600;margin:12px 0 4px}
@@ -513,6 +518,7 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
 <div class="modal-bg" id="modalAut">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="auTitulo">
     <h3 id="auTitulo">Este periodo de <span id="auAgente"></span></h3>
+    <div class="auBody">
     <div class="mimarca" id="auMarca" hidden>
       <div class="txt"><b id="auMarcaQue">Este tramo lo marcaste tú</b><span>Si lo quitas, el sistema lo vuelve a calcular solo. No toca las autorizaciones.</span></div>
       <button class="btn" id="auAuto" type="button">Quitar mi marca</button>
@@ -543,6 +549,7 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
     <details class="auCaja" id="auCaja"><summary id="auCajaTit">Ver autorizaciones de este agente (todas las fechas)</summary>
       <div id="auLista" class="tlista"></div>
     </details>
+    </div>
     <div class="acc">
       <button class="btn" id="auCancelar" type="button">Cerrar</button>
       <button class="btn primary" id="auGuardar" type="button">Guardar</button>
