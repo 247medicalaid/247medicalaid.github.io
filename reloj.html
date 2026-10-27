@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v263-202610270213">
+<meta name="app-build" content="v264-202610270222">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -817,6 +817,17 @@ table.au tr.au-det > td{background:var(--sand);padding:4px 14px 14px}
 .res-hoja .rh-pago{align-items:flex-end;text-align:right}
 .res-hoja .rh-pago b{font-size:19px;color:var(--brand-700)}
 @media (max-width:700px){ .res-hoja .rh-sep{display:none} .res-hoja .rh-pago{align-items:flex-start;text-align:left} }
+@media (max-width:1100px){
+  #hojaResumen{flex-wrap:nowrap;overflow-x:auto;gap:6px 10px;padding:8px 12px;-webkit-overflow-scrolling:touch}
+  #hojaResumen .rh-calc{flex:none;gap:6px;flex-wrap:nowrap}
+  #hojaResumen > span:not(.esp){flex:none}
+  #hojaResumen .rh-sep,#hojaResumen .rh-lunch{display:none}
+  #hojaResumen b{font-size:13.5px}
+  #hojaResumen small{font-size:10px}
+  #hojaResumen i{font-size:12px}
+  #hojaResumen .rh-pago{align-items:flex-end;text-align:right}
+  #hojaResumen .rh-pago b{font-size:15px}
+}
 #hQuin{min-width:190px}
 .candado{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;color:var(--brand-700)}
 .candado svg,.imp-cand svg,.ph-cand svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -6469,7 +6480,7 @@ function resumenHoja(h){
   const hh = min => { min = Math.round(min); return Math.floor(min / 60).toLocaleString('en-US') + ':' + String(min % 60).padStart(2, '0'); };
   const c = (v, t, cls) => '<span' + (cls ? ' class="' + cls + '"' : '') + '><b>' + v + '</b><small>' + t + '</small></span>';
   return '<div class="rh-calc">' + c(hh(trab - ot), 'Regular') + '<i>+</i>' + c(hh(ot), 'Overtime') + '<i>+</i>' + c(hh(pto), 'Paid time off') + '<i>=</i>' + c(hh(trab + pto), 'Total paid hours', 'rh-tot') + '</div>' +
-    '<span class="rh-sep"></span>' + c(hh(alm), 'Lunch (unpaid)') + c(hh(ausNP), 'Unpaid time off') + c(diasAp.toLocaleString('en-US') + ' / ' + diasTot.toLocaleString('en-US'), 'Days approved') +
+    '<span class="rh-sep"></span>' + c(hh(alm), 'Lunch (unpaid)', 'rh-lunch') + c(hh(ausNP), 'Unpaid time off') + c(diasAp.toLocaleString('en-US') + ' / ' + diasTot.toLocaleString('en-US'), 'Days approved') +
     '<span class="esp"></span>' + c('$' + pago.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }), 'Pay for these dates' + (S.cuentaFiltro ? ' · ' + esc(S.cuentaFiltro) : ''), 'rh-pago');
 }
 function pintarHoja(){
