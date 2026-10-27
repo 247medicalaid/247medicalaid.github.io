@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v269-202610271529">
+<meta name="app-build" content="v270-202610271545">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2721,6 +2721,18 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" type="button" id="ajConceptosGuardar">Save</button>
       <span class="nota" id="ajConceptosEstado"></span></div>
     </div>
+    <div class="ajuste" id="ajPagoRolesBox">
+      <h2>Who can assign paid time off</h2>
+      <p class="nota">Only these roles can choose a <b>paid</b> type when adding or approving time off. Everyone else can use unpaid types only. Admins can always.</p>
+      <div style="display:flex;gap:12px 20px;flex-wrap:wrap">
+        <label class="chk-linea"><input type="checkbox" id="ajPRSector"> Sector Manager</label>
+        <label class="chk-linea"><input type="checkbox" id="ajPRAccount"> Account Manager</label>
+        <label class="chk-linea"><input type="checkbox" id="ajPRSup"> Supervisor</label>
+        <label class="chk-linea"><input type="checkbox" id="ajPRGm"> General Manager</label>
+      </div>
+      <button class="btn btn-ink btn-sm" type="button" id="ajPRGuardar" style="margin-top:12px">Save</button>
+      <span class="nota" id="ajPREstado" style="margin-left:8px"></span>
+    </div>
     </div>
     <div class="set-grupo sg-monitor">
       <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><div><h2 class="set-grupo-tit">Monitor integration</h2><p class="set-grupo-sub">Connect authorized leave from the Agent Monitor with timesheets. Turn this off to run the Time Clock without the Monitor.</p></div></div>
@@ -4163,7 +4175,8 @@ async function cargarConfig(){
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
     if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
-    if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor; }); }catch(e){}
+    if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
+    if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor; }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -4614,6 +4627,7 @@ async function api(action, p){
   if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
+  if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -8028,9 +8042,23 @@ if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', as
   catch(e){ $('ajConceptosEstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
+function pagoRolesCfg(){ const c = S.pagoRoles || {}; return { supervisor: c.supervisor === true, account: c.account !== false, sector: c.sector !== false, gm: c.gm !== false }; }
+function pintarPagoRoles(){ const c = pagoRolesCfg();
+  if($('ajPRSector')) $('ajPRSector').checked = c.sector;
+  if($('ajPRAccount')) $('ajPRAccount').checked = c.account;
+  if($('ajPRSup')) $('ajPRSup').checked = c.supervisor;
+  if($('ajPRGm')) $('ajPRGm').checked = c.gm;
+  if($('ajPREstado')) $('ajPREstado').textContent = ''; }
+if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
+  const b = $('ajPRGuardar'); b.disabled = true; $('ajPREstado').textContent = 'Saving\u2026';
+  const val = { supervisor: $('ajPRSup').checked, account: $('ajPRAccount').checked, sector: $('ajPRSector').checked, gm: $('ajPRGm').checked };
+  try{ await api('guardarPagoRoles', { valor:val }); S.pagoRoles = val; $('ajPREstado').textContent = 'Saved.'; toast('Saved.'); }
+  catch(e){ $('ajPREstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos(); pintarPagoRoles();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -8680,7 +8708,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null; S.pagoRoles = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -14320,6 +14348,7 @@ async function demoApi(action, p){
   if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
   if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
+  if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
