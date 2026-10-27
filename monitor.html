@@ -7,6 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
+<meta name="mon-build" content="20261027-2050">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -929,6 +930,20 @@ async function cargar(forzar){
   }
 }
 
+// Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
+const MON_BUILD = '20261027-2050';
+let _verRecargando = false;
+async function chequearVersion(){
+  if (_verRecargando || S.demo) return;
+  if (document.querySelector('.modal-bg.show')) return;   // no interrumpir un diálogo abierto
+  try {
+    const r = await fetch(location.pathname + '?vchk=' + Date.now(), { cache: 'no-store' });
+    if (!r || !r.ok) return;
+    const html = await r.text();
+    const m = html.match(/name="mon-build"\s+content="([^"]+)"/);
+    if (m && m[1] && m[1] > MON_BUILD) { _verRecargando = true; location.reload(); }
+  } catch (_) {}
+}
 function programar(){
   clearInterval(S.timer);
   // Cada 30 s con Supabase (rápido). Si el dato viene de Google (justo después de un
@@ -938,6 +953,10 @@ function programar(){
     if (FUENTE.ultima === 'Google' && Date.now() - (FUENTE.en || 0) < 55000) return;
     cargar();
   }, 30000);
+  if (!S._verChk) {
+    S._verChk = setInterval(() => { if (!document.hidden) chequearVersion(); }, 180000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) chequearVersion(); });
+  }
 }
 
 // ---------------------------------------------------------------- pintar
