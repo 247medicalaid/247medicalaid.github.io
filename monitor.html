@@ -9,6 +9,7 @@
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
+<!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -222,6 +223,8 @@ html.embed body{background:var(--bg)}
    Activo que quedaba debajo. El !important es para ganarle al color que cada
    tramo trae en su atributo style. Nunca se distingue solo por el color. */
 .tl .seg.just{opacity:1;background-color:var(--st-autorizado) !important;box-shadow:inset 0 0 0 1px rgba(4,20,31,.35)}
+.rechbar{margin:0 0 8px;padding:7px 10px;border:1px solid var(--critical);background:var(--critical-bg);color:var(--critical);border-radius:8px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rechbar .rechquit{margin-left:auto;white-space:nowrap}
 .tl .seg.just.hatch{background-image:repeating-linear-gradient(135deg,rgba(4,20,31,.42) 0 2px,transparent 2px 5px)}
 .tl .seg.just::after{content:'\2713';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#04141F;opacity:.85}
 .tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
@@ -866,7 +869,7 @@ async function cargar(forzar){
   if (!url || !tok) { mostrarSetup(); return; }
   // Un dia pasado que ya se vio se pinta al instante, sin esperar al servidor.
   const guardado = !forzar && diaGuardado(S.fecha);
-  if (guardado) { S.data = guardado; $('banner').innerHTML = ''; pintar(); return; }
+  if (guardado) { S.data = guardado; $('banner').innerHTML = ''; await cargarEstadoMonitor(true); pintar(); return; }
   $('upd').textContent = 'Actualizando…';
   try {
     const j = await pedirEstado(S.fecha, url, tok);
@@ -875,6 +878,7 @@ async function cargar(forzar){
     if (!S.fecha) $('fecha').value = j.fecha;
     guardarDia(S.fecha || j.fecha, j);
     $('banner').innerHTML = '';
+    await cargarEstadoMonitor(true);
     pintar();
     if (!S.fecha) precargarDias();
   } catch (e) {
@@ -1157,8 +1161,50 @@ function speedHtml(a){
   return '<div class="speed"><button class="btn-speed" data-speed="' + esc(a.agente) + '" type="button">Medir velocidad</button>' + last + '</div>';
 }
 
+// Etapa 3b-2: ¿este agente tiene, en el día mostrado, una autorización RECHAZADA en el TimeClock?
+//   Cruza episodios[].justificado.fila (autorizaciones aplicadas al día) con los Requests rechazados.
+function rechazosDeTarjeta(a){
+  if (typeof ESTADO_MON === 'undefined' || !ESTADO_MON || !ESTADO_MON.length || !a || !a.episodios) return [];
+  const porFila = {};
+  ESTADO_MON.forEach(s => { if (s && s.estado === 'rechazada' && s.ref && s.ref.fila != null) porFila[String(s.ref.fila)] = s; });
+  const out = [], vistos = {};
+  a.episodios.forEach(e => {
+    const f = e && e.justificado && e.justificado.fila;
+    if (f != null && porFila[String(f)] && !vistos[String(f)]) {
+      vistos[String(f)] = 1;
+      out.push({ fila: String(f), motivo: (e.justificado.motivo) || '', s: porFila[String(f)] });
+    }
+  });
+  return out;
+}
+function avisoRechazoHTML(a){
+  const r = rechazosDeTarjeta(a);
+  if (!r.length) return '';
+  return r.map(x => {
+    const resp = x.s && x.s.respuesta;
+    const txtQuitar = (motivoEN(x.motivo) || 'Autorización');
+    return '<div class="rechbar">\u26a0 Rechazado en el TimeClock \u00b7 ' + esc(motivoEN(x.motivo)) +
+      (resp ? ' \u2014 \u201c' + esc(resp) + '\u201d' : '') +
+      '<button class="enlace rechquit" data-rechquitar="' + x.fila + '" data-rechagente="' + esc(a.agente) +
+      '" data-rechtxt="' + esc(txtQuitar) + '" type="button">Quitar autorización</button></div>';
+  }).join('');
+}
+// Quitar la autorización rechazada desde la propia tarjeta (misma acción que en el modal).
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('[data-rechquitar]');
+  if (!b) return;
+  if (S.demo) { toast('En modo ejemplo no se quita nada.'); return; }
+  if (!confirm('\u00bfQuitar la autorización de ' + (b.dataset.rechagente || '') + ' (' + (b.dataset.rechtxt || '') + ')?\n\nFue rechazada en el TimeClock. Ese periodo volver\u00e1 a contar como tiempo perdido.')) return;
+  b.disabled = true;
+  try {
+    const j = await apiTurno({ accion: 'autorizar_borrar', fila: b.dataset.rechquitar });
+    if (j && j.ok) { toast('Autorización quitada.', 'ok'); ESTADO_MON = null; cargar(true); }
+    else { toast((j && j.error) || 'No se pudo quitar.', 'err'); b.disabled = false; }
+  } catch (e) { toast('Error: ' + e.message, 'err'); b.disabled = false; }
+});
 function fila(a, d){
   const e = a.estado;
+  const avisoRech = avisoRechazoHTML(a);
   const inact = a.activo === false;   // desactivado: tarjeta reducida
   const envivo = d.esHoy && !inact;
   const fEquipo = envivo ? equipoHtml(a, d) + ubicHtml(a) : '';   // pantallas, energía y ubicación: van con el usuario de Windows
@@ -1328,6 +1374,7 @@ function fila(a, d){
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
       (envivo ? '<div class="ver">' + versionHtml(a, d) + '</div>' : '') + '</div>' +
     '<div class="tlwrap">' +
+      avisoRech +
       (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
       '<div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div>' +
       (tomado ? '<div class="meta post tomado">' + tomado + '</div>' : '') +
