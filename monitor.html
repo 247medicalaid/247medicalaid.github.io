@@ -13,6 +13,7 @@
 <!-- modalfit: el modal de autorizar cabe en pantalla (columna flex, cuerpo con scroll, botones fijos) 2026-10-27 -->
 <!-- fix2: rechazoDe empareja por fila (no por fecha) + modal sin recorte de tope (overlay scroll, margin auto) 2026-10-27 -->
 <!-- modalredise: modal de autorizar más ancho + campos a ancho natural 2026-10-27 -->
+<!-- modalredise2: modal más ancho/bajo, fechas y motivo+nota en fila, botones iguales 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -329,14 +330,19 @@ details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
 #modalAut{overflow-y:auto}
 #modalAut .modal{display:flex;flex-direction:column;max-height:calc(100vh - 32px);margin:auto}
-/* modalredise: más ancho + campos a ancho natural */
-#modalAut .modal{max-width:540px}
-#modalAut .trow{display:flex;flex-wrap:wrap;gap:14px 22px}
-#modalAut .trow>div{flex:0 0 auto}
+/* modalredise2: modal ancho y bajo; filas horizontales */
+#modalAut .modal{max-width:720px}
+#modalAut .trow-pair{display:flex;flex-wrap:wrap;gap:14px 18px}
+#modalAut .fgrp{display:flex;gap:14px;align-items:flex-end;border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+#modalAut .fgrp>div{flex:0 0 auto}
+#modalAut .fgrp label{margin:0 0 4px}
 #modalAut input[type=date]{width:150px}
-#modalAut input[type=time]{width:120px}
-#modalAut #auMotivo{width:100%;max-width:320px}
-#modalAut #auNota{width:100%;max-width:420px}
+#modalAut input[type=time]{width:115px}
+#modalAut .morow{display:flex;flex-wrap:wrap;gap:4px 20px}
+#modalAut .morow .mo{flex:1 1 280px;min-width:240px}
+#modalAut #auMotivo,#modalAut #auNota{width:100%;max-width:none}
+#modalAut .opc{font-weight:400;color:var(--text-2)}
+#modalAut .acc .btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center}
 #modalAut .modal>h3{flex:0 0 auto}
 #modalAut .auBody{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0 -4px;padding:0 4px}
 #modalAut .modal>.acc{flex:0 0 auto;margin-top:16px}
@@ -541,20 +547,22 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
       <label><input type="radio" name="auQue" value="autorizado"><span>Periodo autorizado</span></label>
     </div>
     <p class="sub" id="auSub"></p>
-    <div class="trow">
-      <div><label for="auDesdeF">Desde</label><input type="date" id="auDesdeF"></div>
-      <div><label for="auDesdeH">Hora</label><input type="time" id="auDesdeH"></div>
-    </div>
-    <div class="trow">
-      <div><label for="auHastaF">Hasta</label><input type="date" id="auHastaF"></div>
-      <div><label for="auHastaH">Hora</label><input type="time" id="auHastaH"></div>
+    <div class="trow-pair">
+      <div class="fgrp">
+        <div><label for="auDesdeF">Desde</label><input type="date" id="auDesdeF"></div>
+        <div><label for="auDesdeH">Hora</label><input type="time" id="auDesdeH"></div>
+      </div>
+      <div class="fgrp">
+        <div><label for="auHastaF">Hasta</label><input type="date" id="auHastaF"></div>
+        <div><label for="auHastaH">Hora</label><input type="time" id="auHastaH"></div>
+      </div>
     </div>
     <div id="auCampos">
       <button class="enlace" id="auDia" type="button">Autorizar el día completo</button>
-      <label for="auMotivo">Motivo</label>
-      <select id="auMotivo"></select>
-      <label for="auNota">Nota <span class="opc">(opcional)</span></label>
-      <input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad">
+      <div class="morow">
+        <div class="mo"><label for="auMotivo">Motivo</label><select id="auMotivo"></select></div>
+        <div class="mo"><label for="auNota">Nota <span class="opc">(opcional)</span></label><input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad"></div>
+      </div>
     </div>
     <div class="hint" id="auAviso">Para vacaciones o incapacidad puedes poner un rango de varios días.</div>
     <details class="auCaja" id="auCaja"><summary id="auCajaTit">Ver autorizaciones de este agente (todas las fechas)</summary>
