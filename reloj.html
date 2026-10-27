@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v268-202610271523">
+<meta name="app-build" content="v269-202610271529">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8021,6 +8021,9 @@ if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', as
   const val = []; $('ajConceptosLista').querySelectorAll('.cpt-row').forEach(row => { const nombre = row.querySelector('.cpt-nombre').value.trim(); if(!nombre) return;
     val.push({ id: row.dataset.id || ('c' + Date.now().toString(36) + Math.floor(Math.random()*1000)), nombre, clase: row.querySelector('.cpt-clase').value, pagada: !!(row.querySelector('.cpt-paid') && row.querySelector('.cpt-paid').checked) }); });
   if(!val.length){ $('ajConceptosEstado').textContent = 'Add at least one type.'; b.disabled = false; return; }
+  const prev = {}; (Array.isArray(S.conceptos) ? S.conceptos : []).forEach(c => { if(c && c.id) prev[c.id] = c; });
+  const renombrados = val.filter(c => prev[c.id] && prev[c.id].nombre !== c.nombre);
+  if(renombrados.length && !(await confirmar('Rename absence type?', 'The new name applies <b>only to future time off</b>. Time off already recorded keeps the description it was created with.', 'Save changes'))){ $('ajConceptosEstado').textContent = ''; b.disabled = false; return; }
   try{ await api('guardarConceptos', { valor:val }); S.conceptos = val; pintarConceptos(); $('ajConceptosEstado').textContent = 'Saved.'; toast('Absence types saved.'); }
   catch(e){ $('ajConceptosEstado').textContent = e.message; }
   finally{ b.disabled = false; }
