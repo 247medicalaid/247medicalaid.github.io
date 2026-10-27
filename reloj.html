@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v265-202610271354">
+<meta name="app-build" content="v266-202610271457">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -719,6 +719,15 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .sg-tools{--g:#7A5AF0;--g-soft:#EEEAFD;--g-ink:#5B3FD0}
 .sg-brand{--g:#DB2777;--g-soft:#FCE7F3;--g-ink:#9D174E}
 .sg-monitor{--g:#0891B2;--g-soft:#E0F7FB;--g-ink:#0A6E86}
+.sg-leave{--g:#0D9488;--g-soft:#E3F6F3;--g-ink:#0A6E66}
+.cpt-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.cpt-row:last-child{border-bottom:0}
+.cpt-dot{width:12px;height:12px;border-radius:50%;flex:none}
+.cpt-nombre{flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--paper);color:var(--text)}
+.cpt-clase{padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:var(--paper);color:var(--text)}
+.cpt-pago{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;white-space:nowrap}
+.cpt-del{border:1px solid var(--line);background:var(--paper);color:var(--text-muted);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;flex:none}
+.cpt-del:hover{border-color:var(--accent-500);color:var(--accent-600)}
 .marca-logo-fila{display:flex;gap:14px;align-items:center;margin:10px 0 2px;flex-wrap:wrap}
 .marca-logo-prev{width:132px;height:58px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;background:var(--sand);overflow:hidden;flex:none}
 .marca-logo-prev img{max-width:120px;max-height:48px}
@@ -2701,6 +2710,16 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <span class="nota" id="ajPagoEstado" style="margin-left:8px"></span>
     </div>
     </div>
+    <div class="set-grupo sg-leave">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span><div><h2 class="set-grupo-tit">Absence types</h2><p class="set-grupo-sub">The time-off concepts shared by the Time Clock and the Monitor. Each type's paid/unpaid is fixed &mdash; for a paid and an unpaid version, make two types.</p></div></div>
+    <div class="ajuste" id="ajConceptosBox">
+      <p class="nota" style="margin-top:0">Blue dot = paid, red dot = unpaid. Editing a type here does <b>not</b> change time off already recorded.</p>
+      <div id="ajConceptosLista"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="ajConceptosAdd">+ Add type</button>
+      <button class="btn btn-ink btn-sm" type="button" id="ajConceptosGuardar">Save</button>
+      <span class="nota" id="ajConceptosEstado"></span></div>
+    </div>
+    </div>
     <div class="set-grupo sg-monitor">
       <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><div><h2 class="set-grupo-tit">Monitor integration</h2><p class="set-grupo-sub">Connect authorized leave from the Agent Monitor with timesheets. Turn this off to run the Time Clock without the Monitor.</p></div></div>
     <div class="ajuste" id="ajMonSyncBox">
@@ -4141,7 +4160,8 @@ async function cargarConfig(){
     if(x.clave === 'updates_cc' && x.valor && typeof x.valor === 'object') S.updCC = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
-    if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor; }); }catch(e){}
+    if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
+    if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor; }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -4591,6 +4611,7 @@ async function api(action, p){
   }
   if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
+  if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -7968,9 +7989,37 @@ if($('ajMonGuardar')) $('ajMonGuardar').addEventListener('click', async () => {
   catch(e){ $('ajMonEstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
+const CONCEPTOS_DEF = [
+  { id:'vac_u', nombre:'Vacation (Unpaid)', clase:'vacaciones', pagada:false },
+  { id:'sick_u', nombre:'Sick (Unpaid)', clase:'enfermedad', pagada:false },
+  { id:'pers_u', nombre:'Personal (Unpaid)', clase:'personal', pagada:false },
+  { id:'other_u', nombre:'Other (Unpaid)', clase:'otro', pagada:false }
+];
+function conceptosAus(){ return (Array.isArray(S.conceptos) && S.conceptos.length) ? S.conceptos : CONCEPTOS_DEF; }
+function colorPago(pagada){ return pagada ? '#1D74B8' : '#C81F29'; }
+function filaConcepto(c){ c = c || {}; const cl = c.clase || 'otro', pag = c.pagada === true;
+  return '<div class="cpt-row" data-id="' + esc(c.id || '') + '">' +
+    '<span class="cpt-dot" style="background:' + colorPago(pag) + '"></span>' +
+    '<input class="cpt-nombre" type="text" maxlength="80" value="' + esc(c.nombre || '') + '" placeholder="Type name">' +
+    '<select class="cpt-clase">' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '"' + (k === cl ? ' selected' : '') + '>' + CLASE_TXT[k] + '</option>').join('') + '</select>' +
+    '<label class="cpt-pago"><input type="checkbox" class="cpt-pagada"' + (pag ? ' checked' : '') + '> Paid</label>' +
+    '<button type="button" class="cpt-del" title="Remove" aria-label="Remove">\u00d7</button></div>'; }
+function pintarConceptos(){ const box = $('ajConceptosLista'); if(!box) return; box.innerHTML = conceptosAus().map(filaConcepto).join(''); if($('ajConceptosEstado')) $('ajConceptosEstado').textContent = ''; }
+if($('ajConceptosLista')) $('ajConceptosLista').addEventListener('click', ev => { const d = ev.target.closest('.cpt-del'); if(d){ d.closest('.cpt-row').remove(); } });
+if($('ajConceptosLista')) $('ajConceptosLista').addEventListener('change', ev => { if(ev.target.classList.contains('cpt-pagada')){ const dot = ev.target.closest('.cpt-row').querySelector('.cpt-dot'); if(dot) dot.style.background = colorPago(ev.target.checked); } });
+if($('ajConceptosAdd')) $('ajConceptosAdd').addEventListener('click', () => { const id = 'c' + Date.now().toString(36) + Math.floor(Math.random()*1000); $('ajConceptosLista').insertAdjacentHTML('beforeend', filaConcepto({ id, nombre:'', clase:'otro', pagada:false })); });
+if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', async () => {
+  const b = $('ajConceptosGuardar'); b.disabled = true; $('ajConceptosEstado').textContent = 'Saving\u2026';
+  const val = []; $('ajConceptosLista').querySelectorAll('.cpt-row').forEach(row => { const nombre = row.querySelector('.cpt-nombre').value.trim(); if(!nombre) return;
+    val.push({ id: row.dataset.id || ('c' + Date.now().toString(36) + Math.floor(Math.random()*1000)), nombre, clase: row.querySelector('.cpt-clase').value, pagada: row.querySelector('.cpt-pagada').checked }); });
+  if(!val.length){ $('ajConceptosEstado').textContent = 'Add at least one type.'; b.disabled = false; return; }
+  try{ await api('guardarConceptos', { valor:val }); S.conceptos = val; pintarConceptos(); $('ajConceptosEstado').textContent = 'Saved.'; toast('Absence types saved.'); }
+  catch(e){ $('ajConceptosEstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -8620,7 +8669,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -14259,6 +14308,7 @@ async function demoApi(action, p){
   }
   if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
+  if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
