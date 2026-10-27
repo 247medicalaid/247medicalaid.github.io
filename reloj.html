@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v264-202610270222">
+<meta name="app-build" content="v265-202610271354">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -718,6 +718,7 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .sg-pay{--g:#B9770E;--g-soft:#FBF2DF;--g-ink:#8A5806}
 .sg-tools{--g:#7A5AF0;--g-soft:#EEEAFD;--g-ink:#5B3FD0}
 .sg-brand{--g:#DB2777;--g-soft:#FCE7F3;--g-ink:#9D174E}
+.sg-monitor{--g:#0891B2;--g-soft:#E0F7FB;--g-ink:#0A6E86}
 .marca-logo-fila{display:flex;gap:14px;align-items:center;margin:10px 0 2px;flex-wrap:wrap}
 .marca-logo-prev{width:132px;height:58px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;background:var(--sand);overflow:hidden;flex:none}
 .marca-logo-prev img{max-width:120px;max-height:48px}
@@ -2700,6 +2701,21 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <span class="nota" id="ajPagoEstado" style="margin-left:8px"></span>
     </div>
     </div>
+    <div class="set-grupo sg-monitor">
+      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><div><h2 class="set-grupo-tit">Monitor integration</h2><p class="set-grupo-sub">Connect authorized leave from the Agent Monitor with timesheets. Turn this off to run the Time Clock without the Monitor.</p></div></div>
+    <div class="ajuste" id="ajMonSyncBox">
+      <label class="chk-linea" style="align-items:flex-start;gap:10px"><input type="checkbox" id="ajMonSync" style="margin-top:3px"> <span><b>Sync authorized leave from the Monitor to timesheets</b><br><span class="nota">When a full-day Vacation, Sick or Authorized leave is approved in the Monitor for someone who did not clock in, it is added to their timesheet automatically.</span></span></label>
+      <h2 style="margin-top:16px">Pay for Monitor leave</h2>
+      <p class="nota">Choose which of these count as <b>paid</b> time off when added from the Monitor. Off = unpaid (the default).</p>
+      <div class="ficha-grid" style="grid-template-columns:repeat(3,1fr);max-width:520px">
+        <label class="chk-linea"><input type="checkbox" id="ajMonPagoVac"> Vacation paid</label>
+        <label class="chk-linea"><input type="checkbox" id="ajMonPagoSick"> Sick paid</label>
+        <label class="chk-linea"><input type="checkbox" id="ajMonPagoPers"> Personal paid</label>
+      </div>
+      <button class="btn btn-ink btn-sm" id="ajMonGuardar" type="button" style="margin-top:14px">Save</button>
+      <span class="nota" id="ajMonEstado" style="margin-left:8px"></span>
+    </div>
+    </div>
     <div class="set-grupo sg-tools">
       <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/></svg></span><div><h2 class="set-grupo-tit">Tools</h2><p class="set-grupo-sub">A sandbox user to preview the agent view with real data.</p></div></div>
     <div class="ajuste" id="ajPrueba">
@@ -4124,7 +4140,8 @@ async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'updates_cc' && x.valor && typeof x.valor === 'object') S.updCC = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
-    if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor); }); }catch(e){}
+    if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
+    if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor; }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -4573,6 +4590,7 @@ async function api(action, p){
     return { ok:true };
   }
   if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
+  if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -7936,9 +7954,23 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
   catch(e){ if($('ajGMEstado')) $('ajGMEstado').textContent = ''; toast(e.message, 'err'); }
   b.disabled = false;
 });
+function monSyncCfg(){ const c = S.monitorSync || {}; const pg = c.pago || {}; return { activo: c.activo !== false, pago:{ vacaciones: pg.vacaciones === true, enfermedad: pg.enfermedad === true, personal: pg.personal === true } }; }
+function pintarMonitorSync(){ const c = monSyncCfg();
+  if($('ajMonSync')) $('ajMonSync').checked = c.activo;
+  if($('ajMonPagoVac')) $('ajMonPagoVac').checked = c.pago.vacaciones;
+  if($('ajMonPagoSick')) $('ajMonPagoSick').checked = c.pago.enfermedad;
+  if($('ajMonPagoPers')) $('ajMonPagoPers').checked = c.pago.personal;
+  if($('ajMonEstado')) $('ajMonEstado').textContent = ''; }
+if($('ajMonGuardar')) $('ajMonGuardar').addEventListener('click', async () => {
+  const b = $('ajMonGuardar'); b.disabled = true; $('ajMonEstado').textContent = 'Saving\u2026';
+  const val = { activo: $('ajMonSync').checked, pago:{ vacaciones: $('ajMonPagoVac').checked, enfermedad: $('ajMonPagoSick').checked, personal: $('ajMonPagoPers').checked } };
+  try{ await api('guardarMonitorSync', { valor:val }); S.monitorSync = val; $('ajMonEstado').textContent = 'Saved.'; toast('Monitor settings saved.'); }
+  catch(e){ $('ajMonEstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -8588,7 +8620,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -14226,6 +14258,7 @@ async function demoApi(action, p){
     return { ok:true, marcas:nm, aprobaciones:na, ausencias:ns, empleados:ne, restauradas:nr };
   }
   if(action === 'guardarMarca'){ return { ok:true }; }
+  if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
