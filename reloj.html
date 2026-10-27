@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v270-202610271545">
+<meta name="app-build" content="v271-202610271218">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2655,9 +2655,20 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <label class="chk-linea" style="gap:10px;flex-wrap:wrap">General Manager <select id="ajGM" style="min-width:220px"></select> <button class="btn btn-ink btn-sm" id="ajGMGuardar" type="button">Save</button> <span class="nota" id="ajGMEstado"></span></label>
       <div id="ajRolesLista" class="roles-lista"></div>
     </div>
+    <div class="ajuste" id="ajCuentasBox">
+      <h2>Accounts</h2>
+      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Renaming or removing an account is handled separately for now, because accounts are referenced by name throughout the app.</p>
+      <div id="ajCuentasLista" class="ctas-lista"></div>
+      <div id="ajCuentasNuevas"></div>
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" type="button" id="ajCuentasAgregar">Add account</button>
+        <button class="btn btn-ink btn-sm" type="button" id="ajCuentasGuardar">Save accounts</button>
+        <span class="nota" id="ajCuentasEstado"></span>
+      </div>
+    </div>
     <div class="ajuste">
       <h2>Lists</h2>
-      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Accounts come from the Monitor.</p>
+      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Account colors are set above in <b>Accounts</b>.</p>
       <div class="listas" id="ajListas"></div>
       <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
       <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
@@ -3715,8 +3726,15 @@ function palabrasCuenta(n){
     .filter(w => w && !PALABRAS_VACIAS.has(w));
 }
 function colorCuenta(nombre){
-  if(!nombre || !S.coloresN) return null;
+  if(!nombre) return null;
   const k = normCuenta(nombre); if(!k) return null;
+  // 1) store propio del TimeClock (dueño de los colores de cuenta)
+  if(Array.isArray(S.cuentas)){
+    const s = S.cuentas.find(c => c && c.nombre && c.color && normCuenta(c.nombre) === k);
+    if(s) return s.color;
+  }
+  // 2) respaldo: color actual de la Nómina (nomina_docs)
+  if(!S.coloresN) return null;
   let x = S.coloresN.find(c => c.k === k) || S.coloresN.find(c => k.length >= 4 && c.k.length >= 4 && (c.k.indexOf(k) === 0 || k.indexOf(c.k) === 0));
   if(!x){   // todas las palabras de un nombre están en el otro
     const p = palabrasCuenta(nombre);
@@ -4176,7 +4194,8 @@ async function cargarConfig(){
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
     if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
     if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
-    if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor; }); }catch(e){}
+    if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
+    if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; }); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -4628,6 +4647,7 @@ async function api(action, p){
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
+  if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -8042,6 +8062,46 @@ if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', as
   catch(e){ $('ajConceptosEstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
+function cuentasFusion(){
+  const porK = {};
+  (Array.isArray(S.cuentas) ? S.cuentas : []).forEach(c => { if(c && c.nombre) porK[normCuenta(c.nombre)] = { nombre:String(c.nombre), color:(c.color || '') }; });
+  [].concat(S.cuentasMon || [], (listas().cuentas || [])).forEach(n => { if(!n) return; const k = normCuenta(n); if(!porK[k]) porK[k] = { nombre:String(n), color:(colorCuenta(n) || '') }; });
+  return Object.keys(porK).map(k => porK[k]).sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+function filaCuentaAj(c, esNueva){
+  const col = /^#[0-9a-f]{3,6}$/i.test(c.color || '') ? c.color : '#888888';
+  return '<div class="cta-fila" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">'
+    + '<input type="color" class="cta-color" value="' + col + '" style="width:42px;height:30px;padding:2px;border-radius:6px;cursor:pointer;flex:0 0 auto">'
+    + (esNueva
+        ? '<input type="text" class="cta-nombre" value="' + esc(c.nombre || '') + '" placeholder="Account name" maxlength="120" style="flex:1;min-width:0;padding:6px 8px">'
+          + '<button class="btn-link cta-quitar" type="button" title="Remove" style="flex:0 0 auto">&times;</button>'
+        : '<span class="cta-nombre" style="flex:1;min-width:0">' + esc(c.nombre) + '</span>')
+    + '</div>';
+}
+function nombreDeFila(f){ const el = f.querySelector('.cta-nombre'); const v = (el && el.value !== undefined) ? el.value : (el ? el.textContent : ''); return String(v || '').trim(); }
+function pintarCuentas(){
+  const box = $('ajCuentasLista'); if(!box) return;
+  const fus = cuentasFusion();
+  box.innerHTML = fus.length ? fus.map(c => filaCuentaAj(c, false)).join('') : '<p class="nota">No accounts yet. Add the first one below.</p>';
+  if($('ajCuentasNuevas')) $('ajCuentasNuevas').innerHTML = '';
+  if($('ajCuentasEstado')) $('ajCuentasEstado').textContent = '';
+}
+if($('ajCuentasAgregar')) $('ajCuentasAgregar').addEventListener('click', () => {
+  const cont = document.createElement('div'); cont.innerHTML = filaCuentaAj({ nombre:'', color:'#888888' }, true);
+  const fila = cont.firstChild;
+  const q = fila.querySelector('.cta-quitar'); if(q) q.addEventListener('click', () => fila.remove());
+  $('ajCuentasNuevas').appendChild(fila);
+  const inp = fila.querySelector('.cta-nombre'); if(inp) inp.focus();
+});
+if($('ajCuentasGuardar')) $('ajCuentasGuardar').addEventListener('click', async () => {
+  const b = $('ajCuentasGuardar'); b.disabled = true; $('ajCuentasEstado').textContent = 'Saving\u2026';
+  const filas = [].slice.call(document.querySelectorAll('#ajCuentasLista .cta-fila, #ajCuentasNuevas .cta-fila'));
+  const vistos = {}, val = [];
+  filas.forEach(f => { const nombre = nombreDeFila(f); if(!nombre) return; const k = normCuenta(nombre); if(vistos[k]) return; vistos[k] = 1; const ci = f.querySelector('.cta-color'); val.push({ nombre, color:(ci ? ci.value : '') }); });
+  try{ await api('guardarCuentas', { valor:val }); S.cuentas = val; S.coloresN = null; pintarCuentas(); $('ajCuentasEstado').textContent = 'Saved.'; toast('Accounts saved.'); }
+  catch(e){ $('ajCuentasEstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 function pagoRolesCfg(){ const c = S.pagoRoles || {}; return { supervisor: c.supervisor === true, account: c.account !== false, sector: c.sector !== false, gm: c.gm !== false }; }
 function pintarPagoRoles(){ const c = pagoRolesCfg();
   if($('ajPRSector')) $('ajPRSector').checked = c.sector;
@@ -8058,7 +8118,7 @@ if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos(); pintarPagoRoles();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -8708,7 +8768,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null; S.pagoRoles = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null; S.pagoRoles = null; S.cuentas = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -14349,6 +14409,7 @@ async function demoApi(action, p){
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
   if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
   if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
+  if(action === 'guardarCuentas'){ S.cuentas = p.valor; return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
