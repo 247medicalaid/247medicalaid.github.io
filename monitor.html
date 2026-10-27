@@ -8,6 +8,7 @@
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
+<!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -310,6 +311,8 @@ details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
 .tlista .tit{font-size:12.5px;font-weight:600;margin-bottom:6px}
 .tlista .fila{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border)}
 .tlista .fila:last-child{border-bottom:0}
+.tlista .fila.rech{background:var(--critical-bg);border-left:3px solid var(--critical);padding-left:7px;border-radius:4px}
+.tlista .fila.rech .det{color:var(--critical);font-weight:600}
 .tlista .fechas{font-weight:600;white-space:nowrap}
 .tlista .det{color:var(--text-2);flex:1}
 .tlista .vig{color:var(--accent);font-weight:600}
@@ -2103,6 +2106,29 @@ const sello = ms => { const d = new Date(ms);
   const p = n => String(n).padStart(2, '0');
   return { f: d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()), h: p(d.getHours()) + ':' + p(d.getMinutes()) }; };
 
+// Etapa 3b: estado en el TimeClock de las ausencias que NACIERON en el Monitor (para resaltar las rechazadas).
+let ESTADO_MON = null;
+async function cargarEstadoMonitor(force){
+  if (ESTADO_MON && !force) return ESTADO_MON;
+  if (!window.sb || (typeof S !== 'undefined' && S.demo)) { ESTADO_MON = []; return ESTADO_MON; }
+  try { const r = await window.sb.rpc('monitor_solicitudes_estado'); ESTADO_MON = Array.isArray(r && r.data) ? r.data : []; }
+  catch (e) { ESTADO_MON = []; }
+  return ESTADO_MON;
+}
+function motivoClaseMon(m){ const s = String(m || '').toLowerCase();
+  if (s === 'vacaciones') return 'vacaciones';
+  if (s === 'enfermedad' || s === 'cita m\u00e9dica o diligencia' || s === 'cita medica o diligencia') return 'enfermedad';
+  if (s === 'permiso autorizado') return 'personal';
+  return ''; }
+// ¿esta autorización (agente + fechas) fue RECHAZADA en el TimeClock?
+function rechazoDe(agente, t){
+  if (!ESTADO_MON || !ESTADO_MON.length) return null;
+  const d = String(t.desde || '').slice(0, 10), h = String(t.hasta || '').slice(0, 10), cl = motivoClaseMon(t.motivo);
+  return ESTADO_MON.find(s => s.estado === 'rechazada'
+    && String(s.agente || '').trim() === String(agente || '').trim()
+    && String(s.desde || '') === d && String(s.hasta || '') === h
+    && (!cl || !s.clase || s.clase === cl)) || null;
+}
 async function pintarAutorizaciones(){
   const cont = $('auLista');
   cont.innerHTML = '<div class="vacia">Cargando…</div>';
@@ -2111,13 +2137,17 @@ async function pintarAutorizaciones(){
     if (!j.ok) throw new Error(j.error || 'no se pudo leer');
     if (!Array.isArray(j.autorizaciones)) throw new Error('el servidor aún no tiene las autorizaciones (falta publicar la nueva versión del script)');
     if (!j.autorizaciones.length) { $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (ninguna)'; cont.innerHTML = '<div class="vacia">Sin autorizaciones registradas para ' + esc(autAgente) + '.</div>'; return; }
-    $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (' + j.autorizaciones.length + ', todas las fechas)';
+    await cargarEstadoMonitor();
+    const nRech = j.autorizaciones.filter(t => rechazoDe(autAgente, t)).length;
+    $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (' + j.autorizaciones.length + ', todas las fechas)' + (nRech ? ' — ⚠ ' + nRech + ' rechazada' + (nRech > 1 ? 's' : '') + ' en el TimeClock' : '');
     cont.innerHTML = j.autorizaciones.map(t => {
       const mismoDia = t.desde.slice(0,10) === t.hasta.slice(0,10);
       const txt = mismoDia ? fCortaISO(t.desde.slice(0,10)) + ' ' + t.desde.slice(11) + '–' + t.hasta.slice(11)
                            : fCortaISO(t.desde.slice(0,10)) + ' – ' + fCortaISO(t.hasta.slice(0,10));
-      return '<div class="fila"><span class="fechas">' + esc(txt) + '</span>' +
-             '<span class="det">' + esc(motivoEN(t.motivo)) + (t.nota ? ' · ' + esc(t.nota) : '') + '</span>' +
+      const rch = rechazoDe(autAgente, t);
+      const nota3b = rch ? ' · ❌ Rechazado en el TimeClock' + (rch.respuesta ? ': ' + rch.respuesta : '') : '';
+      return '<div class="fila' + (rch ? ' rech' : '') + '"><span class="fechas">' + esc(txt) + '</span>' +
+             '<span class="det">' + esc(motivoEN(t.motivo)) + (t.nota ? ' · ' + esc(t.nota) : '') + esc(nota3b) + '</span>' +
              '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + motivoEN(t.motivo)) + '" type="button">Quitar autorización</button></div>';
     }).join('');
   } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
