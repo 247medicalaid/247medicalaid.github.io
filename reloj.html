@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v271-202610271218">
+<meta name="app-build" content="v272-202610271251">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2657,7 +2657,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="ajuste" id="ajCuentasBox">
       <h2>Accounts</h2>
-      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Renaming or removing an account is handled separately for now, because accounts are referenced by name throughout the app.</p>
+      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Each account can also set <b>who may assign paid time off</b>, or inherit the global default. Renaming or removing an account is handled separately for now, because accounts are referenced by name throughout the app.</p>
       <div id="ajCuentasLista" class="ctas-lista"></div>
       <div id="ajCuentasNuevas"></div>
       <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -8064,18 +8064,33 @@ if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', as
 });
 function cuentasFusion(){
   const porK = {};
-  (Array.isArray(S.cuentas) ? S.cuentas : []).forEach(c => { if(c && c.nombre) porK[normCuenta(c.nombre)] = { nombre:String(c.nombre), color:(c.color || '') }; });
-  [].concat(S.cuentasMon || [], (listas().cuentas || [])).forEach(n => { if(!n) return; const k = normCuenta(n); if(!porK[k]) porK[k] = { nombre:String(n), color:(colorCuenta(n) || '') }; });
+  (Array.isArray(S.cuentas) ? S.cuentas : []).forEach(c => { if(c && c.nombre) porK[normCuenta(c.nombre)] = { nombre:String(c.nombre), color:(c.color || ''), pago_roles:(c.pago_roles && typeof c.pago_roles === 'object' ? c.pago_roles : null) }; });
+  [].concat(S.cuentasMon || [], (listas().cuentas || [])).forEach(n => { if(!n) return; const k = normCuenta(n); if(!porK[k]) porK[k] = { nombre:String(n), color:(colorCuenta(n) || ''), pago_roles:null }; });
   return Object.keys(porK).map(k => porK[k]).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 function filaCuentaAj(c, esNueva){
   const col = /^#[0-9a-f]{3,6}$/i.test(c.color || '') ? c.color : '#888888';
-  return '<div class="cta-fila" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">'
+  const g = pagoRolesCfg();
+  const pr = (c.pago_roles && typeof c.pago_roles === 'object') ? c.pago_roles : null;
+  const custom = !!pr, eff = pr || g;
+  const ck = k => (eff[k] ? ' checked' : '') + (custom ? '' : ' disabled');
+  const nombreCtrl = esNueva
+    ? '<input type="text" class="cta-nombre" value="' + esc(c.nombre || '') + '" placeholder="Account name" maxlength="120" style="flex:1;min-width:0;padding:6px 8px">'
+      + '<button class="btn-link cta-quitar" type="button" title="Remove" style="flex:0 0 auto">&times;</button>'
+    : '<span class="cta-nombre" style="flex:1;min-width:0">' + esc(c.nombre) + '</span>';
+  return '<div class="cta-fila" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
     + '<input type="color" class="cta-color" value="' + col + '" style="width:42px;height:30px;padding:2px;border-radius:6px;cursor:pointer;flex:0 0 auto">'
-    + (esNueva
-        ? '<input type="text" class="cta-nombre" value="' + esc(c.nombre || '') + '" placeholder="Account name" maxlength="120" style="flex:1;min-width:0;padding:6px 8px">'
-          + '<button class="btn-link cta-quitar" type="button" title="Remove" style="flex:0 0 auto">&times;</button>'
-        : '<span class="cta-nombre" style="flex:1;min-width:0">' + esc(c.nombre) + '</span>')
+    + nombreCtrl
+    + '<details class="cta-pago" style="flex-basis:100%;margin:2px 0 0 52px">'
+    +   '<summary style="cursor:pointer;font-size:12px;color:var(--text3)">Paid approval: <b class="cta-pago-res">' + (custom ? 'Custom' : 'Global') + '</b></summary>'
+    +   '<label class="chk-linea" style="margin-top:6px"><input type="checkbox" class="cta-pago-override"' + (custom ? ' checked' : '') + '> Use a custom rule for this account</label>'
+    +   '<div class="cta-pago-roles" style="display:flex;gap:8px 18px;flex-wrap:wrap;margin-top:4px">'
+    +     '<label class="chk-linea"><input type="checkbox" data-r="sector"' + ck('sector') + '> Sector Manager</label>'
+    +     '<label class="chk-linea"><input type="checkbox" data-r="account"' + ck('account') + '> Account Manager</label>'
+    +     '<label class="chk-linea"><input type="checkbox" data-r="supervisor"' + ck('supervisor') + '> Supervisor</label>'
+    +     '<label class="chk-linea"><input type="checkbox" data-r="gm"' + ck('gm') + '> General Manager</label>'
+    +   '</div>'
+    + '</details>'
     + '</div>';
 }
 function nombreDeFila(f){ const el = f.querySelector('.cta-nombre'); const v = (el && el.value !== undefined) ? el.value : (el ? el.textContent : ''); return String(v || '').trim(); }
@@ -8097,10 +8112,32 @@ if($('ajCuentasGuardar')) $('ajCuentasGuardar').addEventListener('click', async 
   const b = $('ajCuentasGuardar'); b.disabled = true; $('ajCuentasEstado').textContent = 'Saving\u2026';
   const filas = [].slice.call(document.querySelectorAll('#ajCuentasLista .cta-fila, #ajCuentasNuevas .cta-fila'));
   const vistos = {}, val = [];
-  filas.forEach(f => { const nombre = nombreDeFila(f); if(!nombre) return; const k = normCuenta(nombre); if(vistos[k]) return; vistos[k] = 1; const ci = f.querySelector('.cta-color'); val.push({ nombre, color:(ci ? ci.value : '') }); });
+  filas.forEach(f => {
+    const nombre = nombreDeFila(f); if(!nombre) return;
+    const k = normCuenta(nombre); if(vistos[k]) return; vistos[k] = 1;
+    const ci = f.querySelector('.cta-color');
+    const entry = { nombre, color:(ci ? ci.value : '') };
+    const ov = f.querySelector('.cta-pago-override');
+    if(ov && ov.checked){ const pr = {}; f.querySelectorAll('.cta-pago-roles input[data-r]').forEach(ri => pr[ri.getAttribute('data-r')] = ri.checked); entry.pago_roles = pr; }
+    val.push(entry);
+  });
   try{ await api('guardarCuentas', { valor:val }); S.cuentas = val; S.coloresN = null; pintarCuentas(); $('ajCuentasEstado').textContent = 'Saved.'; toast('Accounts saved.'); }
   catch(e){ $('ajCuentasEstado').textContent = e.message; }
   finally{ b.disabled = false; }
+});
+function pagoRolesDeCuenta(nombre){
+  if(Array.isArray(S.cuentas) && nombre){ const k = normCuenta(nombre);
+    const c = S.cuentas.find(x => x && x.nombre && normCuenta(x.nombre) === k);
+    if(c && c.pago_roles && typeof c.pago_roles === 'object'){ const p = c.pago_roles;
+      return { supervisor: p.supervisor === true, account: p.account === true, sector: p.sector === true, gm: p.gm === true, origen:'cuenta' }; } }
+  const g = pagoRolesCfg(); g.origen = 'global'; return g;
+}
+if($('ajCuentasBox')) $('ajCuentasBox').addEventListener('change', (e) => {
+  const tg = e.target; if(!tg || !tg.classList || !tg.classList.contains('cta-pago-override')) return;
+  const det = tg.closest('.cta-pago'); if(!det) return;
+  const on = tg.checked;
+  det.querySelectorAll('.cta-pago-roles input[data-r]').forEach(ri => ri.disabled = !on);
+  const res = det.querySelector('.cta-pago-res'); if(res) res.textContent = on ? 'Custom' : 'Global';
 });
 function pagoRolesCfg(){ const c = S.pagoRoles || {}; return { supervisor: c.supervisor === true, account: c.account !== false, sector: c.sector !== false, gm: c.gm !== false }; }
 function pintarPagoRoles(){ const c = pagoRolesCfg();
