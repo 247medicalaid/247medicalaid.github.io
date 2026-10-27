@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calculadora de Nómina — 24/7 Medical Aid</title>
+<!-- bridge: color de cuenta gestionado en TimeClock (solo-lectura aqui) 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -3133,8 +3134,8 @@
         <span id="modal-cuenta-nombre" class="cu-titulo-nombre" hidden></span>
       </div>
       <div style="display:flex;align-items:center;gap:14px">
-        <label for="cu-color" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:pointer">Color de Cuenta
-          <input type="color" id="cu-color" value="#3FCFA0" style="width:44px;height:28px;padding:2px;border-radius:6px;cursor:pointer"></label>
+        <label for="cu-color" title="Los colores de cuenta ahora se gestionan en TimeClock → Settings → Accounts" style="display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--text3);cursor:default">Color de Cuenta
+          <input type="color" id="cu-color" value="#3FCFA0" disabled title="Los colores de cuenta ahora se gestionan en TimeClock → Settings → Accounts" style="width:44px;height:28px;padding:2px;border-radius:6px;cursor:not-allowed;opacity:.85"></label>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('modal-cuenta')">✕</button>
       </div>
     </div>
@@ -4443,8 +4444,7 @@ function renderCuentasFichas(){
         ${/* La placa de tinta por debajo del selector no es adorno: sin ella el
               cuadrito del color queda del mismo color que la banda y se pierde
               justo en la pantalla donde se cambia. */''}
-        <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" title="Color de la cuenta — cambia el encabezado en todo el módulo"
-          onchange="cuCampo('${ids.join('|')}','color',this.value,'txt',this)">
+        <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" disabled title="Los colores de cuenta ahora se gestionan en TimeClock → Settings → Accounts" style="cursor:not-allowed">
         ${varias
           ? `<span class="nomgrupo">${esc(titulo)}</span>`
           : `<input class="nom" type="text" value="${esc(cuValor(jefe,'nombre'))}" aria-label="Nombre de la cuenta"
