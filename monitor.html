@@ -11,6 +11,7 @@
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
 <!-- modalfit: el modal de autorizar cabe en pantalla (columna flex, cuerpo con scroll, botones fijos) 2026-10-27 -->
+<!-- fix2: rechazoDe empareja por fila (no por fecha) + modal sin recorte de tope (overlay scroll, margin auto) 2026-10-27 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -325,7 +326,8 @@ details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
 .modal-bg.show{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%}
-#modalAut .modal{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+#modalAut{overflow-y:auto}
+#modalAut .modal{display:flex;flex-direction:column;max-height:calc(100vh - 32px);margin:auto}
 #modalAut .modal>h3{flex:0 0 auto}
 #modalAut .auBody{flex:1 1 auto;min-height:0;overflow-y:auto;margin:0 -4px;padding:0 4px}
 #modalAut .modal>.acc{flex:0 0 auto;margin-top:16px}
@@ -2176,12 +2178,10 @@ function motivoClaseMon(m){ const s = String(m || '').toLowerCase();
   return ''; }
 // ¿esta autorización (agente + fechas) fue RECHAZADA en el TimeClock?
 function rechazoDe(agente, t){
-  if (!ESTADO_MON || !ESTADO_MON.length) return null;
-  const d = String(t.desde || '').slice(0, 10), h = String(t.hasta || '').slice(0, 10), cl = motivoClaseMon(t.motivo);
-  return ESTADO_MON.find(s => s.estado === 'rechazada'
-    && String(s.agente || '').trim() === String(agente || '').trim()
-    && String(s.desde || '') === d && String(s.hasta || '') === h
-    && (!cl || !s.clase || s.clase === cl)) || null;
+  if (!ESTADO_MON || !ESTADO_MON.length || !t) return null;
+  // Emparejar por FILA (única por autorización), no por fecha: una autorización nueva/aprobada
+  // del mismo día NO hereda el rechazo de una anterior ya quitada.
+  return ESTADO_MON.find(s => s.estado === 'rechazada' && s.ref && String(s.ref.fila) === String(t.fila)) || null;
 }
 async function pintarAutorizaciones(){
   const cont = $('auLista');
