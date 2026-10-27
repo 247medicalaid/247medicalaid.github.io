@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v273-202610271432">
+<meta name="app-build" content="v274-202610271446">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4604,7 +4604,9 @@ async function api(action, p){
       .lte('fecha', a + '-12-31').gte('fecha_fin', a + '-01-01'))).map(x => ({ clase:x.clase, fecha:x.fecha, fechaFin:x.fecha_fin, horaIni:x.hora_ini, horaFin:x.hora_fin })); }
   if(action === 'quitarAusencia') return q(sb.rpc('reloj_quitar_ausencia', { p_id:p.id, p_nota:p.nota || '' }));
   if(action === 'decidir'){ const _a = { p_id:p.id, p_aprobar:p.aprobar, p_respuesta:p.respuesta || '', p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas };
-    if(p.marcas != null) _a.p_marcas = p.marcas; return q(sb.rpc('reloj_decidir_solicitud', _a)); }
+    if(p.marcas != null) _a.p_marcas = p.marcas;
+    if(p.conceptoId != null) _a.p_concepto_id = p.conceptoId; if(p.conceptoNombre != null) _a.p_concepto_nombre = p.conceptoNombre; if(p.clase != null) _a.p_clase = p.clase;
+    return q(sb.rpc('reloj_decidir_solicitud', _a)); }
   if(action === 'decidirHorario') return q(sb.rpc('reloj_decidir_horario', { p_id:p.id, p_estado:p.estado, p_respuesta:p.respuesta || '' }));
   if(action === 'misPagos') return q(sb.rpc('reloj_mis_pagos'));
   if(action === 'miPeriodo'){
@@ -4671,7 +4673,8 @@ async function api(action, p){
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
   if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
-    p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas, p_respuesta: p.respuesta == null ? null : p.respuesta }));
+    p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas, p_respuesta: p.respuesta == null ? null : p.respuesta,
+    p_concepto_id: p.conceptoId == null ? null : p.conceptoId, p_concepto_nombre: p.conceptoNombre == null ? null : p.conceptoNombre }));
   if(action === 'pendientes'){
     const { count, error } = await sb.from('reloj_solicitudes').select('id', { count:'exact', head:true }).eq('estado', 'pendiente');
     if(error) throw new Error(error.message); return count || 0;
@@ -8124,6 +8127,12 @@ function pagoRolesDeCuenta(nombre){
       return { supervisor: p.supervisor === true, account: p.account === true, sector: p.sector === true, gm: p.gm === true, origen:'cuenta' }; } }
   const g = pagoRolesCfg(); g.origen = 'global'; return g;
 }
+function miRolEnCuenta(cuenta){ return null; }  // (futuro) rol del usuario actual para la cuenta; hoy el flujo es admin-only
+function puedePagar(cuenta){ if(S.yo && S.yo.esAdmin) return true; const rol = miRolEnCuenta(cuenta); return rol ? !!pagoRolesDeCuenta(cuenta)[rol] : false; }
+function gatearPagoChk(chkId, cuenta){ const c = $(chkId); if(!c) return; const ok = puedePagar(cuenta); c.disabled = !ok;
+  if(!ok && c.checked){ c.checked = false; c.dispatchEvent(new Event('change', { bubbles:true })); }
+  const lab = c.closest('label'); if(lab) lab.title = ok ? '' : 'Only roles allowed for this account can set paid time off.'; }
+function gatearPagoPa(cuenta){ gatearPagoChk('paPagada', cuenta); }
 if($('ajCuentasBox')) $('ajCuentasBox').addEventListener('change', (e) => {
   const tg = e.target; if(!tg || !tg.classList || !tg.classList.contains('cta-pago-override')) return;
   const det = tg.closest('.cta-pago'); if(!det) return;
@@ -8887,8 +8896,11 @@ function resumenAnio(lista, anio){
 // Campos del formulario (agente: pre 's'; administrador: pre 'pa').
 function tlCampos(pre, fecha, op){
   op = op || {};
-  const tipo = '<label class="campo"><span>Type</span><select id="' + pre + 'Clase">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
-    Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>';
+  const tipo = op.conceptos
+    ? '<label class="campo"><span>Type</span><select id="' + pre + 'Clase" data-concepto="1">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
+        conceptosAus().map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') + '</select></label>'
+    : '<label class="campo"><span>Type</span><select id="' + pre + 'Clase">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
+        Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>';
   const min = op.min ? ' min="' + op.min + '"' : '', max = op.max ? ' max="' + op.max + '"' : '';
   return '<div class="tl" id="' + pre + 'Tl" data-modo="dia">' + tipo +
     '<div class="tl-modo" role="group" aria-label="Time off length"><button type="button" data-modo="dia" aria-pressed="true">All day</button><button type="button" data-modo="horas" aria-pressed="false">Part of the day</button></div>' +
@@ -8928,19 +8940,28 @@ function tlEnlazar(pre, op){
 }
 // Lee el formulario: { clase, fecha, fechaFin, horaIni?, horaFin? } o { err }.
 function tlLeer(pre){
-  const parcial = $(pre + 'Tl').dataset.modo === 'horas', clase = $(pre + 'Clase').value;
+  const sel = $(pre + 'Clase'), esConcepto = !!(sel && sel.dataset.concepto === '1');
+  const val = sel ? sel.value : '';
+  let clase = val, extra = {};
+  if(esConcepto){
+    if(!val) return { err:'Choose the absence type.' };
+    const op = sel.options[sel.selectedIndex];
+    clase = (op && op.dataset.clase) || 'otro';
+    extra = { conceptoId:val, conceptoNombre:(op && op.dataset.nombre) || '' };
+  }
   if(!clase) return { err:'Choose the absence type.' };
+  const parcial = $(pre + 'Tl').dataset.modo === 'horas';
   if(parcial){
     const fecha = $(pre + 'Dia').value, hi = $(pre + 'HIni').value, hf = $(pre + 'HFin').value;
     if(!fecha) return { err:'Choose the date.' };
     if(!hi || !hf) return { err:'Fill in both times, or choose All day.' };
     if(hf <= hi) return { err:'The end time must be after the start time.' };
-    return { clase, fecha, fechaFin:fecha, horaIni:hi, horaFin:hf };
+    return Object.assign({ clase, fecha, fechaFin:fecha, horaIni:hi, horaFin:hf }, extra);
   }
   const fecha = $(pre + 'Desde').value, fechaFin = $(pre + 'Hasta').value || fecha;
   if(!fecha) return { err:'Choose the date.' };
   if(fechaFin < fecha) return { err:'The end date can\'t be before the start date.' };
-  return { clase, fecha, fechaFin };
+  return Object.assign({ clase, fecha, fechaFin }, extra);
 }
 const DOW_NOM = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function horCambioTxt(s){ return s.clase === 'libre' ? 'Day off' : h12(s.horaIni) + ' \u2013 ' + h12(s.horaFin) + (s.almIni ? ' \u00b7 lunch ' + h12(s.almIni) + ' \u2013 ' + h12(s.almFin) : ''); }
@@ -12144,7 +12165,9 @@ function abrirDecision(id, modo){
       ' will be added to ' + esc(diaS(s.fecha)) + '. If that day was approved, it will need approval again.</span></div>';
   if(aprobar && s.tipo === 'ausencia'){
     const pag = false;
-    h += '<label class="chk"><input type="checkbox" id="xPagada"' + (pag ? ' checked' : '') + '> Paid time off</label>' +
+    const cs0 = conceptosAus(), cSel0 = (cs0.find(c => c.clase === s.clase) || cs0[0] || {});
+    h += '<label class="campo"><span>Type</span><select id="xConcepto" data-concepto="1">' + cs0.map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '"' + (c.id === cSel0.id ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('') + '</select></label>' +
+      '<label class="chk"><input type="checkbox" id="xPagada"' + (pag ? ' checked' : '') + '> Paid time off</label>' +
       '<label class="campo" id="xHorasC"' + (pag ? '' : ' style="display:none"') + '><span>' + (esParcial(s) ? 'Paid hours' : 'Paid hours per day') + '</span><input type="number" id="xHoras" min="0" max="12" step="0.25" value="' +
         (esParcial(s) ? Math.round(minParcial(s) / 60 * 100) / 100 : (emp.horasDia || 8)) + '"></label>' +
       '<p class="nota" style="margin:-4px 0 12px">Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) + '</p>';
@@ -12152,6 +12175,7 @@ function abrirDecision(id, modo){
   h += '<label class="campo"><span>Note to the employee (optional)</span><input id="xNota" maxlength="500" autocomplete="off"></label>';
   $('xCuerpo').innerHTML = h;
   if($('xPagada')) $('xPagada').addEventListener('change', () => { $('xHorasC').style.display = $('xPagada').checked ? '' : 'none'; });
+  if(aprobar && s.tipo === 'ausencia') gatearPagoChk('xPagada', emp.cuenta);
   const b = $('xSi'); b.textContent = aprobar ? 'Approve' : 'Deny'; b.className = 'btn ' + (aprobar ? 'btn-brand' : 'btn-ink'); b.disabled = false;
   $('xErr').textContent = '';
   abrir('ovDec');
@@ -12161,7 +12185,8 @@ $('xSi').addEventListener('click', async () => {
   const { s, aprobar } = S.dec, b = $('xSi');
   const p = { id:s.id, aprobar, respuesta:$('xNota').value.trim() };
   if(aprobar && s.tipo === 'ausencia'){ p.pagada = $('xPagada').checked; p.horas = p.pagada ? Number($('xHoras').value) : 0;
-    if(p.pagada && !(p.horas > 0 && p.horas <= 12)){ $('xErr').textContent = 'Hours per day must be between 0 and 12.'; return; } }
+    if(p.pagada && !(p.horas > 0 && p.horas <= 12)){ $('xErr').textContent = 'Hours per day must be between 0 and 12.'; return; }
+    const cop = $('xConcepto') && $('xConcepto').options[$('xConcepto').selectedIndex]; if(cop){ p.conceptoId = $('xConcepto').value; p.conceptoNombre = cop.dataset.nombre || ''; p.clase = cop.dataset.clase || s.clase; } }
   b.disabled = true;
   try{
     if(s.tipo === 'horario') await api('decidirHorario', { id:s.id, estado:aprobar ? 'aprobada' : 'rechazada', respuesta:p.respuesta });
@@ -12193,7 +12218,8 @@ function abrirCambioAprobada(id, modo){
     $('xTitulo').textContent = 'Edit ' + SOL_TIPO[s.tipo].toLowerCase();
     const hoy = fechaHoy();
     if(s.tipo === 'ausencia'){
-      h += '<label class="campo"><span>Type</span><select id="eClase">' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '"' + (k === s.clase ? ' selected' : '') + '>' + CLASE_TXT[k] + '</option>').join('') + '</select></label>' +
+      const csE = conceptosAus(), cSelE = (csE.find(c => c.id === s.conceptoId) || csE.find(c => c.clase === s.clase) || csE[0] || {});
+      h += '<label class="campo"><span>Type</span><select id="eClase" data-concepto="1">' + csE.map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '"' + (c.id === cSelE.id ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('') + '</select></label>' +
         '<div class="dos-col"><label class="campo"><span>From</span><input type="date" id="eDesde" value="' + s.fecha + '"></label>' +
         '<label class="campo"><span>To</span><input type="date" id="eHasta" value="' + s.fechaFin + '"></label></div>' +
         '<label class="chk"><input type="checkbox" id="xPagada"' + (s.pagada ? ' checked' : '') + '> Paid time off</label>' +
@@ -12212,6 +12238,7 @@ function abrirCambioAprobada(id, modo){
   }
   $('xCuerpo').innerHTML = h;
   if($('xPagada')) $('xPagada').addEventListener('change', () => { $('xHorasC').style.display = $('xPagada').checked ? '' : 'none'; });
+  if($('xPagada')) gatearPagoChk('xPagada', emp && emp.cuenta);
   abrir('ovDec');
 }
 async function guardarCambioAprobada(){
@@ -12225,7 +12252,8 @@ async function guardarCambioAprobada(){
   else {
     const sol = {};
     if(s.tipo === 'ausencia'){
-      sol.clase = $('eClase').value; sol.fecha = $('eDesde').value; sol.fechaFin = $('eHasta').value || sol.fecha;
+      const eop = $('eClase') && $('eClase').options[$('eClase').selectedIndex];
+      sol.clase = (eop && eop.dataset.clase) || s.clase; sol.fecha = $('eDesde').value; sol.fechaFin = $('eHasta').value || sol.fecha;
       if(!sol.fecha || sol.fechaFin < sol.fecha){ $('xErr').textContent = 'The end date can\'t be before the start date.'; return; }
     } else {
       sol.fecha = $('eFecha').value; sol.horaIni = $('eIni').value; sol.horaFin = $('eFin').value;
@@ -12237,7 +12265,8 @@ async function guardarCambioAprobada(){
     }
     p = { id:s.id, sol, respuesta:nota };
     if(s.tipo === 'ausencia'){ p.pagada = $('xPagada').checked; p.horas = p.pagada ? Number($('xHoras').value) : 0;
-      if(p.pagada && !(p.horas > 0 && p.horas <= 12)){ $('xErr').textContent = 'Hours per day must be between 0 and 12.'; return; } }
+      if(p.pagada && !(p.horas > 0 && p.horas <= 12)){ $('xErr').textContent = 'Hours per day must be between 0 and 12.'; return; }
+      const eop2 = $('eClase') && $('eClase').options[$('eClase').selectedIndex]; if(eop2){ p.conceptoId = $('eClase').value; p.conceptoNombre = eop2.dataset.nombre || ''; } }
     accion = 'modificarSolicitud';
   }
   b.disabled = true;
@@ -12359,7 +12388,7 @@ function abrirAusAu(usuarioPre){
   $('paSub').textContent = 'Choose the person and the dates.';
   const opc = emps.map(e => '<option value="' + esc(e.usuario) + '" data-hd="' + (e.horasDia || 8) + '">' + esc(e.nombre) + (e.activo ? '' : ' (archived)') + '</option>').join('');
   $('paBody').innerHTML = '<label class="campo pa-emp"><span>Employee</span><select id="paEmp">' + opc + '</select></label>' +
-    tlCampos('pa', hoy, { pago:true, horasDia:emps[0].horasDia || 8 }) +
+    tlCampos('pa', hoy, { pago:true, conceptos:true, horasDia:emps[0].horasDia || 8 }) +
     '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>';
   tlEnlazar('pa', { horasDia:emps[0].horasDia || 8 });
   $('paErr').textContent = '';
@@ -12368,6 +12397,7 @@ function abrirAusAu(usuarioPre){
     const op = $('paEmp').options[$('paEmp').selectedIndex], hd = op ? (Number(op.dataset.hd) || 8) : 8;
     if($('paHoras') && !$('paPagada').checked) $('paHoras').value = hd;
     const e = emps.find(x => x.usuario === $('paEmp').value);
+    gatearPagoPa(e && e.cuenta);
     if(e) api('ausAnio', { usuario:e.usuario }).then(l => { if($('paAnio')) $('paAnio').innerHTML = e.nombre.split(' ')[0] + '\'s time off in ' + anio + ': ' + resumenAnio(l, anio); }).catch(() => { if($('paAnio')) $('paAnio').textContent = ''; });
   };
   $('paEmp').addEventListener('change', actualizar);
@@ -12380,9 +12410,10 @@ function abrirAusPH(f){
   const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario); if(!e) return;
   S.ausCtx = { modo:'ph', usuario:e.usuario };
   $('paSub').innerHTML = esc(e.nombre) + ' \u00b7 ' + esc(diaS(f));
-  $('paBody').innerHTML = tlCampos('pa', f, { pago:true, horasDia:e.horasDia || 8 }) +
+  $('paBody').innerHTML = tlCampos('pa', f, { pago:true, conceptos:true, horasDia:e.horasDia || 8 }) +
     '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>';
   tlEnlazar('pa', { horasDia:e.horasDia || 8 });
+  gatearPagoPa(e.cuenta);
   $('paErr').textContent = '';
   const bG = $('paGuardar'); bG.disabled = false; bG.onclick = guardarAusPH;
   abrir('ovAus');
@@ -14280,9 +14311,9 @@ async function demoApi(action, p){
     const ch = DM.sols.find(s => s.usuario === a.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= ff && s.fechaFin >= a.fecha &&
       (!a.horaIni || !s.horaIni || (s.horaIni < a.horaFin && a.horaIni < s.horaFin)));
     if(ch) throw new Error(enIngles('Ya hay una ausencia ' + (ch.estado === 'pendiente' ? 'pendiente' : 'aprobada') + ' del ' + ch.fecha + ' al ' + ch.fechaFin + ' que se cruza con esas fechas.'));
-    const pag = a.pagada == null ? ['vacaciones', 'enfermedad'].includes(a.clase) : a.pagada, emp = DM.emps.find(e => e.usuario === a.usuario) || {};
+    const pag = a.pagada == null ? false : a.pagada, emp = DM.emps.find(e => e.usuario === a.usuario) || {};
     const s = { id:++DM.solId, usuario:a.usuario, tipo:'ausencia', clase:a.clase, fecha:a.fecha, fechaFin:a.horaIni ? a.fecha : ff, horaIni:a.horaIni || null, horaFin:a.horaFin || null,
-      motivo:a.motivo || 'Added by the administrator', estado:'aprobada', creada:Date.now(), respuesta:'', pagada:pag,
+      motivo:a.motivo || 'Added by the administrator', estado:'aprobada', creada:Date.now(), respuesta:'', pagada:pag, conceptoId:a.conceptoId || null, conceptoNombre:a.conceptoNombre || null,
       horasDia:pag ? (a.horas == null ? (a.horaIni ? minParcial(a) / 60 : (emp.horasDia || 8)) : a.horas) : 0, decididaPor:'carloshtl75', decidida:Date.now() };
     DM.sols.unshift(s); return { ok:true, id:s.id };
   }
@@ -14305,7 +14336,7 @@ async function demoApi(action, p){
       DM.marcas[k] = ms.map(m => ({ tipo:m.tipo, ms:m.ms, origen:'admin', motivo:'Request #' + s.id + ' approved: ' + s.motivo }));
       delete DM.aprob[k];
     }
-    if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? ['vacaciones','enfermedad'].includes(s.clase) : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? (esParcial(s) ? minParcial(s) / 60 : 8) : p.horas) : 0; }
+    if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? false : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? (esParcial(s) ? minParcial(s) / 60 : 8) : p.horas) : 0; if(p.clase) s.clase = p.clase; if(p.conceptoId != null) s.conceptoId = p.conceptoId; if(p.conceptoNombre != null) s.conceptoNombre = p.conceptoNombre; }
     s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
     return { ok:true };
   }
@@ -14511,7 +14542,7 @@ async function demoApi(action, p){
     if(action === 'revertir'){ s.estado = 'pendiente'; s.decididaPor = null; s.decidida = null; s.pagada = null; s.horasDia = null; s.respuesta = p.respuesta || ''; return { ok:true }; }
     Object.assign(s, p.sol); if(s.tipo !== 'ausencia') s.fechaFin = s.fecha; if(s.almIni === '') s.almIni = s.almFin = null;
     s.estado = 'pendiente';
-    return demoApi('decidir', { id:s.id, aprobar:true, respuesta:p.respuesta, pagada:p.pagada, horas:p.horas });
+    return demoApi('decidir', { id:s.id, aprobar:true, respuesta:p.respuesta, pagada:p.pagada, horas:p.horas, conceptoId:p.conceptoId, conceptoNombre:p.conceptoNombre, clase:(p.sol && p.sol.clase) });
   }
   if(action === 'guardarEmpleado'){
     const x = Object.assign({}, p.empleado), em = (x.email || '').toLowerCase();
