@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v267-202610271514">
+<meta name="app-build" content="v268-202610271523">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -723,7 +723,7 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .cpt-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .cpt-row:last-child{border-bottom:0}
 .cpt-dot{width:12px;height:12px;border-radius:50%;flex:none}
-.cpt-nombre{flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--paper);color:var(--text)}
+.cpt-nombre{flex:1 1 180px;min-width:140px;max-width:300px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--paper);color:var(--text)}
 .cpt-clase{padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:var(--paper);color:var(--text)}
 .cpt-pago{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;white-space:nowrap}
 .cpt-del{border:1px solid var(--line);background:var(--paper);color:var(--text-muted);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;flex:none}
@@ -8005,16 +8005,21 @@ function filaConcepto(c, esNuevo){ c = c || {}; const cl = c.clase || 'otro', pa
     '<span class="cpt-dot" style="background:' + colorPago(pag) + '"></span>' +
     '<input class="cpt-nombre" type="text" maxlength="80" value="' + esc(c.nombre || '') + '" placeholder="Type name">' +
     '<select class="cpt-clase"' + dis + lk + '>' + Object.keys(CLASE_TXT).map(k => '<option value="' + k + '"' + (k === cl ? ' selected' : '') + '>' + CLASE_TXT[k] + '</option>').join('') + '</select>' +
-    '<label class="cpt-pago"' + lk + '><input type="checkbox" class="cpt-pagada"' + (pag ? ' checked' : '') + dis + '> Paid</label>' +
+    '<label class="cpt-pago"' + lk + '><input type="checkbox" class="cpt-paid"' + (pag ? ' checked' : '') + dis + '> Paid</label>' +
+    '<label class="cpt-pago"' + lk + '><input type="checkbox" class="cpt-unpaid"' + (pag ? '' : ' checked') + dis + '> Unpaid</label>' +
     '<button type="button" class="cpt-del" title="Remove" aria-label="Remove">\u00d7</button></div>'; }
 function pintarConceptos(){ const box = $('ajConceptosLista'); if(!box) return; box.innerHTML = conceptosAus().map(c => filaConcepto(c, false)).join(''); if($('ajConceptosEstado')) $('ajConceptosEstado').textContent = ''; }
 if($('ajConceptosLista')) $('ajConceptosLista').addEventListener('click', ev => { const d = ev.target.closest('.cpt-del'); if(d){ d.closest('.cpt-row').remove(); } });
-if($('ajConceptosLista')) $('ajConceptosLista').addEventListener('change', ev => { if(ev.target.classList.contains('cpt-pagada')){ const dot = ev.target.closest('.cpt-row').querySelector('.cpt-dot'); if(dot) dot.style.background = colorPago(ev.target.checked); } });
+if($('ajConceptosLista')) $('ajConceptosLista').addEventListener('change', ev => { const row = ev.target.closest('.cpt-row'); if(!row) return; const paid = row.querySelector('.cpt-paid'), unpaid = row.querySelector('.cpt-unpaid'); if(!paid || !unpaid) return;
+  if(ev.target.classList.contains('cpt-paid')){ unpaid.checked = !ev.target.checked; }
+  else if(ev.target.classList.contains('cpt-unpaid')){ paid.checked = !ev.target.checked; }
+  else return;
+  const dot = row.querySelector('.cpt-dot'); if(dot) dot.style.background = colorPago(paid.checked); });
 if($('ajConceptosAdd')) $('ajConceptosAdd').addEventListener('click', () => { const id = 'c' + Date.now().toString(36) + Math.floor(Math.random()*1000); $('ajConceptosLista').insertAdjacentHTML('beforeend', filaConcepto({ id, nombre:'', clase:'otro', pagada:false }, true)); });
 if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', async () => {
   const b = $('ajConceptosGuardar'); b.disabled = true; $('ajConceptosEstado').textContent = 'Saving\u2026';
   const val = []; $('ajConceptosLista').querySelectorAll('.cpt-row').forEach(row => { const nombre = row.querySelector('.cpt-nombre').value.trim(); if(!nombre) return;
-    val.push({ id: row.dataset.id || ('c' + Date.now().toString(36) + Math.floor(Math.random()*1000)), nombre, clase: row.querySelector('.cpt-clase').value, pagada: row.querySelector('.cpt-pagada').checked }); });
+    val.push({ id: row.dataset.id || ('c' + Date.now().toString(36) + Math.floor(Math.random()*1000)), nombre, clase: row.querySelector('.cpt-clase').value, pagada: !!(row.querySelector('.cpt-paid') && row.querySelector('.cpt-paid').checked) }); });
   if(!val.length){ $('ajConceptosEstado').textContent = 'Add at least one type.'; b.disabled = false; return; }
   try{ await api('guardarConceptos', { valor:val }); S.conceptos = val; pintarConceptos(); $('ajConceptosEstado').textContent = 'Saved.'; toast('Absence types saved.'); }
   catch(e){ $('ajConceptosEstado').textContent = e.message; }
