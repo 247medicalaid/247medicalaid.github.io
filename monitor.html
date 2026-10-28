@@ -7,7 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261027-2220">
+<meta name="mon-build" content="20261027-2225">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -933,7 +933,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261027-2220';
+const MON_BUILD = '20261027-2225';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1217,8 +1217,15 @@ function speedHtml(a){
 //   Cruza episodios[].justificado.fila (autorizaciones aplicadas al día) con los Requests rechazados.
 function rechazosDeTarjeta(a){
   if (typeof ESTADO_MON === 'undefined' || !ESTADO_MON || !ESTADO_MON.length || !a || !a.episodios) return [];
+  const fold = v => String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+  const normA = fold(a.agente), dia = (S.data && S.data.fecha) || '';
   const porFila = {};
-  ESTADO_MON.forEach(s => { if (s && s.estado === 'rechazada' && s.ref && s.ref.fila != null) porFila[String(s.ref.fila)] = s; });
+  // La `fila` se REUTILIZA entre agentes/fechas, así que sola NO identifica la autorización:
+  // emparejar el rechazo solo dentro del MISMO agente y cuando su rango cubre el día que se ve.
+  ESTADO_MON.forEach(s => { if (s && s.estado === 'rechazada' && s.ref && s.ref.fila != null
+      && fold(s.agente) === normA
+      && (!dia || (String(s.desde||'').slice(0,10) <= dia && String(s.hasta||'').slice(0,10) >= dia)))
+    porFila[String(s.ref.fila)] = s; });
   const out = [], vistos = {};
   a.episodios.forEach(e => {
     const f = e && e.justificado && e.justificado.fila;
@@ -2224,9 +2231,13 @@ function motivoClaseMon(m){ const s = String(m || '').toLowerCase();
 // ¿esta autorización (agente + fechas) fue RECHAZADA en el TimeClock?
 function rechazoDe(agente, t){
   if (!ESTADO_MON || !ESTADO_MON.length || !t) return null;
-  // Emparejar por FILA (única por autorización), no por fecha: una autorización nueva/aprobada
-  // del mismo día NO hereda el rechazo de una anterior ya quitada.
-  return ESTADO_MON.find(s => s.estado === 'rechazada' && s.ref && String(s.ref.fila) === String(t.fila)) || null;
+  // La `fila` se REUTILIZA entre agentes/fechas: emparejar por agente + fila + rango de fechas,
+  // para que una autorización nueva NO herede el rechazo de otra (de otro agente o ya quitada).
+  const fold = v => String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+  const na = fold(agente), td = String(t.desde||'').slice(0,10), th = String(t.hasta||'').slice(0,10);
+  return ESTADO_MON.find(s => s.estado === 'rechazada' && s.ref && String(s.ref.fila) === String(t.fila)
+    && fold(s.agente) === na
+    && String(s.desde||'').slice(0,10) <= th && String(s.hasta||'').slice(0,10) >= td) || null;
 }
 async function pintarAutorizaciones(){
   const cont = $('auLista');
