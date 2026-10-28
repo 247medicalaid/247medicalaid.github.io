@@ -7,7 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261027-2050">
+<meta name="mon-build" content="20261027-2200">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -408,18 +408,18 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
     <img src="https://247medical-aid.com/logo-247-light.svg" alt="24/7 Medical Aid" onerror="this.style.display='none'">
   </picture>
   <div>
-    <h1>Monitor de actividad de agentes</h1>
-    <div class="sub" id="sub">Alertas a partir de 10 minutos sin actividad</div>
+    <h1>Agent activity monitor</h1>
+    <div class="sub" id="sub">Alerts after 10 minutes without activity</div>
   </div>
   <div class="right">
     <span id="quien"></span>
     <span id="upd"></span>
-    <button class="btn" id="btnRef" type="button">Actualizar</button>
-    <button class="btn" id="btnCuentas" type="button" title="Cuentas que ofrece el instalador">Cuentas</button>
-    <button class="btn" id="btnEquipos" type="button" title="Inventario: qué portátil tiene asignado cada agente">Equipos</button>
-    <button class="btn" id="btnUbic" type="button" title="Dónde está cada equipo; marcar uno como perdido" hidden>Ubicaciones</button>
-    <button class="btn" id="btnCfg" type="button" title="Claves de los equipos y conexión del panel">Ajustes</button>
-    <a class="btn" id="volver" href="index.html" title="Volver al portal">← Portal</a>
+    <button class="btn" id="btnRef" type="button">Refresh</button>
+    <button class="btn" id="btnCuentas" type="button" title="Accounts offered by the installer">Accounts</button>
+    <button class="btn" id="btnEquipos" type="button" title="Inventory: which laptop each agent is assigned">Devices</button>
+    <button class="btn" id="btnUbic" type="button" title="Where each device is; mark one as lost" hidden>Locations</button>
+    <button class="btn" id="btnCfg" type="button" title="Device keys and panel connection">Settings</button>
+    <a class="btn" id="volver" href="index.html" title="Back to the portal">← Portal</a>
   </div>
 </header>
 
@@ -427,232 +427,232 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
   <div id="banner"></div>
   <div id="avisoCuentas"></div>
   <div id="avisoVersiones"></div>
-  <div class="filters" role="toolbar" aria-label="Filtros">
-    <button class="chip chip-fnav" id="fPrev" type="button" aria-label="Día anterior" title="Día anterior">‹</button>
-    <input type="date" id="fecha" aria-label="Fecha">
-    <button class="chip chip-fnav" id="fNext" type="button" aria-label="Día siguiente" title="Día siguiente">›</button>
-    <button class="chip" id="hoy" type="button">Hoy</button>
+  <div class="filters" role="toolbar" aria-label="Filters">
+    <button class="chip chip-fnav" id="fPrev" type="button" aria-label="Previous day" title="Previous day">‹</button>
+    <input type="date" id="fecha" aria-label="Date">
+    <button class="chip chip-fnav" id="fNext" type="button" aria-label="Next day" title="Next day">›</button>
+    <button class="chip" id="hoy" type="button">Today</button>
     <span id="cuentas"></span>
     <span class="spacer"></span>
-    <button class="chip" id="soloAlertas" type="button" aria-pressed="false">Solo con novedades</button>
-    <button class="btn" id="csv" type="button">Exportar reporte</button>
+    <button class="chip" id="soloAlertas" type="button" aria-pressed="false">Only with issues</button>
+    <button class="btn" id="csv" type="button">Export report</button>
   </div>
   <div class="tiles" id="tiles"></div>
   <section class="card">
-    <h2>Agentes <span class="legend" id="legend"></span></h2>
+    <h2>Agents <span class="legend" id="legend"></span></h2>
     <div id="rows"></div>
     <details id="inactivos" hidden><summary id="inactSum"></summary><div id="rowsInact"></div></details>
   </section>
   <section class="card">
-    <h2>Novedades del día (10+ minutos)</h2>
+    <h2>Issues today (10+ minutes)</h2>
     <div id="tabla"></div>
   </section>
 </main>
 
 <div id="denegado" hidden>
-  <h2 style="margin-top:0">Sin acceso</h2>
-  <p>Tu usuario no tiene asignada la aplicación <b>Monitor de Agentes</b>. Pídele acceso a un administrador del portal.</p>
-  <a class="btn primary" href="index.html" target="_top">Volver al portal</a>
+  <h2 style="margin-top:0">No access</h2>
+  <p>Your user is not assigned the <b>Agent Monitor</b> app. Ask a portal administrator for access.</p>
+  <a class="btn primary" href="index.html" target="_top">Back to the portal</a>
 </div>
 <div id="setup" hidden>
-  <h2 style="margin-top:0">Conectar el panel</h2>
-  <p>Pegue la URL de la aplicación web de Apps Script y el <b>TOKEN_PANEL</b>. Se guardan solo en este navegador.</p>
-  <label for="inUrl">URL de la aplicación web</label>
+  <h2 style="margin-top:0">Connect the panel</h2>
+  <p>Paste the Apps Script web app URL and the <b>TOKEN_PANEL</b>. They are saved only in this browser.</p>
+  <label for="inUrl">Web app URL</label>
   <input id="inUrl" placeholder="https://script.google.com/macros/s/.../exec">
-  <label for="inTok">Token del panel</label>
+  <label for="inTok">Panel token</label>
   <input id="inTok" placeholder="pn_...">
-  <button class="btn primary" id="guardar" type="button">Conectar</button>
-  <button class="btn" id="verDemo" type="button" style="margin-top:16px">Ver con datos de ejemplo</button>
+  <button class="btn primary" id="guardar" type="button">Connect</button>
+  <button class="btn" id="verDemo" type="button" style="margin-top:16px">View with sample data</button>
 </div>
 <div class="modal-bg" id="modalAgente">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aTitulo">
-    <h3 id="aTitulo">Nombre y cuenta</h3>
-    <p class="sub">Cambia cómo se llama el agente y a qué cuenta pertenece, sin reinstalar el monitor en su computador.</p>
-    <label for="aNombre">Nombre del agente</label>
+    <h3 id="aTitulo">Name and account</h3>
+    <p class="sub">Change the agent’s name and which account they belong to, without reinstalling the monitor on their computer.</p>
+    <label for="aNombre">Agent name</label>
     <input type="text" id="aNombre" autocomplete="off">
-    <label for="aCuenta">Cuenta</label>
+    <label for="aCuenta">Account</label>
     <select id="aCuenta"></select>
-    <div class="hint">El computador del agente sigue mandando el nombre viejo; el servidor lo traduce solo. El historial anterior queda con el nombre nuevo. Al cambiar la cuenta, el equipo ya no podrá modificarla.</div>
+    <div class="hint">The agent’s computer keeps sending the old name; the server translates it automatically. Past history takes the new name. After changing the account, the device can no longer modify it.</div>
     <div class="acc">
-      <button class="btn" id="aCancelar" type="button">Cancelar</button>
-      <button class="btn primary" id="aGuardar" type="button">Guardar</button>
+      <button class="btn" id="aCancelar" type="button">Cancel</button>
+      <button class="btn primary" id="aGuardar" type="button">Save</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalBaja">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bTitulo">
-    <h3 id="bTitulo">Desactivar a <span id="bAgente"></span></h3>
-    <p class="sub">Deja de contar desde el día siguiente a la fecha de baja. No se borra nada: los días anteriores quedan exactamente igual y se pueden seguir consultando.</p>
-    <label for="bFecha">Último día que trabajó</label>
+    <h3 id="bTitulo">Deactivate <span id="bAgente"></span></h3>
+    <p class="sub">Stops counting from the day after the deactivation date. Nothing is deleted: previous days stay exactly the same and can still be reviewed.</p>
+    <label for="bFecha">Last day worked</label>
     <input type="date" id="bFecha">
-    <label for="bMotivo">Motivo</label>
+    <label for="bMotivo">Reason</label>
     <select id="bMotivo"></select>
-    <label for="bNota">Detalle (opcional)</label>
-    <input type="text" id="bNota" autocomplete="off" maxlength="80" placeholder="Ej.: entregó el equipo el viernes">
-    <div class="hint">Queda en la sección <b>Inactivos</b>, al final de la lista de agentes. Se puede reactivar en cualquier momento. Aunque su computador siga enviando señales, ya no aparece en los totales, ni en los avisos, ni en el reporte de la tarde.</div>
+    <label for="bNota">Detail (optional)</label>
+    <input type="text" id="bNota" autocomplete="off" maxlength="80" placeholder="E.g.: returned the device on Friday">
+    <div class="hint">They go to the <b>Inactive</b> section at the end of the agent list. Can be reactivated anytime. Even if their computer keeps sending signals, they no longer appear in the totals, alerts, or the afternoon report.</div>
     <div class="acc">
-      <button class="btn" id="bCancelar" type="button">Cancelar</button>
-      <button class="btn primary" id="bGuardar" type="button">Desactivar</button>
+      <button class="btn" id="bCancelar" type="button">Cancel</button>
+      <button class="btn primary" id="bGuardar" type="button">Deactivate</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalHorario">
   <div class="modal semana" role="dialog" aria-modal="true" aria-labelledby="hTitulo">
-    <h3 id="hTitulo">Horario de <span id="hAgente"></span></h3>
-    <p class="sub">Define la jornada y el almuerzo de cada día. Se usa para calcular ausencias, el aviso de "no se conectó" y el "fuera de horario". Desmarca los días que el agente no trabaja.</p>
+    <h3 id="hTitulo">Schedule for <span id="hAgente"></span></h3>
+    <p class="sub">Set the workday and lunch for each day. Used to compute absences, the "did not connect" alert and the "out of schedule" status. Uncheck the days the agent does not work.</p>
     <div class="hsem" id="hSem"></div>
     <div class="hacc">
-      <button class="enlace" id="hCopiar" type="button">Copiar el primer día a los demás días marcados</button>
-      <button class="enlace" id="hGeneral" type="button">Volver al horario general (08:00–17:00, lunes a viernes)</button>
+      <button class="enlace" id="hCopiar" type="button">Copy the first day to the other checked days</button>
+      <button class="enlace" id="hGeneral" type="button">Back to the general schedule (08:00–17:00, Monday to Friday)</button>
     </div>
-    <div class="hint" id="hAviso">El almuerzo es opcional: déjalo en blanco si ese día no aplica.</div>
+    <div class="hint" id="hAviso">Lunch is optional: leave it blank if it does not apply that day.</div>
     <div class="acc">
-      <button class="btn" id="hCancelar" type="button">Cancelar</button>
-      <button class="btn primary" id="hGuardar" type="button">Guardar horario</button>
+      <button class="btn" id="hCancelar" type="button">Cancel</button>
+      <button class="btn primary" id="hGuardar" type="button">Save schedule</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalTurno">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="tTitulo">
-    <h3 id="tTitulo">Cambio de turno de <span id="tAgente"></span></h3>
-    <p class="sub">Para un día suelto o una temporada. No toca el horario de siempre: cada día se calcula con el turno que regía ese día, así que cambiar un turno no altera lo que ya pasó.</p>
+    <h3 id="tTitulo">Shift change for <span id="tAgente"></span></h3>
+    <p class="sub">For a single day or a period. It does not touch the regular schedule: each day is computed with the shift in force that day, so changing a shift does not alter what already happened.</p>
     <div class="trow">
-      <div><label for="tDesde">Desde</label><input type="date" id="tDesde"></div>
-      <div><label for="tHasta">Hasta <span class="opc">(vacío = un solo día)</span></label><input type="date" id="tHasta"></div>
+      <div><label for="tDesde">From</label><input type="date" id="tDesde"></div>
+      <div><label for="tHasta">To <span class="opc">(empty = a single day)</span></label><input type="date" id="tHasta"></div>
     </div>
     <div class="trow">
-      <div><label for="tIni">Entrada</label><input type="time" id="tIni"></div>
-      <div><label for="tFin">Salida</label><input type="time" id="tFin"></div>
+      <div><label for="tIni">Start</label><input type="time" id="tIni"></div>
+      <div><label for="tFin">End</label><input type="time" id="tFin"></div>
     </div>
     <div class="trow">
-      <div><label for="tAlmA">Almuerzo desde <span class="opc">(opcional)</span></label><input type="time" id="tAlmA"></div>
-      <div><label for="tAlmB">Almuerzo hasta</label><input type="time" id="tAlmB"></div>
+      <div><label for="tAlmA">Lunch from <span class="opc">(optional)</span></label><input type="time" id="tAlmA"></div>
+      <div><label for="tAlmB">Lunch to</label><input type="time" id="tAlmB"></div>
     </div>
-    <label for="tMotivo">Motivo <span class="opc">(opcional)</span></label>
-    <input type="text" id="tMotivo" maxlength="120" placeholder="Ej. cambio de turno pedido por el agente">
-    <div class="hint" id="tAviso">El turno más específico manda: uno de un solo día pesa más que uno de una semana.</div>
+    <label for="tMotivo">Reason <span class="opc">(optional)</span></label>
+    <input type="text" id="tMotivo" maxlength="120" placeholder="E.g. shift change requested by the agent">
+    <div class="hint" id="tAviso">The most specific shift wins: a single-day one outweighs a week-long one.</div>
     <div id="tLista" class="tlista"></div>
     <div class="acc">
-      <button class="btn" id="tCancelar" type="button">Cerrar</button>
-      <button class="btn primary" id="tGuardar" type="button">Guardar turno</button>
+      <button class="btn" id="tCancelar" type="button">Close</button>
+      <button class="btn primary" id="tGuardar" type="button">Save shift</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalAut">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="auTitulo">
-    <h3 id="auTitulo">Este periodo de <span id="auAgente"></span></h3>
+    <h3 id="auTitulo">This period for <span id="auAgente"></span></h3>
     <div class="auBody">
     <div class="mimarca" id="auMarca" hidden>
-      <div class="txt"><b id="auMarcaQue">Este tramo lo marcaste tú</b><span>Si lo quitas, el sistema lo vuelve a calcular solo. No toca las autorizaciones.</span></div>
-      <button class="btn" id="auAuto" type="button">Quitar mi marca</button>
+      <div class="txt"><b id="auMarcaQue">You marked this segment yourself</b><span>If you remove it, the system recalculates it automatically. It does not touch authorizations.</span></div>
+      <button class="btn" id="auAuto" type="button">Remove my mark</button>
     </div>
-    <label>¿Qué fue este periodo?</label>
-    <div class="seg" role="radiogroup" aria-label="Qué fue este periodo" id="auQue">
-      <label><input type="radio" name="auQue" value="perdido"><span>Tiempo perdido</span></label>
-      <label><input type="radio" name="auQue" value="descanso"><span>Descanso</span></label>
-      <label><input type="radio" name="auQue" value="autorizado"><span>Periodo autorizado</span></label>
+    <label>What was this period?</label>
+    <div class="seg" role="radiogroup" aria-label="What was this period" id="auQue">
+      <label><input type="radio" name="auQue" value="perdido"><span>Lost time</span></label>
+      <label><input type="radio" name="auQue" value="descanso"><span>Break</span></label>
+      <label><input type="radio" name="auQue" value="autorizado"><span>Authorized period</span></label>
     </div>
     <p class="sub" id="auSub"></p>
     <div class="trow-pair">
       <div class="fgrp">
-        <div><label for="auDesdeF">Desde</label><input type="date" id="auDesdeF"></div>
-        <div><label for="auDesdeH">Hora</label><input type="time" id="auDesdeH"></div>
+        <div><label for="auDesdeF">From</label><input type="date" id="auDesdeF"></div>
+        <div><label for="auDesdeH">Time</label><input type="time" id="auDesdeH"></div>
       </div>
       <div class="fgrp">
-        <div><label for="auHastaF">Hasta</label><input type="date" id="auHastaF"></div>
-        <div><label for="auHastaH">Hora</label><input type="time" id="auHastaH"></div>
+        <div><label for="auHastaF">To</label><input type="date" id="auHastaF"></div>
+        <div><label for="auHastaH">Time</label><input type="time" id="auHastaH"></div>
       </div>
     </div>
     <div id="auCampos">
-      <button class="enlace" id="auDia" type="button">Autorizar el día completo</button>
+      <button class="enlace" id="auDia" type="button">Authorize the whole day</button>
       <div class="morow">
-        <div class="mo"><label for="auMotivo">Motivo</label><select id="auMotivo"></select></div>
-        <div class="mo"><label for="auNota">Nota <span class="opc">(opcional)</span></label><input type="text" id="auNota" maxlength="200" placeholder="Ej. se conectó desde el iPad"></div>
+        <div class="mo"><label for="auMotivo">Reason</label><select id="auMotivo"></select></div>
+        <div class="mo"><label for="auNota">Note <span class="opc">(optional)</span></label><input type="text" id="auNota" maxlength="200" placeholder="E.g. connected from the iPad"></div>
       </div>
     </div>
-    <div class="hint" id="auAviso">Para vacaciones o incapacidad puedes poner un rango de varios días.</div>
-    <details class="auCaja" id="auCaja"><summary id="auCajaTit">Ver autorizaciones de este agente (todas las fechas)</summary>
+    <div class="hint" id="auAviso">For vacation or sick leave you can set a range of several days.</div>
+    <details class="auCaja" id="auCaja"><summary id="auCajaTit">View this agent’s authorizations (all dates)</summary>
       <div id="auLista" class="tlista"></div>
     </details>
     </div>
     <div class="acc">
-      <button class="btn" id="auCancelar" type="button">Cerrar</button>
-      <button class="btn primary" id="auGuardar" type="button">Guardar</button>
+      <button class="btn" id="auCancelar" type="button">Close</button>
+      <button class="btn primary" id="auGuardar" type="button">Save</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalReporte">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="rTitulo">
-    <h3 id="rTitulo">Exportar reporte de conexiones</h3>
-    <p class="sub">Por agente y agrupado por cuenta: inicio y fin de sesión, ausencias de 10 a 30 min y de más de 30 min, con su tiempo total.</p>
-    <label>Periodo</label>
-    <div class="seg" role="radiogroup" aria-label="Periodo">
-      <label><input type="radio" name="rTipo" value="dia" checked><span>Día</span></label>
-      <label><input type="radio" name="rTipo" value="semana"><span>Semana</span></label>
-      <label><input type="radio" name="rTipo" value="quincena"><span>Quincena</span></label>
-      <label><input type="radio" name="rTipo" value="mes"><span>Mes</span></label>
-      <label><input type="radio" name="rTipo" value="rango"><span>Varias semanas</span></label>
+    <h3 id="rTitulo">Export connection report</h3>
+    <p class="sub">By agent and grouped by account: session start and end, absences of 10 to 30 min and over 30 min, with their total time.</p>
+    <label>Period</label>
+    <div class="seg" role="radiogroup" aria-label="Period">
+      <label><input type="radio" name="rTipo" value="dia" checked><span>Day</span></label>
+      <label><input type="radio" name="rTipo" value="semana"><span>Week</span></label>
+      <label><input type="radio" name="rTipo" value="quincena"><span>Fortnight</span></label>
+      <label><input type="radio" name="rTipo" value="mes"><span>Month</span></label>
+      <label><input type="radio" name="rTipo" value="rango"><span>Several weeks</span></label>
     </div>
-    <div id="rRefBox"><label for="rRef">Fecha dentro del periodo</label><input type="date" id="rRef"></div>
+    <div id="rRefBox"><label for="rRef">A date within the period</label><input type="date" id="rRef"></div>
     <div id="rRangoBox" class="dos" hidden>
-      <div><label for="rDesde">Desde</label><input type="date" id="rDesde"></div>
-      <div><label for="rHasta">Hasta</label><input type="date" id="rHasta"></div>
+      <div><label for="rDesde">From</label><input type="date" id="rDesde"></div>
+      <div><label for="rHasta">To</label><input type="date" id="rHasta"></div>
     </div>
     <div class="hint" id="rResumen"></div>
-    <label for="rCuenta">Cuenta</label>
+    <label for="rCuenta">Account</label>
     <select id="rCuenta"></select>
-    <ul class="lista"><li><b>Resumen</b>: una fila por agente, agrupados por cuenta.</li><li><b>Detalle diario</b>: cada día de cada agente.</li><li><b>Novedades</b>: cada ausencia con su hora.</li></ul>
-    <button class="enlace" id="rCsv" type="button">Solo las novedades del día que estoy viendo (CSV)</button>
+    <ul class="lista"><li><b>Summary</b>: one row per agent, grouped by account.</li><li><b>Daily detail</b>: each day for each agent.</li><li><b>Issues</b>: each absence with its time.</li></ul>
+    <button class="enlace" id="rCsv" type="button">Only the issues of the day I’m viewing (CSV)</button>
     <div class="acc">
-      <button class="btn" id="rCancelar" type="button">Cancelar</button>
-      <button class="btn primary" id="rDescargar" type="button">Descargar Excel</button>
+      <button class="btn" id="rCancelar" type="button">Cancel</button>
+      <button class="btn primary" id="rDescargar" type="button">Download Excel</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalCuentas">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
-    <h3 id="cTitulo">Cuentas del instalador</h3>
-    <p class="sub">Estas son las opciones que ve el instalador del monitor al elegir la cuenta del agente. Los cambios aplican de inmediato: no hace falta un instalador nuevo.</p>
+    <h3 id="cTitulo">Installer accounts</h3>
+    <p class="sub">These are the options the monitor installer shows when choosing the agent’s account. Changes apply immediately: no new installer needed.</p>
     <div id="cLista"></div>
-    <button class="btn-mini" id="cAgregar" type="button">+ Agregar cuenta</button>
-    <div class="hint">Cambiar el nombre de una cuenta equivale a quitarla: sus agentes quedarán como “Agente sin cuenta asignada” hasta reinstalar el monitor en su equipo.</div>
+    <button class="btn-mini" id="cAgregar" type="button">+ Add account</button>
+    <div class="hint">Renaming an account is the same as removing it: its agents will show as “Agent without assigned account” until the monitor is reinstalled on their device.</div>
     <div id="cAviso"></div>
     <div class="acc">
-      <button class="btn" id="cCancelar" type="button">Cancelar</button>
-      <button class="btn primary" id="cGuardar" type="button">Guardar cambios</button>
+      <button class="btn" id="cCancelar" type="button">Cancel</button>
+      <button class="btn primary" id="cGuardar" type="button">Save changes</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalAjustes">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ajTitulo">
-    <h3 id="ajTitulo">Ajustes</h3>
-    <p class="sub">Opciones que se usan pocas veces.</p>
-    <button class="aj-op" id="ajClaves" type="button"><span class="t"><b>Claves de los equipos</b><span>Aprobar equipos nuevos o anular uno perdido</span></span><span class="cnt" id="ajClavesN" hidden></span></button>
-    <button class="aj-op" id="ajConexion" type="button"><span class="t"><b>Conexión del panel</b><span>URL y token del Apps Script en este navegador</span></span></button>
-    <div class="acc"><button class="btn primary" id="ajCerrar" type="button">Cerrar</button></div>
+    <h3 id="ajTitulo">Settings</h3>
+    <p class="sub">Options used rarely.</p>
+    <button class="aj-op" id="ajClaves" type="button"><span class="t"><b>Device keys</b><span>Approve new devices or revoke a lost one</span></span><span class="cnt" id="ajClavesN" hidden></span></button>
+    <button class="aj-op" id="ajConexion" type="button"><span class="t"><b>Panel connection</b><span>Apps Script URL and token in this browser</span></span></button>
+    <div class="acc"><button class="btn primary" id="ajCerrar" type="button">Close</button></div>
   </div>
 </div>
 <div class="modal-bg" id="modalClaves">
   <div class="modal ancho" role="dialog" aria-modal="true" aria-labelledby="kTitulo">
-    <h3 id="kTitulo">Claves de los equipos</h3>
-    <p class="sub">Cada PC tiene su propia clave para mandar datos al Monitor. Un equipo nuevo o reinstalado queda <b>pendiente</b> hasta que usted lo apruebe; mientras tanto sus datos esperan guardados en el PC. Si un portátil se pierde o un agente se va con él, <b>anúlelo</b>: ese PC deja de reportar y los demás siguen igual.</p>
+    <h3 id="kTitulo">Device keys</h3>
+    <p class="sub">Each PC has its own key to send data to the Monitor. A new or reinstalled device stays <b>pending</b> until you approve it; meanwhile its data waits saved on the PC. If a laptop is lost or an agent leaves with it, <b>revoke it</b>: that PC stops reporting and the others keep working.</p>
     <div id="kResumen"></div>
-    <div id="kLista"><div class="hint">Cargando…</div></div>
+    <div id="kLista"><div class="hint">Loading…</div></div>
     <div class="acc">
-      <button class="btn" id="kRecargar" type="button">Volver a cargar</button>
-      <button class="btn primary" id="kCerrar" type="button">Cerrar</button>
+      <button class="btn" id="kRecargar" type="button">Reload</button>
+      <button class="btn primary" id="kCerrar" type="button">Close</button>
     </div>
   </div>
 </div>
 <div class="modal-bg" id="modalUbic">
   <div class="modal ubic" role="dialog" aria-modal="true" aria-labelledby="uTitulo">
-    <h3 id="uTitulo">Ubicación de los equipos</h3>
-    <p class="sub">Durante el turno, cada equipo manda su ubicación cada 30 minutos, y también apenas el agente marca en el Time Clock (Windows la calcula con el Wi‑Fi). «Historial» muestra las lecturas de cualquier día de los últimos 90. Se compara con el <b>lugar de trabajo</b> que se aprueba en el Time Clock. Si un portátil se pierde, márquelo como <b>perdido</b>: manda su ubicación cada 5 minutos, a cualquier hora, mientras alguien inicie sesión en él. Solo los administradores ven esta información.</p>
+    <h3 id="uTitulo">Device location</h3>
+    <p class="sub">During the shift, each device sends its location every 30 minutes, and also as soon as the agent clocks in on the Time Clock (Windows computes it from Wi‑Fi). “History” shows the readings for any of the last 90 days. It is compared with the <b>work location</b> approved in the Time Clock. If a laptop is lost, mark it as <b>lost</b>: it sends its location every 5 minutes, at any time, while someone is signed in to it. Only administrators see this information.</p>
     <div id="uResumen"></div>
-    <div id="uLista"><div class="hint">Cargando…</div></div>
+    <div id="uLista"><div class="hint">Loading…</div></div>
     <div class="acc">
-      <button class="btn" id="uRecargar" type="button">Volver a cargar</button>
-      <button class="btn primary" id="uCerrar" type="button">Cerrar</button>
+      <button class="btn" id="uRecargar" type="button">Reload</button>
+      <button class="btn primary" id="uCerrar" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -696,7 +696,7 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
     if (x && x.j && (modo === 'supabase' || x.status === 200)) { ponerModo('supabase'); return jsonResp(x.j); }
     // Ya manda Supabase y no respondió: no se escribe en Google (ahí se perdería el cambio)
     if (modo === 'supabase') return jsonResp({ ok: false, error: x && x.j && x.j.error ? x.j.error
-      : 'No se pudo conectar con Supabase. Revisa el internet y vuelve a intentar.' });
+      : 'Could not connect to Supabase. Check your internet and try again.' });
     return fetchOrig(url, opts);
   };
   // Al abrir: ¿quién manda?
@@ -716,11 +716,13 @@ const API_URL = '';
 const DEMO = {"ok":true,"fecha":"2026-09-17","esHoy":true,"esLaboral":true,"generado":1789659000000,"config":{"zona":"America/New_York","umbralMin":10,"avisoMin":5},"cuentas":[{"n":"Total Sleep","app":"RingCentral"},{"n":"Pulmonary","app":"Ooma"},{"n":"Alonso Medical","app":"Weave"},{"n":"White Wilson","app":"Dialpad"},{"n":"Lake Nona Medical Center","app":"MicroSIP"},{"n":"Cardiovascular","app":"Nextiva"},{"n":"Gastroenterology","app":"Nextiva"}],"agentes":[{"agente":"Caro","cuenta":"Alonso Medical","equipo":"PC-Caro","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789658940000,"estado":{"nivel":"rojo","texto":"Inactivo","minutos":15,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789658100000,"fin":1789659000000,"min":15,"abierto":true}],"minPerdidos":15,"minAppCerrada":0,"reinicios":2,"latidos":205,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1420},{"n":"Ooma","mb":170},{"n":"OneDrive","mb":140}],"lat":184,"loss":8,"mbps":14.2,"mbpsFecha":1789653600000}},{"agente":"Eva","cuenta":"Alonso Medical","equipo":"PC-Eva","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646400000,"ultima":1789659000000,"estado":{"nivel":"amarillo","texto":"Pausa","minutos":7,"app":true},"episodios":[],"minPerdidos":0,"minAppCerrada":0,"reinicios":0,"latidos":211,"vivo":{"progActivo":"chrome","programas":[{"n":"chrome","mb":1180},{"n":"Spotify","mb":260},{"n":"Weave","mb":180},{"n":"Discord","mb":150}],"lat":65,"loss":0,"mbps":null,"mbpsFecha":null}},{"agente":"Ana","cuenta":"Pulmonary","equipo":"PC-Ana","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789646100000,"ultima":1789659000000,"estado":{"nivel":"verde","texto":"Activo","minutos":0,"app":true},"episodios":[{"tipo":"Inactivo","ini":1789650000000,"fin":1789651490000,"min":25,"abierto":false},{"tipo":"Sin señal","ini":1789653540000,"fin":1789654500000,"min":16,"abierto":false},{"tipo":"Sin internet","ini":1789656000000,"fin":1789656780000,"min":13,"abierto":false}],"minPerdidos":54,"minAppCerrada":5,"reinicios":0,"latidos":201,"vivo":{"progActivo":"eclinicalworks","programas":[{"n":"chrome","mb":912},{"n":"eclinicalworks","mb":430},{"n":"Teams","mb":305},{"n":"RingCentral","mb":190},{"n":"Outlook","mb":150}],"lat":42,"loss":0,"mbps":92.3,"mbpsFecha":1789657500000}},{"agente":"Dani","cuenta":"Pulmonary","equipo":"PC-D","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":null,"ultima":null,"estado":{"nivel":"rojo","texto":"Sin conexión hoy","minutos":null},"episodios":[{"tipo":"Sin conexión","ini":1789646400000,"fin":1789659000000,"min":210,"abierto":true}],"minPerdidos":210,"minAppCerrada":0,"reinicios":0,"latidos":0,"vivo":null},{"agente":"Beto","cuenta":"Total Sleep","equipo":"PC-Beto","activo":true,"jIni":1789646400000,"jFin":1789678800000,"almuerzoMs":null,"horario":"08:00-17:00","primera":1789648200000,"ultima":1789657500000,"estado":{"nivel":"rojo","texto":"Sin señal","minutos":25,"app":true},"episodios":[{"tipo":"Conexión tardía","ini":1789646400000,"fin":1789648200000,"min":30,"abierto":false},{"tipo":"Sin señal","ini":1789657500000,"fin":1789659000000,"min":25,"abierto":true}],"minPerdidos":55,"minAppCerrada":0,"reinicios":0,"latidos":156,"vivo":{"progActivo":"","programas":[{"n":"RingCentral","mb":210},{"n":"chrome","mb":640}],"lat":120,"loss":2,"mbps":null,"mbpsFecha":null}}]};
 
 const TIPOS = {
-  'Inactivo': { color: 'var(--st-inactivo)', desc: 'Equipo encendido y conectado, pero sin uso de teclado ni mouse' },
-  'Offline':  { color: 'var(--st-offline)', hatch: true, desc: 'El computador no reporta: apagado, suspendido, sin internet o el monitor cerrado' }
+  'Inactivo': { color: 'var(--st-inactivo)', desc: 'Device on and connected, but no keyboard or mouse use' },
+  'Offline':  { color: 'var(--st-offline)', hatch: true, desc: 'The computer is not reporting: off, suspended, no internet, or the monitor closed' }
 };
 function tipoDisp(t){ return t === 'Inactivo' ? 'Inactivo' : 'Offline'; }
-function estadoTxt(t){ return (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') ? 'Offline' : t; }
+function tipoEN(t){ return tipoDisp(t) === 'Inactivo' ? 'Inactive' : 'Offline'; }
+const ESTADO_EN = {'Inactivo':'Inactive','Pausa':'Paused','Activo':'Active','Sin señal':'Offline','Sin conexión hoy':'Offline','Sin conexión':'Offline','Conexión tardía':'Late start','Día libre':'Day off','Desactivado':'Deactivated','Autorizado':'Authorized','App de teléfono cerrada':'Phone app closed','Fuera de horario':'Out of schedule'};
+function estadoTxt(t){ if (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') return 'Offline'; return ESTADO_EN[t] || t; }
 const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
 // Cuentas sobre las que no hay la misma injerencia: su tiempo perdido se
 // muestra aparte para que no distorsione el seguimiento de las demas.
@@ -832,7 +834,7 @@ async function pedirEstado(fecha, url, tok){
           { cache: 'no-store', headers: { Authorization: 'Bearer ' + ses.data.session.access_token, apikey: window.SB_KEY } });
         const j = await r.json();
         if (j && j.ok) { FUENTE.ultima = 'Supabase'; FUENTE.ms = Math.round(performance.now() - t0); FUENTE.en = Date.now(); return j; }
-        console.warn('Monitor: Supabase respondió', r.status, j && j.error);
+        console.warn('Monitor: Supabase responded', r.status, j && j.error);
       }
     } catch(e){ console.warn('Monitor: Supabase no disponible:', e && e.message); }
   }
@@ -902,10 +904,10 @@ async function cargar(forzar){
   // Un dia pasado que ya se vio se pinta al instante, sin esperar al servidor.
   const guardado = !forzar && diaGuardado(S.fecha);
   if (guardado) { S.data = guardado; $('banner').innerHTML = ''; await cargarEstadoMonitor(true); pintar(); return; }
-  $('upd').textContent = 'Actualizando…';
+  $('upd').textContent = 'Updating…';
   try {
     const j = await pedirEstado(S.fecha, url, tok);
-    if (!j.ok) throw new Error(j.error || 'respuesta inválida');
+    if (!j.ok) throw new Error(j.error || 'invalid response');
     S.data = j;
     if (!S.fecha) $('fecha').value = j.fecha;
     guardarDia(S.fecha || j.fecha, j);
@@ -921,17 +923,17 @@ async function cargar(forzar){
     const sinRed = (e instanceof TypeError) ||
       /NetworkError|Failed to fetch|Load failed|NetworkError when/i.test(m);
     const aviso = sinRed
-      ? 'Sin respuesta del servidor. Casi siempre es la conexi\u00f3n a internet o Google que tard\u00f3 de m\u00e1s; no hay nada que cambiar en Ajustes. Lo vuelvo a intentar solo en menos de un minuto.'
+      ? 'No response from the server. It is almost always the internet or Google connection taking too long; there is nothing to change in Settings. I will try again on my own in under a minute.'
       : (/token/i.test(m)
-          ? 'El servidor rechaz\u00f3 el token. Rev\u00edsalo en Ajustes.'
-          : 'No se pudo cargar: ' + m + '. Revise la URL y el token en Ajustes.');
+          ? 'The server rejected the token. Check it in Settings.'
+          : 'Could not load: ' + m + '. Check the URL and token in Settings.');
     $('banner').innerHTML = '<div class="banner err">' + esc(aviso) + '</div>';
     $('upd').textContent = '';
   }
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261027-2050';
+const MON_BUILD = '20261027-2200';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -963,11 +965,11 @@ function programar(){
 function pintar(){
   const d = S.data;
   $('app').hidden = false; $('setup').hidden = true;
-  $('sub').textContent = 'Alertas a partir de ' + d.config.umbralMin + ' minutos sin actividad · Hora ' + d.config.zona.replace('America/','').replace('_',' ');
-  $('upd').textContent = (S.demo ? 'Ejemplo · ' : '') + 'Actualizado ' + hora(d.generado) +
+  $('sub').textContent = 'Alerts after ' + d.config.umbralMin + ' minutes without activity · Time ' + d.config.zona.replace('America/','').replace('_',' ');
+  $('upd').textContent = (S.demo ? 'Sample · ' : '') + 'Updated ' + hora(d.generado) +
     (FUENTE.ultima && !S.demo ? ' · ' + FUENTE.ultima + ' ' + (FUENTE.ms / 1000).toFixed(1).replace('.', ',') + ' s' +
-      (FUENTE.ultima === 'Supabase' && d.esHoy ? ' · se actualiza cada 30 s' : '') : '');
-  if (S.demo) $('banner').innerHTML = '<div class="banner demo">Está viendo datos de ejemplo. Use Ajustes para conectar su servidor.</div>';
+      (FUENTE.ultima === 'Supabase' && d.esHoy ? ' · refreshes every 30 s' : '') : '');
+  if (S.demo) $('banner').innerHTML = '<div class="banner demo">You are viewing sample data. Use Settings to connect your server.</div>';
   $('fecha').value = d.fecha;
   marcarSinCuenta(d);
   avisoVersiones(d);
@@ -1000,26 +1002,26 @@ function pintar(){
   const dividir = S.cuenta === 'Todas' && aparte.length > 0 && propios.length > 0;
   // El conteo va sobre el total de SU grupo: "8 de 14" y "8 de 11" se leen
   // distinto aunque los dos ochos coincidan.
-  const deN = (l) => nov(l) + ' de ' + l.length + (l.length === 1 ? ' agente' : ' agentes') + ' con novedades';
+  const deN = (l) => nov(l) + ' of ' + l.length + (l.length === 1 ? ' agent' : ' agents') + ' with issues';
   const tPerdido = dividir
-    ? [['Tiempo perdido hoy', dur(sumaMin(propios)) || '0 min', deN(propios) + ' · sin Cardio ni Gastro', '', 'novPropios'],
-       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · seguimiento aparte', '', 'novAparte']]
-    : [['Tiempo perdido hoy', dur(perdidos) || '0 min', deN(todos) + '', '', 'nov']];
+    ? [['Lost time today', dur(sumaMin(propios)) || '0 min', deN(propios) + ' · excluding Cardio & Gastro', '', 'novPropios'],
+       ['Lost in Cardio & Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · tracked separately', '', 'novAparte']]
+    : [['Lost time today', dur(perdidos) || '0 min', deN(todos) + '', '', 'nov']];
   const tPerdidoAyer = dividir
-    ? [['Tiempo perdido', dur(sumaMin(propios)) || '0 min', deN(propios) + ' · sin Cardio ni Gastro', '', 'novPropios'],
-       ['Perdido en Cardio y Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · seguimiento aparte', '', 'novAparte']]
-    : [['Tiempo perdido', dur(perdidos) || '0 min', deN(todos), '', 'nov']];
+    ? [['Lost time', dur(sumaMin(propios)) || '0 min', deN(propios) + ' · excluding Cardio & Gastro', '', 'novPropios'],
+       ['Lost in Cardio & Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · tracked separately', '', 'novAparte']]
+    : [['Lost time', dur(perdidos) || '0 min', deN(todos), '', 'nov']];
   const tiles = d.esHoy ? [
-    ['Agentes monitoreados', todos.length, 'en ' + (S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta), '', 'todos'],
-    ['Activos ahora', cnt('verde'), 'trabajando normalmente', 'verde', 'verde'],
-    ['Requieren atención', cnt('rojo'), '10+ min inactivo u offline', 'rojo', 'rojo'],
-    ['En pausa / aviso', cnt('amarillo'), '5–10 min o app cerrada', 'amarillo', 'amarillo'],
-    ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició hoy', reinTotal ? 'amarillo' : '', 'cierres']
+    ['Agents monitored', todos.length, 'in ' + (S.cuenta === 'Todas' ? 'all accounts' : S.cuenta), '', 'todos'],
+    ['Active now', cnt('verde'), 'working normally', 'verde', 'verde'],
+    ['Need attention', cnt('rojo'), '10+ min inactive or offline', 'rojo', 'rojo'],
+    ['Paused / alert', cnt('amarillo'), '5–10 min or app closed', 'amarillo', 'amarillo'],
+    ['Monitor closes', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'times it closed or restarted today', reinTotal ? 'amarillo' : '', 'cierres']
   ].concat([]) : [
-    ['Agentes', todos.length, S.cuenta === 'Todas' ? 'todas las cuentas' : S.cuenta, '', 'todos'],
-    ['Con novedades', conNov, 'episodios de 10+ minutos', 'rojo', 'nov'],
-    ['Episodios', todos.reduce((s, a) => s + a.episodios.filter(e => !e.justificado).length, 0), 'sin contar los autorizados', '', 'nov'],
-    ['Cierres del monitor', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'veces que se cerró o reinició', '', 'cierres']
+    ['Agents', todos.length, S.cuenta === 'Todas' ? 'all accounts' : S.cuenta, '', 'todos'],
+    ['With issues', conNov, 'episodes of 10+ minutes', 'rojo', 'nov'],
+    ['Episodes', todos.reduce((s, a) => s + a.episodios.filter(e => !e.justificado).length, 0), 'excluding authorized', '', 'nov'],
+    ['Monitor closes', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'times it closed or restarted', '', 'cierres']
   ];
   // El bloque de tiempo perdido va antes de los cierres del monitor.
   tiles.splice(tiles.length - 1, 0, ...(d.esHoy ? tPerdido : tPerdidoAyer));
@@ -1042,7 +1044,7 @@ function pintar(){
     const on = f && f !== 'todos' && S.foco === f;
     const cuerpo = '<span class="lbl">' + (t[3] ? icono(t[3]) : '') + esc(t[0]) + '</span>' +
       '<span class="num">' + esc(t[1]) + '</span>' +
-      '<span class="hint">' + esc(t[2]) + (on ? ' · <span class="quita">quitar filtro</span>' : '') + '</span>';
+      '<span class="hint">' + esc(t[2]) + (on ? ' · <span class="quita">clear filter</span>' : '') + '</span>';
     if (!f) return '<div class="tile">' + cuerpo + '</div>';
     return '<button type="button" class="tile clic' + (on ? ' on' : '') + '" data-foco="' + f + '"' +
       ' aria-pressed="' + (on ? 'true' : 'false') + '">' + cuerpo + '</button>';
@@ -1050,17 +1052,17 @@ function pintar(){
   if (S.foco && FOCOS[S.foco]) lista = lista.filter(FOCOS[S.foco]);
 
   // Leyenda
-  $('legend').innerHTML = '<span><i class="sw" style="background:var(--st-activo)"></i>Activo</span>' + Object.keys(TIPOS).map(t => '<span>' + swatch(t) + esc(t) + '</span>').join('') +
-    '<span><i class="sw" style="background:var(--lunch);border:1px solid var(--border)"></i>Almuerzo</span>';
+  $('legend').innerHTML = '<span><i class="sw" style="background:var(--st-activo)"></i>Active</span>' + Object.keys(TIPOS).map(t => '<span>' + swatch(t) + esc(tipoEN(t)) + '</span>').join('') +
+    '<span><i class="sw" style="background:var(--lunch);border:1px solid var(--border)"></i>Lunch</span>';
 
   // Filas
   if (!lista.length) {
-    $('rows').innerHTML = '<div class="empty">' + (d.agentes.length ? (S.foco ? 'Ning\u00fan agente en ese recuadro ahora mismo. Vuelve a hacerle clic para quitar el filtro.' : 'Sin agentes para este filtro.') : 'Aún no hay agentes. Aparecerán 1–2 minutos después de instalar el monitor en cada computador.') + '</div>';
+    $('rows').innerHTML = '<div class="empty">' + (d.agentes.length ? (S.foco ? 'No agents in that box right now. Click it again to clear the filter.' : 'No agents for this filter.') : 'No agents yet. They appear 1–2 minutes after installing the monitor on each computer.') + '</div>';
   } else {
     $('rows').innerHTML = porCuenta(lista).map(g =>
       '<div class="grupo"><span class="gc">' + esc(g.cuenta) + '</span>' +
-      '<span class="gn">' + g.agentes.length + (g.agentes.length === 1 ? ' agente' : ' agentes') + '</span>' +
-      '<span class="gp"><b>' + (dur(g.perdidos) || '0 min') + '</b> perdidos</span></div>' +
+      '<span class="gn">' + g.agentes.length + (g.agentes.length === 1 ? ' agent' : ' agents') + '</span>' +
+      '<span class="gp"><b>' + (dur(g.perdidos) || '0 min') + '</b> lost</span></div>' +
       g.agentes.map(a => fila(a, d)).join('')).join('');
   }
 
@@ -1070,8 +1072,8 @@ function pintar(){
   det.hidden = !bajas.length;
   if (bajas.length) {
     bajas.sort((a, b) => (b.baja || '').localeCompare(a.baja || '') || a.agente.localeCompare(b.agente));
-    $('inactSum').innerHTML = 'Inactivos (' + bajas.length + ')' +
-      '<span class="nota">no cuentan en los totales · se conserva todo su historial</span>';
+    $('inactSum').innerHTML = 'Inactive (' + bajas.length + ')' +
+      '<span class="nota">not counted in totals · all their history is kept</span>';
     $('rowsInact').innerHTML = bajas.map(a => fila(a, d)).join('');
   }
 
@@ -1080,17 +1082,17 @@ function pintar(){
   todos.forEach(a => a.episodios.forEach(e => eps.push(Object.assign({ agente: a.agente, cuenta: a.cuenta }, e))));
   eps.sort((x, y) => x.ini - y.ini);
   S.eps = eps;
-  $('tabla').innerHTML = eps.length ? '<div class="tscroll"><table><thead><tr><th>Agente</th><th>Cuenta</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th style="text-align:right">Duración</th></tr></thead><tbody>' +
-    eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(tipoDisp(e.tipo)) + '</td><td>' + hora(e.ini) +
-      '</td><td>' + (e.abierto ? '<b>continúa</b>' : hora(e.fin)) + '</td><td class="num">' + dur(e.min) + '</td></tr>').join('') + '</tbody></table></div>'
-    : '<div class="empty">Sin novedades de 10+ minutos.</div>';
+  $('tabla').innerHTML = eps.length ? '<div class="tscroll"><table><thead><tr><th>Agent</th><th>Account</th><th>Type</th><th>From</th><th>To</th><th style="text-align:right">Duration</th></tr></thead><tbody>' +
+    eps.map(e => '<tr><td>' + esc(e.agente) + '</td><td>' + esc(e.cuenta) + '</td><td>' + swatch(e.tipo) + ' ' + esc(tipoEN(e.tipo)) + '</td><td>' + hora(e.ini) +
+      '</td><td>' + (e.abierto ? '<b>ongoing</b>' : hora(e.fin)) + '</td><td class="num">' + dur(e.min) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<div class="empty">No issues of 10+ minutes.</div>';
 }
 
 /* Agrupa por cuenta y ordena de mayor a menor tiempo perdido: primero las
    cuentas que más tiempo perdieron y, dentro de cada una, los agentes. */
 function porCuenta(lista){
   const g = {};
-  lista.forEach(a => { const c = a.cuenta || 'Sin cuenta asignada'; (g[c] = g[c] || []).push(a); });
+  lista.forEach(a => { const c = a.cuenta || 'No account assigned'; (g[c] = g[c] || []).push(a); });
   return Object.keys(g).map(c => ({
     cuenta: c,
     agentes: g[c].sort((x, y) => (y.minPerdidos - x.minPerdidos) || x.agente.localeCompare(y.agente)),
@@ -1127,8 +1129,8 @@ function netHtml(v){
   if (lat > 150 || loss > 5) nivel = 'crit';
   else if (lat > 80 || loss > 0) nivel = 'warn';
   return mi('Internet', lat + ' ms', nivel,
-    nivel ? 'Latencia alta o con pérdida de paquetes: las llamadas pueden cortarse.' : 'Latencia normal.',
-    loss > 0 ? loss + '% pérdida' : '');
+    nivel ? 'High latency or packet loss: calls may drop.' : 'Normal latency.',
+    loss > 0 ? loss + '% loss' : '');
 }
 // Pantallas conectadas y estado de energia (nuevo en la 2.5).
 // Aviso en ambar y con el simbolo ⚠ delante: nunca solo por color.
@@ -1140,18 +1142,18 @@ function equipoHtml(a, d){
 
   if (v.pantallas != null) {
     const pocas = v.pantallas < esperadas;
-    out += mi('Pantallas', String(v.pantallas), pocas ? 'warn' : '',
-      (pocas ? 'Se espera que trabaje con ' + esperadas + ' pantallas. Si cierra la tapa del portátil y usa solo el monitor externo, Windows también reporta una.'
-             : 'Está usando ' + v.pantallas + ' pantallas.') +
-      (a.minUnaPantalla ? ' Hoy lleva ' + dur(a.minUnaPantalla) + ' con una sola.' : ''));
+    out += mi('Screens', String(v.pantallas), pocas ? 'warn' : '',
+      (pocas ? 'They are expected to work with ' + esperadas + ' screens. If the laptop lid is closed and only the external monitor is used, Windows also reports one.'
+             : 'Using ' + v.pantallas + ' screens.') +
+      (a.minUnaPantalla ? ' Today: ' + dur(a.minUnaPantalla) + ' with only one.' : ''));
   }
 
   if (v.energia === 'bat' || v.energia === 'ac') {
     const bat = v.energia === 'bat';
     const pct = (v.bateria != null && v.bateria >= 0) ? ' ' + v.bateria + '%' : '';
-    out += mi('Energía', (bat ? 'batería' : 'enchufado') + pct, bat ? 'warn' : '',
-      (bat ? 'El portátil está funcionando con batería. Conectado a la corriente rinde más.' : 'Conectado a la corriente.') +
-      ((bat && a.minBateria) ? ' Hoy lleva ' + dur(a.minBateria) + ' con batería.' : ''));
+    out += mi('Power', (bat ? 'battery' : 'plugged in') + pct, bat ? 'warn' : '',
+      (bat ? 'The laptop is running on battery. Plugged in it performs better.' : 'Plugged into power.') +
+      ((bat && a.minBateria) ? ' Today: ' + dur(a.minBateria) + ' on battery.' : ''));
   }
   return out;
 }
@@ -1171,17 +1173,17 @@ function almuerzoHtml(a){
   if (!al.tomado) {
     // Mientras la ventana de almuerzo siga abierta no se avisa: puede que aún no
     // haya salido. Avisar antes de tiempo llenaría el panel de falsos avisos.
-    if (al.pendiente) return mi('Almuerzo', 'aún no', '', 'Todavía está dentro de la ventana de almuerzo.');
-    return mi('Almuerzo', 'sin tomar', 'warn',
-      'No se detectó un descanso de al menos 10 minutos cerca de la hora de almuerzo. No se le descontó nada de la jornada.');
+    if (al.pendiente) return mi('Lunch', 'not yet', '', 'Still within the lunch window.');
+    return mi('Lunch', 'not taken', 'warn',
+      'No break of at least 10 minutes was detected near lunch time. Nothing was deducted from the workday.');
   }
   const tramo = esc(hora(al.ini) + '–' + hora(al.ini + al.tomadoMin * 60000));
   if (al.excesoMin > 0) {
-    return mi('Almuerzo', tramo, 'warn',
-      'Se le descontó el tiempo asignado (' + al.duracionMin + ' min). Los ' + al.excesoMin + ' min de más cuentan como tiempo perdido.',
+    return mi('Lunch', tramo, 'warn',
+      'The assigned time (' + al.duracionMin + ' min) was deducted. The extra ' + al.excesoMin + ' min count as lost time.',
       dur(al.tomadoMin) + ' · +' + al.excesoMin + ' min');
   }
-  return mi('Almuerzo', tramo, '', 'Descanso detectado. El horario solo se usa como referencia.', dur(al.tomadoMin));
+  return mi('Lunch', tramo, '', 'Break detected. The schedule is only used as a reference.', dur(al.tomadoMin));
 }
 
 // Dos descansos de 15 minutos al dia, sin hora fija: se reconocen las dos
@@ -1195,20 +1197,20 @@ function descansosHtml(a){
   const partes = ds.map(d => esc(hora(d.ini)) + ' <span class="sub">' +
     esc(dur(Math.min(d.tomadoMin, 15)) + (d.excesoMin ? ' (+' + d.excesoMin + ')' : '')) + '</span>');
   const tit = conExceso.length
-    ? 'Se reconocen 15 minutos por descanso; los minutos de más cuentan como tiempo perdido.'
-    : 'La pausa más parecida a un descanso de 15 minutos en cada mitad de la jornada. No cuentan como tiempo perdido.';
-  return mi('Descanso' + (ds.length > 1 ? 's' : ''), partes.join(' · '), conExceso.length ? 'warn' : '', tit);
+    ? '15 minutes per break are allowed; the extra minutes count as lost time.'
+    : 'The pause most like a 15-minute break in each half of the workday. They do not count as lost time.';
+  return mi('Break' + (ds.length > 1 ? 's' : ''), partes.join(' · '), conExceso.length ? 'warn' : '', tit);
 }
 
 function progsHtml(v){
   if (!v || !v.programas || !v.programas.length) return '';
   const items = v.programas.map(p => '<li><span title="' + esc(p.n) + '">' + esc(nombreApp(p.n)) + '</span><span>' + p.mb + ' MB</span></li>').join('');
-  return '<details class="progs"><summary>Ver programas (' + v.programas.length + ')</summary><ul>' + items + '</ul></details>';
+  return '<details class="progs"><summary>View programs (' + v.programas.length + ')</summary><ul>' + items + '</ul></details>';
 }
 function speedHtml(a){
   const v = a.vivo;
-  const last = (v && v.mbps != null) ? '<span class="mbps">\u00daltima: ' + v.mbps + ' Mbps' + (v.mbpsFecha ? ' (' + hora(v.mbpsFecha) + ')' : '') + '</span>' : '';
-  return '<div class="speed"><button class="btn-speed" data-speed="' + esc(a.agente) + '" type="button">Medir velocidad</button>' + last + '</div>';
+  const last = (v && v.mbps != null) ? '<span class="mbps">Last: ' + v.mbps + ' Mbps' + (v.mbpsFecha ? ' (' + hora(v.mbpsFecha) + ')' : '') + '</span>' : '';
+  return '<div class="speed"><button class="btn-speed" data-speed="' + esc(a.agente) + '" type="button">Measure speed</button>' + last + '</div>';
 }
 
 // Etapa 3b-2: ¿este agente tiene, en el día mostrado, una autorización RECHAZADA en el TimeClock?
@@ -1232,24 +1234,24 @@ function avisoRechazoHTML(a){
   if (!r.length) return '';
   return r.map(x => {
     const resp = x.s && x.s.respuesta;
-    const txtQuitar = (motivoEN(x.motivo) || 'Autorización');
-    return '<div class="rechbar">\u26a0 Rechazado en el TimeClock \u00b7 ' + esc(motivoEN(x.motivo)) +
+    const txtQuitar = (motivoEN(x.motivo) || 'Authorization');
+    return '<div class="rechbar">\u26a0 Rejected in the TimeClock \u00b7 ' + esc(motivoEN(x.motivo)) +
       (resp ? ' \u2014 \u201c' + esc(resp) + '\u201d' : '') +
       '<button class="enlace rechquit" data-rechquitar="' + x.fila + '" data-rechagente="' + esc(a.agente) +
-      '" data-rechtxt="' + esc(txtQuitar) + '" type="button">Quitar autorización</button></div>';
+      '" data-rechtxt="' + esc(txtQuitar) + '" type="button">Remove authorization</button></div>';
   }).join('');
 }
 // Quitar la autorización rechazada desde la propia tarjeta (misma acción que en el modal).
 document.addEventListener('click', async ev => {
   const b = ev.target.closest && ev.target.closest('[data-rechquitar]');
   if (!b) return;
-  if (S.demo) { toast('En modo ejemplo no se quita nada.'); return; }
-  if (!confirm('\u00bfQuitar la autorización de ' + (b.dataset.rechagente || '') + ' (' + (b.dataset.rechtxt || '') + ')?\n\nFue rechazada en el TimeClock. Ese periodo volver\u00e1 a contar como tiempo perdido.')) return;
+  if (S.demo) { toast('In sample mode nothing is removed.'); return; }
+  if (!confirm('Remove the authorization for ' + (b.dataset.rechagente || '') + ' (' + (b.dataset.rechtxt || '') + ')?\n\nIt was rejected in the TimeClock. That period will count as lost time again.')) return;
   b.disabled = true;
   try {
     const j = await apiTurno({ accion: 'autorizar_borrar', fila: b.dataset.rechquitar });
-    if (j && j.ok) { toast('Autorización quitada.', 'ok'); ESTADO_MON = null; cargar(true); }
-    else { toast((j && j.error) || 'No se pudo quitar.', 'err'); b.disabled = false; }
+    if (j && j.ok) { toast('Authorization removed.', 'ok'); ESTADO_MON = null; cargar(true); }
+    else { toast((j && j.error) || 'Could not remove.', 'err'); b.disabled = false; }
   } catch (e) { toast('Error: ' + e.message, 'err'); b.disabled = false; }
 });
 function fila(a, d){
@@ -1264,11 +1266,11 @@ function fila(a, d){
   if (a.horario && !inact) {
     const libre = a.diaLibre || a.horario === 'Día libre';
     const al = (a.hAlmuerzo || '').split('-');
-    const almTxt = (!libre && al.length === 2 && al[0] && al[1]) ? 'almuerzo ' + h12(al[0]) + ' – ' + h12(al[1]) : '';
-    const horas = libre ? 'día libre' : ((a.hInicio && a.hFin) ? h12(a.hInicio) + ' – ' + h12(a.hFin) : (a.horario || ''));
-    fHorario = mi(d.esHoy ? 'Hoy' : 'Ese día', esc(horas), '',
-      a.turno ? (a.turno.motivo || 'Turno registrado para esta fecha') : 'Jornada asignada para este día.',
-      esc(almTxt) + (a.turno ? (almTxt ? ' · ' : '') + 'turno especial' : ''));
+    const almTxt = (!libre && al.length === 2 && al[0] && al[1]) ? 'lunch ' + h12(al[0]) + ' – ' + h12(al[1]) : '';
+    const horas = libre ? 'day off' : ((a.hInicio && a.hFin) ? h12(a.hInicio) + ' – ' + h12(a.hFin) : (a.horario || ''));
+    fHorario = mi(d.esHoy ? 'Today' : 'That day', esc(horas), '',
+      a.turno ? (a.turno.motivo || 'Shift registered for this date') : 'Workday assigned for this day.',
+      esc(almTxt) + (a.turno ? (almTxt ? ' · ' : '') + 'special shift' : ''));
   }
   // Con fecha de baja de hoy todavía cuenta el día completo: la tarjeta sigue
   // entera, pero el botón ya ofrece Reactivar para no desactivarlo dos veces.
@@ -1277,17 +1279,17 @@ function fila(a, d){
   if (e) {
     const et = estadoTxt(e.texto);
     // 'Autorizado' se explica solo (y con su motivo): no es estar fuera de horario.
-    const txt = (e.texto === 'Día libre' || e.texto === 'Desactivado') ? e.texto
-              : e.texto === 'Autorizado' ? e.texto + (e.motivo ? ' · ' + motivoEN(e.motivo) : '')
-              : (e.fuera ? 'Fuera de horario' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
+    const txt = (e.texto === 'Día libre' || e.texto === 'Desactivado') ? estadoTxt(e.texto)
+              : e.texto === 'Autorizado' ? estadoTxt(e.texto) + (e.motivo ? ' · ' + motivoEN(e.motivo) : '')
+              : (e.fuera ? 'Out of schedule' + (e.texto !== 'Activo' ? ' · ' + et : '') : et);
     const min = (e.minutos != null && e.nivel !== 'verde' && !e.fuera && e.texto !== 'App de teléfono cerrada') ? ' · ' + dur(e.minutos) : '';
     pill = '<span class="pill ' + e.nivel + '">' + icono(e.nivel) + esc(txt + min) + '</span>';
   } else {
-    pill = a.episodios.length ? '<span class="pill rojo">' + icono('rojo') + a.episodios.length + ' novedad(es)</span>'
-                              : '<span class="pill verde">' + icono('verde') + 'Sin novedades</span>';
+    pill = a.episodios.length ? '<span class="pill rojo">' + icono('rojo') + a.episodios.length + ' issue(s)</span>'
+                              : '<span class="pill verde">' + icono('verde') + 'No issues</span>';
   }
-  const app = (e && e.app === false) ? mi('Teléfono', 'cerrada', 'warn', 'La app de teléfono de la cuenta no está abierta.')
-            : ((e && e.app === true) ? mi('Teléfono', 'abierta', '', 'La app de teléfono de la cuenta está abierta.') : '');
+  const app = (e && e.app === false) ? mi('Phone', 'closed', 'warn', 'The account phone app is not open.')
+            : ((e && e.app === true) ? mi('Phone', 'open', '', 'The account phone app is open.') : '');
 
   // Línea de tiempo de la jornada. Si el agente entró antes de su hora o se
   // quedó después, la barra se estira hasta una hora por cada lado para que ese
@@ -1311,27 +1313,27 @@ function fila(a, d){
     // de la primera señal.
     const conectado = Math.max(0, Math.round((cap - a.primera) / 60000));
     const partes = [];
-    if (a.minPerdidos) partes.push(dur(a.minPerdidos) + ' en novedades');
-    if (a.almuerzo && a.almuerzo.tomado) partes.push(dur(a.almuerzo.tomadoMin) + ' de almuerzo');
-    const tipBase = 'Conectado|' + hora(a.primera) + ' – ' + (d.esHoy ? 'ahora' : hora(a.ultima)) + '|' +
-      dur(conectado) + '|' + (partes.length ? 'De ese tiempo: ' + partes.join(' y ') + '.'
-        : 'Sin novedades en la jornada.');
+    if (a.minPerdidos) partes.push(dur(a.minPerdidos) + ' in issues');
+    if (a.almuerzo && a.almuerzo.tomado) partes.push(dur(a.almuerzo.tomadoMin) + ' of lunch');
+    const tipBase = 'Connected|' + hora(a.primera) + ' – ' + (d.esHoy ? 'now' : hora(a.ultima)) + '|' +
+      dur(conectado) + '|' + (partes.length ? 'Of that time: ' + partes.join(' and ') + '.'
+        : 'No issues during the workday.');
     tl += '<div class="base" data-tip="' + esc(tipBase) + '" style="left:' + pct(a.jIni) +
       '%;width:' + Math.max(0, pct(cap) - pct(a.jIni)) + '%"></div>';
   }
   // Horas fuera del turno: antes de entrar y después de salir. Se pintan aparte
   // para que se distingan de la jornada asignada.
   if (ex.antes) {
-    const tipA = 'Trabajó antes del turno|' + hora(ex.antes.ini) + ' \u2013 ' + hora(a.jIni) + '|' +
-      dur(ex.antes.min) + ' con actividad' +
-      '|Estuvo trabajando antes de su hora de entrada. No cuenta como tiempo perdido ni como turno.';
+    const tipA = 'Worked before the shift|' + hora(ex.antes.ini) + ' \u2013 ' + hora(a.jIni) + '|' +
+      dur(ex.antes.min) + ' with activity' +
+      '|They were working before their start time. It does not count as lost time or as shift.';
     tl += '<div class="extra" data-tip="' + esc(tipA) + '" style="left:' + pct(ex.antes.ini) +
       '%;width:' + Math.max(0.4, pct(a.jIni) - pct(ex.antes.ini)) + '%"></div>';
   }
   if (ex.despues) {
-    const tipD = 'Trabajó después del turno|' + hora(a.jFin) + ' \u2013 ' + hora(ex.despues.fin) + '|' +
-      dur(ex.despues.min) + ' con actividad' +
-      '|Siguió trabajando después de su hora de salida. No cuenta como tiempo perdido ni como turno.';
+    const tipD = 'Worked after the shift|' + hora(a.jFin) + ' \u2013 ' + hora(ex.despues.fin) + '|' +
+      dur(ex.despues.min) + ' with activity' +
+      '|They kept working after their end time. It does not count as lost time or as shift.';
     tl += '<div class="extra" data-tip="' + esc(tipD) + '" style="left:' + pct(a.jFin) +
       '%;width:' + Math.max(0.4, pct(ex.despues.fin) - pct(a.jFin)) + '%"></div>';
   }
@@ -1340,11 +1342,11 @@ function fila(a, d){
   if (t1 > a.jFin) tl += '<div class="lim" style="left:' + pct(a.jFin) + '%"></div>';
   if (a.almuerzoMs) {
     const al = a.almuerzo || {};
-    const extra = al.excesoMin ? ' \u00b7 ' + al.excesoMin + ' min de más, que cuentan como ausencia'
-                : (al.faltanteMin ? ' \u00b7 ' + al.faltanteMin + ' min menos de lo asignado' : '');
-    const tipAlm = 'Almuerzo|' + hora(a.almuerzoMs[0]) + ' – ' + hora(a.almuerzoMs[0] + (al.tomadoMin || 0) * 60000) + '|' +
-      dur(al.tomadoMin || 0) + ' de ' + dur(al.duracionMin || 0) + ' asignados|' +
-      'Detectado solo: la pausa a la hora del almuerzo del horario o, si no cuadra, la pausa del día que más se parece en duración' + extra + '.';
+    const extra = al.excesoMin ? ' \u00b7 ' + al.excesoMin + ' min extra, counted as absence'
+                : (al.faltanteMin ? ' \u00b7 ' + al.faltanteMin + ' min less than assigned' : '');
+    const tipAlm = 'Lunch|' + hora(a.almuerzoMs[0]) + ' – ' + hora(a.almuerzoMs[0] + (al.tomadoMin || 0) * 60000) + '|' +
+      dur(al.tomadoMin || 0) + ' of ' + dur(al.duracionMin || 0) + ' assigned|' +
+      'Auto-detected: the pause at the scheduled lunch time or, if it does not fit, the day\u2019s pause closest in duration' + extra + '.';
     tl += '<div class="lunch" data-tip="' + esc(tipAlm) + '" style="left:' + pct(a.almuerzoMs[0]) + '%;width:' +
       (pct(a.almuerzoMs[1]) - pct(a.almuerzoMs[0])) + '%"></div>';
   }
@@ -1358,11 +1360,11 @@ function fila(a, d){
     const d = (a.descansos || [])[i] || {};
     const fT = d.finTomado || c[1];
     const mf = marcaDe(c[0], fT);
-    const extra = d.excesoMin ? ' \u00b7 ' + d.excesoMin + ' min de más, que cuentan como ausencia' : '';
-    const tip = 'Descanso|' + hora(c[0]) + ' – ' + hora(c[0] + Math.min(d.tomadoMin || 0, 15) * 60000) + '|' +
+    const extra = d.excesoMin ? ' \u00b7 ' + d.excesoMin + ' min extra, counted as absence' : '';
+    const tip = 'Break|' + hora(c[0]) + ' – ' + hora(c[0] + Math.min(d.tomadoMin || 0, 15) * 60000) + '|' +
       dur(Math.min(d.tomadoMin || 0, 15)) + '|' +
-      (mf ? 'Lo marcaste tú como descanso' : 'Uno de los dos descansos de 15 minutos del día') + extra +
-      '. Clic para cambiarlo: si no fue un descanso, vuelve a contar como tiempo perdido.';
+      (mf ? 'You marked it as a break' : 'One of the two 15-minute breaks of the day') + extra +
+      '. Click to change it: if it was not a break, it counts as lost time again.';
     tl += '<div class="brk" data-tip="' + esc(tip) + '"' +
       ' data-aut="' + esc(a.agente) + '" data-ini="' + c[0] + '" data-fin="' + fT + '"' +
       ' data-desc="1" data-marca="' + mf + '"' +
@@ -1373,11 +1375,11 @@ function fila(a, d){
     const dt = tipoDisp(ep.tipo);
     const T = TIPOS[dt] || TIPOS['Sin señal'];
     const j = ep.justificado;
-    const titulo = j ? '\u2713 Autorizado · ' + tipoDisp(ep.tipo) : tipoDisp(ep.tipo);
-    const desc = j ? (j.motivo + (j.nota ? ' — ' + j.nota : '') + (j.autorizo ? ' (autorizó ' + j.autorizo + ')' : '') +
-                      '. No cuenta como tiempo perdido. Clic para cambiarlo.')
-                   : (T.desc + ' Clic para cambiarlo: puedes autorizarlo o contarlo como descanso.');
-    const tip = esc(titulo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'continúa' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(desc);
+    const titulo = j ? '\u2713 Authorized · ' + tipoEN(ep.tipo) : tipoEN(ep.tipo);
+    const desc = j ? (motivoEN(j.motivo) + (j.nota ? ' — ' + j.nota : '') + (j.autorizo ? ' (authorized by ' + j.autorizo + ')' : '') +
+                      '. Does not count as lost time. Click to change it.')
+                   : (T.desc + ' Click to change it: you can authorize it or count it as a break.');
+    const tip = esc(titulo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'ongoing' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(desc);
     tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + (j ? ' just' : '') + '" data-tip="' + tip + '"' +
       ' data-aut="' + esc(a.agente) + '" data-ini="' + ep.ini + '" data-fin="' + ep.fin + '"' +
       ' data-marca="' + marcaDe(ep.ini, ep.fin) + '"' +
@@ -1385,7 +1387,7 @@ function fila(a, d){
       ' style="left:' + pct(ep.ini) + '%;width:calc(' + (pct(ep.fin) - pct(ep.ini)) +
       '% - 2px);margin-left:1px;background-color:' + T.color + '"></div>';
   });
-  if (d.esHoy && d.generado >= t0 && d.generado <= t1) tl += '<div class="now" style="left:' + pct(d.generado) + '%" title="Ahora"></div>';
+  if (d.esHoy && d.generado >= t0 && d.generado <= t1) tl += '<div class="now" style="left:' + pct(d.generado) + '%" title="Now"></div>';
   // Las horas se cuentan desde la entrada del turno para los dos lados, así la
   // barra extendida sigue marcando horas en punto reconocibles.
   const marcas = [];
@@ -1401,40 +1403,40 @@ function fila(a, d){
   const arriba = fHorario;
   const tomado = almuerzoHtml(a) + descansosHtml(a);
   const abajo = app + (envivo && a.vivo && a.vivo.progActivo
-    ? mi('Programa', esc(nombreApp(a.vivo.progActivo)), '', 'Programa en primer plano en la última señal.') : '');
+    ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : '');
 
   return '<div class="row">' +
     '<div class="who"><b>' + esc(a.agente) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
       (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
-      (a.usuario ? '<small class="winuser">Usuario de Windows: ' + esc(a.usuario) +
+      (a.usuario ? '<small class="winuser">Windows user: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
-        ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Hoy iniciaron sesión varios usuarios en este equipo: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' usuarios hoy</span>' : '') + '</small>' : '') +
+        ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Multiple users signed in to this device today: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' users today</span>' : '') + '</small>' : '') +
       (fEquipo ? '<div class="meta mini">' + fEquipo + '</div>' : '') +
-      (a.sinCuenta ? '<br><span class="sincuenta" title="La cuenta “' + esc(a.cuenta) + '” ya no está en la lista. Reinstale el monitor en este equipo.">\u26a0 Agente sin cuenta asignada</span>' : '') +
+      (a.sinCuenta ? '<br><span class="sincuenta" title="The account “' + esc(a.cuenta) + '” is no longer in the list. Reinstall the monitor on this device.">\u26a0 Agent without assigned account</span>' : '') +
       '<br><div class="btns-mini">' +
-      (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Horario</button>') +
-      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Nombre / cuenta</button>' +
-      (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Cambio de turno por un día o una temporada">Cambio de turno</button>') +
+      (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Schedule</button>') +
+      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Name / account</button>' +
+      (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Shift change for a day or a period">Shift change</button>') +
       '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (conBaja ? '1' : '0') + '" type="button" title="' +
-        (conBaja ? 'Vuelve a la lista de agentes y borra la fecha de baja' : 'Deja de contar desde el día siguiente a la fecha de baja') + '">' +
-        (conBaja ? 'Reactivar' : 'Desactivar') + '</button></div>' +
+        (conBaja ? 'Returns to the agent list and clears the deactivation date' : 'Stops counting from the day after the deactivation date') + '">' +
+        (conBaja ? 'Reactivate' : 'Deactivate') + '</button></div>' +
       (conBaja ? '<span class="bajainfo">' +
-        (inact ? 'Inactivo desde ' + esc(a.baja || 'fecha sin registrar')
-               : 'Baja el ' + esc(a.baja) + ' \u00b7 pasa a Inactivos al día siguiente') +
+        (inact ? 'Inactive since ' + esc(a.baja || 'date not recorded')
+               : 'Deactivated on ' + esc(a.baja) + ' \u00b7 moves to Inactive the next day') +
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
       (envivo ? '<div class="ver">' + versionHtml(a, d) + '</div>' : '') + '</div>' +
     '<div class="tlwrap">' +
       avisoRech +
       (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
-      '<div class="tl" role="img" aria-label="Jornada de ' + esc(a.agente) + ': ' + a.episodios.length + ' novedades">' + tl + '</div><div class="axis">' + axis + '</div>' +
+      '<div class="tl" role="img" aria-label="Workday of ' + esc(a.agente) + ': ' + a.episodios.length + ' issues">' + tl + '</div><div class="axis">' + axis + '</div>' +
       (tomado ? '<div class="meta post tomado">' + tomado + '</div>' : '') +
       (abajo ? '<div class="meta post">' + abajo + '</div>' : '') + '</div>' +
     '<div class="nums">' + pill +
-      '<div><b>' + (dur(a.minPerdidos) || '0 min') + '</b> perdidos' +
-      (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' autorizados</span>' : '') + '<br>' +
-      (a.primera ? 'Entrada ' + hora(a.primera) + ' · Última señal ' + hora(a.ultima) : 'Sin señales este día') +
-      (a.minAppCerrada ? '<br>App cerrada ' + dur(a.minAppCerrada) : '') +
-      (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor cerrado/reiniciado ' + a.reinicios + ' vez(es)</span>' : '') +
+      '<div><b>' + (dur(a.minPerdidos) || '0 min') + '</b> lost' +
+      (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' authorized</span>' : '') + '<br>' +
+      (a.primera ? 'Start ' + hora(a.primera) + ' · Last signal ' + hora(a.ultima) : 'No signals this day') +
+      (a.minAppCerrada ? '<br>App closed ' + dur(a.minAppCerrada) : '') +
+      (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor closed/restarted ' + a.reinicios + ' time(s)</span>' : '') +
       (envivo ? progsHtml(a.vivo) : '') +
       (fNet ? '<div class="meta mini">' + fNet + '</div>' : '') +
       (envivo ? speedHtml(a) : '') + '</div></div>' +
@@ -1464,16 +1466,16 @@ document.addEventListener('click', async ev => {
   const b = ev.target.closest && ev.target.closest('[data-speed]');
   if (!b) return;
   const ag = b.dataset.speed;
-  if (S.demo) { toast('En modo ejemplo no se mide la velocidad.'); return; }
+  if (S.demo) { toast('In sample mode, speed is not measured.'); return; }
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  if (!url || !tok) { toast('Set up the connection in Settings.', 'err'); return; }
   b.disabled = true;
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=velocidad&agente=' + encodeURIComponent(ag);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok) toast('Test de velocidad solicitado para ' + ag + '. El resultado aparece en ~1 minuto.', 'ok');
-    else toast(j.error || 'No se pudo solicitar.', 'err');
+    if (j.ok) toast('Speed test requested for ' + ag + '. The result appears in ~1 minute.', 'ok');
+    else toast(j.error || 'Could not request it.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   setTimeout(() => { b.disabled = false; }, 3000);
 });
@@ -1483,28 +1485,28 @@ document.addEventListener('click', async ev => {
   const b = ev.target.closest && ev.target.closest('[data-upd]');
   if (!b) return;
   const ag = b.dataset.upd;
-  if (S.demo) { toast('En modo ejemplo no se actualiza ningún equipo.'); return; }
+  if (S.demo) { toast('In sample mode, no device is updated.'); return; }
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  if (!url || !tok) { toast('Set up the connection in Settings.', 'err'); return; }
   b.disabled = true;
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=actualizar&agente=' + encodeURIComponent(ag);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
     if (j.ok) {
-      toast('Actualización pedida para ' + ag + '. Sale en el próximo latido y termina en un par de minutos.', 'ok');
+      toast('Update requested for ' + ag + '. It goes out on the next heartbeat and finishes in a couple of minutes.', 'ok');
       if (S.data) {
         S.data.actualizaciones = S.data.actualizaciones || {};
         S.data.actualizaciones[String(ag).trim().toLowerCase()] = { estado: 'pendiente', desde: Date.now() };
         pintar();
       }
       setTimeout(() => { if (!document.hidden) cargar(); }, 70000);
-    } else { toast(j.error || 'No se pudo pedir la actualización.', 'err'); b.disabled = false; }
+    } else { toast(j.error || 'Could not request the update.', 'err'); b.disabled = false; }
   } catch (e) { toast('Error: ' + e.message, 'err'); b.disabled = false; }
 });
 
 // ------------------------------------------------- desactivar / reactivar
-const MOTIVOS_BAJA = ['Renuncia', 'Fin de contrato', 'Despido', 'Licencia larga', 'Equipo de prueba', 'Otro'];
+const MOTIVOS_BAJA = [['Renuncia','Resignation'],['Fin de contrato','End of contract'],['Despido','Termination'],['Licencia larga','Long leave'],['Equipo de prueba','Test device'],['Otro','Other']];
 function hoyISO(){
   const t = new Date();
   return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
@@ -1515,7 +1517,7 @@ document.addEventListener('click', async ev => {
   if (!b) return;
   const ag = b.dataset.baja;
   if (b.dataset.act === '1') {
-    if (!confirm('¿Reactivar a "' + ag + '"?\n\nSe borra la fecha de baja y vuelve a la lista de agentes; desde hoy se le vuelve a exigir su horario.')) return;
+    if (!confirm('Reactivate "' + ag + '"?\n\nThe deactivation date is cleared and they return to the agent list; from today their schedule is required again.')) return;
     await enviarBaja(ag, '1', '', '');
     return;
   }
@@ -1523,7 +1525,7 @@ document.addEventListener('click', async ev => {
   $('bAgente').textContent = ag;
   $('bFecha').max = hoyISO();
   $('bFecha').value = hoyISO();
-  $('bMotivo').innerHTML = MOTIVOS_BAJA.map(m => '<option>' + esc(m) + '</option>').join('');
+  $('bMotivo').innerHTML = MOTIVOS_BAJA.map(m => '<option value="' + esc(m[0]) + '">' + esc(m[1]) + '</option>').join('');
   $('bNota').value = '';
   $('modalBaja').classList.add('show');
 });
@@ -1536,9 +1538,9 @@ $('bGuardar').addEventListener('click', async () => {
   btn.disabled = false;
 });
 async function enviarBaja(ag, activo, fecha, motivo){
-  if (S.demo) { toast('En modo ejemplo no se guardan cambios.'); return; }
+  if (S.demo) { toast('In sample mode, changes are not saved.'); return; }
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  if (!url || !tok) { toast('Set up the connection in Settings.', 'err'); return; }
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
       '&accion=baja&agente=' + encodeURIComponent(ag) + '&activo=' + activo +
@@ -1546,14 +1548,14 @@ async function enviarBaja(ag, activo, fecha, motivo){
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
     if (j.ok && j.agente) {
-      toast(activo === '1' ? j.agente + ' vuelve a la lista de agentes.' : j.agente + ' queda inactivo desde el ' + j.baja + '.', 'ok');
+      toast(activo === '1' ? j.agente + ' returns to the agent list.' : j.agente + ' is inactive since ' + j.baja + '.', 'ok');
       $('modalBaja').classList.remove('show');
       olvidarDias();
       cargar();
     } else if (j.agentes || j.ok) {
-      toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+      toast('The server does not have this function yet. Publish the new Apps Script version.', 'err');
     } else {
-      toast(j.error || 'No se pudo guardar.', 'err');
+      toast(j.error || 'Could not save.', 'err');
     }
   } catch (e) { toast('Error: ' + e.message, 'err'); }
 }
@@ -1576,22 +1578,22 @@ document.addEventListener('click', ev => {
 $('aCancelar').addEventListener('click', () => $('modalAgente').classList.remove('show'));
 $('modalAgente').addEventListener('click', ev => { if (ev.target.id === 'modalAgente') $('modalAgente').classList.remove('show'); });
 $('aGuardar').addEventListener('click', async () => {
-  if (S.demo) { toast('En modo ejemplo no se guardan cambios.'); return; }
+  if (S.demo) { toast('In sample mode, changes are not saved.'); return; }
   const nombre = $('aNombre').value.trim(), cuenta = $('aCuenta').value;
-  if (!nombre) { toast('Escribe un nombre.', 'err'); return; }
-  if (/[|;]/.test(nombre)) { toast('El nombre no puede tener | ni ;', 'err'); return; }
+  if (!nombre) { toast('Enter a name.', 'err'); return; }
+  if (/[|;]/.test(nombre)) { toast('The name cannot contain | or ;', 'err'); return; }
   // Renombrar a un agente inactivo es lo que se hace al reasignar su equipo a
   // otra persona. Conviene avisar: el historial viejo pasa a llamarse como el
   // agente nuevo, porque es la misma ficha.
   if (edBaja && nombre.toLowerCase() !== edAgente.toLowerCase() &&
-      !confirm('"' + edAgente + '" está inactivo.\n\n' +
-        'Si lo renombras a "' + nombre + '", todo el historial de "' + edAgente + '" ' +
-        'queda a nombre de "' + nombre + '": es la misma ficha, no una nueva.\n\n' +
-        'Si lo que quieres es entregarle el equipo a alguien más y empezar de cero, ' +
-        'instala el monitor en ese computador con el nombre nuevo y deja esta ficha inactiva.\n\n' +
-        '¿Renombrar de todos modos?')) { return; }
+      !confirm('"' + edAgente + '" is inactive.\n\n' +
+        'If you rename it to "' + nombre + '", all of "' + edAgente + '"’s history ' +
+        'moves to "' + nombre + '": it is the same record, not a new one.\n\n' +
+        'If you want to hand the device to someone else and start fresh, ' +
+        'install the monitor on that computer with the new name and leave this record inactive.\n\n' +
+        'Rename anyway?')) { return; }
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  if (!url || !tok) { toast('Set up the connection in Settings.', 'err'); return; }
   const btn = $('aGuardar'); btn.disabled = true;
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
@@ -1599,10 +1601,10 @@ $('aGuardar').addEventListener('click', async () => {
       '&nuevo=' + encodeURIComponent(nombre) + '&cuenta=' + encodeURIComponent(cuenta);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.agente) { toast('Guardado: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.agente, j.cuenta); olvidarDias(); cargar(); }
-    else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
+    if (j.ok && j.agente) { toast('Saved: ' + j.agente + ' · ' + j.cuenta, 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.agente, j.cuenta); olvidarDias(); cargar(); }
+    else if (j.ok) toast('The server does not have this function yet. Publish the new Apps Script version.', 'err');
     else if (/ya hay un agente llamado/i.test(j.error || '')) await ofrecerUnir(nombre, url, tok);
-    else toast(j.error || 'No se pudo guardar.', 'err');
+    else toast(j.error || 'Could not save.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 });
@@ -1623,32 +1625,32 @@ async function syncReloj(agente, nuevo, cuenta) {
 // nombre viejo, porque el servidor lo traduce en cada latido. No se pierde
 // historial: lo de antes también se lee con el nombre bueno.
 async function ofrecerUnir(existente, url, tok) {
-  const msg = 'Ya hay un agente llamado "' + existente + '".\n\n' +
-    '¿Unir "' + edAgente + '" con "' + existente + '"?\n\n' +
-    'Se conserva "' + existente + '" y la tarjeta de "' + edAgente + '" desaparece. ' +
-    'El computador puede seguir reportando con el nombre viejo; el servidor lo traduce solo. ' +
-    'No se pierde el historial.';
+  const msg = 'There is already an agent named "' + existente + '".\n\n' +
+    'Merge "' + edAgente + '" with "' + existente + '"?\n\n' +
+    '"' + existente + '" is kept and "' + edAgente + '"’s card disappears. ' +
+    'The computer can keep reporting with the old name; the server translates it automatically. ' +
+    'No history is lost.';
   if (!confirm(msg)) return;
   try {
     const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) +
       '&accion=fusionar&agente=' + encodeURIComponent(edAgente) + '&nuevo=' + encodeURIComponent(existente);
     const r = await fetch(q, { redirect: 'follow' });
     const j = await r.json();
-    if (j.ok && j.nuevo) { toast('Unidos en "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.nuevo, ''); olvidarDias(); cargar(); }
-    else if (j.ok) toast('El servidor todavía no tiene esta función. Publica la nueva versión del Apps Script.', 'err');
-    else toast(j.error || 'No se pudieron unir.', 'err');
+    if (j.ok && j.nuevo) { toast('Merged into "' + j.nuevo + '".', 'ok'); $('modalAgente').classList.remove('show'); syncReloj(edAgente, j.nuevo, ''); olvidarDias(); cargar(); }
+    else if (j.ok) toast('The server does not have this function yet. Publish the new Apps Script version.', 'err');
+    else toast(j.error || 'Could not merge.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
 }
 
 let horAgente = null;
-const DIAS_H = [['lun','Lunes'],['mar','Martes'],['mie','Miércoles'],['jue','Jueves'],['vie','Viernes'],['sab','Sábado'],['dom','Domingo']];
-function h12(t) { if (!t) return ''; const p = t.split(':'); let h = +p[0]; const a = h >= 12 ? 'p.m.' : 'a.m.'; h = h % 12 || 12; return h + ':' + p[1] + ' ' + a; }
+const DIAS_H = [['lun','Monday'],['mar','Tuesday'],['mie','Wednesday'],['jue','Thursday'],['vie','Friday'],['sab','Saturday'],['dom','Sunday']];
+function h12(t) { if (!t) return ''; const p = t.split(':'); let h = +p[0]; const a = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + p[1] + ' ' + a; }
 function horarioCorto(a) {
-  if (a.diaLibre || a.horario === 'Día libre') return 'día libre';
+  if (a.diaLibre || a.horario === 'Día libre') return 'day off';
   if (!a.hInicio || !a.hFin) return a.horario || '';
   let t = h12(a.hInicio) + ' – ' + h12(a.hFin);
   const al = (a.hAlmuerzo || '').split('-');
-  if (al.length === 2 && al[0] && al[1]) t += ' · almuerzo ' + h12(al[0]) + ' – ' + h12(al[1]);
+  if (al.length === 2 && al[0] && al[1]) t += ' · lunch ' + h12(al[0]) + ' – ' + h12(al[1]);
   return t;
 }
 function leerSemanaTxt(txt) {
@@ -1664,15 +1666,15 @@ function leerSemanaTxt(txt) {
   return out;
 }
 function pintarSemana(sem) {
-  let h = '<span class="cab">Día</span><span class="cab">Entrada</span><span class="cab">Salida</span><span class="cab">Almuerzo desde</span><span class="cab">Almuerzo hasta</span>';
+  let h = '<span class="cab">Day</span><span class="cab">Start</span><span class="cab">End</span><span class="cab">Lunch from</span><span class="cab">Lunch to</span>';
   DIAS_H.forEach(([k, n]) => {
     const d = sem[k];
     h += '<label class="dia"><input type="checkbox" data-trab="' + k + '"' + (d ? ' checked' : '') + '> ' + n + '</label>';
     if (d) {
       const inp = (c, et, val) => '<label class="hc"><span>' + et + '</span><input type="time" data-k="' + k + '" data-c="' + c + '" aria-label="' + n + ' ' + et.toLowerCase() + '" value="' + (val || '') + '"></label>';
-      h += inp('i', 'Entrada', d.i) + inp('f', 'Salida', d.f) + inp('aa', 'Almuerzo desde', d.aa) + inp('ab', 'Almuerzo hasta', d.ab);
+      h += inp('i', 'Start', d.i) + inp('f', 'End', d.f) + inp('aa', 'Lunch from', d.aa) + inp('ab', 'Lunch to', d.ab);
     } else {
-      h += '<span class="libre">No trabaja</span>';
+      h += '<span class="libre">Off</span>';
     }
   });
   $('hSem').innerHTML = h;
@@ -1707,7 +1709,7 @@ document.addEventListener('click', ev => {
   }
   semEdit = sem;
   pintarSemana(semEdit);
-  $('hAviso').textContent = 'El almuerzo es opcional: déjalo en blanco si ese día no aplica.';
+  $('hAviso').textContent = 'Lunch is optional: leave it blank if it does not apply that day.';
   $('hAviso').classList.remove('mal');
   $('modalHorario').classList.add('show');
 });
@@ -1726,17 +1728,17 @@ $('hSem').addEventListener('change', ev => {
 $('hCopiar').addEventListener('click', () => {
   semEdit = semanaDelModal();
   const primero = DIAS_H.map(d => d[0]).find(k => semEdit[k]);
-  if (!primero) { toast('Marca al menos un día.', 'err'); return; }
+  if (!primero) { toast('Check at least one day.', 'err'); return; }
   DIAS_H.forEach(([k]) => { if (semEdit[k]) semEdit[k] = { ...semEdit[primero] }; });
   pintarSemana(semEdit);
-  toast('Copiado el horario del ' + DIAS_H.find(d => d[0] === primero)[1].toLowerCase() + '.');
+  toast('Copied the schedule from ' + DIAS_H.find(d => d[0] === primero)[1] + '.');
 });
 $('hCancelar').addEventListener('click', () => $('modalHorario').classList.remove('show'));
 $('modalHorario').addEventListener('click', ev => { if (ev.target.id === 'modalHorario') $('modalHorario').classList.remove('show'); });
 async function enviarHorario(params, msgOk) {
-  if (S.demo) { toast('En modo ejemplo no se guarda el horario.'); return; }
+  if (S.demo) { toast('In sample mode, the schedule is not saved.'); return; }
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) { toast('Configura la conexión en Ajustes.', 'err'); return; }
+  if (!url || !tok) { toast('Set up the connection in Settings.', 'err'); return; }
   const btn = $('hGuardar'); btn.disabled = true;
   try {
     let q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=horario&agente=' + encodeURIComponent(horAgente);
@@ -1745,10 +1747,10 @@ async function enviarHorario(params, msgOk) {
     const j = await r.json();
     if (j.ok) {
       if (params.semana && j.semana === undefined) {
-        toast('El servidor todavía no tiene la versión con horario por día. Publica la nueva versión del Apps Script.', 'err');
+        toast('The server does not have the per-day schedule version yet. Publish the new Apps Script version.', 'err');
       } else { toast(msgOk, 'ok'); $('modalHorario').classList.remove('show'); olvidarDias(); cargar(); }
     }
-    else toast(j.error || 'No se pudo guardar.', 'err');
+    else toast(j.error || 'Could not save.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 }
@@ -1759,24 +1761,24 @@ $('hGuardar').addEventListener('click', () => {
     const d = sem[k];
     if (!d) { partes.push(k + '=libre'); return; }
     let err = '';
-    if (!d.i || !d.f) err = n + ': falta la hora de entrada o de salida';
-    else if (d.f <= d.i) err = n + ': la salida debe ser después de la entrada';
-    else if ((d.aa && !d.ab) || (!d.aa && d.ab)) err = n + ': completa las dos horas del almuerzo o déjalas en blanco';
-    else if (d.aa && d.ab <= d.aa) err = n + ': el almuerzo debe terminar después de empezar';
-    else if (d.aa && (d.aa < d.i || d.ab > d.f)) err = n + ': el almuerzo debe estar dentro de la jornada';
+    if (!d.i || !d.f) err = n + ': missing start or end time';
+    else if (d.f <= d.i) err = n + ': end must be after start';
+    else if ((d.aa && !d.ab) || (!d.aa && d.ab)) err = n + ': fill both lunch times or leave them blank';
+    else if (d.aa && d.ab <= d.aa) err = n + ': lunch must end after it starts';
+    else if (d.aa && (d.aa < d.i || d.ab > d.f)) err = n + ': lunch must be within the workday';
     if (err) { errores.push(err); return; }
     partes.push(k + '=' + d.i + '-' + d.f + (d.aa ? '/' + d.aa + '-' + d.ab : ''));
   });
   if (errores.length) { $('hAviso').textContent = errores[0]; $('hAviso').classList.add('mal'); return; }
   const primero = DIAS_H.map(d => d[0]).find(k => sem[k]);
-  if (!primero) { $('hAviso').textContent = 'El agente debe trabajar al menos un día.'; $('hAviso').classList.add('mal'); return; }
+  if (!primero) { $('hAviso').textContent = 'The agent must work at least one day.'; $('hAviso').classList.add('mal'); return; }
   const p = sem[primero];
   // Columnas Inicio/Fin/Almuerzo quedan con el primer día trabajado (referencia); manda la columna HorarioSemanal
-  enviarHorario({ inicio: p.i, fin: p.f, almuerzo: p.aa ? p.aa + '-' + p.ab : '', semana: partes.join(';') }, 'Horario guardado para ' + horAgente);
+  enviarHorario({ inicio: p.i, fin: p.f, almuerzo: p.aa ? p.aa + '-' + p.ab : '', semana: partes.join(';') }, 'Schedule saved for ' + horAgente);
 });
 $('hGeneral').addEventListener('click', () => {
-  if (!confirm('¿Quitar el horario por día de ' + horAgente + ' y usar el horario general (08:00–17:00, lunes a viernes)?')) return;
-  enviarHorario({ inicio: '', fin: '', almuerzo: '', semana: '' }, horAgente + ' usa ahora el horario general');
+  if (!confirm('Remove ' + horAgente + '’s per-day schedule and use the general schedule (08:00–17:00, Monday to Friday)?')) return;
+  enviarHorario({ inicio: '', fin: '', almuerzo: '', semana: '' }, horAgente + ' now uses the general schedule');
 });
 
 $('tiles').addEventListener('click', ev => {
@@ -1810,8 +1812,8 @@ $('btnRef').addEventListener('click', () => cargar(true));
 $('btnCfg').addEventListener('click', () => $('modalAjustes').classList.add('show'));
 // ================================================================ REPORTES
 // Reporte de conexiones por agente (día, semana, quincena, mes o rango) en Excel.
-const DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS_ES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MESES_ES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function fISO(d){ return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0'); }
 function dISO(s){ return new Date(s + 'T12:00:00Z'); }
 function masDias(s, n){ const d = dISO(s); d.setUTCDate(d.getUTCDate() + n); return fISO(d); }
@@ -1821,13 +1823,13 @@ function nDias(a, b){ return Math.round((dISO(b) - dISO(a)) / 86400000) + 1; }
 function rangoPeriodo(tipo, ref, desde, hasta){
   const d = dISO(ref), y = d.getUTCFullYear(), m = d.getUTCMonth(), dia = d.getUTCDate();
   const finMes = fISO(new Date(Date.UTC(y, m + 1, 0, 12)));
-  if (tipo === 'dia') return { desde: ref, hasta: ref, nombre: 'Día' };
-  if (tipo === 'semana') { const lun = masDias(ref, -((d.getUTCDay() + 6) % 7)); return { desde: lun, hasta: masDias(lun, 6), nombre: 'Semana' }; }
+  if (tipo === 'dia') return { desde: ref, hasta: ref, nombre: 'Day' };
+  if (tipo === 'semana') { const lun = masDias(ref, -((d.getUTCDay() + 6) % 7)); return { desde: lun, hasta: masDias(lun, 6), nombre: 'Week' }; }
   if (tipo === 'quincena') return dia <= 15
-    ? { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: fISO(new Date(Date.UTC(y, m, 15, 12))), nombre: '1ra quincena' }
-    : { desde: fISO(new Date(Date.UTC(y, m, 16, 12))), hasta: finMes, nombre: '2da quincena' };
-  if (tipo === 'mes') return { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: finMes, nombre: 'Mes' };
-  return { desde: desde, hasta: hasta, nombre: 'Rango' };
+    ? { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: fISO(new Date(Date.UTC(y, m, 15, 12))), nombre: '1st half' }
+    : { desde: fISO(new Date(Date.UTC(y, m, 16, 12))), hasta: finMes, nombre: '2nd half' };
+  if (tipo === 'mes') return { desde: fISO(new Date(Date.UTC(y, m, 1, 12))), hasta: finMes, nombre: 'Month' };
+  return { desde: desde, hasta: hasta, nombre: 'Range' };
 }
 
 function hoyLocal(){
@@ -1842,7 +1844,7 @@ function abrirReporte(){
   if (!$('rDesde').value) $('rDesde').value = masDias(ref, -13);
   if (!$('rHasta').value) $('rHasta').value = ref;
   const cuentas = S.data ? [...new Set(S.data.agentes.map(a => a.cuenta))].sort() : [];
-  $('rCuenta').innerHTML = '<option value="Todas">Todas las cuentas</option>' + cuentas.map(c => '<option' + (c === S.cuenta ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  $('rCuenta').innerHTML = '<option value="Todas">All accounts</option>' + cuentas.map(c => '<option' + (c === S.cuenta ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
   actualizarRango();
   $('modalReporte').classList.add('show');
 }
@@ -1855,10 +1857,10 @@ function actualizarRango(){
   const esRango = p.tipo === 'rango';
   $('rRefBox').hidden = esRango; $('rRangoBox').hidden = !esRango;
   let txt = '', err = '';
-  if (!p.desde || !p.hasta) err = 'Elige las fechas.';
-  else if (p.desde > p.hasta) err = 'La fecha inicial es posterior a la final.';
-  else if (nDias(p.desde, p.hasta) > 93) err = 'Máximo 93 días por reporte.';
-  else txt = (p.desde === p.hasta ? fCorta(p.desde) : fCorta(p.desde) + ' → ' + fCorta(p.hasta)) + ' · ' + nDias(p.desde, p.hasta) + (p.desde === p.hasta ? ' día' : ' días');
+  if (!p.desde || !p.hasta) err = 'Choose the dates.';
+  else if (p.desde > p.hasta) err = 'The start date is after the end date.';
+  else if (nDias(p.desde, p.hasta) > 93) err = 'Maximum 93 days per report.';
+  else txt = (p.desde === p.hasta ? fCorta(p.desde) : fCorta(p.desde) + ' → ' + fCorta(p.hasta)) + ' · ' + nDias(p.desde, p.hasta) + (p.desde === p.hasta ? ' day' : ' days');
   $('rResumen').textContent = err || txt;
   $('rResumen').className = 'hint' + (err ? ' mal' : '');
   $('rDescargar').disabled = !!err;
@@ -1867,12 +1869,12 @@ function actualizarRango(){
 async function pedirReporte(desde, hasta){
   if (S.demo) return demoReporte(desde, hasta);
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  if (!url || !tok) throw new Error('Set up the connection in Settings');
   const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=reporte&desde=' + desde + '&hasta=' + hasta;
   const r = await fetch(q, { redirect: 'follow' });
   const j = await r.json();
-  if (!j.ok) throw new Error(j.error === undefined ? 'el servidor aún no tiene la función de reportes' : j.error);
-  if (!Array.isArray(j.filas)) throw new Error('el servidor aún no tiene la función de reportes (falta publicar la nueva versión del script)');
+  if (!j.ok) throw new Error(j.error === undefined ? 'the server does not have the reports function yet' : j.error);
+  if (!Array.isArray(j.filas)) throw new Error('the server does not have the reports function yet (publish the new script version)');
   return j;
 }
 
@@ -1913,6 +1915,8 @@ function demoReporte(desde, hasta){
 }
 
 // ---- Excel (formato XML de Excel 2003, igual que la exportación de Nómina)
+// Mapa de estado del servidor (español) -> inglés SOLO para mostrar en el Excel.
+function estadoRepEN(e){ return e === 'Conectado' ? 'Connected' : e === 'En curso' ? 'Ongoing' : e === 'Sin conexión' ? 'No connection' : e; }
 function excelReporte(rep, p, cuentaSel){
   const tz = rep.zona || (S.data && S.data.config.zona) || 'America/New_York';
   const fmtH = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hourCycle: 'h23' });
@@ -1952,25 +1956,25 @@ function excelReporte(rep, p, cuentaSel){
     '</SplitHorizontal><TopRowBottomPane>' + congelar + '</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>';
 
   const d1440 = m => (m || 0) / 1440;
-  const periodoTxt = p.nombre + ': ' + (rep.desde === rep.hasta ? fCorta(rep.desde) : fCorta(rep.desde) + ' al ' + fCorta(rep.hasta));
+  const periodoTxt = p.nombre + ': ' + (rep.desde === rep.hasta ? fCorta(rep.desde) : fCorta(rep.desde) + ' to ' + fCorta(rep.hasta));
   const cab = (titulo, n) => [
     Row(Cm(titulo, 'tit', n), 22),
-    Row(Cm(periodoTxt + ' · ' + (cuentaSel === 'Todas' ? 'Todas las cuentas' : 'Cuenta ' + cuentaSel) + ' · Hora ' + tz.replace('America/', '').replace('_', ' '), 'sub', n)),
-    Row(Cm('Ausencia = 10+ min sin actividad (Inactivo) o sin señal del equipo (Offline) dentro del horario, sin contar almuerzo. El almuerzo que se descuenta es el real (la pausa más larga cerca de la hora fijada), no la hora del horario; lo que pase del tiempo asignado cuenta como ausencia. Los periodos autorizados (permisos, vacaciones, problemas técnicos…) se registran aparte y no cuentan como ausencia. Cada agente tiene dos descansos de 15 minutos al día, sin hora fija: se reconocen las dos pausas más largas y lo que pase de 15 minutos en cada una sí cuenta. Las de 10 a 30 min y las de más de 30 min se cuentan por separado. Generado ' + new Date().toLocaleString('es-US'), 'nota', n)),
+    Row(Cm(periodoTxt + ' · ' + (cuentaSel === 'Todas' ? 'All accounts' : 'Account ' + cuentaSel) + ' · Time ' + tz.replace('America/', '').replace('_', ' '), 'sub', n)),
+    Row(Cm('Absence = 10+ min without activity (Inactive) or with no signal from the device (Offline) within the schedule, not counting lunch. The lunch deducted is the real one (the longest pause near the set time), not the scheduled time; anything beyond the assigned time counts as absence. Authorized periods (leave, vacation, technical issues…) are recorded separately and do not count as absence. Each agent has two 15-minute breaks a day, with no fixed time: the two longest pauses are recognized and anything beyond 15 minutes in each one does count. Those of 10 to 30 min and those over 30 min are counted separately. Generated ' + new Date().toLocaleString('en-US'), 'nota', n)),
     Row('')
   ];
 
   const filas = rep.filas.filter(f => cuentaSel === 'Todas' || f.cuenta === cuentaSel);
   const porCuenta = {};
-  filas.forEach(f => { ((porCuenta[f.cuenta || 'Sin cuenta'] = porCuenta[f.cuenta || 'Sin cuenta'] || {})[f.agente] = (porCuenta[f.cuenta || 'Sin cuenta'][f.agente] || [])).push(f); });
+  filas.forEach(f => { ((porCuenta[f.cuenta || 'No account'] = porCuenta[f.cuenta || 'No account'] || {})[f.agente] = (porCuenta[f.cuenta || 'No account'][f.agente] || [])).push(f); });
   const cuentas = Object.keys(porCuenta).sort((a, b) => a.localeCompare(b));
   const promedio = l => l.length ? l.reduce((s, v) => s + v, 0) / l.length : null;
   const conDatos = l => l.filter(f => f.latidos > 0);
 
   // ---- Hoja 1: Resumen por agente
-  const H1 = ['Agente','Días conectado','Días sin conexión','Inicio de sesión (promedio)','Inicio más tarde','Fin de sesión (promedio)','Fin más temprano',
-    'Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegadas tarde (#)','Tiempo tarde','Salidas anticipadas (#)','Tiempo salidas','Almuerzos extendidos (#)','Tiempo de más','Días sin almuerzo (#)','Tiempo autorizado','Tiempo descansos','Descansos de más'];
-  const r1 = cab('Reporte de conexiones por agente — Resumen', H1.length);
+  const H1 = ['Agent','Days connected','Days with no connection','Sign-in (average)','Latest sign-in','Sign-out (average)','Earliest sign-out',
+    'Absences 10–30 min (#)','Time 10–30 min','Absences +30 min (#)','Time +30 min','Total time absent','Late arrivals (#)','Late time','Early leaves (#)','Early-leave time','Extended lunches (#)','Extra time','Days without lunch (#)','Authorized time','Breaks time','Over-break time'];
+  const r1 = cab('Agent connection report — Summary', H1.length);
   const tot = () => ({ dc:0, ds:0, a10:0, m10:0, a30:0, m30:0, mt:0, nt:0, tt:0, ns:0, ts:0, nax:0, tax:0, nsa:0, taut:0, tdes:0, tdex:0 });
   const sumar = (t, l) => { const c = conDatos(l);
     t.dc += c.length; t.ds += l.filter(f => f.estado === 'Sin conexión').length;
@@ -2002,12 +2006,12 @@ function excelReporte(rep, p, cuentaSel){
     r1.push(Row(C('Total ' + cta, 'st') + celdasTot(tc, 'stn', 'stdu')));
     r1.push(Row(''));
   });
-  if (cuentas.length > 1) r1.push(Row(C('TOTAL GENERAL', 'st') + celdasTot(gran, 'stn', 'stdu')));
-  if (!filas.length) r1.push(Row(Cm('No hay registros en este periodo.', 'nota', H1.length)));
+  if (cuentas.length > 1) r1.push(Row(C('GRAND TOTAL', 'st') + celdasTot(gran, 'stn', 'stdu')));
+  if (!filas.length) r1.push(Row(Cm('No records in this period.', 'nota', H1.length)));
 
   // ---- Hoja 2: Detalle diario
-  const H2 = ['Fecha','Día','Inicio de sesión','Fin de sesión','Ausencias 10–30 min (#)','Tiempo 10–30 min','Ausencias +30 min (#)','Tiempo +30 min','Tiempo total ausente','Llegada tarde','Salida anticipada','Almuerzo','Descansos','Autorizado','Estado'];
-  const r2 = cab('Reporte de conexiones por agente — Detalle diario', H2.length);
+  const H2 = ['Date','Day','Sign-in','Sign-out','Absences 10–30 min (#)','Time 10–30 min','Absences +30 min (#)','Time +30 min','Total time absent','Late arrival','Early leave','Lunch','Breaks','Authorized','Status'];
+  const r2 = cab('Agent connection report — Daily detail', H2.length);
   cuentas.forEach(cta => {
     r2.push(Row(Cm(cta, 'cta', H2.length), 20));
     Object.keys(porCuenta[cta]).sort((a, b) => a.localeCompare(b)).forEach(ag => {
@@ -2017,43 +2021,43 @@ function excelReporte(rep, p, cuentaSel){
       l.forEach(f => {
         const sin = f.estado === 'Sin conexión';
         r2.push(Row(C(dISO(f.fecha), 'fe') + C(DIAS_ES[dISO(f.fecha).getUTCDay()], 'tc') +
-          (sin ? Cm('No se conectó', 'sinc', 2) : C(fraccion(f.primera), 'hr') + C(f.enCurso ? 'en curso' : fraccion(f.ultima), f.enCurso ? 'tc' : 'hr')) +
+          (sin ? Cm('Did not connect', 'sinc', 2) : C(fraccion(f.primera), 'hr') + C(f.enCurso ? 'ongoing' : fraccion(f.ultima), f.enCurso ? 'tc' : 'hr')) +
           C(f.aus10, 'n') + C(d1440(f.minAus10), 'du') + C(f.aus30, 'n') + C(d1440(f.minAus30), 'du') + C(d1440(f.minAus), 'du') +
           C(d1440(f.minTarde), 'du') + C(d1440(f.minSalida), 'du') +
-          (sin ? C('', 'tc') : (f.sinAlmuerzo ? C('sin tomar', 'sinc')
+          (sin ? C('', 'tc') : (f.sinAlmuerzo ? C('not taken', 'sinc')
              : C(d1440(f.almuerzo), f.almExceso ? 'sinc' : 'du'))) +
           C(d1440(f.descansos), f.descExceso ? 'sinc' : 'du') +
           C(d1440(f.autorizado), 'du') +
-          C(f.estado, 'tc')));
+          C(estadoRepEN(f.estado), 'tc')));
       });
       const t = sumar(tot(), l);
-      r2.push(Row(C('Total', 'st') + C(t.dc + ' día(s)', 'st') + C('', 'st') + C('', 'st') + C(t.a10, 'stn') + C(d1440(t.m10), 'stdu') + C(t.a30, 'stn') +
+      r2.push(Row(C('Total', 'st') + C(t.dc + ' day(s)', 'st') + C('', 'st') + C('', 'st') + C(t.a10, 'stn') + C(d1440(t.m10), 'stdu') + C(t.a30, 'stn') +
         C(d1440(t.m30), 'stdu') + C(d1440(t.mt), 'stdu') + C(d1440(t.tt), 'stdu') + C(d1440(t.ts), 'stdu') + C(d1440(t.tax), 'stdu') + C(d1440(t.tdes), 'stdu') + C(d1440(t.taut), 'stdu') + C('', 'st')));
       r2.push(Row(''));
     });
   });
 
   // ---- Hoja 3: Novedades (cada ausencia)
-  const H3 = ['Cuenta','Agente','Fecha','Tipo','Desde','Hasta','Minutos','Categoría'];
-  const r3 = cab('Reporte de conexiones por agente — Novedades', H3.length);
+  const H3 = ['Account','Agent','Date','Type','From','To','Minutes','Category'];
+  const r3 = cab('Agent connection report — Issues', H3.length);
   r3.push(Row(H3.map(h => C(h, 'hdr')).join(''), 22));
-  const nombreTipo = t => t === 'Conexión tardía' ? 'Llegada tarde' : t === 'Salida anticipada' ? 'Salida anticipada' : t === 'Inactivo' ? 'Inactivo' : 'Offline';
+  const nombreTipo = t => t === 'Conexión tardía' ? 'Late arrival' : t === 'Salida anticipada' ? 'Early leave' : t === 'Inactivo' ? 'Inactive' : 'Offline';
   let nNov = 0;
   cuentas.forEach(cta => Object.keys(porCuenta[cta]).sort((a, b) => a.localeCompare(b)).forEach(ag =>
     porCuenta[cta][ag].slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(f => (f.eps || []).forEach(e => {
       const aus = e.t === 'Inactivo' || e.t === 'Sin señal' || e.t === 'Sin internet';
       nNov++;
       r3.push(Row(C(cta, 't') + C(ag, 't') + C(dISO(f.fecha), 'fe') + C(nombreTipo(e.t), 't') + C(fraccion(e.i), 'hr') +
-        C(e.a ? 'continúa' : fraccion(e.f), e.a ? 'tc' : 'hr') + C(e.m, 'n') + C(aus ? (e.m > 30 ? 'Más de 30 min' : '10 a 30 min') : '—', 'tc')));
+        C(e.a ? 'ongoing' : fraccion(e.f), e.a ? 'tc' : 'hr') + C(e.m, 'n') + C(aus ? (e.m > 30 ? 'Over 30 min' : '10 to 30 min') : '—', 'tc')));
     }))));
-  if (!nNov) r3.push(Row(Cm('Sin novedades en este periodo.', 'nota', H3.length)));
+  if (!nNov) r3.push(Row(Cm('No issues in this period.', 'nota', H3.length)));
 
   const xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
     estilos +
-    hoja('Resumen', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70, 72, 72, 70], r1, 4) +
-    hoja('Detalle diario', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 70, 70, 90], r2, 4) +
-    hoja('Novedades', [110, 110, 72, 100, 70, 70, 60, 90], r3, 5) +
+    hoja('Summary', [120, 62, 62, 78, 70, 78, 70, 70, 64, 70, 64, 70, 62, 60, 70, 60, 74, 64, 70, 72, 72, 70], r1, 4) +
+    hoja('Daily detail', [72, 70, 78, 78, 70, 64, 70, 64, 70, 64, 70, 70, 70, 70, 90], r2, 4) +
+    hoja('Issues', [110, 110, 72, 100, 70, 70, 60, 90], r3, 5) +
     '</Workbook>';
   return { xml, filas: filas.length, novedades: nNov };
 }
@@ -2062,29 +2066,29 @@ async function descargarReporte(){
   const p = periodoElegido();
   const cta = $('rCuenta').value || 'Todas';
   const btn = $('rDescargar');
-  btn.disabled = true; btn.textContent = 'Preparando…';
+  btn.disabled = true; btn.textContent = 'Preparing…';
   try {
     const rep = await pedirReporte(p.desde, p.hasta);
     const { xml, filas } = excelReporte(rep, p, cta);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel;charset=utf-8' }));
-    a.download = 'reporte_conexiones_' + (cta === 'Todas' ? '' : cta.replace(/[^\w]+/g, '_') + '_') + rep.desde + (rep.desde === rep.hasta ? '' : '_a_' + rep.hasta) + '.xls';
+    a.download = 'connection_report_' + (cta === 'Todas' ? '' : cta.replace(/[^\w]+/g, '_') + '_') + rep.desde + (rep.desde === rep.hasta ? '' : '_a_' + rep.hasta) + '.xls';
     document.body.appendChild(a); a.click(); a.remove();
-    if (rep.incompleto) toast('Reporte descargado, pero faltaron días por calcular. Descárgalo de nuevo en un minuto para completarlo.', 'err');
-    else toast('Reporte descargado: ' + filas + ' registro(s) de agente por día.', 'ok');
+    if (rep.incompleto) toast('Report downloaded, but some days were still being calculated. Download it again in a minute to complete it.', 'err');
+    else toast('Report downloaded: ' + filas + ' agent-day record(s).', 'ok');
     $('modalReporte').classList.remove('show');
-  } catch (e) { toast('No se pudo generar el reporte: ' + e.message, 'err'); }
-  btn.textContent = 'Descargar Excel'; btn.disabled = false; actualizarRango();
+  } catch (e) { toast('Could not generate the report: ' + e.message, 'err'); }
+  btn.textContent = 'Download Excel'; btn.disabled = false; actualizarRango();
 }
 
 function csvNovedadesDia(){
   if (!S.eps || !S.data) return;
-  const filas = [['Fecha','Agente','Cuenta','Tipo','Desde','Hasta','Minutos']].concat(
-    S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, tipoDisp(e.tipo), hora(e.ini), e.abierto ? 'continúa' : hora(e.fin), e.min]));
+  const filas = [['Date','Agent','Account','Type','From','To','Minutes']].concat(
+    S.eps.map(e => [S.data.fecha, e.agente, e.cuenta, tipoEN(e.tipo), hora(e.ini), e.abierto ? 'ongoing' : hora(e.fin), e.min]));
   const csv = '﻿' + filas.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'novedades_agentes_' + S.data.fecha + '.csv';
+  a.download = 'agent_issues_' + S.data.fecha + '.csv';
   a.click();
 }
 
@@ -2102,7 +2106,7 @@ const ACCIONES_ESCRIBEN = ['autorizar', 'autorizar_borrar', 'descanso_marcar',
 
 function apiTurno(params){
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  if (!url || !tok) throw new Error('Set up the connection in Settings');
   let q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok);
   Object.keys(params).forEach(k => { q += '&' + k + '=' + encodeURIComponent(params[k]); });
   return fetch(q, { redirect: 'follow' }).then(r => r.json()).then(j => {
@@ -2114,28 +2118,28 @@ function apiTurno(params){
 function fCortaISO(s){
   if (!s) return '';
   const d = new Date(s + 'T12:00:00');
-  return d.toLocaleDateString('es-US', { day: '2-digit', month: 'short' });
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
 }
 
 async function pintarTurnos(){
   const cont = $('tLista');
-  cont.innerHTML = '<div class="vacia">Cargando…</div>';
+  cont.innerHTML = '<div class="vacia">Loading…</div>';
   try {
     const j = await apiTurno({ accion: 'turnos', agente: turAgente });
-    if (!j.ok) throw new Error(j.error || 'no se pudo leer');
-    if (!Array.isArray(j.turnos)) throw new Error('el servidor aún no tiene los turnos (falta publicar la nueva versión del script)');
+    if (!j.ok) throw new Error(j.error || 'could not read');
+    if (!Array.isArray(j.turnos)) throw new Error('the server does not have shifts yet (publish the new script version)');
     const hoy = new Date().toISOString().slice(0, 10);
-    if (!j.turnos.length) { cont.innerHTML = '<div class="vacia">Todavía no hay turnos registrados para ' + esc(turAgente) + '.</div>'; return; }
-    cont.innerHTML = '<div class="tit">Turnos registrados</div>' + j.turnos.map(t => {
+    if (!j.turnos.length) { cont.innerHTML = '<div class="vacia">No shifts registered yet for ' + esc(turAgente) + '.</div>'; return; }
+    cont.innerHTML = '<div class="tit">Registered shifts</div>' + j.turnos.map(t => {
       const vigente = t.desde <= hoy && (!t.hasta || t.hasta >= hoy);
       const fechas = t.hasta && t.hasta !== t.desde ? fCortaISO(t.desde) + ' – ' + fCortaISO(t.hasta)
-                   : (t.hasta ? fCortaISO(t.desde) : 'desde ' + fCortaISO(t.desde));
-      const horas = t.semana ? 'horario por día' : (t.inicio + '–' + t.fin + (t.almuerzo ? ' · almuerzo ' + t.almuerzo : ''));
+                   : (t.hasta ? fCortaISO(t.desde) : 'from ' + fCortaISO(t.desde));
+      const horas = t.semana ? 'per-day schedule' : (t.inicio + '–' + t.fin + (t.almuerzo ? ' · lunch ' + t.almuerzo : ''));
       return '<div class="fila"><span class="fechas' + (vigente ? ' vig' : '') + '">' + esc(fechas) + '</span>' +
              '<span class="det">' + esc(horas) + (t.motivo ? ' · ' + esc(t.motivo) : '') + '</span>' +
-             '<button class="enlace" data-borrar="' + t.fila + '" type="button">Quitar</button></div>';
+             '<button class="enlace" data-borrar="' + t.fila + '" type="button">Remove</button></div>';
     }).join('');
-  } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer el historial: ' + esc(e.message) + '</div>'; }
+  } catch (e) { cont.innerHTML = '<div class="vacia">Could not read the history: ' + esc(e.message) + '</div>'; }
 }
 
 function abrirTurno(ag){
@@ -2150,32 +2154,32 @@ function abrirTurno(ag){
   const alm = ((a && a.hAlmuerzo) || '').split('-');
   $('tAlmA').value = alm[0] || ''; $('tAlmB').value = alm[1] || '';
   $('tMotivo').value = '';
-  $('tAviso').textContent = 'El turno más específico manda: uno de un solo día pesa más que uno de una semana.';
+  $('tAviso').textContent = 'The most specific shift wins: a single-day one outweighs a week-long one.';
   $('tAviso').classList.remove('mal');
   $('modalTurno').classList.add('show');
   pintarTurnos();
 }
 
 $('tGuardar').addEventListener('click', async () => {
-  if (S.demo) { toast('En modo ejemplo no se guardan turnos.'); return; }
+  if (S.demo) { toast('In sample mode, shifts are not saved.'); return; }
   const desde = $('tDesde').value, hasta = $('tHasta').value;
   const ini = $('tIni').value, fin = $('tFin').value;
   const aa = $('tAlmA').value, ab = $('tAlmB').value;
   const mal = m => { $('tAviso').textContent = m; $('tAviso').classList.add('mal'); };
-  if (!desde) return mal('Falta la fecha de inicio.');
-  if (!ini || !fin) return mal('Falta la hora de entrada o de salida.');
-  if (fin <= ini) return mal('La salida debe ser después de la entrada.');
-  if ((aa && !ab) || (!aa && ab)) return mal('Completa las dos horas del almuerzo o déjalas en blanco.');
-  if (aa && ab <= aa) return mal('El almuerzo debe terminar después de empezar.');
-  if (aa && (aa < ini || ab > fin)) return mal('El almuerzo debe estar dentro del turno.');
-  if (hasta && hasta < desde) return mal('La fecha de fin no puede ser anterior a la de inicio.');
+  if (!desde) return mal('Missing start date.');
+  if (!ini || !fin) return mal('Missing start or end time.');
+  if (fin <= ini) return mal('End must be after start.');
+  if ((aa && !ab) || (!aa && ab)) return mal('Fill both lunch times or leave them blank.');
+  if (aa && ab <= aa) return mal('Lunch must end after it starts.');
+  if (aa && (aa < ini || ab > fin)) return mal('Lunch must be within the shift.');
+  if (hasta && hasta < desde) return mal('The end date cannot be before the start date.');
 
   const btn = $('tGuardar'); btn.disabled = true;
   try {
     const j = await apiTurno({ accion: 'turno_guardar', agente: turAgente, desde: desde,
       hasta: hasta || desde, inicio: ini, fin: fin, almuerzo: aa ? aa + '-' + ab : '', motivo: $('tMotivo').value });
-    if (j.ok) { toast('Turno guardado para ' + turAgente + '.', 'ok'); $('tMotivo').value = ''; pintarTurnos(); cargar(); }
-    else mal(j.error || 'No se pudo guardar.');
+    if (j.ok) { toast('Shift saved for ' + turAgente + '.', 'ok'); $('tMotivo').value = ''; pintarTurnos(); cargar(); }
+    else mal(j.error || 'Could not save.');
   } catch (e) { mal('Error: ' + e.message); }
   btn.disabled = false;
 });
@@ -2183,12 +2187,12 @@ $('tGuardar').addEventListener('click', async () => {
 $('tLista').addEventListener('click', async ev => {
   const b = ev.target.closest('[data-borrar]');
   if (!b) return;
-  if (!confirm('¿Quitar este turno? El día vuelve a calcularse con el horario de siempre.')) return;
+  if (!confirm('Remove this shift? The day is recalculated with the usual schedule.')) return;
   b.disabled = true;
   try {
     const j = await apiTurno({ accion: 'turno_borrar', fila: b.dataset.borrar });
-    if (j.ok) { toast('Turno quitado.', 'ok'); pintarTurnos(); cargar(); }
-    else toast(j.error || 'No se pudo quitar.', 'err');
+    if (j.ok) { toast('Shift removed.', 'ok'); pintarTurnos(); cargar(); }
+    else toast(j.error || 'Could not remove.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
 });
 
@@ -2229,23 +2233,23 @@ async function pintarAutorizaciones(){
   cont.innerHTML = '<div class="vacia">Cargando…</div>';
   try {
     const j = await apiTurno({ accion: 'autorizaciones', agente: autAgente });
-    if (!j.ok) throw new Error(j.error || 'no se pudo leer');
-    if (!Array.isArray(j.autorizaciones)) throw new Error('el servidor aún no tiene las autorizaciones (falta publicar la nueva versión del script)');
-    if (!j.autorizaciones.length) { $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (ninguna)'; cont.innerHTML = '<div class="vacia">Sin autorizaciones registradas para ' + esc(autAgente) + '.</div>'; return; }
+    if (!j.ok) throw new Error(j.error || 'could not read');
+    if (!Array.isArray(j.autorizaciones)) throw new Error('the server does not have authorizations yet (publish the new script version)');
+    if (!j.autorizaciones.length) { $('auCajaTit').textContent = 'View authorizations for ' + autAgente + ' (none)'; cont.innerHTML = '<div class="vacia">No authorizations registered for ' + esc(autAgente) + '.</div>'; return; }
     await cargarEstadoMonitor();
     const nRech = j.autorizaciones.filter(t => rechazoDe(autAgente, t)).length;
-    $('auCajaTit').textContent = 'Ver autorizaciones de ' + autAgente + ' (' + j.autorizaciones.length + ', todas las fechas)' + (nRech ? ' — ⚠ ' + nRech + ' rechazada' + (nRech > 1 ? 's' : '') + ' en el TimeClock' : '');
+    $('auCajaTit').textContent = 'View authorizations for ' + autAgente + ' (' + j.autorizaciones.length + ', all dates)' + (nRech ? ' — ⚠ ' + nRech + ' rejected in the TimeClock' : '');
     cont.innerHTML = j.autorizaciones.map(t => {
       const mismoDia = t.desde.slice(0,10) === t.hasta.slice(0,10);
       const txt = mismoDia ? fCortaISO(t.desde.slice(0,10)) + ' ' + t.desde.slice(11) + '–' + t.hasta.slice(11)
                            : fCortaISO(t.desde.slice(0,10)) + ' – ' + fCortaISO(t.hasta.slice(0,10));
       const rch = rechazoDe(autAgente, t);
-      const nota3b = rch ? ' · ❌ Rechazado en el TimeClock' + (rch.respuesta ? ': ' + rch.respuesta : '') : '';
+      const nota3b = rch ? ' · ❌ Rejected in the TimeClock' + (rch.respuesta ? ': ' + rch.respuesta : '') : '';
       return '<div class="fila' + (rch ? ' rech' : '') + '"><span class="fechas">' + esc(txt) + '</span>' +
              '<span class="det">' + esc(motivoEN(t.motivo)) + (t.nota ? ' · ' + esc(t.nota) : '') + esc(nota3b) + '</span>' +
-             '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + motivoEN(t.motivo)) + '" type="button">Quitar autorización</button></div>';
+             '<button class="enlace quitaraut" data-quitaraut="' + t.fila + '" data-quitartxt="' + esc(txt + ' · ' + motivoEN(t.motivo)) + '" type="button">Remove authorization</button></div>';
     }).join('');
-  } catch (e) { cont.innerHTML = '<div class="vacia">No se pudo leer: ' + esc(e.message) + '</div>'; }
+  } catch (e) { cont.innerHTML = '<div class="vacia">Could not read: ' + esc(e.message) + '</div>'; }
 }
 
 // Un mismo tramo puede ser tres cosas, y Carlos decide cuál: tiempo perdido,
@@ -2258,11 +2262,11 @@ function pintarAuQue(){
   const q = auQue();
   $('auCampos').hidden = q !== 'autorizado';
   $('auSub').textContent =
-    q === 'autorizado' ? 'El tramo se sigue viendo en la barra, marcado como autorizado y con su motivo, pero deja de contar como tiempo perdido.'
-  : q === 'descanso'  ? 'Cuenta como uno de los dos descansos de 15 minutos del día. Lo que pase de 15 minutos sí cuenta como tiempo perdido.'
-                      : 'Cuenta completo como tiempo perdido. Si yo lo había tomado por descanso, dejo de hacerlo.';
-  $('auGuardar').textContent = q === 'autorizado' ? (autFila ? 'Guardar cambios' : 'Autorizar')
-                             : (q === 'descanso' ? 'Marcar como descanso' : 'Contar como tiempo perdido');
+    q === 'autorizado' ? 'The segment stays visible on the bar, marked as authorized with its reason, but stops counting as lost time.'
+  : q === 'descanso'  ? 'Counts as one of the two 15-minute breaks of the day. Anything beyond 15 minutes does count as lost time.'
+                      : 'Counts fully as lost time. If I had taken it as a break, it stops being one.';
+  $('auGuardar').textContent = q === 'autorizado' ? (autFila ? 'Save changes' : 'Authorize')
+                             : (q === 'descanso' ? 'Mark as break' : 'Count as lost time');
 }
 
 function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
@@ -2286,8 +2290,8 @@ function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
   pintarMiMarca(ag);
   $('auCaja').open = !!autFila;
   $('auAviso').textContent = autFila
-    ? 'Este periodo ya está autorizado. Si guardas, se reemplaza la autorización.'
-    : 'Para vacaciones o incapacidad puedes poner un rango de varios días.';
+    ? 'This period is already authorized. If you save, the authorization is replaced.'
+    : 'For vacation or sick leave you can set a range of several days.';
   $('auAviso').classList.remove('mal');
   pintarAuQue();
   $('modalAut').classList.add('show');
@@ -2300,8 +2304,8 @@ function pintarMiMarca(ag){
   if (!autMarca) return;
   const a = ((S.data && S.data.agentes) || []).find(x => x.agente === ag) || {};
   const m = (a.marcasDesc || []).find(x => Number(x.fila) === autMarca);
-  const como = m && m.accion === 'no' ? 'como tiempo perdido' : 'como descanso';
-  $('auMarcaQue').textContent = 'Este tramo lo marcaste tú ' + como + (m ? ' (' + hora(m.ini) + ' – ' + hora(m.fin) + ')' : '') + '.';
+  const como = m && m.accion === 'no' ? 'as lost time' : 'as a break';
+  $('auMarcaQue').textContent = 'You marked this segment ' + como + (m ? ' (' + hora(m.ini) + ' – ' + hora(m.fin) + ')' : '') + '.';
 }
 
 // Valor GUARDADO estable (español) + etiqueta en inglés + grupo. No cambiar los valores: son dato histórico
@@ -2337,22 +2341,22 @@ $('auDia').addEventListener('click', () => {
 });
 
 $('auGuardar').addEventListener('click', async () => {
-  if (S.demo) { toast('En modo ejemplo no se guarda nada.'); return; }
+  if (S.demo) { toast('In sample mode, nothing is saved.'); return; }
   const mal = m => { $('auAviso').textContent = m; $('auAviso').classList.add('mal'); };
   const d = $('auDesdeF').value, dh = $('auDesdeH').value;
   const h = $('auHastaF').value, hh2 = $('auHastaH').value;
-  if (!d || !dh || !h || !hh2) return mal('Completa las dos fechas con su hora.');
-  if ((h + ' ' + hh2) <= (d + ' ' + dh)) return mal('El fin debe ser posterior al inicio.');
+  if (!d || !dh || !h || !hh2) return mal('Fill both dates with their time.');
+  if ((h + ' ' + hh2) <= (d + ' ' + dh)) return mal('The end must be after the start.');
   const q = auQue();
-  if (q !== 'autorizado' && d !== h) return mal('Un descanso empieza y termina el mismo día.');
+  if (q !== 'autorizado' && d !== h) return mal('A break starts and ends on the same day.');
   const btn = $('auGuardar'); btn.disabled = true;
   try {
     const quien = (S.portalUser && (S.portalUser.nombre || S.portalUser.username)) || '';
     if (q === 'autorizado') {
       const j = await apiTurno({ accion: 'autorizar', agente: autAgente, desde: d + ' ' + dh, hasta: h + ' ' + hh2,
         motivo: $('auMotivo').value, nota: $('auNota').value, autorizo: quien, fila: autFila });
-      if (j.ok) { toast('Periodo autorizado para ' + autAgente + '.', 'ok'); autFila = 0; pintarAutorizaciones(); cargar(); }
-      else mal(j.error || 'No se pudo autorizar.');
+      if (j.ok) { toast('Period authorized for ' + autAgente + '.', 'ok'); autFila = 0; pintarAutorizaciones(); cargar(); }
+      else mal(j.error || 'Could not authorize.');
     } else {
       // Si el tramo estaba autorizado, esa autorización deja de tener sentido.
       if (autFila) { await apiTurno({ accion: 'autorizar_borrar', fila: autFila }); autFila = 0; }
@@ -2361,26 +2365,26 @@ $('auGuardar').addEventListener('click', async () => {
         j = await apiTurno({ accion: 'descanso_marcar', agente: autAgente, desde: d + ' ' + dh,
           hasta: h + ' ' + hh2, tipo: q === 'descanso' ? 'descanso' : 'no', nota: quien });
       }
-      if (j.agentes) mal('El servidor todavía no tiene esta opción: falta publicar la nueva versión del script.');
+      if (j.agentes) mal('The server does not have this option yet: publish the new script version.');
       else if (j.ok) {
-        toast(q === 'descanso' ? 'Marcado como descanso de ' + autAgente + '.'
-                               : 'Ese rato vuelve a contar como tiempo perdido.', 'ok');
+        toast(q === 'descanso' ? 'Marked as a break for ' + autAgente + '.'
+                               : 'That time counts as lost time again.', 'ok');
         autMarca = 0; pintarAutorizaciones(); cargar();
-      } else mal(j.error || 'No se pudo guardar.');
+      } else mal(j.error || 'Could not save.');
     }
   } catch (e) { mal('Error: ' + e.message); }
   btn.disabled = false;
 });
 
 $('auAuto').addEventListener('click', async () => {
-  if (S.demo) { toast('En modo ejemplo no se guarda nada.'); return; }
+  if (S.demo) { toast('In sample mode, nothing is saved.'); return; }
   if (!autMarca) return;
   const btn = $('auAuto'); btn.disabled = true;
   try {
     const j = await apiTurno({ accion: 'descanso_borrar', fila: autMarca });
-    if (j.agentes) toast('El servidor todavía no tiene esta opción: falta publicar la nueva versión del script.', 'err');
-    else if (j.ok) { toast('Listo: quitaste tu marca y ese tramo vuelve a calcularse solo.', 'ok'); autMarca = 0; $('auMarca').hidden = true; cargar(); }
-    else toast(j.error || 'No se pudo quitar la marca.', 'err');
+    if (j.agentes) toast('The server does not have this option yet: publish the new script version.', 'err');
+    else if (j.ok) { toast('Done: your mark is removed and that segment is recalculated automatically.', 'ok'); autMarca = 0; $('auMarca').hidden = true; cargar(); }
+    else toast(j.error || 'Could not remove the mark.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
   btn.disabled = false;
 });
@@ -2388,12 +2392,12 @@ $('auAuto').addEventListener('click', async () => {
 $('auLista').addEventListener('click', async ev => {
   const b = ev.target.closest('[data-quitaraut]');
   if (!b) return;
-  if (!confirm('¿Quitar la autorización de ' + autAgente + ' del ' + (b.dataset.quitartxt || '') + '?\n\nEse periodo volverá a contar como tiempo perdido. (Esto no quita marcas de descanso.)')) return;
+  if (!confirm('Remove the authorization for ' + autAgente + ' on ' + (b.dataset.quitartxt || '') + '?\n\nThat period will count as lost time again. (This does not remove break marks.)')) return;
   b.disabled = true;
   try {
     const j = await apiTurno({ accion: 'autorizar_borrar', fila: b.dataset.quitaraut });
-    if (j.ok) { toast('Autorización quitada.', 'ok'); pintarAutorizaciones(); cargar(); }
-    else toast(j.error || 'No se pudo quitar.', 'err');
+    if (j.ok) { toast('Authorization removed.', 'ok'); pintarAutorizaciones(); cargar(); }
+    else toast(j.error || 'Could not remove.', 'err');
   } catch (e) { toast('Error: ' + e.message, 'err'); }
 });
 
@@ -2405,12 +2409,12 @@ $('modalAut').addEventListener('click', ev => { if (ev.target.id === 'modalAut')
 // con la versión 2.5 o posterior.
 async function pedirEquipos(){
   const url = apiUrl(), tok = store.get('token');
-  if (!url || !tok) throw new Error('Configura la conexión en Ajustes');
+  if (!url || !tok) throw new Error('Set up the connection in Settings');
   const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=equipos';
   const r = await fetch(q, { redirect: 'follow' });
   const d = await r.json();
-  if (!d.ok) throw new Error(d.error || 'no se pudo leer el inventario');
-  if (!Array.isArray(d.equipos)) throw new Error('el servidor aún no tiene el inventario (falta publicar la nueva versión del script)');
+  if (!d.ok) throw new Error(d.error || 'could not read the inventory');
+  if (!Array.isArray(d.equipos)) throw new Error('the server does not have the inventory yet (publish the new script version)');
   return d.equipos;
 }
 
@@ -2447,12 +2451,12 @@ function excelEquipos(equipos){
   };
   const Cm = (v, s, n) => '<Cell ss:StyleID="' + s + '" ss:MergeAcross="' + (n - 1) + '"><Data ss:Type="String">' + x(v) + '</Data></Cell>';
   const Row = c => '<Row>' + c + '</Row>';
-  const cols = ['Agente', 'Equipo', 'Usuario de Windows', 'Correo', 'Marca', 'Modelo', 'Número de serie', 'Windows', 'Windows instalado', 'RAM (GB)', 'Disco (GB)', 'Libre (GB)', 'Última señal'];
+  const cols = ['Agent', 'Device', 'Windows user', 'Email', 'Brand', 'Model', 'Serial number', 'Windows', 'Windows installed', 'RAM (GB)', 'Disk (GB)', 'Free (GB)', 'Last signal'];
   const nc = cols.length;
 
   const filas = [
-    Row(Cm('Equipos asignados — 24/7 Medical Aid', 'tit', nc)),
-    Row(Cm('Generado ' + new Date().toLocaleString('es-US') + ' · ' + equipos.length + ' equipo(s)', 'sub', nc)),
+    Row(Cm('Assigned devices — 24/7 Medical Aid', 'tit', nc)),
+    Row(Cm('Generated ' + new Date().toLocaleString('en-US') + ' · ' + equipos.length + ' device(s)', 'sub', nc)),
     Row(Cm('', 'sub', nc)),
     Row(cols.map(c => C(c, 'hdr')).join(''))
   ];
@@ -2461,19 +2465,19 @@ function excelEquipos(equipos){
     filas.push(Row(
       C(e.agente, 'tb') + C(e.equipo, 't') + C(e.usuario, 't') + C(e.email, 't') +
       C(e.marca, 't') + C(e.modelo, 't') +
-      (falta(e.serie) ? C('sin dato', 'falta') : C(e.serie, 'tc')) +
+      (falta(e.serie) ? C('no data', 'falta') : C(e.serie, 'tc')) +
       C(e.windows, 't') + C(fechaInst(e.instalado), fechaInst(e.instalado) ? 'fe' : 'tc') +
       C(e.ramGb, 'n') + C(e.discoGb, 'n') + C(e.libreGb, 'n') +
       (e.visto ? C(new Date(e.visto), 'fe') : C('', 'tc'))
     ));
   });
   filas.push(Row(Cm('', 'nota', nc)));
-  filas.push(Row(Cm('Los datos los envía el monitor de cada equipo al encenderse. Un equipo aparece aquí la primera vez que arranca con la versión 2.5 o posterior. "Sin dato" en el número de serie significa que el fabricante no lo dejó grabado en el BIOS.', 'nota', nc)));
+  filas.push(Row(Cm('The data is sent by each device\u2019s monitor when it powers on. A device appears here the first time it starts with version 2.5 or later. "No data" in the serial number means the manufacturer did not record it in the BIOS.', 'nota', nc)));
 
   const anchos = [120, 100, 100, 150, 90, 150, 120, 150, 90, 65, 70, 70, 80];
   const xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' + estilos +
-    '<Worksheet ss:Name="Equipos"><Table>' + anchos.map(w => '<Column ss:Width="' + w + '"/>').join('') + filas.join('') + '</Table>' +
+    '<Worksheet ss:Name="Devices"><Table>' + anchos.map(w => '<Column ss:Width="' + w + '"/>').join('') + filas.join('') + '</Table>' +
     '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>4</SplitHorizontal>' +
     '<TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet></Workbook>';
   return xml;
@@ -2482,20 +2486,20 @@ function excelEquipos(equipos){
 async function descargarEquipos(){
   const btn = $('btnEquipos');
   const antes = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Preparando…';
+  btn.disabled = true; btn.textContent = 'Preparing…';
   try {
     const equipos = await pedirEquipos();
     if (!equipos.length) {
-      toast('Todavía no hay equipos en el inventario. Cada equipo se registra la primera vez que enciende con el monitor 2.5 o posterior.', 'err');
+      toast('No devices in the inventory yet. Each device is registered the first time it powers on with monitor 2.5 or later.', 'err');
     } else {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(['﻿' + excelEquipos(equipos)], { type: 'application/vnd.ms-excel;charset=utf-8' }));
-      a.download = 'equipos_asignados_' + new Date().toISOString().slice(0, 10) + '.xls';
+      a.download = 'assigned_devices_' + new Date().toISOString().slice(0, 10) + '.xls';
       document.body.appendChild(a); a.click(); a.remove();
       const sinSerie = equipos.filter(e => !e.serie).length;
-      toast('Inventario descargado: ' + equipos.length + ' equipo(s)' + (sinSerie ? ', ' + sinSerie + ' sin número de serie' : '') + '.', 'ok');
+      toast('Inventory downloaded: ' + equipos.length + ' device(s)' + (sinSerie ? ', ' + sinSerie + ' without serial number' : '') + '.', 'ok');
     }
-  } catch (e) { toast('No se pudo generar el inventario: ' + e.message, 'err'); }
+  } catch (e) { toast('Could not generate the inventory: ' + e.message, 'err'); }
   btn.textContent = antes; btn.disabled = false;
 }
 
@@ -2507,10 +2511,10 @@ $('btnEquipos').addEventListener('click', descargarEquipos);
 // (solo administradores). La clave nunca llega al navegador, ni su huella.
 const KL = { datos: null, anulando: null };
 async function pedirClaves(){
-  if (!window.sb) throw new Error('Supabase no está disponible en esta página');
+  if (!window.sb) throw new Error('Supabase is not available on this page');
   if (window.sbPendiente) { try { await window.sbPendiente; } catch(e){} }
   const ses = await window.sb.auth.getSession();
-  if (!ses.data.session) throw new Error('La sesión de Supabase no está activa: salga del portal y vuelva a entrar');
+  if (!ses.data.session) throw new Error('The Supabase session is not active: sign out of the portal and sign back in');
   const r = await window.sb.rpc('monitor_equipos_lista');
   if (r.error) throw new Error(r.error.message);
   return r.data;
@@ -2520,9 +2524,9 @@ async function pedirClaves(){
 function pintarBotonClaves(){
   const n = KL.datos ? KL.datos.equipos.filter(e => e.estado === 'pendiente').length : 0;
   const b = $('btnCfg');
-  b.textContent = n ? 'Ajustes (' + n + ' por aprobar)' : 'Ajustes';
+  b.textContent = n ? 'Settings (' + n + ' to approve)' : 'Settings';
   b.classList.toggle('alerta', n > 0);
-  $('ajClavesN').hidden = !n; $('ajClavesN').textContent = n + ' por aprobar';
+  $('ajClavesN').hidden = !n; $('ajClavesN').textContent = n + ' to approve';
 }
 async function refrescarBotonClaves(){
   if (S.demo || document.hidden) return;
@@ -2531,29 +2535,29 @@ async function refrescarBotonClaves(){
 function kFecha(iso){
   if (!iso) return '—';
   const d = new Date(iso), min = Math.round((Date.now() - d.getTime()) / 60000);
-  if (min < 2) return 'hace un momento';
-  if (min < 60) return 'hace ' + min + ' min';
-  if (min < 24 * 60) return 'hace ' + Math.round(min / 60) + ' h';
-  return d.toLocaleDateString('es', { timeZone: 'America/New_York', day: 'numeric', month: 'short' }) + ' ' +
-         d.toLocaleTimeString('es', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  if (min < 2) return 'just now';
+  if (min < 60) return min + ' min ago';
+  if (min < 24 * 60) return Math.round(min / 60) + ' h ago';
+  return d.toLocaleDateString('en', { timeZone: 'America/New_York', day: 'numeric', month: 'short' }) + ' ' +
+         d.toLocaleTimeString('en', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 }
 function kFila(e, puede){
-  const que = e.origen === 'reemision' ? 'Pidió otra clave: PC reinstalado, o alguien usando el mismo nombre de equipo' :
-              e.origen === 'nuevo' ? 'Equipo nuevo' : 'Equipo que ya reportaba';
+  const que = e.origen === 'reemision' ? 'Requested another key: PC reinstalled, or someone using the same device name' :
+              e.origen === 'nuevo' ? 'New device' : 'Device that was already reporting';
   const det = [
-    'Equipo <b>' + esc(e.equipo) + '</b>' + (e.usuario ? ' · usuario de Windows ' + esc(e.usuario) : '') + (e.version ? ' · v' + esc(e.version) : ''),
-    e.estado === 'pendiente' ? esc(que) + ' · pidió la clave ' + kFecha(e.creado) + (e.ultimo_uso ? ' · último intento ' + kFecha(e.ultimo_uso) : '') :
-    e.estado === 'aprobado' ? 'Último latido con su clave: ' + kFecha(e.ultimo_uso) + (e.decidido_por ? ' · aprobado por ' + esc(e.decidido_por) : (e.origen === 'migracion' ? ' · aprobado solo (ya reportaba)' : '')) :
-    'Anulado ' + kFecha(e.decidido_en) + (e.decidido_por ? ' por ' + esc(e.decidido_por) : '') + (e.motivo ? ' · ' + esc(e.motivo) : '') + (e.ultimo_uso && e.decidido_en && e.ultimo_uso > e.decidido_en ? ' · <b>sigue intentando:</b> ' + kFecha(e.ultimo_uso) : '')
+    'Device <b>' + esc(e.equipo) + '</b>' + (e.usuario ? ' · Windows user ' + esc(e.usuario) : '') + (e.version ? ' · v' + esc(e.version) : ''),
+    e.estado === 'pendiente' ? esc(que) + ' · requested the key ' + kFecha(e.creado) + (e.ultimo_uso ? ' · last attempt ' + kFecha(e.ultimo_uso) : '') :
+    e.estado === 'aprobado' ? 'Last heartbeat with its key: ' + kFecha(e.ultimo_uso) + (e.decidido_por ? ' · approved by ' + esc(e.decidido_por) : (e.origen === 'migracion' ? ' · approved automatically (was already reporting)' : '')) :
+    'Revoked ' + kFecha(e.decidido_en) + (e.decidido_por ? ' by ' + esc(e.decidido_por) : '') + (e.motivo ? ' · ' + esc(e.motivo) : '') + (e.ultimo_uso && e.decidido_en && e.ultimo_uso > e.decidido_en ? ' · <b>still trying:</b> ' + kFecha(e.ultimo_uso) : '')
   ].join('<br>');
   let acc = '';
-  if (puede && e.estado === 'pendiente') acc += '<button class="btn primary" type="button" data-kaprobar="' + e.id + '">Aprobar</button>';
-  if (puede && e.estado !== 'anulado') acc += '<button class="btn peligro" type="button" data-kanular="' + e.id + '">' + (e.estado === 'pendiente' ? 'Rechazar' : 'Anular') + '</button>';
+  if (puede && e.estado === 'pendiente') acc += '<button class="btn primary" type="button" data-kaprobar="' + e.id + '">Approve</button>';
+  if (puede && e.estado !== 'anulado') acc += '<button class="btn peligro" type="button" data-kanular="' + e.id + '">' + (e.estado === 'pendiente' ? 'Reject' : 'Revoke') + '</button>';
   let motivo = '';
-  if (KL.anulando === e.id) motivo = '<div class="kmotivo"><input id="kMotivo" maxlength="200" placeholder="Motivo (obligatorio, ej. portátil perdido)" aria-label="Motivo">' +
-    '<button class="btn peligro" type="button" data-kconfirmar="' + e.id + '">Confirmar: este PC deja de reportar</button>' +
-    '<button class="btn" type="button" data-kcancelar="1">Cancelar</button></div>';
-  return '<div class="krow"><div><div class="kq">' + esc(e.agente || '(sin nombre)') + (e.cuenta ? ' <span class="kd">· ' + esc(e.cuenta) + '</span>' : '') + '</div>' +
+  if (KL.anulando === e.id) motivo = '<div class="kmotivo"><input id="kMotivo" maxlength="200" placeholder="Reason (required, e.g. laptop lost)" aria-label="Reason">' +
+    '<button class="btn peligro" type="button" data-kconfirmar="' + e.id + '">Confirm: this PC stops reporting</button>' +
+    '<button class="btn" type="button" data-kcancelar="1">Cancel</button></div>';
+  return '<div class="krow"><div><div class="kq">' + esc(e.agente || '(no name)') + (e.cuenta ? ' <span class="kd">· ' + esc(e.cuenta) + '</span>' : '') + '</div>' +
     '<div class="kd">' + det + '</div></div><div class="ka">' + acc + '</div>' + motivo + '</div>';
 }
 function pintarClaves(){
@@ -2562,27 +2566,27 @@ function pintarClaves(){
   const pend = d.equipos.filter(e => e.estado === 'pendiente'), apr = d.equipos.filter(e => e.estado === 'aprobado'),
         anu = d.equipos.filter(e => e.estado === 'anulado'), sin = d.sin_clave || [];
   let res;
-  if (pend.length) res = '<div class="banner aviso">' + pend.length + ' equipo(s) esperando aprobación. Apruebe solo los que reconozca.</div>';
-  else if (sin.length) res = '<div class="banner aviso">' + apr.length + ' equipo(s) ya tienen su clave · ' + sin.length + ' todavía reportan sin clave (se ponen al día solos al actualizarse a la 2.7).</div>';
-  else res = '<div class="banner ok">Todos los equipos que reportan tienen su clave (' + apr.length + ').</div>';
-  if (!puede) res += '<div class="hint">Solo un administrador puede aprobar o anular equipos.</div>';
+  if (pend.length) res = '<div class="banner aviso">' + pend.length + ' device(s) waiting for approval. Approve only the ones you recognize.</div>';
+  else if (sin.length) res = '<div class="banner aviso">' + apr.length + ' device(s) already have their key · ' + sin.length + ' still report without a key (they catch up on their own when they update to 2.7).</div>';
+  else res = '<div class="banner ok">All reporting devices have their key (' + apr.length + ').</div>';
+  if (!puede) res += '<div class="hint">Only an administrator can approve or revoke devices.</div>';
   $('kResumen').innerHTML = res;
   let h = '';
-  if (pend.length) h += '<div class="kgrupo">Esperando aprobación</div>' + pend.map(e => kFila(e, puede)).join('');
-  if (sin.length) h += '<div class="kgrupo">Reportan todavía sin clave</div>' + sin.map(x =>
-    '<div class="krow"><div><div class="kq">' + esc(x.agente || '(sin nombre)') + '</div><div class="kd">Equipo <b>' + esc(x.equipo) +
-    '</b> · último latido ' + kFecha(x.ultimo) + '. Recibe su clave sola al actualizarse a la 2.7.</div></div><div class="ka"></div></div>').join('');
-  if (apr.length) h += '<div class="kgrupo">Con clave</div>' + apr.map(e => kFila(e, puede)).join('');
-  if (anu.length) h += '<details><summary class="kgrupo">Anulados (' + anu.length + ')</summary>' + anu.map(e => kFila(e, puede)).join('') + '</details>';
-  $('kLista').innerHTML = h || '<div class="hint">Todavía no hay equipos con clave. Aparecen solos cuando se actualizan al monitor 2.7.</div>';
+  if (pend.length) h += '<div class="kgrupo">Waiting for approval</div>' + pend.map(e => kFila(e, puede)).join('');
+  if (sin.length) h += '<div class="kgrupo">Still reporting without a key</div>' + sin.map(x =>
+    '<div class="krow"><div><div class="kq">' + esc(x.agente || '(no name)') + '</div><div class="kd">Device <b>' + esc(x.equipo) +
+    '</b> · last heartbeat ' + kFecha(x.ultimo) + '. It gets its key automatically when it updates to 2.7.</div></div><div class="ka"></div></div>').join('');
+  if (apr.length) h += '<div class="kgrupo">With key</div>' + apr.map(e => kFila(e, puede)).join('');
+  if (anu.length) h += '<details><summary class="kgrupo">Revoked (' + anu.length + ')</summary>' + anu.map(e => kFila(e, puede)).join('') + '</details>';
+  $('kLista').innerHTML = h || '<div class="hint">No devices with a key yet. They appear on their own when they update to monitor 2.7.</div>';
   pintarBotonClaves();
   if (KL.anulando) { const i = $('kMotivo'); if (i) i.focus(); }
 }
 async function abrirClaves(){
-  if (S.demo) { toast('En la demostración no hay claves de equipos.', 'err'); return; }
+  if (S.demo) { toast('There are no device keys in the demo.', 'err'); return; }
   KL.anulando = null;
   $('modalClaves').classList.add('show');
-  if (KL.datos) pintarClaves(); else $('kLista').innerHTML = '<div class="hint">Cargando…</div>';
+  if (KL.datos) pintarClaves(); else $('kLista').innerHTML = '<div class="hint">Loading…</div>';
   await recargarClaves();
 }
 async function recargarClaves(){
@@ -2590,14 +2594,14 @@ async function recargarClaves(){
   catch(e){ $('kResumen').innerHTML = ''; $('kLista').innerHTML = '<div class="banner err">' + esc(e.message) + '</div>'; }
 }
 async function decidirClave(id, accion, motivo, boton){
-  if (boton) { boton.disabled = true; boton.textContent = 'Guardando…'; }
+  if (boton) { boton.disabled = true; boton.textContent = 'Saving…'; }
   try {
     const r = await window.sb.rpc('monitor_equipo_decidir', { p_id: id, p_accion: accion, p_motivo: motivo || '' });
     if (r.error) throw new Error(r.error.message);
     KL.anulando = null;
-    toast(accion === 'aprobar' ? 'Equipo aprobado: sus datos guardados se envían en el próximo minuto.' : 'Equipo anulado: deja de reportar desde ya.', 'ok');
+    toast(accion === 'aprobar' ? 'Device approved: its saved data is sent within the next minute.' : 'Device revoked: it stops reporting right away.', 'ok');
     await recargarClaves();
-  } catch(e){ toast('No se pudo guardar: ' + e.message, 'err'); if (boton) { boton.disabled = false; boton.textContent = accion === 'aprobar' ? 'Aprobar' : 'Confirmar'; } }
+  } catch(e){ toast('Could not save: ' + e.message, 'err'); if (boton) { boton.disabled = false; boton.textContent = accion === 'aprobar' ? 'Approve' : 'Confirm'; } }
 }
 $('kLista').addEventListener('click', ev => {
   const b = ev.target.closest('button'); if (!b) return;
@@ -2606,7 +2610,7 @@ $('kLista').addEventListener('click', ev => {
   else if (b.dataset.kcancelar) { KL.anulando = null; pintarClaves(); }
   else if (b.dataset.kconfirmar) {
     const m = (($('kMotivo') || {}).value || '').trim();
-    if (!m) { toast('Escriba el motivo antes de anular el equipo.', 'err'); if ($('kMotivo')) $('kMotivo').focus(); return; }
+    if (!m) { toast('Enter the reason before revoking the device.', 'err'); if ($('kMotivo')) $('kMotivo').focus(); return; }
     decidirClave(b.dataset.kconfirmar, 'anular', m, b);
   }
 });
@@ -2632,24 +2636,24 @@ function ubDist(a, b){
 }
 function ubTxt(m){
   if (m == null || !isFinite(m)) return '';
-  if (m < 160) return Math.max(10, Math.round(m * 3.28084 / 10) * 10) + ' pies';
+  if (m < 160) return Math.max(10, Math.round(m * 3.28084 / 10) * 10) + ' ft';
   const mi = m / 1609.344; return (mi < 10 ? mi.toFixed(1).replace('.', ',') : String(Math.round(mi))) + ' mi';
 }
 const ubMapa = (lat, lng) => 'https://www.google.com/maps/search/?api=1&query=' + Number(lat).toFixed(6) + ',' + Number(lng).toFixed(6);
-const UB_FALLA = { apagada: 'ubicación apagada en Windows', denegada: 'Windows no da permiso a la ubicación', sin_dato: 'Windows no encontró la ubicación', error: 'no se pudo leer la ubicación' };
-const UB_AYUDA = 'En el PC: Configuración > Privacidad y seguridad > Ubicación > encender «Servicios de ubicación» y «Permitir que las aplicaciones de escritorio accedan a su ubicación».';
+const UB_FALLA = { apagada: 'location turned off in Windows', denegada: 'Windows denies location permission', sin_dato: 'Windows could not find the location', error: 'could not read the location' };
+const UB_AYUDA = 'On the PC: Settings > Privacy & security > Location > turn on “Location services” and “Let desktop apps access your location”.';
 // Estado resumido de un equipo: { nivel: 'warn'|'', txt, tit, lejos, falla }
 function ubEstado(x){
   const b = x.buena, u = x.ultimo, l = x.empleado && x.empleado.lugar;
-  if (x.perdido) return { nivel: 'warn', txt: 'PERDIDO', perdido: true, tit: 'Marcado como perdido ' + kFecha(x.perdido.desde) + (x.perdido.por ? ' por ' + x.perdido.por : '') + '. Manda su ubicación cada 5 minutos.' };
+  if (x.perdido) return { nivel: 'warn', txt: 'LOST', perdido: true, tit: 'Marked as lost ' + kFecha(x.perdido.desde) + (x.perdido.por ? ' by ' + x.perdido.por : '') + '. It sends its location every 5 minutes.' };
   if (u && u.estado !== 'ok' && (!b || Date.parse(u.ts) > Date.parse(b.ts)))
-    return { nivel: 'warn', txt: u.estado === 'denegada' ? 'sin permiso' : u.estado === 'apagada' ? 'apagada' : 'sin dato', falla: true,
-             tit: 'Último intento ' + kFecha(u.ts) + ': ' + (UB_FALLA[u.estado] || u.estado) + '. ' + UB_AYUDA };
+    return { nivel: 'warn', txt: u.estado === 'denegada' ? 'no permission' : u.estado === 'apagada' ? 'off' : 'no data', falla: true,
+             tit: 'Last attempt ' + kFecha(u.ts) + ': ' + (UB_FALLA[u.estado] || u.estado) + '. ' + UB_AYUDA };
   if (!b) return null;
-  if (!l) return { nivel: '', txt: kFecha(b.ts), tit: 'Ubicación recibida ' + kFecha(b.ts) + '. Sin lugar de trabajo aprobado: se fija en el Time Clock.' };
+  if (!l) return { nivel: '', txt: kFecha(b.ts), tit: 'Location received ' + kFecha(b.ts) + '. No approved work location: set it in the Time Clock.' };
   const d = ubDist(l, b), lejos = d > l.radio + (b.prec || 0);
-  return lejos ? { nivel: 'warn', txt: 'a ' + ubTxt(d), lejos: true, tit: 'Ubicación de ' + kFecha(b.ts) + ': a ' + ubTxt(d) + ' de su lugar de trabajo (±' + ubTxt(b.prec || 0) + ').' }
-               : { nivel: '', txt: 'en su lugar', tit: 'Ubicación de ' + kFecha(b.ts) + ': en su lugar de trabajo (a ' + ubTxt(d) + ', ±' + ubTxt(b.prec || 0) + ').' };
+  return lejos ? { nivel: 'warn', txt: ubTxt(d) + ' away', lejos: true, tit: 'Location from ' + kFecha(b.ts) + ': ' + ubTxt(d) + ' from their work location (±' + ubTxt(b.prec || 0) + ').' }
+               : { nivel: '', txt: 'at their site', tit: 'Location from ' + kFecha(b.ts) + ': at their work location (' + ubTxt(d) + ', ±' + ubTxt(b.prec || 0) + ').' };
 }
 function ubicHtml(a){
   const x = UB.porAgente[String(a.agente || '').trim().toLowerCase()];
@@ -2658,9 +2662,9 @@ function ubicHtml(a){
   if (!x.perdido && !recien(x.ultimo && x.ultimo.ts)) return '';
   const e = ubEstado(x); if (!e) return '';
   const b = x.buena;
-  if (!b) return mi('Ubicación', esc(e.txt), e.nivel, e.tit);
-  return '<a class="mi-link" href="' + ubMapa(b.lat, b.lng) + '" target="_blank" rel="noopener" aria-label="Ver en el mapa la ubicación de ' + esc(a.agente) + '">' +
-    mi('Ubicación', esc(e.txt), e.nivel, e.tit + ' Clic para verla en el mapa.') + '</a>';
+  if (!b) return mi('Location', esc(e.txt), e.nivel, e.tit);
+  return '<a class="mi-link" href="' + ubMapa(b.lat, b.lng) + '" target="_blank" rel="noopener" aria-label="View ' + esc(a.agente) + '’s location on the map">' +
+    mi('Location', esc(e.txt), e.nivel, e.tit + ' Click to view it on the map.') + '</a>';
 }
 function indexarUbic(){
   UB.porAgente = {};
@@ -2669,10 +2673,10 @@ function indexarUbic(){
     const prev = UB.porAgente[k]; if (!prev || (x.perdido && !prev.perdido) || (!prev.perdido && t(x) > t(prev))) UB.porAgente[k] = x; });
 }
 async function pedirUbic(){
-  if (!window.sb) throw new Error('Supabase no está disponible en esta página');
+  if (!window.sb) throw new Error('Supabase is not available on this page');
   if (window.sbPendiente) { try { await window.sbPendiente; } catch(e){} }
   const ses = await window.sb.auth.getSession();
-  if (!ses.data.session) throw new Error('La sesión de Supabase no está activa: salga del portal y vuelva a entrar');
+  if (!ses.data.session) throw new Error('The Supabase session is not active: sign out of the portal and sign back in');
   const r = await window.sb.rpc('monitor_ubicaciones_panel');
   if (r.error) throw new Error(r.error.message);
   return r.data || [];
@@ -2680,7 +2684,7 @@ async function pedirUbic(){
 function pintarBotonUbic(){
   const n = (UB.datos || []).filter(x => { const e = ubEstado(x); return e && e.nivel === 'warn'; }).length;
   const b = $('btnUbic'); b.hidden = false;
-  b.textContent = n ? 'Ubicaciones (' + n + ')' : 'Ubicaciones';
+  b.textContent = n ? 'Locations (' + n + ')' : 'Locations';
   b.classList.toggle('alerta', n > 0);
 }
 async function refrescarUbic(){
@@ -2694,63 +2698,63 @@ async function refrescarUbic(){
 function uFila(x){
   const e = ubEstado(x) || { nivel: '' }, b = x.buena, u = x.ultimo, emp = x.empleado, l = emp && emp.lugar;
   const det = [];
-  det.push('Equipo <b>' + esc(x.equipo) + '</b>' + (emp ? ' · Time Clock: ' + esc(emp.nombre) : ''));
-  if (x.perdido) det.push('<b>Perdido</b> desde ' + kFecha(x.perdido.desde) + (x.perdido.por ? ' · marcado por ' + esc(x.perdido.por) : '') + (x.perdido.nota ? ' · ' + esc(x.perdido.nota) : ''));
+  det.push('Device <b>' + esc(x.equipo) + '</b>' + (emp ? ' · Time Clock: ' + esc(emp.nombre) : ''));
+  if (x.perdido) det.push('<b>Lost</b> since ' + kFecha(x.perdido.desde) + (x.perdido.por ? ' · marked by ' + esc(x.perdido.por) : '') + (x.perdido.nota ? ' · ' + esc(x.perdido.nota) : ''));
   if (b) {
-    let t = 'Última ubicación ' + kFecha(b.ts) + ' (±' + ubTxt(b.prec || 0) + ')';
-    if (l) { const d = ubDist(l, b); t += d > l.radio + (b.prec || 0) ? ' · <b>a ' + ubTxt(d) + ' de su lugar de trabajo</b>' : ' · en su lugar de trabajo'; }
-    t += ' · <a href="' + ubMapa(b.lat, b.lng) + '" target="_blank" rel="noopener">ver en el mapa</a>';
+    let t = 'Last location ' + kFecha(b.ts) + ' (±' + ubTxt(b.prec || 0) + ')';
+    if (l) { const d = ubDist(l, b); t += d > l.radio + (b.prec || 0) ? ' · <b>' + ubTxt(d) + ' from their work location</b>' : ' · at their work location'; }
+    t += ' · <a href="' + ubMapa(b.lat, b.lng) + '" target="_blank" rel="noopener">view on the map</a>';
     det.push(t);
-  } else det.push('Todavía no hay ubicación de este equipo' + (u ? '' : ' (llega cuando el monitor se actualice a la 2.8 y esté en turno)') + '.');
+  } else det.push('No location from this device yet' + (u ? '' : ' (it arrives when the monitor updates to 2.8 and the device is on shift)') + '.');
   if (e.falla) det.push('⚠ ' + esc(e.tit));
-  if (!emp) det.push('No está vinculado a un empleado del Time Clock (Time Clock > Users > «Agent in the Monitor»): no se puede comparar con su lugar de trabajo.');
-  else if (!l) det.push('Sin lugar de trabajo aprobado: en el Time Clock, abra un día con sus marcas y elija «Use as work location».');
+  if (!emp) det.push('Not linked to a Time Clock employee (Time Clock > Users > “Agent in the Monitor”): it cannot be compared with their work location.');
+  else if (!l) det.push('No approved work location: in the Time Clock, open a day with their punches and choose “Use as work location”.');
   let acc = '';
-  acc = '<button class="btn" type="button" data-uhist="' + esc(x.equipo) + '">' + (UB.hist[x.equipo] ? 'Ocultar historial' : 'Historial') + '</button>';
-  if (x.perdido) acc += '<button class="btn" type="button" data-urec="' + esc(x.equipo) + '">' + (UB.recorrido[x.equipo] ? 'Ocultar recorrido' : 'Ver recorrido') + '</button>' +
-                       '<button class="btn" type="button" data-uapar="' + esc(x.equipo) + '">Ya apareció</button>';
-  else acc += '<button class="btn peligro" type="button" data-uperd="' + esc(x.equipo) + '">Marcar perdido</button>';
+  acc = '<button class="btn" type="button" data-uhist="' + esc(x.equipo) + '">' + (UB.hist[x.equipo] ? 'Hide history' : 'History') + '</button>';
+  if (x.perdido) acc += '<button class="btn" type="button" data-urec="' + esc(x.equipo) + '">' + (UB.recorrido[x.equipo] ? 'Hide route' : 'View route') + '</button>' +
+                       '<button class="btn" type="button" data-uapar="' + esc(x.equipo) + '">It turned up</button>';
+  else acc += '<button class="btn peligro" type="button" data-uperd="' + esc(x.equipo) + '">Mark as lost</button>';
   let extra = '';
-  if (UB.perdiendo === x.equipo) extra = '<div class="kmotivo"><input id="uNota" maxlength="300" placeholder="Nota (ej. se lo robaron del carro el 6/10)" aria-label="Nota">' +
-    '<button class="btn peligro" type="button" data-uconf="' + esc(x.equipo) + '">Confirmar: reportar cada 5 min</button><button class="btn" type="button" data-ucanc="1">Cancelar</button></div>';
+  if (UB.perdiendo === x.equipo) extra = '<div class="kmotivo"><input id="uNota" maxlength="300" placeholder="Note (e.g. stolen from the car on 6/10)" aria-label="Note">' +
+    '<button class="btn peligro" type="button" data-uconf="' + esc(x.equipo) + '">Confirm: report every 5 min</button><button class="btn" type="button" data-ucanc="1">Cancel</button></div>';
   const rec = UB.recorrido[x.equipo];
   if (rec) extra += '<ul class="urec">' + (rec.length ? rec.slice(0, 60).map(p => '<li><span>' + esc(kFecha(p.ts)) + '</span><span>' +
-      (p.estado === 'ok' ? '±' + esc(ubTxt(p.prec || 0)) + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">mapa</a>' : esc(UB_FALLA[p.estado] || p.estado)) +
-      (p.usuario ? ' · usuario ' + esc(p.usuario) : '') + '</span></li>').join('') : '<li>Sin ubicaciones en los últimos 3 días.</li>') + '</ul>';
+      (p.estado === 'ok' ? '±' + esc(ubTxt(p.prec || 0)) + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">map</a>' : esc(UB_FALLA[p.estado] || p.estado)) +
+      (p.usuario ? ' · user ' + esc(p.usuario) : '') + '</span></li>').join('') : '<li>No locations in the last 3 days.</li>') + '</ul>';
   if (UB.hist[x.equipo]) extra += uHistHtml(x);
   return '<div class="krow' + (x.perdido ? ' perdido' : e.nivel === 'warn' ? ' lejos' : '') + '"><div><div class="kq">' + (e.nivel === 'warn' ? '⚠ ' : '') +
-    esc(x.agente || '(sin agente)') + '</div><div class="kd">' + det.join('<br>') + '</div></div><div class="ka">' + acc + '</div>' + extra + '</div>';
+    esc(x.agente || '(no agent)') + '</div><div class="kd">' + det.join('<br>') + '</div></div><div class="ka">' + acc + '</div>' + extra + '</div>';
 }
 // Historial de un día: cada lectura con su hora, distancia al lugar de trabajo y enlace al mapa;
 // además, un enlace con el recorrido del día en Google Maps (hasta 10 puntos).
 function uHistHtml(x){
   const h = UB.hist[x.equipo], l = x.empleado && x.empleado.lugar;
-  let out = '<div class="uhist"><div class="uhbar"><label>Día <input type="date" data-uhfecha="' + esc(x.equipo) + '" value="' + esc(h.fecha) + '" max="' + hoyNY() + '"></label>';
-  if (h.cargando) return out + '<span>Cargando…</span></div></div>';
+  let out = '<div class="uhist"><div class="uhbar"><label>Day <input type="date" data-uhfecha="' + esc(x.equipo) + '" value="' + esc(h.fecha) + '" max="' + hoyNY() + '"></label>';
+  if (h.cargando) return out + '<span>Loading…</span></div></div>';
   if (h.error) return out + '</div><div class="nota">' + esc(h.error) + '</div></div>';
   const lista = h.datos || [], buenas = lista.filter(p => p.estado === 'ok');
   if (buenas.length > 1) {
     const paso = Math.max(1, Math.ceil(buenas.length / 10)), pts = buenas.filter((p, i) => i % paso === 0).slice(0, 9).concat([buenas[buenas.length - 1]]);
-    out += '<a href="https://www.google.com/maps/dir/' + pts.map(p => Number(p.lat).toFixed(6) + ',' + Number(p.lng).toFixed(6)).join('/') + '" target="_blank" rel="noopener">Ver el recorrido del día en el mapa</a>';
+    out += '<a href="https://www.google.com/maps/dir/' + pts.map(p => Number(p.lat).toFixed(6) + ',' + Number(p.lng).toFixed(6)).join('/') + '" target="_blank" rel="noopener">View the day’s route on the map</a>';
   }
-  out += '<span>' + lista.length + ' lectura(s)</span></div>';
-  if (!lista.length) return out + '<div class="nota">Sin ubicaciones ese día (fuera de turno, equipo apagado o todavía sin la versión 2.8).</div></div>';
+  out += '<span>' + lista.length + ' reading(s)</span></div>';
+  if (!lista.length) return out + '<div class="nota">No locations that day (off shift, device off, or still without version 2.8).</div></div>';
   out += '<ul class="urec">' + lista.map(p => {
-    const t = hora(Date.parse(p.ts)), mot = p.motivo === 'perdido' ? ' · perdido' : '';
+    const t = hora(Date.parse(p.ts)), mot = p.motivo === 'perdido' ? ' · lost' : '';
     if (p.estado !== 'ok') return '<li><span>' + esc(t) + '</span><span>' + esc(UB_FALLA[p.estado] || p.estado) + mot + '</span></li>';
     const d = l ? ubDist(l, p) : null, lejos = d != null && d > l.radio + (p.prec || 0);
-    return '<li' + (lejos ? ' class="lejos"' : '') + '><span>' + esc(t) + '</span><span>' + (lejos ? '⚠ a ' + esc(ubTxt(d)) + ' de su lugar' : d != null ? 'en su lugar' : 'ubicación recibida') +
-      ' · ±' + esc(ubTxt(p.prec || 0)) + mot + (p.usuario ? ' · usuario ' + esc(p.usuario) : '') + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">mapa</a></span></li>';
-  }).join('') + '</ul><div class="nota">Las ubicaciones se guardan 90 días.</div></div>';
+    return '<li' + (lejos ? ' class="lejos"' : '') + '><span>' + esc(t) + '</span><span>' + (lejos ? '⚠ ' + esc(ubTxt(d)) + ' from their site' : d != null ? 'at their site' : 'location received') +
+      ' · ±' + esc(ubTxt(p.prec || 0)) + mot + (p.usuario ? ' · user ' + esc(p.usuario) : '') + ' · <a href="' + ubMapa(p.lat, p.lng) + '" target="_blank" rel="noopener">map</a></span></li>';
+  }).join('') + '</ul><div class="nota">Locations are kept for 90 days.</div></div>';
   return out;
 }
 async function cargarHist(eq, fecha){
   UB.hist[eq] = { fecha, cargando: true }; pintarUbic();
   try {
     const r = await window.sb.rpc('monitor_ubicaciones_dia', { p_equipo: eq, p_fecha: fecha });
-    if (r.error) throw new Error(/monitor_ubicaciones_dia/.test(r.error.message) ? 'El historial necesita el paso 22 de SQL en Supabase.' : r.error.message);
+    if (r.error) throw new Error(/monitor_ubicaciones_dia/.test(r.error.message) ? 'The history needs SQL step 22 in Supabase.' : r.error.message);
     UB.hist[eq] = { fecha, datos: r.data || [] };
-  } catch(e){ UB.hist[eq] = { fecha, error: 'No se pudo cargar: ' + e.message }; }
+  } catch(e){ UB.hist[eq] = { fecha, error: 'Could not load: ' + e.message }; }
   pintarUbic();
 }
 function pintarUbic(){
@@ -2760,16 +2764,16 @@ function pintarUbic(){
   const perd = lista.filter(x => x.perdido).length, lejos = lista.filter(x => { const e = ubEstado(x); return e && e.lejos; }).length,
         falla = lista.filter(x => { const e = ubEstado(x); return e && e.falla; }).length;
   const partes = [];
-  if (perd) partes.push(perd + ' perdido(s)'); if (lejos) partes.push(lejos + ' lejos de su lugar'); if (falla) partes.push(falla + ' sin ubicación en Windows');
+  if (perd) partes.push(perd + ' lost'); if (lejos) partes.push(lejos + ' away from their site'); if (falla) partes.push(falla + ' with no location in Windows');
   $('uResumen').innerHTML = partes.length ? '<div class="banner aviso">' + partes.join(' · ') + '.</div>'
-    : '<div class="banner ok">Sin novedades de ubicación (' + lista.filter(x => x.buena).length + ' equipo(s) con datos).</div>';
-  $('uLista').innerHTML = lista.length ? lista.map(uFila).join('') : '<div class="hint">Todavía no hay equipos.</div>';
+    : '<div class="banner ok">No location issues (' + lista.filter(x => x.buena).length + ' device(s) with data).</div>';
+  $('uLista').innerHTML = lista.length ? lista.map(uFila).join('') : '<div class="hint">No devices yet.</div>';
   if (UB.perdiendo) { const i = $('uNota'); if (i) i.focus(); }
 }
 async function abrirUbic(){
   UB.perdiendo = null;
   $('modalUbic').classList.add('show');
-  if (UB.datos) pintarUbic(); else $('uLista').innerHTML = '<div class="hint">Cargando…</div>';
+  if (UB.datos) pintarUbic(); else $('uLista').innerHTML = '<div class="hint">Loading…</div>';
   await recargarUbic();
 }
 async function recargarUbic(){
@@ -2792,9 +2796,9 @@ async function marcarPerdido(eq, perdido, nota, boton){
     if (r.error) throw new Error(r.error.message);
     UB.perdiendo = null;
     if (perdido) UB.recorrido[eq] = []; else delete UB.recorrido[eq];
-    toast(perdido ? 'Equipo marcado como perdido: mandará su ubicación cada 5 minutos mientras alguien inicie sesión en él.' : 'Equipo recuperado: vuelve a mandar su ubicación solo durante el turno.', 'ok');
+    toast(perdido ? 'Device marked as lost: it will send its location every 5 minutes while someone is signed in to it.' : 'Device recovered: it sends its location again only during the shift.', 'ok');
     await recargarUbic(); if (S.data) pintar();
-  } catch(e){ toast('No se pudo guardar: ' + e.message, 'err'); if (boton) { boton.disabled = false; boton.textContent = perdido ? 'Confirmar' : 'Ya apareció'; } }
+  } catch(e){ toast('Could not save: ' + e.message, 'err'); if (boton) { boton.disabled = false; boton.textContent = perdido ? 'Confirm' : 'It turned up'; } }
 }
 $('uLista').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if (!b) return;
@@ -2810,8 +2814,8 @@ $('uLista').addEventListener('click', async ev => {
   else if (b.dataset.urec) {
     const eq = b.dataset.urec;
     if (UB.recorrido[eq]) { delete UB.recorrido[eq]; pintarUbic(); return; }
-    b.disabled = true; b.textContent = 'Cargando…';
-    try { await cargarRecorrido(eq); } catch(e){ toast('No se pudo cargar: ' + e.message, 'err'); }
+    b.disabled = true; b.textContent = 'Loading…';
+    try { await cargarRecorrido(eq); } catch(e){ toast('Could not load: ' + e.message, 'err'); }
     pintarUbic();
   }
 });
@@ -2858,25 +2862,25 @@ function versionHtml(a, d) {
   if (!a.latidos) return '';
   const v = (a.vivo && a.vivo.version) || '';
   const esperada = (d.config && d.config.versionAgente) || '';
-  if (!v) return '<small class="winuser">Monitor: <span class="sincuenta" title="Este equipo no reporta versión: tiene una instalación anterior.">\u26a0 versión anterior</span></small>';
+  if (!v) return '<small class="winuser">Monitor: <span class="sincuenta" title="This device does not report a version: it has an older installation.">\u26a0 older version</span></small>';
   // Atrasado es el que tiene MENOS que la version al dia, no el que no coincide:
   // un equipo que ya va por delante (porque el servidor aun no publico la
   // version nueva) esta al dia, no le falta nada.
   if (esperada && !verAlMenos(v, esperada)) {
     const pedido = estadoActualizacion(a, d);
     if (pedido) {
-      const txt = pedido.estado === 'enviada' ? '\u23f3 actualizando…' : '\u23f3 actualización pedida';
+      const txt = pedido.estado === 'enviada' ? '\u23f3 updating…' : '\u23f3 update requested';
       const tit = pedido.estado === 'enviada'
-        ? 'El equipo recibió la orden. Termina en un par de minutos y la versión cambia sola.'
-        : 'La orden sale en el próximo latido del equipo (máximo un minuto).';
+        ? 'The device received the order. It finishes in a couple of minutes and the version changes on its own.'
+        : 'The order goes out on the device’s next heartbeat (at most a minute).';
       return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta encurso" title="' + tit + '">' + txt + '</span></small>';
     }
     if (verAlMenos(v, VERSION_BOTON)) {
       return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <button class="sincuenta" data-upd="' + esc(a.agente) +
-             '" title="Actualizar este equipo ahora, sin esperar la revisión de cada hora. La versión al día es la ' + esc(esperada) + '.">\u26a0 actualizar ahora</button></small>';
+             '" title="Update this device now, without waiting for the hourly check. The current version is ' + esc(esperada) + '.">\u26a0 update now</button></small>';
     }
-    return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="La versión al día es la ' + esc(esperada) +
-           '. Este equipo es anterior a la ' + VERSION_BOTON + ', así que no se puede pedir desde aquí: se actualiza solo dentro de la próxima hora.">\u26a0 falta actualizar</span></small>';
+    return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> <span class="sincuenta" title="The current version is ' + esc(esperada) +
+           '. This device is older than ' + VERSION_BOTON + ', so it cannot be requested from here: it updates on its own within the next hour.">\u26a0 update pending</span></small>';
   }
   return '<small class="winuser">Monitor <b>v' + esc(v) + '</b> \u2713</small>';
 }
@@ -2889,10 +2893,10 @@ function avisoVersiones(d) {
   if (!d.esHoy || !esperada || !conDatos.length) { el.innerHTML = ''; return; }
   const viejos = conDatos.filter(a => !verAlMenos((a.vivo && a.vivo.version) || '', esperada));
   el.innerHTML = viejos.length
-    ? '<div class="banner aviso">⚠ <b>' + viejos.length + ' de ' + conDatos.length +
-      (viejos.length === 1 ? ' equipo no llega' : ' equipos no llegan') + ' a la versión ' + esc(esperada) + ' del monitor:</b> ' +
-      viejos.map(a => esc(a.agente) + ' <span class="viejo">(' + esc(a.equipo || 'equipo') + (a.vivo && a.vivo.version ? ' · v' + esc(a.vivo.version) : '') + ')</span>').join(', ') + '</div>'
-    : '<div class="banner ok">\u2713 Los ' + conDatos.length + ' equipos con señal hoy tienen el monitor al día (' + esc(esperada) + ' o posterior).</div>';
+    ? '<div class="banner aviso">⚠ <b>' + viejos.length + ' of ' + conDatos.length +
+      (viejos.length === 1 ? ' device is below' : ' devices are below') + ' monitor version ' + esc(esperada) + ':</b> ' +
+      viejos.map(a => esc(a.agente) + ' <span class="viejo">(' + esc(a.equipo || 'device') + (a.vivo && a.vivo.version ? ' · v' + esc(a.vivo.version) : '') + ')</span>').join(', ') + '</div>'
+    : '<div class="banner ok">\u2713 All ' + conDatos.length + ' devices with a signal today have the monitor up to date (' + esc(esperada) + ' or later).</div>';
 }
 
 // ================================================================ CUENTAS
@@ -2905,15 +2909,15 @@ function marcarSinCuenta(d){
   d.agentes.forEach(a => { a.sinCuenta = !!cs && a.activo !== false && !cs.has(normC(a.cuenta)); });
   const sin = d.agentes.filter(a => a.sinCuenta);
   $('avisoCuentas').innerHTML = sin.length
-    ? '<div class="banner aviso">⚠ <b>' + sin.length + (sin.length === 1 ? ' agente sin cuenta asignada' : ' agentes sin cuenta asignada') + ':</b> ' +
-      sin.map(a => esc(a.agente) + ' <span class="viejo">(tenía “' + esc(a.cuenta || 'sin cuenta') + '”)</span>').join(', ') +
-      '. Reinstale el monitor en ' + (sin.length === 1 ? 'su equipo' : 'sus equipos') + ' y elija la cuenta correcta.</div>'
+    ? '<div class="banner aviso">⚠ <b>' + sin.length + (sin.length === 1 ? ' agent without assigned account' : ' agents without assigned account') + ':</b> ' +
+      sin.map(a => esc(a.agente) + ' <span class="viejo">(had “' + esc(a.cuenta || 'no account') + '”)</span>').join(', ') +
+      '. Reinstall the monitor on ' + (sin.length === 1 ? 'their device' : 'their devices') + ' and choose the correct account.</div>'
     : '';
 }
 
 function abrirCuentas(){
   if (!S.data) return;
-  if (!Array.isArray(S.data.cuentas)) { toast('El servidor aún no tiene la lista de cuentas. Publique la nueva versión del script del Monitor.', 'err'); return; }
+  if (!Array.isArray(S.data.cuentas)) { toast('The server does not have the account list yet. Publish the new Monitor script version.', 'err'); return; }
   S.editCuentas = S.data.cuentas.map(c => ({ n: c.n, app: c.app, orig: c.n }));
   S.confirmarQuitar = false;
   pintarCuentas();
@@ -2924,14 +2928,14 @@ function pintarCuentas(){
   $('cLista').innerHTML = S.editCuentas.map((c, i) => {
     const n = c.orig ? agentesDe(c.orig).length : 0;
     return '<div class="crow">' +
-      '<input data-ci="' + i + '" data-k="n" value="' + esc(c.n) + '" placeholder="Nombre de la cuenta" aria-label="Nombre de la cuenta">' +
-      '<input data-ci="' + i + '" data-k="app" value="' + esc(c.app) + '" placeholder="Programa de teléfono" aria-label="Programa de teléfono">' +
-      '<span class="cnt" title="Agentes activos en esta cuenta">' + (n ? n + ' ag.' : '') + '</span>' +
-      '<button type="button" class="btn-mini quitar" data-quitar="' + i + '" aria-label="Quitar ' + esc(c.n || 'cuenta') + '">Quitar</button></div>';
-  }).join('') || '<div class="hint">No hay cuentas. Agregue al menos una.</div>';
+      '<input data-ci="' + i + '" data-k="n" value="' + esc(c.n) + '" placeholder="Account name" aria-label="Account name">' +
+      '<input data-ci="' + i + '" data-k="app" value="' + esc(c.app) + '" placeholder="Phone program" aria-label="Phone program">' +
+      '<span class="cnt" title="Active agents on this account">' + (n ? n + ' ag.' : '') + '</span>' +
+      '<button type="button" class="btn-mini quitar" data-quitar="' + i + '" aria-label="Remove ' + esc(c.n || 'account') + '">Remove</button></div>';
+  }).join('') || '<div class="hint">No accounts. Add at least one.</div>';
   $('cAviso').innerHTML = '';
   S.confirmarQuitar = false;
-  $('cGuardar').textContent = 'Guardar cambios';
+  $('cGuardar').textContent = 'Save changes';
 }
 function afectados(){
   // Cuentas originales que desaparecen (quitadas o renombradas) y que tienen agentes activos
@@ -2943,14 +2947,14 @@ function afectados(){
 async function guardarCuentas(){
   const lista = S.editCuentas.map(c => ({ n: c.n.trim(), app: c.app.trim() })).filter(c => c.n);
   const vistos = new Set();
-  for (const c of lista) { if (vistos.has(normC(c.n))) { $('cAviso').innerHTML = '<div class="hint mal">La cuenta “' + esc(c.n) + '” está repetida.</div>'; return; } vistos.add(normC(c.n)); }
-  if (!lista.length) { $('cAviso').innerHTML = '<div class="hint mal">La lista no puede quedar vacía.</div>'; return; }
+  for (const c of lista) { if (vistos.has(normC(c.n))) { $('cAviso').innerHTML = '<div class="hint mal">The account “' + esc(c.n) + '” is duplicated.</div>'; return; } vistos.add(normC(c.n)); }
+  if (!lista.length) { $('cAviso').innerHTML = '<div class="hint mal">The list cannot be left empty.</div>'; return; }
   const af = afectados();
   if (af.length && !S.confirmarQuitar) {
-    $('cAviso').innerHTML = '<div class="hint mal">Estas cuentas se quitan pero tienen agentes activos. Quedarán como “Agente sin cuenta asignada” hasta reinstalar el monitor en sus equipos:<ul>' +
-      af.map(x => '<li><b>' + esc(x.n) + '</b>: ' + x.ag.map(a => esc(a.agente)).join(', ') + '</li>').join('') + '</ul>Pulse otra vez para confirmar.</div>';
+    $('cAviso').innerHTML = '<div class="hint mal">These accounts are being removed but have active agents. They will show as “Agent without assigned account” until the monitor is reinstalled on their devices:<ul>' +
+      af.map(x => '<li><b>' + esc(x.n) + '</b>: ' + x.ag.map(a => esc(a.agente)).join(', ') + '</li>').join('') + '</ul>Click again to confirm.</div>';
     S.confirmarQuitar = true;
-    $('cGuardar').textContent = 'Sí, guardar de todos modos';
+    $('cGuardar').textContent = 'Yes, save anyway';
     return;
   }
   const btn = $('cGuardar'); btn.disabled = true;
@@ -2961,20 +2965,20 @@ async function guardarCuentas(){
       const url = apiUrl(), tok = store.get('token');
       const q = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok) + '&accion=guardarCuentas&lista=' + encodeURIComponent(JSON.stringify(lista));
       const j = await (await fetch(q, { redirect: 'follow' })).json();
-      if (!j.ok) throw new Error(j.error || 'no se pudo guardar');
+      if (!j.ok) throw new Error(j.error || 'could not save');
       nuevas = j.cuentas;
     }
     S.data.cuentas = nuevas;
     $('modalCuentas').classList.remove('show');
     pintar();
-    toast('Lista de cuentas guardada (' + nuevas.length + '). El instalador ya ofrece esta lista.', 'ok');
-  } catch (e) { $('cAviso').innerHTML = '<div class="hint mal">No se pudo guardar: ' + esc(e.message) + '</div>'; }
+    toast('Account list saved (' + nuevas.length + '). The installer now offers this list.', 'ok');
+  } catch (e) { $('cAviso').innerHTML = '<div class="hint mal">Could not save: ' + esc(e.message) + '</div>'; }
   btn.disabled = false;
 }
 $('btnCuentas').addEventListener('click', abrirCuentas);
 $('cCancelar').addEventListener('click', () => $('modalCuentas').classList.remove('show'));
 $('modalCuentas').addEventListener('click', ev => { if (ev.target.id === 'modalCuentas') $('modalCuentas').classList.remove('show'); });
-$('cLista').addEventListener('input', ev => { const i = ev.target.dataset.ci; if (i == null) return; S.editCuentas[+i][ev.target.dataset.k] = ev.target.value; S.confirmarQuitar = false; $('cGuardar').textContent = 'Guardar cambios'; $('cAviso').innerHTML = ''; });
+$('cLista').addEventListener('input', ev => { const i = ev.target.dataset.ci; if (i == null) return; S.editCuentas[+i][ev.target.dataset.k] = ev.target.value; S.confirmarQuitar = false; $('cGuardar').textContent = 'Save changes'; $('cAviso').innerHTML = ''; });
 $('cLista').addEventListener('click', ev => { const b = ev.target.closest('[data-quitar]'); if (!b) return; S.editCuentas.splice(+b.dataset.quitar, 1); pintarCuentas(); });
 $('cAgregar').addEventListener('click', () => { S.editCuentas.push({ n: '', app: '', orig: null }); pintarCuentas(); const ins = $('cLista').querySelectorAll('input[data-k=n]'); if (ins.length) ins[ins.length - 1].focus(); });
 $('cGuardar').addEventListener('click', guardarCuentas);
