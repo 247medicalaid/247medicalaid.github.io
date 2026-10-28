@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v279-202610281307">
+<meta name="app-build" content="v280-202610282345">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8050,6 +8050,14 @@ const CONCEPTOS_DEF = [
   { id:'other_u', nombre:'Other', clase:'otro' }
 ];
 function conceptosAus(){ return (Array.isArray(S.conceptos) && S.conceptos.length) ? S.conceptos : CONCEPTOS_DEF; }
+// Tipos de ausencia FIJOS solo para el admin (aprobar / editar / añadir). No se editan en Settings
+// ni aparecen en el formulario del agente. Mapean a la clase 'otro' (cuentan en Time Off como el resto).
+// El nombre distingue Autorizada vs No Autorizada (lo usa el mensaje al Monitor, Etapa 3).
+const CONCEPTOS_AUTO = [
+  { id:'aus_autorizada',    nombre:'Authorized absence',   clase:'otro', fijo:true },
+  { id:'aus_no_autorizada', nombre:'Unauthorized absence', clase:'otro', fijo:true }
+];
+function conceptosAdmin(){ return conceptosAus().concat(CONCEPTOS_AUTO); }
 function colorPago(pagada){ return pagada ? '#1D74B8' : '#C81F29'; }
 function filaConcepto(c, esNuevo){ c = c || {}; const cl = c.clase || 'otro'; const dis = esNuevo ? '' : ' disabled';
   const lk = esNuevo ? '' : ' title="Category is locked after creation \u2014 delete this type and add a new one to change it."';
@@ -8920,7 +8928,7 @@ function tlCampos(pre, fecha, op){
   op = op || {};
   const tipo = op.conceptos
     ? '<label class="campo"><span>Type</span><select id="' + pre + 'Clase" data-concepto="1">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
-        conceptosAus().map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') + '</select></label>'
+        (op.conceptosAdmin ? conceptosAdmin() : conceptosAus()).map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '">' + esc(c.nombre) + '</option>').join('') + '</select></label>'
     : '<label class="campo"><span>Type</span><select id="' + pre + 'Clase">' + (op.elegir ? '<option value="">Choose…</option>' : '') +
         Object.keys(CLASE_TXT).map(k => '<option value="' + k + '">' + CLASE_TXT[k] + '</option>').join('') + '</select></label>';
   const min = op.min ? ' min="' + op.min + '"' : '', max = op.max ? ' max="' + op.max + '"' : '';
@@ -12215,7 +12223,7 @@ function abrirDecision(id, modo){
       ' will be added to ' + esc(diaS(s.fecha)) + '. If that day was approved, it will need approval again.</span></div>';
   if(aprobar && s.tipo === 'ausencia'){
     const pag = false;
-    const cs0 = conceptosAus(), cSel0 = (cs0.find(c => c.clase === s.clase) || cs0[0] || {});
+    const cs0 = conceptosAdmin(), cSel0 = (cs0.find(c => c.nombre === s.conceptoNombre) || cs0.find(c => c.clase === s.clase) || cs0[0] || {});
     h += '<label class="campo"><span>Type</span><select id="xConcepto" data-concepto="1">' + cs0.map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '"' + (c.id === cSel0.id ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('') + '</select></label>' +
       '<label class="chk"><input type="checkbox" id="xPagada"' + (pag ? ' checked' : '') + '> Paid time off</label>' +
       '<label class="campo" id="xHorasC"' + (pag ? '' : ' style="display:none"') + '><span>' + (esParcial(s) ? 'Paid hours' : 'Paid hours per day') + '</span><input type="number" id="xHoras" min="0" max="12" step="0.25" value="' +
@@ -12268,7 +12276,7 @@ function abrirCambioAprobada(id, modo){
     $('xTitulo').textContent = 'Edit ' + SOL_TIPO[s.tipo].toLowerCase();
     const hoy = fechaHoy();
     if(s.tipo === 'ausencia'){
-      const csE = conceptosAus(), cSelE = (csE.find(c => c.id === s.conceptoId) || csE.find(c => c.clase === s.clase) || csE[0] || {});
+      const csE = conceptosAdmin(), cSelE = (csE.find(c => c.id === s.conceptoId) || csE.find(c => c.nombre === s.conceptoNombre) || csE.find(c => c.clase === s.clase) || csE[0] || {});
       h += '<label class="campo"><span>Type</span><select id="eClase" data-concepto="1">' + csE.map(c => '<option value="' + esc(c.id) + '" data-clase="' + esc(c.clase || 'otro') + '" data-nombre="' + esc(c.nombre) + '"' + (c.id === cSelE.id ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('') + '</select></label>' +
         '<div class="dos-col"><label class="campo"><span>From</span><input type="date" id="eDesde" value="' + s.fecha + '"></label>' +
         '<label class="campo"><span>To</span><input type="date" id="eHasta" value="' + s.fechaFin + '"></label></div>' +
@@ -12438,7 +12446,7 @@ function abrirAusAu(usuarioPre){
   $('paSub').textContent = 'Choose the person and the dates.';
   const opc = emps.map(e => '<option value="' + esc(e.usuario) + '" data-hd="' + (e.horasDia || 8) + '">' + esc(e.nombre) + (e.activo ? '' : ' (archived)') + '</option>').join('');
   $('paBody').innerHTML = '<label class="campo pa-emp"><span>Employee</span><select id="paEmp">' + opc + '</select></label>' +
-    tlCampos('pa', hoy, { pago:true, conceptos:true, horasDia:emps[0].horasDia || 8 }) +
+    tlCampos('pa', hoy, { pago:true, conceptos:true, conceptosAdmin:true, horasDia:emps[0].horasDia || 8 }) +
     '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>';
   tlEnlazar('pa', { horasDia:emps[0].horasDia || 8 });
   $('paErr').textContent = '';
@@ -12460,7 +12468,7 @@ function abrirAusPH(f){
   const e = S.hoja.empleados.find(x => x.usuario === S.ph.usuario); if(!e) return;
   S.ausCtx = { modo:'ph', usuario:e.usuario };
   $('paSub').innerHTML = esc(e.nombre) + ' \u00b7 ' + esc(diaS(f));
-  $('paBody').innerHTML = tlCampos('pa', f, { pago:true, conceptos:true, horasDia:e.horasDia || 8 }) +
+  $('paBody').innerHTML = tlCampos('pa', f, { pago:true, conceptos:true, conceptosAdmin:true, horasDia:e.horasDia || 8 }) +
     '<label class="campo pa-motivo"><span>Reason (optional)</span><input type="text" id="paMotivo" maxlength="200" placeholder="E.g. told me on WhatsApp" autocomplete="off"></label>';
   tlEnlazar('pa', { horasDia:e.horasDia || 8 });
   gatearPagoPa(e.cuenta);
