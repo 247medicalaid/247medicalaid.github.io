@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v278-202610281255">
+<meta name="app-build" content="v279-202610281307">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6632,11 +6632,12 @@ function pintarHoja(){
         const a = d.ausencia;
         t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
           '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a)) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + '">' + CLASE_CORTA[a.clase] + (esParcial(a) ? '<small>' + hm(minParcial(a)) + ' h</small>' : '') + '</button></td>';
+          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + '">' + CLASE_CORTA[a.clase] + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
-      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '') +
+      const _ausCont = (d.ausencia && esParcial(d.ausencia)) ? ausTapada(minParcial(d.ausencia), Math.round((e.horasDia || 8) * 60), minPagoDia(d)) : 0;
+      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + CLASE_CORTA[d.ausencia.clase] + (_ausCont > 0 ? ' <small>' + hm(_ausCont) + ' h</small>' : '') + '</span>' : '') +
         (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? '<span class="auto-mini">AUTO</span>' : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
