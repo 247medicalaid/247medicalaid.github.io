@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v277-202610281206">
+<meta name="app-build" content="v278-202610281255">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3933,7 +3933,7 @@ function construirHoja(raw, monDias, ahora){
     const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
     raw.fechas.forEach(f => {
       const m = porFecha[f] || [], ap = aprob[emp.usuario + '|' + f], au = ausM[emp.usuario + '|' + f] || null;
-      if(au){ tot.diasAus++; if(au.pagada) tot.minPto += Math.round(au.horas * 60); }
+      if(au) tot.diasAus++;
       if(!m.length && !ap && !au) return;
       const d = armarDia(m, ahora, f === hoy);
       const mon = f > hoy ? false : monDias[f];
@@ -3943,7 +3943,8 @@ function construirHoja(raw, monDias, ahora){
         marcas:m.map(x => ({ tipo:x.tipo, ms:x.ms, msReal:x.msReal, origen:x.origen, autor:x.autor, motivo:x.motivo })),
         aprobado: ap ? { horas:Number(ap.horas), por:ap.aprobado_por, ms:Date.parse(ap.aprobado_en), tarifa: ap.tarifa == null ? null : Number(ap.tarifa) } : null,
         monitor: (mon && emp.agenteMonitor) ? (mon[normal(emp.agenteMonitor)] || null) : null, ausencia:au };
-      tot.min += d.incompleto ? 0 : d.min;
+      const _trab = d.incompleto ? 0 : d.min; tot.min += _trab;
+      if(au && au.pagada) tot.minPto += ausTapada(Math.round(au.horas * 60), Math.round((emp.horasDia || 8) * 60), ap ? Math.round(Number(ap.horas) * 60) : _trab);
       if(m.length) tot.dias++;
       if(ap){ tot.minAprob += Math.round(Number(ap.horas) * 60); tot.diasAprob++; }
       if(fl.some(b => b.n === 'alerta')) tot.alertas++;
@@ -6565,7 +6566,7 @@ function resumenHoja(h){
       trab += m; ot += Math.max(0, m - hd);
       if(d.marcas && d.marcas.length && !d.incompleto) alm += d.alm || 0;
       if(d.marcas && d.marcas.length && f < h.hoy){ diasTot++; if(d.aprobado) diasAp++; }
-      const a = d.ausencia; if(a && !a.pagada) ausNP += esParcial(a) ? minParcial(a) : hd; });
+      const a = d.ausencia; if(a && !a.pagada) ausNP += ausTapada(esParcial(a) ? minParcial(a) : hd, hd, m); });
     pto += e.totales.minPto || 0; });
   filasPayroll(h).forEach(x => { pago += Number(x.pago) || 0; });
   const hh = min => { min = Math.round(min); return Math.floor(min / 60).toLocaleString('en-US') + ':' + String(min % 60).padStart(2, '0'); };
@@ -8893,6 +8894,11 @@ function marcasTxt(ms){
 /* ── Tiempo libre: día completo o parte del día (paso 28) ── */
 const esParcial = a => !!(a && a.horaIni && a.horaFin);
 const minParcial = a => esParcial(a) ? aMin(a.horaFin) - aMin(a.horaIni) : 0;
+// (paso 122) Minutos de ausencia que REALMENTE cuentan ese día: tapados a lo que falta para la
+// jornada, de modo que (trabajado + ausencia) nunca pase de la jornada. bruto = duración de la
+// ausencia (parcial: la ventana; día completo: la jornada). trab = minutos trabajados netos del día.
+// Si la ventana es menor que el hueco, cuenta la ventana; el resto queda como ausencia NO autorizada.
+const ausTapada = (brutoMin, hdMin, trabMin) => Math.max(0, Math.min(Math.round(brutoMin || 0), Math.round(hdMin || 0) - Math.round(trabMin || 0)));
 const franjaTxt = a => esParcial(a) ? h12(a.horaIni) + ' – ' + h12(a.horaFin) : '';
 const pagoTxt = a => a.pagada ? 'paid ' + (esParcial(a) ? hm(Math.round(Number(a.horas != null ? a.horas : a.horasDia) * 60)) + ' h' : (a.horas != null ? a.horas : a.horasDia) + ' h/day') : 'unpaid';
 // «Vacation 3 days · Personal 2:30 h» con lo aprobado en el año (días completos y horas por separado).
@@ -12683,8 +12689,8 @@ function totalesPago(filas){
 }
 // Un empleado de la hoja con solo los días antes de «corte» (los demás se asumen).
 function recortarEmp(e, corte){
-  const dias = {}; let pto = 0;
-  Object.keys(e.dias).forEach(f => { if(corte && f >= corte) return; const d = e.dias[f]; dias[f] = d; if(d && d.ausencia && d.ausencia.pagada) pto += Math.round((d.ausencia.horas || 0) * 60); });
+  const dias = {}; let pto = 0; const _hd = Math.round((e.horasDia || 8) * 60);
+  Object.keys(e.dias).forEach(f => { if(corte && f >= corte) return; const d = e.dias[f]; dias[f] = d; if(d && d.ausencia && d.ausencia.pagada) pto += ausTapada(Math.round((d.ausencia.horas || 0) * 60), _hd, minPagoDia(d)); });
   return Object.assign({}, e, { dias, totales:Object.assign({}, e.totales, { minPto:pto }) });
 }
 // Días por asumir: lunes a viernes desde «corte» hasta el fin de la quincena.
@@ -14262,8 +14268,8 @@ async function demoApi(action, p){
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
           const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, horaIni:au.horaIni || null, horaFin:au.horaFin || null, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
-          if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += Math.round(aus.horas * 60); }
           if(!DM.marcas[e.usuario + '|' + f] && !aus) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
+          if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += ausTapada(Math.round(aus.horas * 60), Math.round((e.horasDia || 8) * 60), d.marcas.length ? d.min : 0); }
           if(!d.marcas.length) return;
           tot.min += d.min; tot.dias++; if(d.aprobado){ tot.minAprob += Math.round(d.aprobado.horas * 60); tot.diasAprob++; }
           if(d.banderas.some(b => b.n === 'alerta')) tot.alertas++; });
