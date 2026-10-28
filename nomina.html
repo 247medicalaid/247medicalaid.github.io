@@ -5695,7 +5695,7 @@ function renderResumenTransferencias(){
 
   let totalEmpresa = 0, totalPersonal = 0;
   let compEmpresa = 0, compPersonal = 0;
-  const detalleEmpresa = [], detallePersonal = [];
+  const detalleEmpresa = [], detallePersonal = [], detalleSinCuenta = [];
 
   // % de compensación dólar según la cuenta del agente:
   //   cuentas 'dr'  → dollarPctReal  (Call Center Payroll, editable en Call Center Accounts)
@@ -5711,6 +5711,13 @@ function renderResumenTransferencias(){
   agentes.filter(a => a.estado === 'active').forEach(a => {
     const nom  = nominaAgente(a);
     if(nom <= 0) return; // skip $0 agents
+    // Cuenta inactiva o inexistente: el agente NO suma en la nómina; se separa en el apartado de abajo
+    // para tomar acción. (Las quincenas aprobadas conservan su foto vía cuentaVisible, no se alteran.)
+    const ctaAg = cuentas.find(x => x.id === a.cuenta);
+    if(!ctaAg || !cuentaVisible(ctaAg)){
+      detalleSinCuenta.push({ nombre: a.nombre, nom, cuenta: ctaAg ? ctaAg.nombre : null });
+      return;
+    }
     const comp = nom * pctCuentaDe(a);
     const tipo = a.tipoPago || 'empresa';
     if(tipo === 'personal'){
@@ -5766,6 +5773,17 @@ function renderResumenTransferencias(){
         </div>
       </div>
     </div>
+    ${detalleSinCuenta.length ? `
+    <div style="margin-top:12px;background:rgba(244,103,107,.08);border:1px solid var(--danger);border-radius:10px;padding:14px 16px">
+      <div style="font-size:11px;color:var(--danger);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:4px">⚠️ Agentes con cuenta inactiva o sin cuenta</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">No suman en la nómina. Están activos pero su cuenta no existe o está inactiva — cámbialos de cuenta, inactívalos, o reactiva la cuenta.</div>
+      ${detalleSinCuenta.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(a => `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span>${a.nombre} <span style="color:var(--text3)">· ${a.cuenta ? a.cuenta + ' (inactiva)' : 'sin cuenta'}</span></span>
+          <span style="font-family:'DM Mono',monospace;color:var(--danger);font-weight:600">${fmtN(a.nom)}</span>
+        </div>`).join('')}
+      <div style="border-top:1px solid var(--danger);margin-top:8px;padding-top:6px;text-align:right;font-size:11px;color:var(--text3)">${detalleSinCuenta.length} agente${detalleSinCuenta.length!==1?'s':''} fuera del total</div>
+    </div>` : ''}
     <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
 
       <!-- Bloque Empresa -->
