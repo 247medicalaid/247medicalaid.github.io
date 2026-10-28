@@ -7,7 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261027-2200">
+<meta name="mon-build" content="20261027-2205">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -933,7 +933,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261027-2200';
+const MON_BUILD = '20261027-2205';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -977,7 +977,7 @@ function pintar(){
   // Cuentas
   const cuentas = ['Todas', ...Array.from(new Set(d.agentes.map(a => a.cuenta).filter(Boolean))).sort()];
   if (!cuentas.includes(S.cuenta)) S.cuenta = 'Todas';
-  $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c) + '" aria-pressed="' + (c === S.cuenta) + '">' + esc(c) + '</button> ').join('');
+  $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c) + '" aria-pressed="' + (c === S.cuenta) + '">' + (c === 'Todas' ? 'All' : esc(c)) + '</button> ').join('');
 
   const delFiltro = d.agentes.filter(a => S.cuenta === 'Todas' || a.cuenta === S.cuenta);
   const bajas = delFiltro.filter(a => a.activo === false);
