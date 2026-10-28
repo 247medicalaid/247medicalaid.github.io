@@ -5488,6 +5488,15 @@ function toggleAgente(id, active){
     renderAgentes();
     return;
   }
+  // Confirmación al INACTIVAR un agente, para no dejar a nadie fuera de la nómina por error.
+  if(!active){
+    const _cuName = cuAg ? cuAg.nombre : '(sin cuenta asignada)';
+    if(!confirm(`¿Seguro que quieres inactivar a "${ag.nombre}", asociado a la cuenta "${_cuName}"?\n\n` +
+                `Dejará de contar en la nómina de esta quincena y de las futuras. Podrás reactivarlo cuando quieras.`)){
+      renderAgentes();   // cancelado: restaura el interruptor como estaba
+      return;
+    }
+  }
   ag.estado = active ? 'active' : 'inactive';
   if(active && ag.dias === 0){
     ag.dias    = parseInt($('qdays').value) || 12;
