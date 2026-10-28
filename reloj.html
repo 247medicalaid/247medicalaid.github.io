@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v276-202610271509">
+<meta name="app-build" content="v277-202610281206">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4543,6 +4543,18 @@ async function api(action, p){
       const ms = await q(sb.from('reloj_marcas').select(COLS_M).in('usuario', [...new Set(pd.map(r => r.usuario))]).in('fecha', [...new Set(pd.map(r => r.fecha))])
         .is('anulada_en', null).order('ts').order('id'));
       ms.forEach(m => { (dias[m.usuario + '|' + m.fecha] = dias[m.usuario + '|' + m.fecha] || []).push({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)) }); });
+    }catch(e){}
+    // (paso 121) Ausencias pendientes: marcas trabajadas de sus días, para avisar del choque al aprobar.
+    const pa = rows.filter(r => r.estado === 'pendiente' && r.tipo === 'ausencia');
+    if(pa.length) try{
+      const hoyF = fechaHoy(), setU = new Set(), setF = new Set();
+      pa.forEach(r => { let f = r.fecha, g = 0; const ff = r.fecha_fin || r.fecha;
+        while(f <= ff && g++ < 60){ if(f <= hoyF){ setU.add(r.usuario); setF.add(f); } f = sumarDias(f, 1); } });
+      if(setU.size && setF.size){
+        const msA = await q(sb.from('reloj_marcas').select(COLS_M).in('usuario', [...setU]).in('fecha', [...setF])
+          .is('anulada_en', null).order('ts').order('id'));
+        msA.forEach(m => { (dias[m.usuario + '|' + m.fecha] = dias[m.usuario + '|' + m.fecha] || []).push({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)) }); });
+      }
     }catch(e){}
     // Correcciones pendientes: lo que el agente marcó en ese día (para ver qué se conserva al aprobar, paso 38)
     const pc = rows.filter(r => r.estado === 'pendiente' && r.tipo === 'correccion'), luego = {};
@@ -12020,6 +12032,29 @@ function solConflicto(l){
   });
   return inval > 0;
 }
+// (paso 121) Choque de una AUSENCIA con el tiempo ya trabajado ese día. Devuelve los días en
+// conflicto (para avisar al aprobar). Solo LEE r.dias (marcas); no cambia nada. [] = sin choque.
+// Parcial → franja [horaIni,horaFin]; día completo → todo el día (0..1440).
+function choqueAusencia(s, r){
+  if(!s || s.tipo !== 'ausencia' || !r || !r.dias) return [];
+  const parc = esParcial(s), a0 = parc ? aMin(s.horaIni) : 0, a1 = parc ? aMin(s.horaFin) : 1440;
+  if(a0 == null || a1 == null) return [];
+  const minTxt = x => (x == null || x >= 1440) ? null : h12(String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'));
+  const out = []; let f = s.fecha, g = 0, fin = s.fechaFin || s.fecha;
+  while(f && f <= fin && g++ < 60){
+    const ms = r.dias[s.usuario + '|' + f];
+    if(ms && ms.length){
+      const ent = ms.filter(m => m.tipo === 'entrada').map(m => aMin(m.hora)).filter(x => x != null);
+      const sal = ms.filter(m => m.tipo === 'salida').map(m => aMin(m.hora)).filter(x => x != null);
+      if(ent.length){
+        const w0 = Math.min.apply(null, ent), w1 = sal.length ? Math.max.apply(null, sal) : 1440;
+        if(w0 < a1 && a0 < w1) out.push({ fecha:f, inTxt:minTxt(w0), outTxt:minTxt(w1) });
+      }
+    }
+    f = sumarDias(f, 1);
+  }
+  return out;
+}
 function rqHTML(s, r){
   const emp = r.emps.find(e => e.usuario === s.usuario) || {};
   const pedida = fmt(s.creada, { month:'short', day:'numeric' }) + ' at ' + fmt(s.creada, { hour:'numeric', minute:'2-digit' });
@@ -12048,6 +12083,11 @@ function rqHTML(s, r){
       '<div class="rq-tot"><span>' + (parc ? 'Part of the day · ' + hm(minParcial(s)) + ' h' : n + (n === 1 ? ' day' : ' days')) + '</span><span>' +
         (pag ? 'Paid · ' + (parc ? hm(minParcial(s)) + ' h' : (emp.horasDia || 8) + ' h/day') : 'Unpaid') + '</span></div>' +
       '<div class="rq-nota">Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) + '. Approve uses ' + (pag ? 'paid' : 'unpaid') + ' by default; use the note button to change it.</div></section></div>';
+    const choq = choqueAusencia(s, r);
+    if(choq.length){
+      const det = choq.map(c => diaS(c.fecha) + (c.inTxt ? ' (' + c.inTxt + (c.outTxt ? ' – ' + c.outTxt : ' – still in') + ')' : '')).join(', ');
+      h += '<div class="rq-aviso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>This time off overlaps hours already worked: <b>' + esc(det) + '</b>. Approving won\'t remove those punches — if that isn\'t intended, adjust the absence hours or fix that day\'s punches first.</span></div>';
+    }
   } else {
     const { antes, despues, kept } = ladosSol(s, r);
     h += '<div class="rq-comp">' + ladoHTML(s.tipo === 'correccion' ? 'Original' : 'Now', 'orig', antes, despues, emp) +
