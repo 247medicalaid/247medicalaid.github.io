@@ -7,7 +7,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261027-2225">
+<meta name="mon-build" content="20261028-1050">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -933,7 +933,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261027-2225';
+const MON_BUILD = '20261028-1050';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1219,20 +1219,23 @@ function rechazosDeTarjeta(a){
   if (typeof ESTADO_MON === 'undefined' || !ESTADO_MON || !ESTADO_MON.length || !a || !a.episodios) return [];
   const fold = v => String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
   const normA = fold(a.agente), dia = (S.data && S.data.fecha) || '';
-  const porFila = {};
-  // La `fila` se REUTILIZA entre agentes/fechas, así que sola NO identifica la autorización:
-  // emparejar el rechazo solo dentro del MISMO agente y cuando su rango cubre el día que se ve.
-  ESTADO_MON.forEach(s => { if (s && s.estado === 'rechazada' && s.ref && s.ref.fila != null
-      && fold(s.agente) === normA
-      && (!dia || (String(s.desde||'').slice(0,10) <= dia && String(s.hasta||'').slice(0,10) >= dia)))
-    porFila[String(s.ref.fila)] = s; });
-  const out = [], vistos = {};
+  // Rechazos de ESTE agente que cubren el día que se ve. (El rango acota para no heredar rechazos
+  // de otra fecha; el agente, para no cruzarlos entre personas.)
+  const rech = ESTADO_MON.filter(s => s && s.estado === 'rechazada' && fold(s.agente) === normA
+    && (!dia || (String(s.desde||'').slice(0,10) <= dia && String(s.hasta||'').slice(0,10) >= dia)));
+  if (!rech.length) return [];
+  // Se recorre cada autorización aplicada al día (episodio justificado, con su `fila` para "Quitar")
+  // y se busca el rechazo que le corresponde:
+  //   • NUEVO (llave natural, el ref NO trae fila): por clase (agente+día ya filtrados).
+  //   • VIEJO (ref con fila): por fila.
+  // Cada rechazo se usa una sola vez.
+  const out = [], vistos = {}, usados = new Set();
   a.episodios.forEach(e => {
-    const f = e && e.justificado && e.justificado.fila;
-    if (f != null && porFila[String(f)] && !vistos[String(f)]) {
-      vistos[String(f)] = 1;
-      out.push({ fila: String(f), motivo: (e.justificado.motivo) || '', s: porFila[String(f)] });
-    }
+    const j = e && e.justificado; if (!j || j.fila == null || vistos[String(j.fila)]) return;
+    const s = rech.find(x => !usados.has(x) && ((x.ref && x.ref.fila != null)
+        ? String(x.ref.fila) === String(j.fila)
+        : motivoClaseMon(j.motivo) === x.clase));
+    if (s) { vistos[String(j.fila)] = 1; usados.add(s); out.push({ fila: String(j.fila), motivo: j.motivo || '', s }); }
   });
   return out;
 }
@@ -2231,13 +2234,19 @@ function motivoClaseMon(m){ const s = String(m || '').toLowerCase();
 // ¿esta autorización (agente + fechas) fue RECHAZADA en el TimeClock?
 function rechazoDe(agente, t){
   if (!ESTADO_MON || !ESTADO_MON.length || !t) return null;
-  // La `fila` se REUTILIZA entre agentes/fechas: emparejar por agente + fila + rango de fechas,
-  // para que una autorización nueva NO herede el rechazo de otra (de otro agente o ya quitada).
   const fold = v => String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
   const na = fold(agente), td = String(t.desde||'').slice(0,10), th = String(t.hasta||'').slice(0,10);
-  return ESTADO_MON.find(s => s.estado === 'rechazada' && s.ref && String(s.ref.fila) === String(t.fila)
-    && fold(s.agente) === na
-    && String(s.desde||'').slice(0,10) <= th && String(s.hasta||'').slice(0,10) >= td) || null;
+  return ESTADO_MON.find(s => {
+    if (s.estado !== 'rechazada' || fold(s.agente) !== na) return false;
+    const r = s.ref || {};
+    // NUEVO: llave natural (agente + desde + hasta + motivo). El ref NO trae fila; se compara exacto.
+    if (r.fila == null) {
+      return r.desde === t.desde && r.hasta === t.hasta && (r.motivo || '') === (t.motivo || '');
+    }
+    // VIEJO: por `fila` (que se reutiliza), acotado por agente + rango de fechas (fix build 2225).
+    return String(r.fila) === String(t.fila)
+      && String(s.desde||'').slice(0,10) <= th && String(s.hasta||'').slice(0,10) >= td;
+  }) || null;
 }
 async function pintarAutorizaciones(){
   const cont = $('auLista');
