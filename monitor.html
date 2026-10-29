@@ -9,7 +9,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261029-1245">
+<meta name="mon-build" content="20261029-1405">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -963,7 +963,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261029-1245';
+const MON_BUILD = '20261029-1405';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -987,7 +987,19 @@ function programar(){
   }, 30000);
   if (!S._verChk) {
     S._verChk = setInterval(() => { if (!document.hidden) chequearVersion(); }, 180000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) chequearVersion(); });
+    // (Fase A) Al volver a la ventana del Monitor (cambiar de pestaña o de ventana), refrescar de una:
+    // así el estado apagado/encendido (solo lectura) y los datos se actualizan al instante, sin esperar
+    // al timer ni tener que darle Refresh a mano. Anti-doble-disparo: focus + visibilitychange a la vez.
+    let _ultFoco = 0;
+    const alFrente = () => {
+      if (document.hidden) return;
+      if (Date.now() - _ultFoco < 3000) return;
+      _ultFoco = Date.now();
+      chequearVersion();
+      cargar();
+    };
+    document.addEventListener('visibilitychange', alFrente);
+    window.addEventListener('focus', alFrente);
   }
 }
 
