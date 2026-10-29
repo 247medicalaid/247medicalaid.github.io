@@ -9,7 +9,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261029-1405">
+<meta name="mon-build" content="20261029-1720">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -963,7 +963,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261029-1405';
+const MON_BUILD = '20261029-1720';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1006,8 +1006,10 @@ function programar(){
 // ---------------------------------------------------------------- pintar
 function pintar(){
   const d = S.data;
+  aplicarIdentidadTC(d);
   $('app').hidden = false; $('setup').hidden = true;
-  $('sub').textContent = 'Alerts after ' + d.config.umbralMin + ' minutes without activity · Time ' + d.config.zona.replace('America/','').replace('_',' ');
+  const _sinTC = (d.agentes || []).filter(a => a.enTC === false).length;
+  $('sub').textContent = 'Alerts after ' + d.config.umbralMin + ' minutes without activity · Time ' + d.config.zona.replace('America/','').replace('_',' ') + (_sinTC ? '  ·  ⚠ ' + _sinTC + ' not in the Time Clock' : '');
   $('upd').textContent = (S.demo ? 'Sample · ' : '') + 'Updated ' + hora(d.generado) +
     (FUENTE.ultima && !S.demo ? ' · ' + FUENTE.ultima + ' ' + (FUENTE.ms / 1000).toFixed(1).replace('.', ',') + ' s' +
       (FUENTE.ultima === 'Supabase' && d.esHoy ? ' · refreshes every 30 s' : '') : '');
@@ -1466,6 +1468,7 @@ function fila(a, d){
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Multiple users signed in to this device today: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' users today</span>' : '') + '</small>' : '') +
       (fEquipo ? '<div class="meta mini">' + fEquipo + '</div>' : '') +
       (a.sinCuenta ? '<br><span class="sincuenta" title="The account “' + esc(a.cuenta) + '” is no longer in the list. Reinstall the monitor on this device.">\u26a0 Agent without assigned account</span>' : '') +
+      (a.enTC === false ? '<br><span class="sincuenta" title="This agent is not linked to anyone in the Time Clock. Link or create them in the Time Clock so the Monitor shows their official info.">⚠ Not in the Time Clock</span>' : '') +
       '<br><div class="btns-mini">' +
       (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Schedule</button>') +
       '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Name / account</button>' +
@@ -2272,6 +2275,17 @@ function aplicarSoloLectura(){
     document.body.insertBefore(b, document.body.firstChild);
   }
 }
+// (Fase C) Normaliza nombres para casar el agente del Monitor con agente_monitor del TimeClock.
+const foldNom = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+// (Fase C) El panel lee la CUENTA del TimeClock (fuente de verdad). Puro display; marca los agentes que NO están en el TimeClock.
+function aplicarIdentidadTC(d){
+  const r = window.__tcRoster; if (!r || !d || !Array.isArray(d.agentes)) return;
+  d.agentes.forEach(a => {
+    const m = r[foldNom(a.agente)];
+    if (m) { if (m.cuenta) a.cuenta = m.cuenta; a.enTC = true; a.tcCodigo = m.codigo; }
+    else { a.enTC = false; }
+  });
+}
 async function cargarEstadoMonitor(force){
   if (ESTADO_MON && !force) return ESTADO_MON;
   if (!window.sb || (typeof S !== 'undefined' && S.demo)) { ESTADO_MON = []; window.__monOff = false; aplicarSoloLectura(); return ESTADO_MON; }
@@ -2280,6 +2294,13 @@ async function cargarEstadoMonitor(force){
   // (Fase A) Encendido/apagado del Monitor → modo solo lectura del panel. En duda, NO bloquear (la barrera real está en el servidor).
   try { const re = await window.sb.rpc('reloj_monitor_sync_estado'); window.__monOff = !!(re && re.data && re.data.activo === false); }
   catch (e) { window.__monOff = false; }
+  // (Fase C) Roster del TimeClock: la identidad (cuenta) la manda el TimeClock. Índice por agente_monitor. Si falla, no se sobreescribe nada.
+  try {
+    const rr = await window.sb.rpc('reloj_empleados_activos');
+    const map = {};
+    ((rr && rr.data) || []).forEach(e => { const k = foldNom(e.agente_monitor); if (k) map[k] = { nombre: e.nombre, cuenta: e.cuenta || '', codigo: e.codigo }; });
+    window.__tcRoster = map;
+  } catch (e) { /* sin roster → el panel sigue con lo que tiene el Monitor */ }
   aplicarSoloLectura();
   return ESTADO_MON;
 }
