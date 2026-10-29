@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v280-202610282345">
+<meta name="app-build" content="v281-202610291625">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2971,6 +2971,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <label class="campo c3" style="--w:160px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
       <label class="campo c3" style="--w:160px"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
       <label class="campo c6" style="--w:285px"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
+      <label class="campo c3" style="--w:150px"><span>User ID <i class="opc" style="font-style:normal;font-weight:400">(for the Monitor app)</i></span><input id="eCodigo" readonly placeholder="— (on save)" title="Fixed code for this user. The Monitor app on their computer uses it to identify them." style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:1.5px;background:#fff"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
@@ -4181,7 +4182,7 @@ function enIngles(m){ m = String(m || '');
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), msReal:(m.ts_real ? Date.parse(m.ts_real) : Date.parse(m.ts)), origen:m.origen, autor:m.autor, motivo:m.motivo });
-const empJS = e => ({ usuario:e.usuario, nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo, esManager:e.es_manager === true,
+const empJS = e => ({ usuario:e.usuario, codigo:e.codigo || '', nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo, esManager:e.es_manager === true,
   cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
@@ -7668,6 +7669,7 @@ function abrirEmp(usuario){
   $('eMonitor').value = e ? e.agenteMonitor : '';
   pintarMonNota();
   $('eNomina').value = e ? e.nombreNomina : '';
+  $('eCodigo').value = e && e.codigo ? e.codigo : '';
   $('eHoras').value = e ? e.horasDia : 8;
   pintarLugarEmp(e);
   // (v88) Archive / Reactivate y Delete (Delete no aplica a quien entra por el portal)
