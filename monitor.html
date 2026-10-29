@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- build mon-20261028-2135: día pasado desde caché ahora se refresca en 2º plano (ya no se queda pegado en info vieja) -->
 <!-- build mon-20261028-2013: etapa3 ausencias auto — "Unauthorized absence" se dibuja en ámbar/rayas + ✗ (motivo "Ausencia no autorizada") -->
 <!-- build mon-202610190241: flechas de dia < > en la fecha (no pasa de hoy) -->
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261028-2013">
+<meta name="mon-build" content="20261028-2135">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -907,7 +908,22 @@ async function cargar(forzar){
   if (!url || !tok) { mostrarSetup(); return; }
   // Un dia pasado que ya se vio se pinta al instante, sin esperar al servidor.
   const guardado = !forzar && diaGuardado(S.fecha);
-  if (guardado) { S.data = guardado; $('banner').innerHTML = ''; await cargarEstadoMonitor(true); pintar(); return; }
+  if (guardado) {
+    S.data = guardado; $('banner').innerHTML = ''; await cargarEstadoMonitor(true); pintar();
+    // (fix 20261028) Refresco en 2º plano: el día pasado se pinta al instante desde caché,
+    // pero igual se trae el dato REAL del servidor y se repinta si cambió, para que nunca se
+    // quede pegado en información vieja (p. ej. una autorización que ya se borró en el TimeClock).
+    const fv = S.fecha;
+    (async () => {
+      try {
+        const j = await pedirEstado(fv, url, tok);
+        if (j && j.ok && S.fecha === fv && JSON.stringify(j) !== JSON.stringify(guardado)) {
+          guardarDia(fv, j); S.data = j; await cargarEstadoMonitor(true); pintar();
+        }
+      } catch (_) {}
+    })();
+    return;
+  }
   $('upd').textContent = 'Updating…';
   try {
     const j = await pedirEstado(S.fecha, url, tok);
@@ -937,7 +953,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261028-2013';
+const MON_BUILD = '20261028-2135';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
