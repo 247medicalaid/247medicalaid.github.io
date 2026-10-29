@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- build mon-20261028-2013: etapa3 ausencias auto — "Unauthorized absence" se dibuja en ámbar/rayas + ✗ (motivo "Ausencia no autorizada") -->
 <!-- build mon-202610190241: flechas de dia < > en la fecha (no pasa de hoy) -->
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261028-1050">
+<meta name="mon-build" content="20261028-2013">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -29,7 +30,7 @@
   --track:#e7e8ea; --lunch:#B4B5BA;
   --good:#0B72A8; --warning:#f9ab00; --serious:#e8710a; --critical:#d93025; --neutral:#5f6368;
   --good-bg:#E3F3FA; --warning-bg:#fef7e0; --critical-bg:#fce8e6; --neutral-bg:#eceff1;
-  --st-inactivo:#E0A100; --st-offline:#6A6C71; --st-raya:rgba(0,0,0,.55); --st-activo:#0B72A8; --st-autorizado:#9CCFE8; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
+  --st-inactivo:#E0A100; --st-offline:#6A6C71; --st-raya:rgba(0,0,0,.55); --st-activo:#0B72A8; --st-autorizado:#9CCFE8; --st-noaut:#ECA074; --st-sinsenal:#d93025; --st-sininternet:#f9ab00; --st-tardia:#1a73e8; --st-sinconexion:#202124;
   --accent:#0E86B4;
 }
 @media (prefers-color-scheme: dark){
@@ -40,7 +41,7 @@
     --track:#2c2c29; --lunch:#5E5E58;
     --good:#29A8E8; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
     --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-    --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-autorizado:#7FC1E0; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+    --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-autorizado:#7FC1E0; --st-noaut:#D9956A; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
     --accent:#0E86B4;
   }
 }
@@ -51,7 +52,7 @@
   --track:#2c2c29; --lunch:#5E5E58;
   --good:#29A8E8; --warning:#fbc02d; --serious:#f29d4e; --critical:#f16b5f; --neutral:#9aa0a6;
   --good-bg:#0E2A36; --warning-bg:#3a2e0e; --critical-bg:#3d1616; --neutral-bg:#2a2a27;
-  --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-autorizado:#7FC1E0; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
+  --st-inactivo:#F2C94C; --st-offline:#4A4A45; --st-raya:rgba(255,255,255,.70); --st-activo:#29A8E8; --st-autorizado:#7FC1E0; --st-noaut:#D9956A; --st-sinsenal:#f16b5f; --st-sininternet:#fbc02d; --st-tardia:#6ba6f5; --st-sinconexion:#c9cdd2;
   --accent:#0E86B4;
 }
 *{box-sizing:border-box}
@@ -235,6 +236,9 @@ html.embed body{background:var(--bg)}
 .rechbar .rechquit{margin-left:auto;white-space:nowrap}
 .tl .seg.just.hatch{background-image:repeating-linear-gradient(135deg,rgba(4,20,31,.42) 0 2px,transparent 2px 5px)}
 .tl .seg.just::after{content:'\2713';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#04141F;opacity:.85}
+/* Ausencia NO autorizada: cubre el día igual, pero se dibuja en ámbar/rojo con rayas y una \2717 para distinguirla. */
+.tl .seg.just.noaut{background-color:var(--st-noaut) !important;background-image:repeating-linear-gradient(135deg,rgba(60,13,8,.40) 0 2px,transparent 2px 5px)}
+.tl .seg.just.noaut::after{content:'\2717';color:#3A0D08;opacity:.9}
 .tl .seg:hover,.tl .base:hover,.tl .lunch:hover{outline:2px solid var(--text);outline-offset:1px}
 .tl .base,.tl .lunch,.tl .extra{cursor:default}
 /* Lo que pasó fuera del turno asignado (entró antes o se quedó después).
@@ -933,7 +937,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261028-1050';
+const MON_BUILD = '20261028-2013';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1385,12 +1389,13 @@ function fila(a, d){
     const dt = tipoDisp(ep.tipo);
     const T = TIPOS[dt] || TIPOS['Sin señal'];
     const j = ep.justificado;
-    const titulo = j ? '\u2713 Authorized · ' + tipoEN(ep.tipo) : tipoEN(ep.tipo);
+    const noaut = !!(j && String(j.motivo) === 'Ausencia no autorizada');
+    const titulo = j ? ((noaut ? '\u2717 Unauthorized · ' : '\u2713 Authorized · ') + tipoEN(ep.tipo)) : tipoEN(ep.tipo);
     const desc = j ? (motivoEN(j.motivo) + (j.nota ? ' — ' + j.nota : '') + (j.autorizo ? ' (authorized by ' + j.autorizo + ')' : '') +
                       '. Does not count as lost time. Click to change it.')
                    : (T.desc + ' Click to change it: you can authorize it or count it as a break.');
     const tip = esc(titulo) + '|' + hora(ep.ini) + ' – ' + (ep.abierto ? 'ongoing' : hora(ep.fin)) + '|' + dur(ep.min) + '|' + esc(desc);
-    tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + (j ? ' just' : '') + '" data-tip="' + tip + '"' +
+    tl += '<div class="seg' + (T.hatch ? ' hatch' : '') + (j ? ' just' : '') + (noaut ? ' noaut' : '') + '" data-tip="' + tip + '"' +
       ' data-aut="' + esc(a.agente) + '" data-ini="' + ep.ini + '" data-fin="' + ep.fin + '"' +
       ' data-marca="' + marcaDe(ep.ini, ep.fin) + '"' +
       (j ? ' data-fila="' + j.fila + '"' : '') +
@@ -2340,7 +2345,8 @@ const MOTIVOS_AUT = [
   // Affects the timesheet (crean ausencia en el TimeSheet vía el sync inverso).
   { v:'Vacaciones', en:'Vacation', g:'ts' },
   { v:'Enfermedad', en:'Sick', g:'ts' },
-  { v:'Permiso autorizado', en:'Authorized leave', g:'ts' }
+  { v:'Permiso autorizado', en:'Authorized leave', g:'ts' },
+  { v:'Ausencia no autorizada', en:'Unauthorized absence', g:'ts' }
 ];
 // Mapa valor->inglés para mostrar el motivo consistente (incluye el valor viejo fusionado).
 const MOTIVO_EN = { 'Cita médica o diligencia':'Sick' };
