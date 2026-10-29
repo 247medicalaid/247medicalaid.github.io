@@ -9,7 +9,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261028-2135">
+<meta name="mon-build" content="20261029-1245">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -386,6 +386,10 @@ details.auCaja .tlista{margin-top:8px;border-top:0;padding-top:0}
 #inactivos>summary .nota{font-weight:400;font-size:12px;color:var(--muted)}
 #inactivos .row{opacity:.72}
 .bajainfo{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+/* (Fase A) Monitor apagado = solo lectura: banner + se ocultan los controles de modificación. */
+#monRoBanner{position:sticky;top:0;z-index:50;background:#b45309;color:#fff;padding:8px 14px;font-size:13px;font-weight:600;text-align:center;letter-spacing:.2px}
+body:not(.mon-off) #monRoBanner{display:none}
+body.mon-off .btns-mini,body.mon-off .rechquit,body.mon-off .quitaraut,body.mon-off #cGuardar{display:none!important}
 .modal input[type=text]{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
 @media (max-width:560px){.hsem{grid-template-columns:1fr 1fr}.hsem .cab{display:none}.hsem .dia{grid-column:1 / span 2;margin-top:6px}.hsem .libre{grid-column:1 / span 2}
 .hsem .hc span{display:block}}
@@ -676,7 +680,13 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
   const ponerModo = m => { modo = m; try { localStorage.setItem(MODO_CLAVE, m); } catch(e){} };
   window.__monFuente = () => modo;
   const jsonResp = o => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  // (Fase A) Acciones que MODIFICAN. Con el Monitor apagado (solo lectura) se bloquean aquí, en el embudo.
+  const ESCRITURAS_MON = new Set(['baja','agente','horario','turno_guardar','turno_borrar','autorizar','autorizar_borrar','descanso_marcar','descanso_borrar','guardarCuentas']);
   async function pedirSB(params){
+    if (window.__monOff && params && ESCRITURAS_MON.has(params.accion)) {
+      try { if (typeof toast === 'function') toast('The Monitor is off (read only). Turn it back on in the Time Clock settings to make changes.', 'err'); } catch(e){}
+      return { status: 423, j: { ok:false, error:'The Monitor is off (read only).' } };
+    }
     if (!window.sb || !window.SB_URL) return null;
     const ses = await window.sb.auth.getSession();
     const t = ses && ses.data && ses.data.session;
@@ -953,7 +963,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261028-2135';
+const MON_BUILD = '20261029-1245';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1644,7 +1654,7 @@ $('aGuardar').addEventListener('click', async () => {
 // Si no se puede (sin Supabase o sin el paso 24), la copia del Apps Script lo hace en unos minutos.
 async function syncReloj(agente, nuevo, cuenta) {
   try {
-    if (!window.sb || S.demo) return;
+    if (!window.sb || S.demo || window.__monOff) return;
     const r = await window.sb.rpc('reloj_sync_desde_monitor', { p_agente: agente, p_nuevo: nuevo || '', p_cuenta: cuenta || '' });
     if (r.error) console.warn('Time Clock no se actualizó al instante:', r.error.message);
   } catch (e) { console.warn('Time Clock no se actualizó al instante:', e); }
@@ -2240,11 +2250,25 @@ const sello = ms => { const d = new Date(ms);
 
 // Etapa 3b: estado en el TimeClock de las ausencias que NACIERON en el Monitor (para resaltar las rechazadas).
 let ESTADO_MON = null;
+// (Fase A) Pinta/quita el banner y marca el <body> cuando el Monitor está apagado (solo lectura).
+function aplicarSoloLectura(){
+  const off = !!window.__monOff;
+  document.body.classList.toggle('mon-off', off);
+  if (off && !document.getElementById('monRoBanner')) {
+    const b = document.createElement('div'); b.id = 'monRoBanner';
+    b.textContent = 'Monitor is OFF — read only. Turn the Monitor sync back on in the Time Clock settings to make changes.';
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+}
 async function cargarEstadoMonitor(force){
   if (ESTADO_MON && !force) return ESTADO_MON;
-  if (!window.sb || (typeof S !== 'undefined' && S.demo)) { ESTADO_MON = []; return ESTADO_MON; }
+  if (!window.sb || (typeof S !== 'undefined' && S.demo)) { ESTADO_MON = []; window.__monOff = false; aplicarSoloLectura(); return ESTADO_MON; }
   try { const r = await window.sb.rpc('monitor_solicitudes_estado'); ESTADO_MON = Array.isArray(r && r.data) ? r.data : []; }
   catch (e) { ESTADO_MON = []; }
+  // (Fase A) Encendido/apagado del Monitor → modo solo lectura del panel. En duda, NO bloquear (la barrera real está en el servidor).
+  try { const re = await window.sb.rpc('reloj_monitor_sync_estado'); window.__monOff = !!(re && re.data && re.data.activo === false); }
+  catch (e) { window.__monOff = false; }
+  aplicarSoloLectura();
   return ESTADO_MON;
 }
 function motivoClaseMon(m){ const s = String(m || '').toLowerCase();
@@ -2311,6 +2335,7 @@ function pintarAuQue(){
 }
 
 function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
+  if (window.__monOff) { try { if (typeof toast === 'function') toast('The Monitor is off (read only). Turn it back on in the Time Clock settings to make changes.', 'err'); } catch(e){} return; }
   autAgente = ag; autFila = Number(fila) || 0;
   autMarca = Number(marca) || 0; autEraDesc = esDesc === '1' || esDesc === true;
   $('auAgente').textContent = ag;
@@ -2636,6 +2661,7 @@ async function recargarClaves(){
   catch(e){ $('kResumen').innerHTML = ''; $('kLista').innerHTML = '<div class="banner err">' + esc(e.message) + '</div>'; }
 }
 async function decidirClave(id, accion, motivo, boton){
+  if (window.__monOff) { try { if (typeof toast === 'function') toast('The Monitor is off (read only). Turn it back on in the Time Clock settings to make changes.', 'err'); } catch(e){} return; }
   if (boton) { boton.disabled = true; boton.textContent = 'Saving…'; }
   try {
     const r = await window.sb.rpc('monitor_equipo_decidir', { p_id: id, p_accion: accion, p_motivo: motivo || '' });
