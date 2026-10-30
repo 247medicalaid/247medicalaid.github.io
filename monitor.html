@@ -9,7 +9,7 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261029-1720">
+<meta name="mon-build" content="20261029-2035">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -963,7 +963,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261029-1720';
+const MON_BUILD = '20261029-2035';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1471,7 +1471,7 @@ function fila(a, d){
       (a.enTC === false ? '<br><span class="sincuenta" title="This agent is not linked to anyone in the Time Clock. Link or create them in the Time Clock so the Monitor shows their official info.">⚠ Not in the Time Clock</span>' : '') +
       '<br><div class="btns-mini">' +
       (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Schedule</button>') +
-      '<button class="btn-mini" data-edit="' + esc(a.agente) + '" data-cta="' + esc(a.cuenta||'') + '" type="button">Name / account</button>' +
+      /* (Fase C) Editor por-agente de Nombre/cuenta retirado: la identidad (nombre y cuenta) la posee el Time Clock; el Monitor solo la lee. Los renombres y la cuenta se gestionan en el Time Clock. */
       (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Shift change for a day or a period">Shift change</button>') +
       '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (conBaja ? '1' : '0') + '" type="button" title="' +
         (conBaja ? 'Returns to the agent list and clears the deactivation date' : 'Stops counting from the day after the deactivation date') + '">' +
