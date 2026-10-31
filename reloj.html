@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v284-202610302025">
+<meta name="app-build" content="v285-202610302035">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8877,7 +8877,7 @@ const SOL_IC = {
 };
 const solJS = r => ({ id:r.id, usuario:r.usuario, tipo:r.tipo, fecha:r.fecha, fechaFin:r.fecha_fin, horaIni:r.hora_ini, horaFin:r.hora_fin,
   clase:r.clase, conceptoNombre:r.concepto_nombre || null, motivo:r.motivo, estado:r.estado, pagada:r.pagada, horasDia:r.horas_dia == null ? null : Number(r.horas_dia),
-  almIni:r.alm_ini || null, almFin:r.alm_fin || null, marcas:r.marcas || null, marcasAntes:r.marcas_antes || null, respuesta:r.respuesta || '', editada:r.editada === true, creada:Date.parse(r.creada_en), decididaPor:r.decidida_por, decidida:r.decidida_en ? Date.parse(r.decidida_en) : null,
+  almIni:r.alm_ini || null, almFin:r.alm_fin || null, marcas:r.marcas || null, marcasAntes:r.marcas_antes || null, respuesta:r.respuesta || '', editada:r.editada === true, marcasAprobadas:r.marcas_aprobadas || null, creada:Date.parse(r.creada_en), decididaPor:r.decidida_por, decidida:r.decidida_en ? Date.parse(r.decidida_en) : null,
   permanente:r.permanente === true, diaSemana:r.dia_semana == null ? null : Number(r.dia_semana) });
 function h12(x){ if(!x) return ''; const [h, m] = x.split(':').map(Number); return ((h + 11) % 12 + 1) + ':' + String(m).padStart(2,'0') + (h < 12 ? ' AM' : ' PM'); }
 const diaS = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'short', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
@@ -11933,7 +11933,7 @@ function pintarMias(){
       '<div class="t2">' + esc(solCuando(s)) + '</div>' + (s.tipo === 'correccion' ? '<div class="t3 antes">Before: ' + esc(marcasTxt(s.marcasAntes)) + '</div>' : '') +
       '<div class="t3">' + esc(s.motivo) + '</div>' +
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? '<div class="t3">' + (s.pagada ? 'Paid · ' + s.horasDia + ' h/day' : 'Unpaid') + '</div>' : '') +
-      (s.estado === 'aprobada' && s.editada ? '<div class="t3" style="color:var(--brand-600,#2563eb);font-weight:600">✎ Approved with adjusted times</div>' : '') +
+      (s.estado === 'aprobada' && s.editada ? '<div class="t3" style="color:var(--brand-600,#2563eb);font-weight:600">✎ Adjusted to: ' + (s.marcasAprobadas ? esc(marcasTxt(s.marcasAprobadas)) : 'adjusted times') + '</div>' : '') +
       (s.respuesta ? '<div class="t3">Answer: “' + esc(s.respuesta) + '”</div>' : '') + '</div>' +
       '<div class="acc">' + ((s.estado === 'pendiente' || s.estado === 'aprobada') ? '<button class="btn btn-ghost btn-sm" data-cancelar="' + s.id + '"' + (s.estado === 'aprobada' ? ' data-aprob="1"' : '') + '>Cancel</button>' : '') + '</div></div>').join('')
     : '<div class="vacio" style="padding:24px">You haven\'t sent any requests yet.</div>';
@@ -11970,6 +11970,7 @@ function solItemHTML(s, r){
     (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor || '') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + (s.editada ? ' · edited' : '') +
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? ' · ' + pagoTxt(s) : '') +
       (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') +
+    (s.estado === 'aprobada' && s.editada && s.marcasAprobadas ? '<div class="t3">✎ Adjusted to: ' + esc(marcasTxt(s.marcasAprobadas)) + '</div>' : '') +
     (s.estado === 'cancelada' ? '<div class="t3">' + (s.respuesta === 'Replaced by a newer request' ? 'Replaced by a newer request' : 'Canceled by the employee') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + '</div>' : '') + '</div>' +
     '<div class="acc">' + (s.estado === 'pendiente' ? '<button class="btn btn-ghost btn-sm" data-dec="no" data-id="' + s.id + '">Deny</button>' +
       '<button class="btn btn-brand btn-sm" data-dec="si" data-id="' + s.id + '">Approve</button>'
