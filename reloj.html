@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v286-202610302055">
+<meta name="app-build" content="v287-202610302105">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -920,7 +920,8 @@ tr.cerrado td{background:#F6FAFC}
 .ve-cuenta-chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text);background:#F4F8FA;border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 10px}
 .ve-cuenta-chip .punto-cta{margin:0}
 .ve-pills{display:flex;gap:6px;flex-wrap:wrap;flex:none;justify-content:flex-end}
-#veCuerpo{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:13px;margin-top:4px}
+#veCuerpo{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:4px;align-items:start}
+.ve-col{display:flex;flex-direction:column;gap:13px;min-width:0}
 .ve-sec{border-radius:14px;padding:13px 16px;border:1px solid var(--line);background:#fff}
 .ve-sec.sec-notas{grid-column:1/-1}
 .ve-sec h3{display:flex;align-items:center;gap:9px;margin:0 0 9px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
@@ -7761,9 +7762,11 @@ function verEmp(usuario){
   const app = row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') +
     row('Windows app', appUsoHTML(e)) +
     row('App version', tcvHTML(e));
-  $('veCuerpo').innerHTML = sec('sec-work', 'Work', work) + sec('sec-pay', 'Pay', pay) +
-    sec('sec-personal', 'Personal', personal) + sec('sec-bank', 'Bank information', bank) +
-    sec('sec-app', 'App & Monitor', app) + (e.notas ? sec('sec-notas', 'Notes', '<div class="ve-notas">' + esc(e.notas) + '</div>') : '');
+  const col = (inner) => '<div class="ve-col">' + inner + '</div>';
+  $('veCuerpo').innerHTML =
+    col(sec('sec-work', 'Work', work) + sec('sec-personal', 'Personal', personal)) +
+    col(sec('sec-pay', 'Pay', pay) + sec('sec-bank', 'Bank information', bank) + sec('sec-app', 'App & Monitor', app)) +
+    (e.notas ? sec('sec-notas', 'Notes', '<div class="ve-notas">' + esc(e.notas) + '</div>') : '');
   $('veEditar').onclick = () => { cerrar('ovVerEmp'); abrirEmp(usuario); };
   abrir('ovVerEmp');
   const v = $('ovVerEmp').querySelector('.ventana'); if(v) v.scrollTop = 0;
