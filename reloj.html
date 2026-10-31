@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v282-202610291645">
+<meta name="app-build" content="v283-202610302010">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2810,6 +2810,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="se-nota">Set the correct punches for this day, then approve. The request is approved with these exact times.</div>
     <div id="seCampos"></div>
     <div id="seHrs"></div>
+    <label class="campo" style="margin-top:10px"><span>Note (optional) — why you adjusted the punches</span><input id="seNota" maxlength="500" autocomplete="off" placeholder="e.g. Clock-out set to match the approved shift"></label>
     <div id="seErr" role="alert"></div>
     <div class="pie"><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><span class="esp"></span><button class="btn btn-brand" type="button" id="seAprobar">Approve with these times</button></div>
   </div>
@@ -12147,7 +12148,7 @@ function abrirSolEd(id){
   const nombres = ['Clock in', 'Lunch start', 'Lunch end', 'Clock out'];
   $('seCampos').innerHTML = CAMPOS_PH.map((k, j) => '<label><span>' + nombres[j] + (j === 1 || j === 2 ? ' (optional)' : '') + '</span><input type="time" id="se_' + k + '" value="' + (v[k] || '') + '"></label>').join('');
   CAMPOS_PH.forEach(k => $('se_' + k).addEventListener('input', seRevisar));
-  $('seErr').textContent = ''; abrir('ovSolEd'); seRevisar();
+  $('seNota').value = ''; $('seErr').textContent = ''; abrir('ovSolEd'); seRevisar();
   if(matchMedia('(hover:hover)').matches){ const e0 = $('se_entrada'); if(e0) e0.focus(); }
 }
 function seLeer(){ const v = {}; CAMPOS_PH.forEach(k => { const el = $('se_' + k); v[k] = el ? el.value : ''; }); return v; }
@@ -12164,7 +12165,7 @@ async function seAprobar(){
   if(x.vacio){ $('seErr').textContent = 'Add at least a clock in and a clock out.'; return; }
   const b = $('seAprobar'); b.disabled = true;
   try{
-    await api('decidir', { id:_solEdId, aprobar:true, marcas:x.marcas });
+    await api('decidir', { id:_solEdId, aprobar:true, marcas:x.marcas, respuesta:($('seNota').value || '').trim() });
     cerrar('ovSolEd'); toast('Request approved with your changes. ' + diaS(s.fecha) + ' was updated.');
     S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
   }catch(e){ b.disabled = false; $('seErr').textContent = e.message; }
