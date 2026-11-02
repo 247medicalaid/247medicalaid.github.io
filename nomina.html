@@ -2439,8 +2439,12 @@
       <span class="dot" style="background:#34d399"></span> Historial
       <span class="badge" id="badge-historial">0</span>
     </button>
-    <button class="nav-btn" onclick="showPage('invoices')">
+    <button class="nav-btn" onclick="showPage('invoicesnew')">
       <span class="dot" style="background:#f472b6"></span> Invoices
+      <span class="badge" id="badge-invoicesnew">0</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('invoices')">
+      <span class="dot" style="background:#7A9EB0"></span> Invoices (old)
       <span class="badge" id="badge-invoices">0</span>
     </button>
     <button class="nav-btn" onclick="showPage('pagos')">
@@ -2766,6 +2770,131 @@
     <!-- Los invoices dados por perdidos se fueron a la seccion Pagos: alli se
          devuelven a pendientes, que es una accion de cobro, no de facturacion. -->
   </div>
+
+  <!-- ══════════ PAGE: INVOICES (nueva) ══════════ -->
+  <div id="page-invoicesnew" class="hidden">
+  <style>
+  #page-invoicesnew{font-size:14px}
+  #page-invoicesnew .iv2-head{margin-bottom:16px}
+  #page-invoicesnew .iv2-title{font-size:22px;font-weight:700;letter-spacing:-.01em}
+  #page-invoicesnew .iv2-sub{font-size:12.5px;color:var(--text2);margin-top:2px}
+  #page-invoicesnew .iv2-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  #page-invoicesnew .iv2-tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 15px}
+  #page-invoicesnew .iv2-tile .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600}
+  #page-invoicesnew .iv2-tile .v{font-family:'DM Mono',monospace;font-size:21px;font-weight:700;margin-top:4px}
+  #page-invoicesnew .iv2-tile .m{font-size:11px;color:var(--text2);margin-top:2px}
+  #page-invoicesnew .iv2-tile.ok .v{color:var(--accent)} #page-invoicesnew .iv2-tile.warn .v{color:var(--accent3)} #page-invoicesnew .iv2-tile.bad .v{color:var(--danger)}
+  #page-invoicesnew .iv2-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  #page-invoicesnew .iv2-search{flex:1;min-width:170px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0 11px}
+  #page-invoicesnew .iv2-search input{flex:1;min-width:0;border:0;background:none;color:var(--text);font:inherit;font-size:13.5px;padding:9px 0;outline:none}
+  #page-invoicesnew .iv2-search svg{width:15px;height:15px;color:var(--text3);flex:none}
+  #page-invoicesnew select.iv2-ctl,#page-invoicesnew #iv2-month{font:inherit;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 11px;cursor:pointer}
+  #page-invoicesnew select option{background:var(--surface);color:var(--text)}
+  #page-invoicesnew .iv2-mnav{display:flex;align-items:center;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--surface)}
+  #page-invoicesnew #iv2-month{border:0;border-radius:0;min-width:120px;text-align:center}
+  #page-invoicesnew .iv2-mbtn{font:inherit;font-size:17px;line-height:1;color:var(--text2);background:var(--surface2);border:0;width:34px;align-self:stretch;cursor:pointer}
+  #page-invoicesnew .iv2-mbtn:first-child{border-right:1px solid var(--border)} #page-invoicesnew .iv2-mbtn:last-child{border-left:1px solid var(--border)}
+  #page-invoicesnew .iv2-newbtn{font:inherit;font-size:13px;font-weight:600;background:var(--surface);color:var(--text2);border:1px solid var(--border);border-radius:9px;padding:10px 15px;cursor:pointer;white-space:nowrap}
+  #page-invoicesnew .iv2-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  #page-invoicesnew .iv2-chip{font:inherit;font-size:12.5px;font-weight:600;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  #page-invoicesnew .iv2-chip[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+  #page-invoicesnew .iv2-chip .d{width:8px;height:8px;border-radius:50%}
+  #page-invoicesnew .iv2-banner{margin-bottom:14px;background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--text2)}
+  #page-invoicesnew .iv2-tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  #page-invoicesnew .iv2-tblscroll{overflow-x:auto}
+  #page-invoicesnew table.iv2-tbl{width:100%;border-collapse:collapse;min-width:640px}
+  #page-invoicesnew .iv2-tbl thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+  #page-invoicesnew .iv2-tbl th.r,#page-invoicesnew .iv2-tbl td.r{text-align:right}
+  #page-invoicesnew .iv2-tbl tbody td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+  #page-invoicesnew .iv2-tbl tbody tr{cursor:pointer}
+  #page-invoicesnew .iv2-tbl tbody tr:last-child td{border-bottom:0}
+  #page-invoicesnew .iv2-tbl tbody tr:hover td{background:var(--surface2)}
+  #page-invoicesnew .iv2-acct{display:flex;align-items:center;gap:9px}
+  #page-invoicesnew .iv2-sw{width:9px;height:26px;border-radius:3px;flex:none;display:inline-block}
+  #page-invoicesnew .iv2-acct b{font-weight:600} #page-invoicesnew .iv2-acct small{display:block;color:var(--text3);font-size:11px}
+  #page-invoicesnew .iv2-mono{font-family:'DM Mono',monospace}
+  #page-invoicesnew .iv2-amt{font-family:'DM Mono',monospace;font-weight:600}
+  #page-invoicesnew .iv2-dim{color:var(--text3);font-size:12px}
+  #page-invoicesnew .iv2-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  #page-invoicesnew .iv2-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  #page-invoicesnew .iv2-pill.ok{color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--surface))}
+  #page-invoicesnew .iv2-pill.warn{color:var(--accent3);background:color-mix(in srgb,var(--accent3) 18%,var(--surface))}
+  #page-invoicesnew .iv2-pill.bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 18%,var(--surface))}
+  #page-invoicesnew .iv2-pill.info{color:var(--accent2);background:color-mix(in srgb,var(--accent2) 18%,var(--surface))}
+  #page-invoicesnew .iv2-pill.proc{color:var(--text2);background:var(--surface2);border:1px dashed var(--border)}
+  #page-invoicesnew .iv2-rowcobro{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent3);background:color-mix(in srgb,var(--accent3) 16%,var(--surface));border:0;border-radius:7px;padding:5px 9px;cursor:pointer}
+  #page-invoicesnew .iv2-empty{padding:40px;text-align:center;color:var(--text3);font-size:13.5px}
+  #page-invoicesnew .iv2-ghostbtn{font:inherit;font-size:12.5px;font-weight:600;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 14px;cursor:pointer}
+  /* Drawer */
+  #page-invoicesnew .iv2-scrim{position:fixed;inset:0;background:rgba(2,10,16,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1200}
+  #page-invoicesnew .iv2-scrim.open{opacity:1;pointer-events:auto}
+  #page-invoicesnew .iv2-drawer{position:fixed;top:0;right:0;height:100%;width:min(760px,100%);background:var(--surface);border-left:1px solid var(--border);box-shadow:-18px 0 44px rgba(0,0,0,.4);transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);z-index:1201;display:flex;flex-direction:column}
+  #page-invoicesnew .iv2-drawer.open{transform:none}
+  #page-invoicesnew .iv2-dh{padding:16px 18px 13px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  #page-invoicesnew .iv2-dcli{font-size:18px;font-weight:700;letter-spacing:-.01em}
+  #page-invoicesnew .iv2-dno{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);margin-top:2px}
+  #page-invoicesnew .iv2-klab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
+  #page-invoicesnew .iv2-bignum{font-family:'DM Mono',monospace;font-size:19px;font-weight:700}
+  #page-invoicesnew .iv2-x{font:inherit;font-size:20px;line-height:1;color:var(--text3);background:none;border:0;cursor:pointer;padding:2px 6px}
+  #page-invoicesnew .iv2-db{overflow-y:auto;padding:16px 18px 28px;display:flex;flex-direction:column;gap:16px}
+  #page-invoicesnew .iv2-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
+  #page-invoicesnew .iv2-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  #page-invoicesnew .iv2-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+  #page-invoicesnew .iv2-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #page-invoicesnew .iv2-fld{display:flex;flex-direction:column;gap:5px}
+  #page-invoicesnew .iv2-fld label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
+  #page-invoicesnew .iv2-fld input,#page-invoicesnew .iv2-fld select,#page-invoicesnew .iv2-fld textarea{font:inherit;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 9px;width:100%}
+  #page-invoicesnew .iv2-fld textarea{resize:vertical}
+  #page-invoicesnew .iv2-sect{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  #page-invoicesnew .iv2-h{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;background:var(--surface2);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+  #page-invoicesnew .iv2-hn{text-transform:none;font-weight:600;color:var(--text3)}
+  #page-invoicesnew .iv2-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 13px;border-top:1px solid var(--border);font-size:13px}
+  #page-invoicesnew .iv2-row:first-child{border-top:0}
+  #page-invoicesnew .iv2-ag{display:flex;align-items:center;gap:9px}
+  #page-invoicesnew .iv2-step{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  #page-invoicesnew .iv2-step button{font:inherit;width:28px;height:30px;border:0;background:var(--surface2);color:var(--text2);cursor:pointer;font-size:15px}
+  #page-invoicesnew .iv2-step input{width:48px;border:0;background:none;text-align:center;font:inherit;font-weight:600;color:var(--text);font-family:'DM Mono',monospace}
+  #page-invoicesnew .iv2-step input::-webkit-inner-spin-button,#page-invoicesnew .iv2-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  #page-invoicesnew .iv2-step input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  #page-invoicesnew .iv2-drow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 13px;border-top:1px solid var(--border);font-size:13px}
+  #page-invoicesnew .iv2-drow:first-child{border-top:0}
+  #page-invoicesnew .iv2-total{display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-top:2px solid var(--border);font-weight:700}
+  #page-invoicesnew .iv2-total .iv2-mono{font-size:16px}
+  #page-invoicesnew .iv2-pay{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px}
+  #page-invoicesnew .iv2-big{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  #page-invoicesnew .iv2-big .iv2-mono{font-size:18px;font-weight:700}
+  #page-invoicesnew .iv2-payform{display:grid;gap:10px;margin-top:11px}
+  #page-invoicesnew .iv2-btn{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:9px;padding:10px 15px;cursor:pointer}
+  #page-invoicesnew .iv2-btn.primary{background:var(--accent);color:#06201d}
+  #page-invoicesnew .iv2-btn.ghost{background:var(--surface);border:1px solid var(--border);color:var(--text2)}
+  #page-invoicesnew .iv2-link{font:inherit;font-size:12px;font-weight:600;color:var(--accent2);background:none;border:0;cursor:pointer;padding:0;text-decoration:underline}
+  #page-invoicesnew .iv2-note{font-size:12px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;line-height:1.5}
+  #page-invoicesnew .iv2-exitmodal{position:fixed;inset:0;z-index:1300;display:none;align-items:center;justify-content:center;background:rgba(2,10,16,.55);padding:20px}
+  #page-invoicesnew .iv2-exitbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;max-width:380px;width:100%}
+  #page-invoicesnew .iv2-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--surface);font-size:13px;font-weight:600;padding:11px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:all .25s;z-index:1400}
+  #page-invoicesnew .iv2-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(max-width:860px){#page-invoicesnew .iv2-grid,#page-invoicesnew .iv2-cols,#page-invoicesnew .iv2-two{grid-template-columns:1fr}}
+  @media(max-width:720px){#page-invoicesnew .iv2-tiles{grid-template-columns:1fr 1fr}}
+  </style>
+  <div class="iv2">
+    <div class="iv2-head"><div class="iv2-title">Invoices</div><div class="iv2-sub">Facturación y cobro en una vista · el mes en proceso se genera solo</div></div>
+    <div class="iv2-tiles" id="iv2-tiles"></div>
+    <div class="iv2-toolbar">
+      <label class="iv2-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="iv2-q" type="text" placeholder="Buscar cliente o nº…" aria-label="Buscar"></label>
+      <select class="iv2-ctl" id="iv2-acct" aria-label="Cuenta"></select>
+      <div class="iv2-mnav"><button class="iv2-mbtn" id="iv2-prev" aria-label="Mes anterior">‹</button><select id="iv2-month" aria-label="Mes"></select><button class="iv2-mbtn" id="iv2-next" aria-label="Mes siguiente">›</button></div>
+      <button class="iv2-newbtn" id="iv2-cuentas">⚙ Cuentas</button>
+    </div>
+    <div class="iv2-chips" id="iv2-status"></div>
+    <div id="iv2-banner" hidden class="iv2-banner">⏳ <b>Mes en proceso.</b> Estos invoices se generan solos de cada cuenta activa (montos provisionales). Entra a cada uno, ajusta los días y ciérralo (requiere aprobar las quincenas del mes).</div>
+    <div class="iv2-tblcard"><div class="iv2-tblscroll"><table class="iv2-tbl"><thead><tr><th>Estado</th><th>Cliente</th><th>Invoice #</th><th>Período</th><th>Vence</th><th class="r">Total</th><th class="r">Saldo</th></tr></thead><tbody id="iv2-rows"></tbody></table></div><div class="iv2-empty" id="iv2-empty" hidden>No hay invoices para este mes. Aprueba o guarda ambas quincenas del mes.</div></div>
+    <div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="iv2-ghostbtn" id="iv2-sigma">🏦 Pendientes de Sigma (histórico)</button></div>
+  </div>
+  <div class="iv2-scrim" id="iv2-scrim"></div>
+  <aside class="iv2-drawer" id="iv2-drawer" aria-label="Detalle del invoice"></aside>
+  <div class="iv2-toast" id="iv2-toast"></div>
+  </div>
+
 
 
   <!-- ══════════ PAGE: PAGOS ══════════ -->
@@ -5131,11 +5260,12 @@ function showPage(id){
       try { cuConfirmarSalida(); } catch(e){}
     }
   }
-  ['resumen','cuentas','cuentas-dr','cuentas-own','agentes','historial','invoices','pagos','utilidad'].forEach(p=>{
+  ['resumen','cuentas','cuentas-dr','cuentas-own','agentes','historial','invoices','invoicesnew','pagos','utilidad'].forEach(p=>{
     $('page-'+p).classList.toggle('hidden', p!==id);
   });
   // When opening invoices, always re-render with latest data
   if(id === 'invoices') renderInvoices();
+  if(id === 'invoicesnew') renderInvoicesNew();
   if(id === 'cuentas')  renderCuentasFichas();
   if(id === 'pagos')    renderPagos();
   if(id === 'utilidad') renderUtilidad();
@@ -5151,7 +5281,7 @@ function showPage(id){
   // Cuentas no depende de ninguna fecha —los datos de una cuenta son los
   // mismos en enero que en diciembre—, asi que la barra ahi solo invita a
   // cambiar un periodo que no cambia nada de lo que se esta viendo.
-  const SIN_QUINCENA = ['invoices', 'utilidad', 'pagos', 'cuentas'];
+  const SIN_QUINCENA = ['invoices', 'invoicesnew', 'utilidad', 'pagos', 'cuentas'];
   const _qbar = document.getElementById('quincena-bar');
   if(_qbar) _qbar.style.display = SIN_QUINCENA.indexOf(id) >= 0 ? 'none' : '';
 
@@ -11136,6 +11266,338 @@ function renderInvResumenCuentas(){
 
 
 // ── Main render ──
+/* ══════════════════════════════════════════════════════════════════════════
+   INVOICES (nueva) — página en paralelo. Usa EXCLUSIVAMENTE datos y funciones
+   reales de la app (buildInvData, setOv, guardarInvoice, cerrarInvoice,
+   reabrirInvoice, fijarFechaInvoice, generarPDFCuenta, _sincronizarPagoCliente,
+   calcInvDescuento). No reimplementa cálculos. No toca la página vieja.
+   ══════════════════════════════════════════════════════════════════════════ */
+let _iv2mk=null,_iv2view=[],_iv2cur=null,_iv2editable=false,_iv2dirty=false,_iv2focusCobro=false;
+let _iv2fAcct='',_iv2fStatus='',_iv2q='';
+const IV2_PILL={cobrado:['ok','Cobrado'],pendiente:['warn','Por cobrar'],parcial:['info','Parcial'],perdido:['bad','Perdido'],proceso:['proc','En proceso']};
+
+function iv2Money(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function iv2Num(v){const n=parseFloat(String(v==null?'':v).replace(',','.'));return isFinite(n)?n:0;}
+function iv2MesCorto(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'').slice(0,3)+' '+a;}
+function iv2MesLargo(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'')+' '+a;}
+function iv2FDate(s){if(!s)return'—';const p=String(s).split('-');if(p.length<3)return s;return (+p[2])+' '+(MESES[+p[1]-1]||'').slice(0,3);}
+function iv2Toast(t){const el=document.getElementById('iv2-toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(window._iv2tt);window._iv2tt=setTimeout(()=>el.classList.remove('show'),2600);}
+
+function iv2MonthsDisponibles(){
+  const ms=groupHistorialByMonth(historialParaInvoices());
+  return Object.keys(ms).filter(mk=>ms[mk]&&ms[mk].q1&&ms[mk].q2).sort();
+}
+function iv2DefaultMk(){
+  const ms=iv2MonthsDisponibles();
+  const proc=ms.filter(mk=>{try{return mesEnProceso(mk);}catch(e){return false;}});
+  return proc.length?proc[proc.length-1]:(ms[ms.length-1]||null);
+}
+
+function renderInvoicesNew(){
+  iv2InitBar();
+  const sel=document.getElementById('iv2-month'); if(!sel) return;
+  const ms=iv2MonthsDisponibles().slice().reverse();
+  if(!_iv2mk||ms.indexOf(_iv2mk)<0) _iv2mk=iv2DefaultMk();
+  sel.innerHTML=ms.map(mk=>`<option value="${mk}" ${mk===_iv2mk?'selected':''}>${iv2MesLargo(mk)}</option>`).join('');
+  iv2Render();
+}
+
+function iv2RowsForMonth(mk){
+  if(!mk) return [];
+  const [anio,mes]=mk.split('-').map(Number);
+  const m=groupHistorialByMonth(historialParaInvoices())[mk];
+  if(!m||!m.q1||!m.q2) return [];
+  const diasMes=calcDiasHabileMes(anio,mes);
+  let items=[]; try{items=buildInvLineItems(mk,m,diasMes,mes);}catch(e){return [];}
+  return items.map(it=>{
+    let data=null; try{data=buildInvData(mk,it.invKey,it.tipo,it.subCuentas||null);}catch(e){}
+    const ov=getOv(mk,it.invKey);
+    const monto=data?data.monto:it.monto;
+    const proc=data?(data.enProceso&&!data.cerrado):false;
+    let estado,saldo=0;
+    if(ov.noPago===true){estado='perdido';saldo=Number(ov.noPagoMonto)||0;}
+    else if(proc){estado='proceso';saldo=monto;}
+    else{let est; try{est=estadoPagoCliente(ov,monto);}catch(e){est={completo:false,parcial:false,saldo:monto};}
+         estado=est.completo?'cobrado':(est.parcial?'parcial':'pendiente');saldo=est.saldo;}
+    return {mk,invKey:it.invKey,nombre:it.invKey,tipo:it.tipo,subCuentas:it.subCuentas||null,
+            color:it.color||'#888',num:ov.invnum||'',monto,saldo,estado,due:ov.duedate||'',
+            cerrado:ov.cerrado===true,proc};
+  });
+}
+
+function iv2Render(){
+  const selM=document.getElementById('iv2-month'); if(selM&&selM.value) _iv2mk=selM.value;
+  const rows=iv2RowsForMonth(_iv2mk);
+  const accSel=document.getElementById('iv2-acct');
+  const accs=[...new Set(rows.map(r=>r.nombre))];
+  if(accSel) accSel.innerHTML='<option value="">Todas las cuentas</option>'+accs.map(a=>`<option ${a===_iv2fAcct?'selected':''}>${a}</option>`).join('');
+  const view=rows.filter(r=>{
+    if(_iv2fAcct&&r.nombre!==_iv2fAcct)return false;
+    if(_iv2fStatus&&r.estado!==_iv2fStatus)return false;
+    if(_iv2q){const t=(r.nombre+' '+r.num).toLowerCase();if(!t.includes(_iv2q.toLowerCase()))return false;}
+    return true;
+  });
+  _iv2view=view;
+  const fact=view.filter(r=>r.estado!=='perdido').reduce((s,r)=>s+r.monto,0);
+  const cob=view.filter(r=>r.estado!=='perdido'&&r.estado!=='proceso').reduce((s,r)=>s+(r.monto-r.saldo),0);
+  const pc=view.filter(r=>r.estado==='pendiente'||r.estado==='parcial').reduce((s,r)=>s+r.saldo,0);
+  const perd=view.filter(r=>r.estado==='perdido').reduce((s,r)=>s+r.saldo,0);
+  document.getElementById('iv2-tiles').innerHTML=`
+    <div class="iv2-tile"><div class="l">Facturado</div><div class="v">${iv2Money(fact)}</div><div class="m">${view.length} invoice${view.length!==1?'s':''}</div></div>
+    <div class="iv2-tile ok"><div class="l">Cobrado</div><div class="v">${iv2Money(cob)}</div><div class="m">recibido</div></div>
+    <div class="iv2-tile warn"><div class="l">Por cobrar</div><div class="v">${iv2Money(pc)}</div><div class="m">pendiente</div></div>
+    <div class="iv2-tile bad"><div class="l">No pagado</div><div class="v">${iv2Money(perd)}</div><div class="m">perdido</div></div>`;
+  const allProc=view.length&&view.every(r=>r.estado==='proceso');
+  const bn=document.getElementById('iv2-banner'); if(bn)bn.hidden=!allProc;
+  const sts=[['','Todos',''],['cobrado','Cobrado','var(--accent)'],['pendiente','Por cobrar','var(--accent3)'],['perdido','No pagado','var(--danger)']];
+  const chipsEl=document.getElementById('iv2-status');
+  chipsEl.innerHTML=sts.map(([v,l,c])=>`<button class="iv2-chip" data-v="${v}" aria-pressed="${v===_iv2fStatus}">${c?`<span class="d" style="background:${c}"></span>`:''}${l}</button>`).join('');
+  chipsEl.querySelectorAll('.iv2-chip').forEach(b=>b.onclick=()=>{_iv2fStatus=b.dataset.v;iv2Render();});
+  const tb=document.getElementById('iv2-rows');
+  document.getElementById('iv2-empty').hidden=view.length>0;
+  tb.innerHTML=view.map((r,ix)=>{
+    const[cls,lab]=IV2_PILL[r.estado];
+    const saldoCell=r.estado==='proceso'?`<span class="iv2-dim">en proceso</span>`:(r.saldo>0.005?`<button class="iv2-rowcobro" data-cobro="${ix}">Registrar cobro</button>`:`<span class="iv2-dim">—</span>`);
+    return `<tr data-i="${ix}">
+      <td><span class="iv2-pill ${cls}">${lab}</span></td>
+      <td><div class="iv2-acct"><span class="iv2-sw" style="background:${r.color}"></span><div><b>${r.nombre}</b><small>${iv2MesCorto(r.mk)}</small></div></div></td>
+      <td><span class="iv2-mono">${r.num||'(al cerrar)'}</span></td>
+      <td>${iv2MesLargo(r.mk)}</td>
+      <td>${iv2FDate(r.due)}</td>
+      <td class="r iv2-amt">${iv2Money(r.monto)}${r.estado==='proceso'?' <span class="iv2-dim">prov.</span>':''}</td>
+      <td class="r">${saldoCell}</td>
+    </tr>`;
+  }).join('');
+  tb.querySelectorAll('tr').forEach(tr=>tr.onclick=e=>{
+    if(e.target.dataset.cobro!==undefined){e.stopPropagation();iv2OpenDetail(+e.target.dataset.cobro,true);return;}
+    iv2OpenDetail(+tr.dataset.i);
+  });
+}
+
+/* ── Detalle ─────────────────────────────────────────────────────────────── */
+function iv2Data(){const r=_iv2cur;if(!r)return null;try{return buildInvData(r.mk,r.invKey,r.tipo,r.subCuentas||null);}catch(e){return null;}}
+function iv2OpenDetail(idx,focusCobro){
+  const r=_iv2view[idx]; if(!r)return;
+  _iv2cur=r;_iv2editable=(r.proc===true);_iv2dirty=false;_iv2focusCobro=!!focusCobro;
+  iv2RenderDetail();
+}
+function iv2CargosTotal(d){return (d.cargos||[]).reduce((s,c)=>s+(iv2Num(c.c)||1)*(iv2Num(c.p)||0),0);}
+function iv2DescAmount(d){if(d.descDias==null)return 0;const vd=d.diasMes>0?d.tarifa/d.diasMes:0;return Math.round(vd*iv2Num(d.descDias)*100)/100;}
+
+function iv2DesgloseHTML(d){
+  const carT=iv2CargosTotal(d);const desc=iv2DescAmount(d);
+  const agPort=Math.round((d.monto-carT+desc)*100)/100;
+  let h=`<div class="iv2-drow"><span>${d.numAgentes} agente${d.numAgentes!==1?'s':''} · días × tarifa</span><span class="iv2-mono">${iv2Money(agPort)}</span></div>`;
+  (d.cargos||[]).forEach(c=>{const t=(iv2Num(c.c)||1)*(iv2Num(c.p)||0);if(c.t||t)h+=`<div class="iv2-drow"><span>${(c.t||'Cargo')}${(iv2Num(c.c)>1)?' × '+c.c:''}</span><span class="iv2-mono">${iv2Money(t)}</span></div>`;});
+  if(desc>0.005)h+=`<div class="iv2-drow"><span style="color:var(--danger)">Descuento · ${d.descDias} día(s) no trab.</span><span class="iv2-mono" style="color:var(--danger)">−${iv2Money(desc)}</span></div>`;
+  h+=`<div class="iv2-total"><span>Total del invoice${d.enProceso&&!d.cerrado?' (provisional)':''}</span><span class="iv2-mono" id="iv2-total">${iv2Money(d.monto)}</span></div>`;
+  return h;
+}
+function iv2Recalc(){
+  const d=iv2Data();if(!d)return;
+  const dg=document.getElementById('iv2-desglose');if(dg)dg.innerHTML=iv2DesgloseHTML(d);
+  const th=document.getElementById('iv2-total-hdr');if(th)th.textContent=iv2Money(d.monto);
+  const di=document.getElementById('iv2-descinfo');if(di){const vd=d.diasMes>0?d.tarifa/d.diasMes:0;di.textContent=`valor del día = ${iv2Money(d.tarifa)} ÷ ${d.diasMes} = ${iv2Money(vd)}`;}
+}
+
+function iv2RenderDetail(){
+  const r=_iv2cur;if(!r)return;
+  const d=iv2Data();if(!d){iv2Toast('No se pudo cargar el invoice.');return;}
+  const ed=_iv2editable, proc=(d.enProceso&&!d.cerrado), dis=ed?'':'disabled';
+  const[cls,lab]=IV2_PILL[r.estado];
+  const numTxt=d.invnum||d.proximoNum;
+  const el=document.getElementById('iv2-drawer');
+  el.innerHTML=`
+    <div class="iv2-dh">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0">
+        <span class="iv2-sw" style="width:10px;height:28px;border-radius:3px;background:${r.color}"></span>
+        <div style="min-width:0"><div class="iv2-dcli">${r.nombre}</div><div class="iv2-dno">${iv2MesLargo(r.mk)} · <button class="iv2-link" onclick="showPage('cuentas')">plantilla</button></div></div>
+        <span class="iv2-pill ${proc?'proc':(ed?'warn':cls)}">${proc?'En proceso':(ed?'En edición':lab)}</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:18px">
+        <div style="text-align:right"><div class="iv2-klab">Invoice #</div><div class="iv2-bignum">${numTxt}</div></div>
+        <div style="text-align:right"><div class="iv2-klab">Total</div><div class="iv2-bignum" id="iv2-total-hdr">${iv2Money(d.monto)}</div></div>
+      </div>
+      <button class="iv2-x" onclick="iv2Close()">✕</button>
+    </div>
+    <div class="iv2-db">
+      <div class="iv2-grid">
+        <div class="iv2-fld"><label>Billed to · contacto</label><input type="text" value="${(d.contact||'').replace(/"/g,'&quot;')}" ${dis} oninput="iv2SetContact(this.value)" style="max-width:260px"></div>
+        <div class="iv2-two">
+          <div class="iv2-fld"><label>Emitido</label><input type="date" value="${d.dateissue}" ${dis} onchange="iv2SetFecha('dateissue',this.value)" style="max-width:160px"></div>
+          <div class="iv2-fld"><label>Vence</label><input type="date" value="${d.duedate}" ${dis} onchange="iv2SetFecha('duedate',this.value)" style="max-width:160px"></div>
+        </div>
+      </div>
+      <div class="iv2-cols">
+        <div class="iv2-col">
+          <div class="iv2-sect">
+            <div class="iv2-h"><span>Días por agente</span><span class="iv2-hn">${ed?'admite medios días':'bloqueado'}</span></div>
+            ${d.agentes.map((a,ix)=>{const id='iv2ag'+ix;return `<div class="iv2-row"><span class="iv2-ag"><span class="iv2-sw" style="width:7px;height:20px;border-radius:3px;background:${r.color}"></span>${a.nombre}</span>
+              ${ed?`<span class="iv2-step"><button type="button" tabindex="-1" onclick="iv2BumpAg('${a.nombre.replace(/'/g,"\\'")}',-0.5,'${id}')">−</button><input type="number" step="0.5" min="0" id="${id}" value="${a.total}" oninput="iv2SetAgente('${a.nombre.replace(/'/g,"\\'")}',this.value)"><button type="button" tabindex="-1" onclick="iv2BumpAg('${a.nombre.replace(/'/g,"\\'")}',0.5,'${id}')">+</button></span>`:`<span class="iv2-mono" style="font-weight:600">${a.total} días</span>`}
+            </div>`;}).join('')}
+          </div>
+          <div class="iv2-sect">
+            <div class="iv2-h"><span>Cargos adicionales</span><span class="iv2-hn">suscripciones, equipos…</span></div>
+            <div id="iv2-cargos">${iv2CargosRows(d,ed)}</div>
+            ${ed?`<div class="iv2-row" style="gap:14px"><button class="iv2-link" onclick="iv2AddCargo()">+ Añadir cargo</button><button class="iv2-link" onclick="iv2TraerCargos()">⟲ Traer los del mes pasado</button></div>`:''}
+          </div>
+          <div class="iv2-fld"><label>Notas para el cliente · salen en el PDF</label><textarea ${dis} rows="2" oninput="iv2SetNotas(this.value)" placeholder="Ej: Incluye la cobertura del fin de semana.">${(d.notas||'').replace(/</g,'&lt;')}</textarea></div>
+        </div>
+        <div class="iv2-col">
+          <div class="iv2-two">
+            <div class="iv2-fld"><label>Período · inicio</label><input type="date" value="${d.periodoStart}" ${dis} onchange="iv2SetFecha('periodoStart',this.value)" style="max-width:160px"></div>
+            <div class="iv2-fld"><label>Período · fin</label><input type="date" value="${d.periodoEnd}" ${dis} onchange="iv2SetFecha('periodoEnd',this.value)" style="max-width:160px"></div>
+          </div>
+          <div class="iv2-fld"><label>Días hábiles del mes</label>
+            ${ed?`<span class="iv2-step" style="align-self:flex-start"><button type="button" tabindex="-1" onclick="iv2BumpDH(-1)">−</button><input type="number" step="0.5" min="1" id="iv2-diasmes" value="${d.diasMes}" oninput="iv2SetDiasMes(this.value)"><button type="button" tabindex="-1" onclick="iv2BumpDH(1)">+</button></span>`:`<input type="number" value="${d.diasMes}" disabled style="width:90px">`}
+          </div>
+          <div class="iv2-sect"><div class="iv2-h"><span>Desglose del invoice</span><span></span></div><div id="iv2-desglose">${iv2DesgloseHTML(d)}</div></div>
+          <div class="iv2-sect" style="border-color:var(--accent3)"><div class="iv2-h" style="color:var(--accent3)"><span>Descuento por días no trabajados</span></div>
+            <div style="padding:11px 13px;display:flex;flex-direction:column;gap:9px">
+              <div class="iv2-dim" id="iv2-descinfo"></div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><label class="iv2-dim">Días no trabajados</label>
+                <input type="number" step="0.5" min="0" id="iv2-descdias" value="${d.descDias!=null?d.descDias:0}" ${dis} onchange="iv2SetDesc(this.value)" style="width:72px;text-align:right">
+                ${ed&&d.descDias!=null?`<button class="iv2-link" onclick="iv2VolverCalculo()">volver al cálculo</button>`:''}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="iv2-pay">
+        ${proc?`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`:iv2PayHTML(d)}
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${ed?`<button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button><span style="flex:1"></span><button class="iv2-btn ghost" disabled title="Disponible cuando el invoice está cerrado" style="opacity:.45;cursor:not-allowed">📄 Imprimir PDF</button><button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`
+           :`<button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button><span style="flex:1"></span><button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button>`}
+      </div>
+    </div>`;
+  document.getElementById('iv2-scrim').classList.add('open');
+  el.classList.add('open');
+  iv2Recalc();
+  if(_iv2focusCobro){_iv2focusCobro=false;const pf=document.getElementById('iv2-payform');if(pf){pf.hidden=false;pf.scrollIntoView({block:'center'});}}
+}
+
+function iv2CargosRows(d,ed){
+  const list=d.cargos||[];
+  if(!list.length) return `<div class="iv2-row iv2-dim">Sin cargos adicionales</div>`;
+  return list.map((c,i)=>`<div class="iv2-row" style="gap:8px">
+    <input type="text" value="${(c.t||'').replace(/"/g,'&quot;')}" ${ed?'':'disabled'} oninput="iv2CargoSet(${i},'t',this.value)" style="flex:1;min-width:0" placeholder="Concepto">
+    <input type="number" value="${iv2Num(c.p)}" ${ed?'':'disabled'} oninput="iv2CargoSet(${i},'p',this.value)" style="width:84px;text-align:right" placeholder="0">
+    ${ed?`<button class="iv2-link" onclick="iv2CargoDel(${i})">✕</button>`:''}
+  </div>`).join('');
+}
+function iv2PayHTML(d){
+  if(d.pagado && d.paid>0.005){
+    return `<div class="iv2-big"><span style="font-weight:700;color:var(--accent)">✓ Cobrado</span><span class="iv2-mono" style="color:var(--accent)">${iv2Money(d.paid)}</span></div>
+      <button class="iv2-link" onclick="document.getElementById('iv2-payform').hidden=false">Registrar otro abono</button>${iv2PayForm(d)}`;
+  }
+  return `<div class="iv2-big"><span style="font-weight:700">Saldo por cobrar</span><span class="iv2-mono" style="color:var(--accent3)">${iv2Money(d.monto-(d.paid||0))}</span></div>
+    <button class="iv2-btn primary" style="margin-top:11px;width:auto" onclick="document.getElementById('iv2-payform').hidden=false;this.hidden=true">Registrar cobro</button>${iv2PayForm(d)}`;
+}
+function iv2PayForm(d){
+  const hoy=new Date().toISOString().slice(0,10);
+  return `<div class="iv2-payform" id="iv2-payform" hidden>
+    <div class="iv2-two">
+      <div class="iv2-fld"><label>Fecha del cobro</label><input type="date" id="iv2-pay-fecha" value="${hoy}"></div>
+      <div class="iv2-fld"><label>Monto</label><input type="number" id="iv2-pay-monto" value="${Math.max(0,Math.round((d.monto-(d.paid||0))*100)/100)}"></div>
+    </div>
+    <div class="iv2-fld"><label>Método</label><select id="iv2-pay-metodo">${METODOS_PAGO.map(m=>`<option>${m}</option>`).join('')}</select></div>
+    <button class="iv2-btn primary" onclick="iv2RegistrarCobro()">Confirmar cobro</button>
+    <button class="iv2-link" onclick="document.getElementById('iv2-payform').hidden=true">Cancelar</button>
+  </div>`;
+}
+
+/* ── Ediciones → funciones reales ───────────────────────────────────────── */
+function iv2SetContact(v){const r=_iv2cur;setOv(r.mk,r.invKey,{contact:v});_iv2dirty=true;}
+function iv2SetFecha(campo,v){const r=_iv2cur;try{fijarFechaInvoice(r.mk,r.invKey,campo,v);}catch(e){}_iv2dirty=true;}
+function iv2SetNotas(v){const r=_iv2cur;setOv(r.mk,r.invKey,{notas:String(v||'')});_iv2dirty=true;}
+function iv2SetAgente(nombre,v){const r=_iv2cur;const ov=getOv(r.mk,r.invKey);const ad=Object.assign({},ov.agenteDias||{});ad[nombre]=iv2Num(v);setOv(r.mk,r.invKey,{agenteDias:ad});_iv2dirty=true;iv2Recalc();}
+function iv2BumpAg(nombre,delta,id){const el=document.getElementById(id);let v=Math.max(0,iv2Num(el.value)+delta);el.value=v;iv2SetAgente(nombre,v);}
+function iv2SetDiasMes(v){const r=_iv2cur;const n=iv2Num(v);if(n<1)return;setOv(r.mk,r.invKey,{diasMes:n});_iv2dirty=true;iv2Recalc();}
+function iv2BumpDH(delta){const el=document.getElementById('iv2-diasmes');let v=Math.max(1,iv2Num(el.value)+delta);el.value=v;iv2SetDiasMes(v);}
+function iv2SetDesc(v){const r=_iv2cur;setOv(r.mk,r.invKey,{descDias:iv2Num(v)});_iv2dirty=true;iv2RenderDetail();}
+function iv2VolverCalculo(){const r=_iv2cur;setOv(r.mk,r.invKey,{descDias:null});_iv2dirty=true;iv2RenderDetail();}
+function _iv2CargosDe(){const ov=getOv(_iv2cur.mk,_iv2cur.invKey);return Array.isArray(ov.cargos)?ov.cargos.map(c=>Object.assign({},c)):[];}
+function _iv2CargosSave(list){const r=_iv2cur;setOv(r.mk,r.invKey,{cargos:list});_iv2dirty=true;}
+function iv2CargoSet(i,campo,v){const l=_iv2CargosDe();if(!l[i])return;l[i][campo]=(campo==='p'||campo==='c')?iv2Num(v):String(v||'');_iv2CargosSave(l);iv2Recalc();}
+function iv2AddCargo(){const l=_iv2CargosDe();l.push({t:'',d:'',c:1,p:0});_iv2CargosSave(l);iv2RenderDetail();}
+function iv2CargoDel(i){const l=_iv2CargosDe();l.splice(i,1);_iv2CargosSave(l);iv2RenderDetail();}
+function iv2TraerCargos(){
+  const r=_iv2cur;const[a,m]=normMkid(r.mk).split('-').map(Number);
+  const prev=m===1?`${a-1}-12`:`${a}-${String(m-1).padStart(2,'0')}`;
+  const ovp=getOv(prev,r.invKey);const antes=Array.isArray(ovp.cargos)?ovp.cargos.map(c=>Object.assign({},c)):[];
+  if(!antes.length){iv2Toast('El mes anterior no tiene cargos.');return;}
+  _iv2CargosSave(_iv2CargosDe().concat(antes));iv2RenderDetail();iv2Toast('Cargos del mes pasado traídos.');
+}
+
+/* ── Acciones del ciclo ─────────────────────────────────────────────────── */
+function iv2Guardar(){const r=_iv2cur;try{guardarInvoice(r.mk,r.invKey);_iv2dirty=false;iv2Toast('Cambios guardados ✓');}catch(e){iv2Toast('No se pudo guardar.');}}
+function iv2Cerrar(){const r=_iv2cur;try{guardarInvoice(r.mk,r.invKey);}catch(e){}
+  try{cerrarInvoice(r.mk,r.invKey);}catch(e){iv2Toast('No se pudo cerrar.');return;}
+  const ov=getOv(r.mk,r.invKey);
+  if(ov.cerrado===true){_iv2dirty=false;_iv2editable=false;_iv2cur.proc=false;_iv2cur.cerrado=true;_iv2cur.num=ov.invnum||_iv2cur.num;iv2Render();iv2RenderDetail();}
+}
+function iv2Reabrir(){const r=_iv2cur;try{reabrirInvoice(r.mk,r.invKey);}catch(e){iv2Toast('No se pudo reabrir.');return;}
+  _iv2editable=true;_iv2cur.proc=false;_iv2cur.cerrado=false;_iv2dirty=false;iv2Render();iv2RenderDetail();}
+function iv2Pdf(){const r=_iv2cur;const d=iv2Data();try{generarPDFCuenta(r.mk,r.invKey,r.tipo,d?d.plantilla:'');}catch(e){iv2Toast('No se pudo generar el PDF.');}}
+function iv2RegistrarCobro(){
+  const r=_iv2cur;const d=iv2Data();if(!d)return;
+  const monto=iv2Num(document.getElementById('iv2-pay-monto').value);
+  const fecha=document.getElementById('iv2-pay-fecha').value;
+  const metodo=document.getElementById('iv2-pay-metodo').value;
+  if(!(monto>0)){iv2Toast('Escribe el monto del cobro.');return;}
+  const ov=getOv(r.mk,r.invKey);const lista=(Array.isArray(ov.pagos)?ov.pagos.slice():[]).concat([{monto:monto,fecha:fecha,metodo:metodo}]);
+  try{_sincronizarPagoCliente(r.mk,r.invKey,lista,d.monto);}catch(e){iv2Toast('No se pudo registrar el cobro.');return;}
+  iv2Toast('Cobro registrado ✓');iv2Render();
+  const nr=_iv2view.find(x=>x.mk===r.mk&&x.invKey===r.invKey);if(nr)_iv2cur=nr;
+  iv2RenderDetail();
+}
+
+/* ── Cierre con aviso de cambios sin guardar ────────────────────────────── */
+function iv2Close(force){
+  if(!force && _iv2editable && _iv2dirty){iv2ExitConfirm();return;}
+  _iv2dirty=false;
+  document.getElementById('iv2-scrim').classList.remove('open');
+  document.getElementById('iv2-drawer').classList.remove('open');
+}
+function iv2ExitConfirm(){
+  let m=document.getElementById('iv2-exit');
+  if(!m){m=document.createElement('div');m.id='iv2-exit';m.className='iv2-exitmodal';document.body.appendChild(m);}
+  m.innerHTML=`<div class="iv2-exitbox"><div style="font-weight:700;font-size:15px;margin-bottom:6px">Cambios sin guardar</div><div class="iv2-dim" style="margin-bottom:15px">Hiciste cambios en este invoice y no lo has guardado ni cerrado. ¿Qué quieres hacer?</div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="iv2-btn ghost" onclick="iv2ExitDismiss()">Cancelar</button><button class="iv2-btn ghost" onclick="iv2ExitNoSave()">Salir sin guardar</button><button class="iv2-btn primary" onclick="iv2ExitSave()">Guardar y salir</button></div></div>`;
+  m.style.display='flex';
+}
+function iv2ExitDismiss(){const m=document.getElementById('iv2-exit');if(m)m.style.display='none';}
+function iv2ExitNoSave(){iv2ExitDismiss();iv2Close(true);}
+function iv2ExitSave(){iv2ExitDismiss();iv2Guardar();iv2Close(true);}
+
+/* ── Sigma (solo info, detrás de botón) ─────────────────────────────────── */
+function iv2OpenSigma(){
+  let list=[];try{list=listarSigmaPorCuenta();}catch(e){}
+  const pend=[];list.forEach(c=>(c.meses||[]).forEach(mm=>{if((mm.saldo||0)>0.005&&!mm.directo)pend.push({n:c.nombre,mk:mm.mk,s:mm.saldo});}));
+  const tot=pend.reduce((s,x)=>s+x.s,0);
+  const el=document.getElementById('iv2-drawer');
+  el.innerHTML=`<div class="iv2-dh"><div style="flex:1"><div class="iv2-dcli">Pendientes de Sigma</div><div class="iv2-dno">Histórico · solo información</div></div><button class="iv2-x" onclick="iv2Close(true)">✕</button></div>
+  <div class="iv2-db">
+    <div class="iv2-note">Ya no se generan pagos nuevos a Sigma — White Wilson paga directo. Esto es el saldo histórico pendiente, solo de referencia.</div>
+    <div class="iv2-sect"><div class="iv2-h"><span>Saldo pendiente</span><span class="iv2-mono">${iv2Money(tot)}</span></div>
+    ${pend.length?pend.map(x=>`<div class="iv2-drow"><span>${x.n} · ${iv2MesCorto(x.mk)}</span><span class="iv2-mono" style="color:var(--accent2)">${iv2Money(x.s)}</span></div>`).join(''):'<div class="iv2-row iv2-dim">Sin pendientes</div>'}</div>
+  </div>`;
+  document.getElementById('iv2-scrim').classList.add('open');el.classList.add('open');
+}
+
+/* ── Wiring de la barra superior ────────────────────────────────────────── */
+function iv2InitBar(){
+  const q=document.getElementById('iv2-q');if(q&&!q._w){q._w=1;q.oninput=e=>{_iv2q=e.target.value;iv2Render();};}
+  const ac=document.getElementById('iv2-acct');if(ac&&!ac._w){ac._w=1;ac.onchange=e=>{_iv2fAcct=e.target.value;iv2Render();};}
+  const mo=document.getElementById('iv2-month');if(mo&&!mo._w){mo._w=1;mo.onchange=e=>{_iv2mk=e.target.value;iv2Render();};}
+  const pv=document.getElementById('iv2-prev');if(pv&&!pv._w){pv._w=1;pv.onclick=()=>iv2MoveMonth(1);}
+  const nx=document.getElementById('iv2-next');if(nx&&!nx._w){nx._w=1;nx.onclick=()=>iv2MoveMonth(-1);}
+  const cu=document.getElementById('iv2-cuentas');if(cu&&!cu._w){cu._w=1;cu.onclick=()=>showPage('cuentas');}
+  const sg=document.getElementById('iv2-sigma');if(sg&&!sg._w){sg._w=1;sg.onclick=iv2OpenSigma;}
+  const sc=document.getElementById('iv2-scrim');if(sc&&!sc._w){sc._w=1;sc.onclick=()=>iv2Close();}
+}
+function iv2MoveMonth(delta){const sel=document.getElementById('iv2-month');let i=sel.selectedIndex;i=Math.max(0,Math.min(sel.options.length-1,i+delta));sel.selectedIndex=i;_iv2mk=sel.value;iv2Render();}
+
+
 function renderInvoices(){
   // Initialize selectors when page opens
   const historial = historialParaInvoices();
