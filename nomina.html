@@ -2041,7 +2041,7 @@
   border-top-color:#17A9DE;border-radius:50%;animation:pgsp .7s linear infinite}
 @keyframes pgsp{to{transform:rotate(360deg)}}
 #pg-velo small{color:#9FBECB;font-size:13px;letter-spacing:.02em}
-#pg-volver{position:fixed;right:14px;bottom:14px;z-index:2147483645;
+#pg-volver{display:none!important;position:fixed;right:14px;bottom:14px;z-index:2147483645;
   display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;
   background:#04141F;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.16);
   font-family:"Plus Jakarta Sans","Inter",ui-sans-serif,system-ui,sans-serif;
@@ -2337,10 +2337,16 @@
   function insignia(ms) {
     var el = document.getElementById('nom-sb-fuente');
     if (!el) {
-      if (!document.body) return;
+      var _slot = document.getElementById('nom-sb-slot');
+      if (!_slot && !document.body) return;
       el = document.createElement('div'); el.id = 'nom-sb-fuente';
-      el.style.cssText = 'position:fixed;right:16px;bottom:66px;z-index:2147483647;font:600 11.5px/1 system-ui,sans-serif;padding:6px 10px;border-radius:999px;background:#04141F;color:#9FD8EE;opacity:.85;pointer-events:none';
-      document.body.appendChild(el);
+      if (_slot) {
+        el.style.cssText = 'margin-top:9px;display:inline-block;font:600 10px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;background:var(--surface2);color:var(--text2);opacity:.92;letter-spacing:.02em';
+        _slot.appendChild(el);
+      } else {
+        el.style.cssText = 'position:fixed;right:16px;bottom:66px;z-index:2147483647;font:600 11.5px/1 system-ui,sans-serif;padding:6px 10px;border-radius:999px;background:#04141F;color:#9FD8EE;opacity:.85;pointer-events:none';
+        document.body.appendChild(el);
+      }
     }
     el.textContent = enGoogle() ? 'Datos: Google (respaldo)' : N.leyoDeGoogle ? 'Datos: Google · Supabase no respondió' : 'Datos: Supabase' + (ms != null ? ' · ' + (ms / 1000).toFixed(1).replace('.', ',') + ' s' : '');
   }
@@ -2405,13 +2411,14 @@
 
 <!-- ── SIDEBAR ── -->
 <nav class="sidebar">
-  <div class="logo" style="padding-bottom:20px">
+  <div class="logo" style="padding-bottom:20px;cursor:pointer" onclick="(window.PORTAL&&window.PORTAL.volver)?window.PORTAL.volver():(location.href='https://247medicalaid.github.io/')" title="Volver al portal">
     <div class="brandmark" style="margin-bottom:12px">
       <img src="https://247medical-aid.com/logo-247-light.svg"
            alt="24/7 Medical AID Call Center">
       <span class="bm-fb"><b>24/7</b><i></i><u>Medical AID</u><small>CALL CENTER</small></span>
     </div>
     <div style="font-size:11px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-weight:600">Cálculo Flujo de Caja</div>
+    <div id="nom-sb-slot"></div>
   </div>
 
   <div class="nav-section">
@@ -11285,8 +11292,8 @@ function iv2MesCorto(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'').slice
 function iv2MesLargo(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'')+' '+a;}
 function iv2FDate(s){if(!s)return'—';const p=String(s).split('-');if(p.length<3)return s;return (+p[2])+' '+(MESES[+p[1]-1]||'').slice(0,3);}
 function iv2Toast(t){const el=document.getElementById('iv2-toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(window._iv2tt);window._iv2tt=setTimeout(()=>el.classList.remove('show'),2600);}
-// Oculta la insignia fija "Datos: Supabase" mientras el panel está abierto (tapa botones).
-function iv2Badge(hide){try{['nom-sb-fuente','nom-sb-aviso'].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=hide?'none':'';});}catch(e){}}
+// La insignia "Datos: Supabase" ahora vive en el sidebar (reubicada globalmente), ya no estorba: no-op.
+function iv2Badge(hide){}
 
 function iv2MonthsDisponibles(){
   const ms=groupHistorialByMonth(historialParaInvoices());
