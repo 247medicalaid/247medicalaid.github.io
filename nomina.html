@@ -11277,7 +11277,7 @@ function renderInvResumenCuentas(){
    ══════════════════════════════════════════════════════════════════════════ */
 let _iv2mk=null,_iv2view=[],_iv2cur=null,_iv2editable=false,_iv2dirty=false,_iv2focusCobro=false;
 let _iv2fAcct='',_iv2fStatus='',_iv2q='';
-const IV2_PILL={cobrado:['ok','Cobrado'],pendiente:['warn','Por cobrar'],parcial:['info','Parcial'],perdido:['bad','Perdido'],proceso:['proc','En proceso']};
+const IV2_PILL={cobrado:['ok','Cobrado'],pendiente:['warn','Por cobrar'],parcial:['info','Parcial'],perdido:['bad','Perdido'],proceso:['proc','En proceso'],abierto:['info','Abierto']};
 
 function iv2Money(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function iv2Num(v){const n=parseFloat(String(v==null?'':v).replace(',','.'));return isFinite(n)?n:0;}
@@ -11323,7 +11323,7 @@ function iv2RowsForMonth(mk){
     const proc=data?(data.enProceso&&!data.cerrado):false;
     let estado,saldo=0;
     if(ov.noPago===true){estado='perdido';saldo=Number(ov.noPagoMonto)||0;}
-    else if(proc){estado='proceso';saldo=monto;}
+    else if(ov.cerrado!==true){estado=proc?'proceso':'abierto';saldo=monto;}
     else{let est; try{est=estadoPagoCliente(ov,monto);}catch(e){est={completo:false,parcial:false,saldo:monto};}
          estado=est.completo?'cobrado':(est.parcial?'parcial':'pendiente');saldo=est.saldo;}
     return {mk,invKey:it.invKey,nombre:it.invKey,tipo:it.tipo,subCuentas:it.subCuentas||null,
@@ -11364,7 +11364,8 @@ function iv2Render(){
   document.getElementById('iv2-empty').hidden=view.length>0;
   tb.innerHTML=view.map((r,ix)=>{
     const[cls,lab]=IV2_PILL[r.estado];
-    const saldoCell=r.estado==='proceso'?`<span class="iv2-dim">en proceso</span>`:(r.saldo>0.005?`<button class="iv2-rowcobro" data-cobro="${ix}">Registrar cobro</button>`:`<span class="iv2-dim">—</span>`);
+    const _noCob=(r.estado==='proceso'||r.estado==='abierto');
+    const saldoCell=_noCob?`<span class="iv2-dim">${r.estado==='abierto'?'abierto':'en proceso'}</span>`:(r.saldo>0.005?`<button class="iv2-rowcobro" data-cobro="${ix}">Registrar cobro</button>`:`<span class="iv2-dim">—</span>`);
     return `<tr data-i="${ix}">
       <td><span class="iv2-pill ${cls}">${lab}</span></td>
       <td><div class="iv2-acct"><span class="iv2-sw" style="background:${r.color}"></span><div><b>${r.nombre}</b><small>${iv2MesCorto(r.mk)}</small></div></div></td>
@@ -11385,7 +11386,7 @@ function iv2Render(){
 function iv2Data(){const r=_iv2cur;if(!r)return null;try{return buildInvData(r.mk,r.invKey,r.tipo,r.subCuentas||null);}catch(e){return null;}}
 function iv2OpenDetail(idx,focusCobro){
   const r=_iv2view[idx]; if(!r)return;
-  _iv2cur=r;_iv2editable=(r.proc===true);_iv2dirty=false;_iv2focusCobro=!!focusCobro;
+  _iv2cur=r;_iv2editable=(r.cerrado!==true);_iv2dirty=false;_iv2focusCobro=!!focusCobro;
   iv2RenderDetail();
 }
 function iv2CargosTotal(d){return (d.cargos||[]).reduce((s,c)=>s+(iv2Num(c.c)||1)*(iv2Num(c.p)||0),0);}
@@ -11410,8 +11411,9 @@ function iv2Recalc(){
 function iv2RenderDetail(){
   const r=_iv2cur;if(!r)return;
   const d=iv2Data();if(!d){iv2Toast('No se pudo cargar el invoice.');return;}
-  const ed=_iv2editable, proc=(d.enProceso&&!d.cerrado), dis=ed?'':'disabled';
-  const[cls,lab]=IV2_PILL[r.estado];
+  const cerrado=d.cerrado===true, ed=!cerrado, proc=(d.enProceso&&!cerrado), puedeCerrar=!proc, dis=ed?'':'disabled';
+  _iv2editable=ed;
+  const[cls,lab]=IV2_PILL[r.estado]||['info',''];
   const numTxt=d.invnum||d.proximoNum;
   const el=document.getElementById('iv2-drawer');
   el.innerHTML=`
@@ -11419,7 +11421,7 @@ function iv2RenderDetail(){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0">
         <span class="iv2-sw" style="width:10px;height:28px;border-radius:3px;background:${r.color}"></span>
         <div style="min-width:0"><div class="iv2-dcli">${r.nombre}</div><div class="iv2-dno">${iv2MesLargo(r.mk)} · <button class="iv2-link" onclick="showPage('cuentas')">plantilla</button></div></div>
-        <span class="iv2-pill ${proc?'proc':(ed?'warn':cls)}">${proc?'En proceso':(ed?'En edición':lab)}</span>
+        <span class="iv2-pill ${cerrado?cls:(proc?'proc':'info')}">${cerrado?lab:(proc?'En proceso':'Abierto · editable')}</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:18px">
         <div style="text-align:right"><div class="iv2-klab">Invoice #</div><div class="iv2-bignum">${numTxt}</div></div>
@@ -11470,10 +11472,11 @@ function iv2RenderDetail(){
         </div>
       </div>
       <div class="iv2-pay">
-        ${proc?`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`:iv2PayHTML(d)}
+        ${cerrado?iv2PayHTML(d):`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`}
       </div>
+      ${ed&&proc?`<div class="iv2-note" style="margin-bottom:2px">⏳ Este invoice está <b>en proceso</b>. Para cerrarlo, primero aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        ${ed?`<button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button><span style="flex:1"></span><button class="iv2-btn ghost" disabled title="Disponible cuando el invoice está cerrado" style="opacity:.45;cursor:not-allowed">📄 Imprimir PDF</button><button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`
+        ${ed?`<button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button><span style="flex:1"></span><button class="iv2-btn ghost" disabled title="Disponible cuando el invoice está cerrado" style="opacity:.45;cursor:not-allowed">📄 Imprimir PDF</button>${puedeCerrar?`<button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`:`<button class="iv2-btn primary" disabled title="Primero aprueba las dos quincenas del mes (Resumen General)" style="opacity:.45;cursor:not-allowed">Cerrar invoice</button>`}`
            :`<button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button><span style="flex:1"></span><button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button>`}
       </div>
     </div>`;
