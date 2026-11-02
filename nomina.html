@@ -11318,6 +11318,15 @@ function renderInvoicesNew(){
   iv2Render();
 }
 
+function iv2DisplayName(invKey,tipo){
+  try{
+    var L=(typeof cuentas!=='undefined'&&Array.isArray(cuentas))?cuentas:[];
+    var c=L.find(function(x){return x.activo!==false&&normalizeAccountName(x.nombre)===invKey&&x.tipo===tipo;});
+    if(!c)c=L.find(function(x){return x.activo!==false&&normalizeAccountName(x.nombre)===invKey;});
+    return c?c.nombre:invKey;
+  }catch(e){return invKey;}
+}
+
 function iv2RowsForMonth(mk){
   if(!mk) return [];
   const [anio,mes]=mk.split('-').map(Number);
@@ -11335,7 +11344,7 @@ function iv2RowsForMonth(mk){
     else if(ov.cerrado!==true){estado=proc?'proceso':'abierto';saldo=monto;}
     else{let est; try{est=estadoPagoCliente(ov,monto);}catch(e){est={completo:false,parcial:false,saldo:monto};}
          estado=est.completo?'cobrado':(est.parcial?'parcial':'pendiente');saldo=est.saldo;}
-    return {mk,invKey:it.invKey,nombre:it.invKey,tipo:it.tipo,subCuentas:it.subCuentas||null,
+    return {mk,invKey:it.invKey,nombre:iv2DisplayName(it.invKey,it.tipo),tipo:it.tipo,subCuentas:it.subCuentas||null,
             color:it.color||'#888',num:ov.invnum||'',monto,saldo,estado,due:ov.duedate||'',
             cerrado:ov.cerrado===true,proc};
   });
