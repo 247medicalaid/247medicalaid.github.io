@@ -11568,9 +11568,11 @@ function iv2Close(force){
 }
 function iv2ExitConfirm(){
   let m=document.getElementById('iv2-exit');
-  if(!m){m=document.createElement('div');m.id='iv2-exit';m.className='iv2-exitmodal';document.body.appendChild(m);}
-  m.innerHTML=`<div class="iv2-exitbox"><div style="font-weight:700;font-size:15px;margin-bottom:6px">Cambios sin guardar</div><div class="iv2-dim" style="margin-bottom:15px">Hiciste cambios en este invoice y no lo has guardado ni cerrado. ¿Qué quieres hacer?</div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="iv2-btn ghost" onclick="iv2ExitDismiss()">Cancelar</button><button class="iv2-btn ghost" onclick="iv2ExitNoSave()">Salir sin guardar</button><button class="iv2-btn primary" onclick="iv2ExitSave()">Guardar y salir</button></div></div>`;
-  m.style.display='flex';
+  if(!m){m=document.createElement('div');m.id='iv2-exit';m.className='iv2-exitmodal';
+    (document.getElementById('page-invoicesnew')||document.body).appendChild(m);}
+  // Estilos a prueba de fallos por si el CSS scoped no aplicara (está dentro de #page-invoicesnew de todas formas)
+  m.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(2,10,16,.6);padding:20px';
+  m.innerHTML=`<div class="iv2-exitbox" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;max-width:380px;width:100%;color:var(--text)"><div style="font-weight:700;font-size:15px;margin-bottom:6px">Cambios sin guardar</div><div class="iv2-dim" style="margin-bottom:15px">Hiciste cambios en este invoice y no lo has guardado ni cerrado. ¿Qué quieres hacer?</div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="iv2-btn ghost" onclick="iv2ExitDismiss()">Cancelar</button><button class="iv2-btn ghost" onclick="iv2ExitNoSave()">Salir sin guardar</button><button class="iv2-btn primary" onclick="iv2ExitSave()">Guardar y salir</button></div></div>`;
 }
 function iv2ExitDismiss(){const m=document.getElementById('iv2-exit');if(m)m.style.display='none';}
 function iv2ExitNoSave(){iv2ExitDismiss();iv2Close(true);}
