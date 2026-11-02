@@ -2839,7 +2839,7 @@
   #page-invoicesnew .iv2-klab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
   #page-invoicesnew .iv2-bignum{font-family:'DM Mono',monospace;font-size:19px;font-weight:700}
   #page-invoicesnew .iv2-x{font:inherit;font-size:20px;line-height:1;color:var(--text3);background:none;border:0;cursor:pointer;padding:2px 6px}
-  #page-invoicesnew .iv2-db{overflow-y:auto;padding:16px 18px 28px;display:flex;flex-direction:column;gap:16px}
+  #page-invoicesnew .iv2-db{overflow-y:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:16px}
   #page-invoicesnew .iv2-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
   #page-invoicesnew .iv2-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   #page-invoicesnew .iv2-col{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -11285,6 +11285,8 @@ function iv2MesCorto(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'').slice
 function iv2MesLargo(mk){const[a,m]=mk.split('-');return (MESES[+m-1]||'')+' '+a;}
 function iv2FDate(s){if(!s)return'—';const p=String(s).split('-');if(p.length<3)return s;return (+p[2])+' '+(MESES[+p[1]-1]||'').slice(0,3);}
 function iv2Toast(t){const el=document.getElementById('iv2-toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(window._iv2tt);window._iv2tt=setTimeout(()=>el.classList.remove('show'),2600);}
+// Oculta la insignia fija "Datos: Supabase" mientras el panel está abierto (tapa botones).
+function iv2Badge(hide){try{['nom-sb-fuente','nom-sb-aviso'].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=hide?'none':'';});}catch(e){}}
 
 function iv2MonthsDisponibles(){
   const ms=groupHistorialByMonth(historialParaInvoices());
@@ -11482,6 +11484,7 @@ function iv2RenderDetail(){
     </div>`;
   document.getElementById('iv2-scrim').classList.add('open');
   el.classList.add('open');
+  iv2Badge(true);
   iv2Recalc();
   if(_iv2focusCobro){_iv2focusCobro=false;const pf=document.getElementById('iv2-payform');if(pf){pf.hidden=false;pf.scrollIntoView({block:'center'});}}
 }
@@ -11568,6 +11571,7 @@ function iv2Close(force){
   _iv2dirty=false;
   document.getElementById('iv2-scrim').classList.remove('open');
   document.getElementById('iv2-drawer').classList.remove('open');
+  iv2Badge(false);
 }
 function iv2ExitConfirm(){
   let m=document.getElementById('iv2-exit');
@@ -11593,7 +11597,7 @@ function iv2OpenSigma(){
     <div class="iv2-sect"><div class="iv2-h"><span>Saldo pendiente</span><span class="iv2-mono">${iv2Money(tot)}</span></div>
     ${pend.length?pend.map(x=>`<div class="iv2-drow"><span>${x.n} · ${iv2MesCorto(x.mk)}</span><span class="iv2-mono" style="color:var(--accent2)">${iv2Money(x.s)}</span></div>`).join(''):'<div class="iv2-row iv2-dim">Sin pendientes</div>'}</div>
   </div>`;
-  document.getElementById('iv2-scrim').classList.add('open');el.classList.add('open');
+  document.getElementById('iv2-scrim').classList.add('open');el.classList.add('open');iv2Badge(true);
 }
 
 /* ── Wiring de la barra superior ────────────────────────────────────────── */
