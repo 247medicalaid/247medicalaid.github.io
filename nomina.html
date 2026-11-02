@@ -11288,9 +11288,13 @@ function iv2MonthsDisponibles(){
   return Object.keys(ms).filter(mk=>ms[mk]&&ms[mk].q1&&ms[mk].q2).sort();
 }
 function iv2DefaultMk(){
-  const ms=iv2MonthsDisponibles();
-  const proc=ms.filter(mk=>{try{return mesEnProceso(mk);}catch(e){return false;}});
-  return proc.length?proc[proc.length-1]:(ms[ms.length-1]||null);
+  const ms=iv2MonthsDisponibles();if(!ms.length)return null;
+  const now=new Date();const cur=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const past=ms.filter(mk=>mk<cur);          // mes a facturar: el más reciente anterior al mes actual
+  if(past.length)return past[past.length-1];
+  const leq=ms.filter(mk=>mk<=cur);
+  if(leq.length)return leq[leq.length-1];
+  return ms[ms.length-1];
 }
 
 function renderInvoicesNew(){
