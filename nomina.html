@@ -2848,7 +2848,7 @@
   #page-invoicesnew .iv2-x{font:inherit;font-size:20px;line-height:1;color:var(--text3);background:none;border:0;cursor:pointer;padding:2px 6px}
   #page-invoicesnew .iv2-db{overflow-y:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:16px}
   #page-invoicesnew .iv2-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
-  #page-invoicesnew .iv2-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  #page-invoicesnew .iv2-cols{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start}
   #page-invoicesnew .iv2-col{display:flex;flex-direction:column;gap:14px;min-width:0}
   #page-invoicesnew .iv2-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #page-invoicesnew .iv2-fld{display:flex;flex-direction:column;gap:5px}
@@ -2882,8 +2882,9 @@
   #page-invoicesnew .iv2-notesrow{display:flex;gap:16px;margin-top:4px;align-items:stretch}
   #page-invoicesnew .iv2-noteside{flex:1.6;min-width:0}
   #page-invoicesnew .iv2-payside{flex:1;min-width:230px;display:flex;flex-direction:column;gap:10px}
-  #page-invoicesnew .iv2-payside .iv2-actions{display:flex;flex-direction:column;gap:8px;margin-top:auto}
-  #page-invoicesnew .iv2-payside .iv2-actions .iv2-btn{width:100%}
+  #page-invoicesnew .iv2-col .iv2-pay{margin-top:2px}
+  #page-invoicesnew .iv2-actions{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  #page-invoicesnew .iv2-actions .iv2-btn{width:100%}
   #page-invoicesnew .iv2-notetb{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
   #page-invoicesnew .iv2-notetb button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12.5px}
   #page-invoicesnew .iv2-notetb button:hover{border-color:var(--accent)}
@@ -11527,6 +11528,10 @@ function iv2RenderDetail(){
             <div id="iv2-cargos">${iv2CargosRows(d,ed)}</div>
             ${ed?`<div class="iv2-row" style="gap:14px"><button class="iv2-link" onclick="iv2AddCargo()">+ Añadir cargo</button><button class="iv2-link" onclick="iv2TraerCargos()">⟲ Traer los del mes pasado</button></div>`:''}
           </div>
+          <div class="iv2-fld"><label>Notas para el cliente · salen en el PDF</label>
+            ${ed?`<div class="iv2-notetb"><button type="button" onclick="iv2NoteCmd('bold')" title="Negrita"><b>B</b></button><button type="button" onclick="iv2NoteCmd('insertUnorderedList')" title="Lista">• Lista</button><button type="button" onclick="iv2NoteTable()" title="Insertar tabla">⊞ Tabla</button><span class="iv2-hn">pega una imagen o tabla directo</span></div>`:''}
+            <div id="iv2-notes-ed" class="iv2-noteed" ${ed?'contenteditable="true" oninput="iv2SetNotasHTML(this.innerHTML)"':''} data-ph="Ej: cobertura del fin de semana. Puedes pegar una imagen o insertar una tabla."></div>
+          </div>
         </div>
         <div class="iv2-col">
           <div class="iv2-two">
@@ -11545,16 +11550,6 @@ function iv2RenderDetail(){
                 ${ed&&d.descDias!=null?`<button class="iv2-link" onclick="iv2VolverCalculo()">volver al cálculo</button>`:''}</div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="iv2-notesrow">
-        <div class="iv2-noteside">
-          <div class="iv2-fld"><label>Notas para el cliente · salen en el PDF</label>
-            ${ed?`<div class="iv2-notetb"><button type="button" onclick="iv2NoteCmd('bold')" title="Negrita"><b>B</b></button><button type="button" onclick="iv2NoteCmd('insertUnorderedList')" title="Lista">• Lista</button><button type="button" onclick="iv2NoteTable()" title="Insertar tabla">⊞ Tabla</button><span class="iv2-hn">pega una imagen o tabla directo</span></div>`:''}
-            <div id="iv2-notes-ed" class="iv2-noteed" ${ed?'contenteditable="true" oninput="iv2SetNotasHTML(this.innerHTML)"':''} data-ph="Ej: cobertura del fin de semana. Puedes pegar una imagen o insertar una tabla."></div>
-          </div>
-        </div>
-        <div class="iv2-payside">
           <div class="iv2-pay">${cerrado?iv2PayHTML(d):`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`}</div>
           ${ed&&proc?`<div class="iv2-note">⏳ <b>En proceso</b>. Para cerrarlo, aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}
           <div class="iv2-actions">
