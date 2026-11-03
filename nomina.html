@@ -9093,6 +9093,51 @@ function _guardarInvOvSheets(key, datos){
   }).catch(()=>{});
 }
 
+// Verifica el cierre comprobando SOLO lo que importa en el servidor: que quedó
+// cerrado y con el mismo numero. Asi no falla por diferencias de formato en
+// campos grandes (p.ej. notas con imagen) que romperian una comparacion total.
+function _verificarCierreServidor(key){
+  return fetch(GS_URL + '?tipo=invoiceOv&v=' + Date.now())
+    .then(r => r.json())
+    .then(d => {
+      const sv = d && d[key], lo = loadInvOv()[key];
+      if(!sv || !lo) return false;
+      return sv.cerrado === true && String(sv.invnum||'') === String(lo.invnum||'');
+    })
+    .catch(() => false);
+}
+// Tras cerrar/revertir, mantiene la pagina nueva de Invoices en sintonia con el
+// dato real (la vieja ya se refresca con renderInvoices()).
+function _iv2SyncCierre(mkid, nombre){
+  try{
+    if(typeof iv2Render !== 'function' || !document.getElementById('page-invoicesnew')) return;
+    iv2Render();
+    const dw = document.getElementById('iv2-drawer');
+    if(dw && dw.classList.contains('open') && typeof _iv2cur !== 'undefined' && _iv2cur && _iv2cur.invKey === nombre && normMkid(_iv2cur.mk) === normMkid(mkid)){
+      const rows = iv2RowsForMonth(_iv2cur.mk) || [];
+      const nr = rows.find(x => x.invKey === nombre);
+      if(nr){ _iv2cur = nr; iv2RenderDetail(); }
+    }
+  }catch(e){}
+}
+// Confirma el cierre reintentando el guardado + la comprobacion antes de rendirse.
+function _cerrarVerificarReintentos(key, mkid, nombre){
+  return new Promise(resolve => {
+    let intentos = 0;
+    const paso = () => {
+      _verificarCierreServidor(key).then(ok => {
+        if(ok){ setConexion('ok','Cierre confirmado ✓'); resolve(true); return; }
+        intentos++;
+        if(intentos >= 3){ resolve(false); return; }
+        const ovs = loadInvOv();
+        if(ovs[key]) _guardarInvOvSheets(key, ovs[key]);
+        clearTimeout(_invVerifTimer);
+        setTimeout(paso, 2600);
+      });
+    };
+    paso();
+  });
+}
 // Lock/unlock invoice
 function cerrarInvoice(mkid, nombre){
   // Regla: un invoice sólo puede cerrarse si las DOS quincenas del mes
@@ -9158,10 +9203,11 @@ function cerrarInvoice(mkid, nombre){
   clearTimeout(_invVerifTimer);
   setConexion('loading','Confirmando el cierre...');
   setTimeout(() => {
-    verificarInvoicesGuardados(true).then(ok => {
-      if(ok) return;
+    _cerrarVerificarReintentos(key, mkid, nombre).then(ok => {
+      if(ok){ _iv2SyncCierre(mkid, nombre); return; }
       setOv(mkid, nombre, { cerrado:false });
       renderInvoices();
+      _iv2SyncCierre(mkid, nombre);
       setConexion('error','\u26d4 El cierre NO se guardó');
       alert('\u26d4 El invoice NO se pudo cerrar: el servidor no confirmó el cambio.\n\n' +
         'Se dejó ABIERTO a propósito, para que no te quede cerrado solo en esta ' +
