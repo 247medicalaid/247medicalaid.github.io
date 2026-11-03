@@ -13109,23 +13109,28 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   .pie{margin-top:auto;padding-top:18px;display:flex;justify-content:space-between;
     gap:20px;font-size:11px;color:var(--ink-2)}
 
+  /* Tabla envoltorio: su <thead> y <tfoot> los repite el navegador en CADA hoja
+     impresa, asi las paginas 2+ llevan el mismo encabezado y pie. Sin margenes
+     de @page (margin:0) para que Chrome NO imprima su encabezado/pie automatico
+     (titulo, URL, fecha). */
+  table.sheet{width:100%;border-collapse:collapse}
+  table.sheet > thead > tr > td,
+  table.sheet > tbody > tr > td,
+  table.sheet > tfoot > tr > td{padding:0}
+  table.sheet > thead #runhdr{padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  table.sheet > tfoot #runftr{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
   @page{margin:0}
   @media print{
-    /* Reserva margen arriba (encabezado) y abajo (pie) en CADA hoja; el numero
-       de pagina va en el margen inferior derecho con los contadores de @page. */
-    @page{ margin:225px 44px 50px 44px;
-      @bottom-right{ content:"Page " counter(page) " of " counter(pages); font:500 10.5px 'Plus Jakarta Sans',ui-sans-serif,sans-serif; color:#555; } }
     body{background:#fff}
-    .page{max-width:none;box-shadow:none;min-height:0;padding:0}
-    /* Encabezado y pie fijos => se repiten en todas las paginas impresas. */
-    #runhdr{position:fixed;top:0;left:0;right:0;padding:16px 44px 10px;background:#fff;border-bottom:1px solid var(--line)}
-    #runftr{position:fixed;bottom:0;left:0;right:0;margin:0;padding:8px 44px 10px;background:#fff;border-top:1px solid var(--line)}
-    /* Protege filas y totales de cortarse entre paginas. */
-    tr,table.tot{break-inside:avoid}
+    .page{max-width:none;box-shadow:none;min-height:100vh}
+    thead{display:table-header-group}
+    tfoot{display:table-footer-group}
+    tr,table.tot,.partes{break-inside:avoid}
   }
 </style></head><body><div class="page">
   ${preview ? '<div class="prev-ban">Vista previa — borrador. El invoice aún no está cerrado; el número definitivo se asigna al cerrarlo.</div>' : ''}
 
+  <table class="sheet"><thead><tr><td>
   <div id="runhdr">
   <div class="top">
     <div>${emisor.marca}</div>
@@ -13150,6 +13155,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
     </div>
   </div>
   </div>
+  </td></tr></thead><tbody><tr><td>
 
   <div class="due">${amtDue > 0.005
     ? `$${fmtN(amtDue)} due ${fOrd(data.duedate)}`
@@ -13195,9 +13201,11 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   </div>
   </div>
 
+  </td></tr></tbody><tfoot><tr><td>
   <div class="pie" id="runftr">
     <div>Invoice #${esc2(data.invnum||'')} &bull; $${fmtN(data.monto)} ${fCorta(data.duedate)}</div>
   </div>
+  </td></tr></tfoot></table>
 
 </div>
 <script>
