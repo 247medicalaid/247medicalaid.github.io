@@ -8479,6 +8479,8 @@ function updateBadges(){
     const invCount = countInvoicesAvailable(historialParaInvoices());
     $('badge-invoices').textContent = invCount;
   } catch { $('badge-historial').textContent = '0'; $('badge-invoices').textContent = '0'; }
+  try { const bn = $('badge-invoicesnew'); if(bn) bn.textContent = iv2ContarPorCobrar(); }
+  catch(e){ const bn = $('badge-invoicesnew'); if(bn) bn.textContent = '0'; }
   // Badge de Pagos: lo que falta por registrar de las dos caras — invoices
   // cerrados que el cliente aun no paga y meses pendientes por girarle a Sigma.
   try {
@@ -11388,6 +11390,24 @@ function iv2DisplayName(invKey,tipo){
     if(!c)c=L.find(function(x){return x.activo!==false&&normalizeAccountName(x.nombre)===invKey;});
     return c?c.nombre:invKey;
   }catch(e){return invKey;}
+}
+
+// Badge del nuevo Invoices: cuenta invoices CERRADOS con saldo por cobrar
+// (pendiente o parcial). Usa el monto congelado del ov, sin recalcular.
+function iv2ContarPorCobrar(){
+  let n = 0;
+  try{
+    const store = loadInvOv() || {};
+    Object.keys(store).forEach(k => {
+      const ov = store[k];
+      if(!ov || ov.cerrado !== true || ov.noPago === true) return;
+      const monto = Number(ov.monto) || 0;
+      if(monto <= 0) return;
+      let est; try{ est = estadoPagoCliente(ov, monto); }catch(e){ return; }
+      if(est && !est.completo) n++;
+    });
+  }catch(e){}
+  return n;
 }
 
 function iv2RowsForMonth(mk){
