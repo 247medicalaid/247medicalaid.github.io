@@ -2879,11 +2879,24 @@
   #page-invoicesnew .iv2-btn.ghost{background:var(--surface);border:1px solid var(--border);color:var(--text2)}
   #page-invoicesnew .iv2-link{font:inherit;font-size:12px;font-weight:600;color:var(--accent2);background:none;border:0;cursor:pointer;padding:0;text-decoration:underline}
   #page-invoicesnew .iv2-note{font-size:12px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;line-height:1.5}
+  #page-invoicesnew .iv2-notesrow{display:flex;gap:16px;margin-top:4px;align-items:stretch}
+  #page-invoicesnew .iv2-noteside{flex:1.6;min-width:0}
+  #page-invoicesnew .iv2-payside{flex:1;min-width:230px;display:flex;flex-direction:column;gap:10px}
+  #page-invoicesnew .iv2-payside .iv2-actions{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+  #page-invoicesnew .iv2-payside .iv2-actions .iv2-btn{width:100%}
+  #page-invoicesnew .iv2-notetb{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+  #page-invoicesnew .iv2-notetb button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12.5px}
+  #page-invoicesnew .iv2-notetb button:hover{border-color:var(--accent)}
+  #page-invoicesnew .iv2-noteed{min-height:110px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-size:13px;line-height:1.5;overflow:auto}
+  #page-invoicesnew .iv2-noteed:empty:before{content:attr(data-ph);color:var(--text3)}
+  #page-invoicesnew .iv2-noteed img{max-width:100%;height:auto;border-radius:4px}
+  #page-invoicesnew .iv2-noteed table{border-collapse:collapse;margin:4px 0}
+  #page-invoicesnew .iv2-noteed td,#page-invoicesnew .iv2-noteed th{border:1px solid var(--border);padding:3px 8px;min-width:46px}
   #page-invoicesnew .iv2-exitmodal{position:fixed;inset:0;z-index:1300;display:none;align-items:center;justify-content:center;background:rgba(2,10,16,.55);padding:20px}
   #page-invoicesnew .iv2-exitbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;max-width:380px;width:100%}
   #page-invoicesnew .iv2-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--surface);font-size:13px;font-weight:600;padding:11px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:all .25s;z-index:1400}
   #page-invoicesnew .iv2-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  @media(max-width:860px){#page-invoicesnew .iv2-grid,#page-invoicesnew .iv2-cols,#page-invoicesnew .iv2-two{grid-template-columns:1fr}}
+  @media(max-width:860px){#page-invoicesnew .iv2-grid,#page-invoicesnew .iv2-cols,#page-invoicesnew .iv2-two{grid-template-columns:1fr}#page-invoicesnew .iv2-notesrow{flex-direction:column}}
   @media(max-width:720px){#page-invoicesnew .iv2-tiles{grid-template-columns:1fr 1fr}}
   </style>
   <div class="iv2">
@@ -11468,7 +11481,6 @@ function iv2RenderDetail(){
             <div id="iv2-cargos">${iv2CargosRows(d,ed)}</div>
             ${ed?`<div class="iv2-row" style="gap:14px"><button class="iv2-link" onclick="iv2AddCargo()">+ Añadir cargo</button><button class="iv2-link" onclick="iv2TraerCargos()">⟲ Traer los del mes pasado</button></div>`:''}
           </div>
-          <div class="iv2-fld"><label>Notas para el cliente · salen en el PDF</label><textarea ${dis} rows="2" oninput="iv2SetNotas(this.value)" placeholder="Ej: Incluye la cobertura del fin de semana.">${(d.notas||'').replace(/</g,'&lt;')}</textarea></div>
         </div>
         <div class="iv2-col">
           <div class="iv2-two">
@@ -11489,18 +11501,28 @@ function iv2RenderDetail(){
           </div>
         </div>
       </div>
-      <div class="iv2-pay">
-        ${cerrado?iv2PayHTML(d):`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`}
-      </div>
-      ${ed&&proc?`<div class="iv2-note" style="margin-bottom:2px">⏳ Este invoice está <b>en proceso</b>. Para cerrarlo, primero aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        ${ed?`<button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button><span style="flex:1"></span><button class="iv2-btn ghost" onclick="iv2Preview()">👁 Vista previa</button>${puedeCerrar?`<button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`:`<button class="iv2-btn primary" disabled title="Primero aprueba las dos quincenas del mes (Resumen General)" style="opacity:.45;cursor:not-allowed">Cerrar invoice</button>`}`
-           :`<button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button><span style="flex:1"></span><button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button>`}
+      <div class="iv2-notesrow">
+        <div class="iv2-noteside">
+          <div class="iv2-fld"><label>Notas para el cliente · salen en el PDF</label>
+            ${ed?`<div class="iv2-notetb"><button type="button" onclick="iv2NoteCmd('bold')" title="Negrita"><b>B</b></button><button type="button" onclick="iv2NoteCmd('insertUnorderedList')" title="Lista">• Lista</button><button type="button" onclick="iv2NoteTable()" title="Insertar tabla">⊞ Tabla</button><span class="iv2-hn">pega una imagen o tabla directo</span></div>`:''}
+            <div id="iv2-notes-ed" class="iv2-noteed" ${ed?'contenteditable="true" oninput="iv2SetNotasHTML(this.innerHTML)"':''} data-ph="Ej: cobertura del fin de semana. Puedes pegar una imagen o insertar una tabla."></div>
+          </div>
+        </div>
+        <div class="iv2-payside">
+          <div class="iv2-pay">${cerrado?iv2PayHTML(d):`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`}</div>
+          ${ed&&proc?`<div class="iv2-note">⏳ <b>En proceso</b>. Para cerrarlo, aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}
+          <div class="iv2-actions">
+            ${ed?`${puedeCerrar?`<button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`:`<button class="iv2-btn primary" disabled title="Primero aprueba las dos quincenas del mes (Resumen General)" style="opacity:.45;cursor:not-allowed">Cerrar invoice</button>`}<button class="iv2-btn ghost" onclick="iv2Preview()">👁 Vista previa</button><button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button>`
+               :`<button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button><button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button>`}
+          </div>
+        </div>
       </div>
     </div>`;
   document.getElementById('iv2-scrim').classList.add('open');
   el.classList.add('open');
   iv2Badge(true);
+  const _ned=document.getElementById('iv2-notes-ed');
+  if(_ned){ _ned.innerHTML=iv2NotasParaPDF(d.notas); if(ed){ _ned.addEventListener('paste',iv2NotePaste); } }
   iv2Recalc();
   if(_iv2focusCobro){_iv2focusCobro=false;const pf=document.getElementById('iv2-payform');if(pf){pf.hidden=false;pf.scrollIntoView({block:'center'});}}
 }
@@ -11569,6 +11591,13 @@ function iv2Reabrir(){const r=_iv2cur;try{reabrirInvoice(r.mk,r.invKey);}catch(e
   _iv2editable=true;_iv2cur.proc=false;_iv2cur.cerrado=false;_iv2dirty=false;iv2Render();iv2RenderDetail();}
 function iv2Pdf(){const r=_iv2cur;const d=iv2Data();try{generarPDFCuenta(r.mk,r.invKey,r.tipo,d?d.plantilla:'');}catch(e){iv2Toast('No se pudo generar el PDF.');}}
 function iv2Preview(){const r=_iv2cur;const d=iv2Data();try{generarPDFCuenta(r.mk,r.invKey,r.tipo,d?d.plantilla:'',true);}catch(e){iv2Toast('No se pudo generar la vista previa.');}}
+function iv2SetNotasHTML(h){const r=_iv2cur;if(!r)return;setOv(r.mk,r.invKey,{notas:String(h||'')});_iv2dirty=true;}
+function iv2NoteCmd(cmd){const n=document.getElementById('iv2-notes-ed');if(!n)return;n.focus();try{document.execCommand(cmd,false,null);}catch(e){}iv2SetNotasHTML(n.innerHTML);}
+function iv2NoteTable(){const n=document.getElementById('iv2-notes-ed');if(!n)return;n.focus();const t='<table><tbody><tr><td>Agente</td><td>Ausencia</td><td>Días</td></tr><tr><td><br></td><td><br></td><td><br></td></tr></tbody></table><p><br></p>';try{document.execCommand('insertHTML',false,t);}catch(e){}iv2SetNotasHTML(n.innerHTML);}
+function iv2ImgComprimir(file,maxLado,cb){try{const rd=new FileReader();rd.onload=function(){const im=new Image();im.onload=function(){const k=Math.min(1,maxLado/Math.max(im.width,im.height));const w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k));const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);let out;try{out=cv.toDataURL('image/jpeg',0.8);}catch(e){out=rd.result;}cb(out);};im.onerror=function(){cb(null);};im.src=rd.result;};rd.onerror=function(){cb(null);};rd.readAsDataURL(file);}catch(e){cb(null);}}
+function iv2NotePaste(ev){const dt=ev.clipboardData;if(!dt)return;const n=document.getElementById('iv2-notes-ed');const imgs=Array.prototype.slice.call(dt.items||[]).filter(function(it){return it.kind==='file'&&/^image\//.test(it.type);}).map(function(it){return it.getAsFile();}).filter(Boolean);if(imgs.length){ev.preventDefault();imgs.forEach(function(f){iv2ImgComprimir(f,1000,function(url){if(url&&n){n.focus();try{document.execCommand('insertHTML',false,'<img src="'+url+'" style="max-width:100%">');}catch(e){}iv2SetNotasHTML(n.innerHTML);}});});return;}ev.preventDefault();const html=dt.getData('text/html');if(html){try{document.execCommand('insertHTML',false,iv2SanitizeNotas(html));}catch(e){}}else{try{document.execCommand('insertText',false,dt.getData('text/plain')||'');}catch(e){}}if(n)iv2SetNotasHTML(n.innerHTML);}
+function iv2SanitizeNotas(html){const ALLOW={A:1,B:1,STRONG:1,I:1,EM:1,U:1,BR:1,P:1,DIV:1,SPAN:1,UL:1,OL:1,LI:1,TABLE:1,THEAD:1,TBODY:1,TR:1,TD:1,TH:1,IMG:1,H3:1,H4:1};const tmp=document.createElement('div');tmp.innerHTML=String(html||'');(function walk(node){const kids=Array.prototype.slice.call(node.childNodes);for(let i=0;i<kids.length;i++){const el=kids[i];if(el.nodeType===1){const tag=el.tagName;if(!ALLOW[tag]){if(tag==='SCRIPT'||tag==='STYLE'||tag==='IFRAME'||tag==='OBJECT'||tag==='META'||tag==='LINK'){el.remove();continue;}while(el.firstChild)node.insertBefore(el.firstChild,el);node.removeChild(el);continue;}const ats=Array.prototype.slice.call(el.attributes);for(let j=0;j<ats.length;j++){const nm=ats[j].name.toLowerCase();if(tag==='IMG'&&nm==='src'){if(!/^data:image\//i.test(ats[j].value))el.removeAttribute(ats[j].name);}else if(tag==='A'&&nm==='href'){if(!/^https?:/i.test(ats[j].value))el.removeAttribute(ats[j].name);}else if(nm==='colspan'||nm==='rowspan'){}else{el.removeAttribute(ats[j].name);}}walk(el);}else if(el.nodeType===8){el.remove();}}})(tmp);return tmp.innerHTML;}
+function iv2NotasParaPDF(notas){const s=String(notas||'').trim();if(!s)return '';if(/<[a-z!\/][\s\S]*>/i.test(s))return iv2SanitizeNotas(s);return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
 function iv2RegistrarCobro(){
   const r=_iv2cur;const d=iv2Data();if(!d)return;
   const monto=iv2Num(document.getElementById('iv2-pay-monto').value);
@@ -12922,10 +12951,11 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   // ── Notas del invoice ─────────────────────────────────────────────────────
   // Texto libre que Carlos escribe en la tarjeta. Si no hay nada escrito el
   // bloque no sale, para no dejar un titulo vacio en la factura.
-  const bloqueNotas = (data.notas && String(data.notas).trim()) ? `
+  const _notasHTML = iv2NotasParaPDF(data.notas);
+  const bloqueNotas = _notasHTML ? `
     <div class="nota libres">
       <h3>Notes</h3>
-      ${esc2(String(data.notas).trim()).replace(/\n/g, '<br>')}
+      <div class="nota-rico">${_notasHTML}</div>
     </div>` : '';
 
   // ── Bloque "To:" ──────────────────────────────────────────────────────────
@@ -13010,6 +13040,10 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   .cierre table.tot{width:330px;flex:none}
   .cierre .nota.libres{flex:1;margin:0;border:1px solid var(--line);border-radius:8px;padding:12px 15px}
   .cierre .nota.libres h3{margin-bottom:6px}
+  .nota-rico img{max-width:100%;height:auto;border-radius:4px}
+  .nota-rico table{border-collapse:collapse;margin:4px 0;font-size:11px}
+  .nota-rico td,.nota-rico th{border:1px solid #B0B0B0;padding:3px 7px;text-align:left;vertical-align:top}
+  .nota-rico ul,.nota-rico ol{margin:4px 0 4px 18px}
   .prev-ban{margin:0 0 14px;padding:9px 14px;border-radius:8px;background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;font-weight:700;font-size:12.5px}
   .pie-notas{margin-top:18px;padding-top:13px;border-top:1px solid var(--line)}
   .notas{display:grid;grid-template-columns:1fr 1fr;gap:40px}
