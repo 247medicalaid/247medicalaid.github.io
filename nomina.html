@@ -2885,6 +2885,9 @@
   #page-invoicesnew .iv2-col .iv2-pay{margin-top:2px}
   #page-invoicesnew .iv2-actions{display:flex;flex-direction:column;gap:8px;margin-top:6px}
   #page-invoicesnew .iv2-actions .iv2-btn{width:100%}
+  #page-invoicesnew .iv2-foot{margin-top:16px}
+  #page-invoicesnew .iv2-footrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  #page-invoicesnew .iv2-footbtns{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
   #page-invoicesnew .iv2-notetb{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
   #page-invoicesnew .iv2-notetb button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12.5px}
   #page-invoicesnew .iv2-notetb button:hover{border-color:var(--accent)}
@@ -11550,13 +11553,14 @@ function iv2RenderDetail(){
                 ${ed&&d.descDias!=null?`<button class="iv2-link" onclick="iv2VolverCalculo()">volver al cálculo</button>`:''}</div>
             </div>
           </div>
-          <div class="iv2-pay">${cerrado?iv2PayHTML(d):`<div class="iv2-dim">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div>`}</div>
-          ${ed&&proc?`<div class="iv2-note">⏳ <b>En proceso</b>. Para cerrarlo, aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}
-          <div class="iv2-actions">
-            ${ed?`${puedeCerrar?`<button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`:`<button class="iv2-btn primary" disabled title="Primero aprueba las dos quincenas del mes (Resumen General)" style="opacity:.45;cursor:not-allowed">Cerrar invoice</button>`}<button class="iv2-btn ghost" onclick="iv2Preview()">👁 Vista previa</button><button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button>`
-               :`<button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button><button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button>`}
-          </div>
+          ${cerrado?`<div class="iv2-actions"><button class="iv2-btn primary" onclick="iv2Pdf()">📄 Imprimir PDF</button><button class="iv2-btn ghost" onclick="iv2Reabrir()">Reabrir para editar</button></div>`:''}
         </div>
+      </div>
+      <div class="iv2-foot">
+        ${cerrado
+          ? `<div class="iv2-pay">${iv2PayHTML(d)}</div>`
+          : `${proc?`<div class="iv2-note" style="margin-bottom:10px">⏳ Este invoice está <b>en proceso</b>. Para cerrarlo, primero aprueba las dos quincenas del mes en <b>Resumen General</b>.</div>`:''}<div class="iv2-footrow"><div class="iv2-dim" style="flex:1;min-width:180px">💵 El cobro se registra una vez <b>cerrado</b> el invoice.</div><div class="iv2-footbtns">${puedeCerrar?`<button class="iv2-btn primary" onclick="iv2Cerrar()">Cerrar invoice</button>`:`<button class="iv2-btn primary" disabled title="Primero aprueba las dos quincenas del mes (Resumen General)" style="opacity:.45;cursor:not-allowed">Cerrar invoice</button>`}<button class="iv2-btn ghost" onclick="iv2Preview()">👁 Vista previa</button><button class="iv2-btn ghost" onclick="iv2Guardar()">Solo guardar</button></div></div>`
+        }
       </div>
     </div>`;
   document.getElementById('iv2-scrim').classList.add('open');
