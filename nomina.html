@@ -13111,16 +13111,22 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
 
   @page{margin:0}
   @media print{
+    /* Reserva margen arriba (encabezado) y abajo (pie) en CADA hoja; el numero
+       de pagina va en el margen inferior derecho con los contadores de @page. */
+    @page{ margin:225px 44px 50px 44px;
+      @bottom-right{ content:"Page " counter(page) " of " counter(pages); font:500 10.5px 'Plus Jakarta Sans',ui-sans-serif,sans-serif; color:#555; } }
     body{background:#fff}
-    .page{max-width:none;box-shadow:none;min-height:100vh}
-    /* Si el cierre entero lleva break-inside:avoid y no cabe en lo que queda,
-       se va completo a la pagina siguiente y deja media hoja en blanco. Se
-       protegen solo los totales y cada fila del detalle. */
-    tr,table.tot,.partes{break-inside:avoid}
+    .page{max-width:none;box-shadow:none;min-height:0;padding:0}
+    /* Encabezado y pie fijos => se repiten en todas las paginas impresas. */
+    #runhdr{position:fixed;top:0;left:0;right:0;padding:16px 44px 10px;background:#fff;border-bottom:1px solid var(--line)}
+    #runftr{position:fixed;bottom:0;left:0;right:0;margin:0;padding:8px 44px 10px;background:#fff;border-top:1px solid var(--line)}
+    /* Protege filas y totales de cortarse entre paginas. */
+    tr,table.tot{break-inside:avoid}
   }
 </style></head><body><div class="page">
   ${preview ? '<div class="prev-ban">Vista previa — borrador. El invoice aún no está cerrado; el número definitivo se asigna al cerrarlo.</div>' : ''}
 
+  <div id="runhdr">
   <div class="top">
     <div>${emisor.marca}</div>
     <div class="enc">
@@ -13142,6 +13148,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
       <div class="pn">${esc2(iv2DisplayName(cuentaNombre, cuentaTipo))}</div>
       <div class="pd">${lineasTo}</div>
     </div>
+  </div>
   </div>
 
   <div class="due">${amtDue > 0.005
@@ -13188,9 +13195,8 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   </div>
   </div>
 
-  <div class="pie">
+  <div class="pie" id="runftr">
     <div>Invoice #${esc2(data.invnum||'')} &bull; $${fmtN(data.monto)} ${fCorta(data.duedate)}</div>
-    <div id="pg-cuenta">Page 1 of 1</div>
   </div>
 
 </div>
