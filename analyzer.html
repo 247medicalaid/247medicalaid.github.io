@@ -7234,21 +7234,32 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
     return recs.length;
   }
 
-  function marcarZona(elId, zoneKey, n){
+  function clRangoTxt(min, max){
+    if(!min || !max) return '';
+    var M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    function p(s){ var a=String(s).split('-'); return { y:+a[0], m:+a[1], d:+a[2] }; }
+    var a=p(min), b=p(max);
+    if(!a.m || !b.m) return '';
+    var sa=a.d+' '+M[a.m-1], sb=b.d+' '+M[b.m-1];
+    return (a.y===b.y) ? (sa+' – '+sb+' '+b.y) : (sa+' '+a.y+' – '+sb+' '+b.y);
+  }
+  function clMinMax(arr){ var mn=null, mx=null; arr.forEach(function(x){ var f=x.fecha; if(f){ if(mn===null||f<mn)mn=f; if(mx===null||f>mx)mx=f; } }); return [mn,mx]; }
+  function marcarZona(elId, zoneKey, n, min, max){
     var zone=document.getElementById('zone-'+zoneKey); if(zone) zone.classList.add('loaded');
     var t=document.getElementById(elId+'-title'); if(t) t.textContent='✓ histórico';
-    var s=document.getElementById(elId+'-sub'); if(s) s.textContent=n+' registros';
+    var s=document.getElementById(elId+'-sub'); if(s){ var r=clRangoTxt(min,max); s.textContent=n+' registros'+(r?' · '+r:''); }
   }
   function rebuild(records){
     var byF={ weave_calls:[], weave_sms:[], ooma:[], ringcentral:[] };
     records.forEach(function(x){ if(byF[x.fuente]) byF[x.fuente].push(x); });
-    if(byF.weave_calls.length){ state.alonso = byF.weave_calls.map(function(x){return x.datos;}); marcarZona('fal','alonso',byF.weave_calls.length); }
-    if(byF.weave_sms.length){ state.alonsoSms = byF.weave_sms.map(function(x){return x.datos;}); marcarZona('fals','alonsoSms',byF.weave_sms.length); }
-    if(byF.ooma.length){ state.ooma = byF.ooma.map(function(x){return x.datos;}); marcarZona('fo','ooma',byF.ooma.length); }
+    var rr;
+    if(byF.weave_calls.length){ state.alonso = byF.weave_calls.map(function(x){return x.datos;}); rr=clMinMax(byF.weave_calls); marcarZona('fal','alonso',byF.weave_calls.length,rr[0],rr[1]); }
+    if(byF.weave_sms.length){ state.alonsoSms = byF.weave_sms.map(function(x){return x.datos;}); rr=clMinMax(byF.weave_sms); marcarZona('fals','alonsoSms',byF.weave_sms.length,rr[0],rr[1]); }
+    if(byF.ooma.length){ state.ooma = byF.ooma.map(function(x){return x.datos;}); rr=clMinMax(byF.ooma); marcarZona('fo','ooma',byF.ooma.length,rr[0],rr[1]); }
     if(byF.ringcentral.length){
       var hdr=['From Name','To Name','Date-Time','Length','Direction','Call Response','Result'];
       state.tsm = [hdr].concat(byF.ringcentral.map(function(x){ var d=x.datos; return hdr.map(function(k){return d[k]!=null?d[k]:'';}); }));
-      marcarZona('fts','tsm',byF.ringcentral.length);
+      rr=clMinMax(byF.ringcentral); marcarZona('fts','tsm',byF.ringcentral.length,rr[0],rr[1]);
     }
     return byF;
   }
