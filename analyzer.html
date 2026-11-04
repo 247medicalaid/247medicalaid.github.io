@@ -757,6 +757,9 @@ h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spaci
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<!-- Supabase (histórico de llamadas, de-identificado) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sb.js?v=3"></script>
 <script>
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const GOAL_CRITICAL = 50, GOAL_LOW = 60, GOAL_MIN = 70, GOAL_GOOD = 80, GOAL_EXCELLENT = 90;
@@ -3077,6 +3080,7 @@ function loadFile(e,p){
       document.getElementById('pdfBtn').disabled=false;
       updateAIButtons();
       analyze();
+      if(window.clTrasSubir) window.clTrasSubir(stateKey, state[stateKey]);
     };
     r.readAsArrayBuffer(file);
     if(e.target && e.target.value !== undefined) e.target.value='';
@@ -3086,7 +3090,7 @@ function loadFile(e,p){
   const acumula = ZONAS_ACUMULABLES.includes(stateKey);
 
   (async () => {
-    let anadidas = 0, repetidas = 0, ultimoNombre = '';
+    let anadidas = 0, repetidas = 0, ultimoNombre = ''; const _subidas = [];
     for(const file of files){
       let filas;
       try { filas = parsearZona(stateKey, await leerTexto(file)); }
@@ -3099,6 +3103,7 @@ function loadFile(e,p){
         repetidas += filas.length - nuevas.length;
         anadidas  += nuevas.length;
         state[stateKey] = state[stateKey].concat(nuevas);
+        nuevas.forEach(x => _subidas.push(x));
         if(stateKey==='ooma') (state.oomaArchivos = state.oomaArchivos||[]).push({nombre:file.name, filas:filas.length, nuevas:nuevas.length});
       } else {
         // Primer archivo de la zona: dentro del propio archivo tampoco deberia
@@ -3108,10 +3113,12 @@ function loadFile(e,p){
           repetidas += filas.length - unicas.length;
           anadidas  += unicas.length;
           state[stateKey] = unicas;
+          unicas.forEach(x => _subidas.push(x));
           if(stateKey==='ooma') state.oomaArchivos = [{nombre:file.name, filas:filas.length, nuevas:unicas.length}];
         } else {
           anadidas += filas.length;
           state[stateKey] = filas;
+          filas.forEach(x => _subidas.push(x));
         }
       }
     }
@@ -3128,6 +3135,7 @@ function loadFile(e,p){
     document.getElementById('pdfBtn').disabled=false;
     updateAIButtons();
     analyze();
+    if(window.clTrasSubir) window.clTrasSubir(stateKey, _subidas);
   })();
 
   // Se limpia el input para poder volver a elegir el mismo archivo si hace falta.
@@ -7129,6 +7137,146 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
   img.addEventListener('error', fallar);
   if(img.complete && img.naturalWidth === 0) fallar();
 });
+</script>
+<script>
+/* ══ Analizador · histórico en Supabase (call_records) ═══════════════════════
+   Guarda SOLO campos de rendimiento DE-IDENTIFICADOS (sin nombre/número de
+   paciente ni texto de SMS). Al abrir trae el histórico y rearma el dashboard.
+   Todo protegido: sin Supabase/sesión, el Analizador funciona como siempre. */
+(function(){
+  if(window.__clInit) return; window.__clInit = true;
+  var FUENTE = { alonso:'weave_calls', alonsoSms:'weave_sms', ooma:'ooma', tsm:'ringcentral' };
+
+  function haySB(){ return !!(window.sb && window.sb.rpc); }
+  async function clSesion(){
+    if(!haySB()) return null;
+    if(window.sbPendiente){ try{ await window.sbPendiente; }catch(e){} }
+    try{ var s = await window.sb.auth.getSession(); return (s && s.data && s.data.session) || null; }
+    catch(e){ return null; }
+  }
+  async function clRpc(fn, args){
+    var ses = await clSesion(); if(!ses) throw new Error('sin sesión de Supabase');
+    var r = await window.sb.rpc(fn, args||{});
+    if(r.error) throw new Error(r.error.message);
+    return r.data;
+  }
+  function isoDe(t){ try{ return t ? t.toISOString() : ''; }catch(e){ return ''; } }
+
+  function recWeaveCalls(r){
+    var o = (typeof normalizarWeave==='function' ? (normalizarWeave([r])[0]||{}) : r);
+    var t = parseWeaveTime(o['Date/Time']); if(!t) return null;
+    var d = { 'Date/Time':o['Date/Time']||'', 'Call Type':o['Call Type']||'', 'Result':o['Result']||'', 'Duration':o['Duration']||0, 'Office User':o['Office User']||'' };
+    return { datos:d, t:t, base:['wc',d['Date/Time'],d['Call Type'],d['Result'],d['Duration'],d['Office User']].join('|') };
+  }
+  function recWeaveSms(r){
+    if(String(r['SMS Type']||'').trim().toLowerCase()!=='outbound') return null;
+    if(String(r['Message Category']||'').trim().toLowerCase()!=='manual-messages') return null;
+    var sender = String(r['Sender Name']||'').trim(); if(!sender) return null;
+    var dt = r['Date/ Time']||r['Date/Time']||'';
+    var t = parseWeaveTime(dt); if(!t) return null;
+    var d = { 'SMS Type':'outbound', 'Message Category':'manual-messages', 'Sender Name':sender, 'Date/ Time':dt };
+    return { datos:d, t:t, base:['sms',sender,dt].join('|') };
+  }
+  function recOoma(r){
+    var t = parseOomaTime(r['Start Time']); if(!t) return null;
+    var ext = (r._extOriginal!==undefined ? r._extOriginal : r['Resolution Extension']);
+    var d = { 'Type':r['Type']||'', 'Local Name':r['Local Name']||'', 'Local Number':r['Local Number']||'',
+              'Resolution Code':r['Resolution Code']||'', 'Resolution Extension':ext||'',
+              'Start Time':r['Start Time']||'', 'Duration':r['Duration']||'' };
+    return { datos:d, t:t, base:huellaFila('ooma', r) };
+  }
+  function recsTsm(rows){
+    if(!rows || rows.length<2) return [];
+    var hIdx=-1;
+    for(var i=0;i<Math.min(rows.length,25);i++){ var rr=(rows[i]||[]).map(function(x){return String(x||'').trim();}); if(rr.indexOf('From Name')>=0 && rr.indexOf('Direction')>=0){hIdx=i;break;} }
+    if(hIdx<0) return [];
+    var h=rows[hIdx].map(function(x){return String(x||'').trim();});
+    var ci={from:h.indexOf('From Name'),to:h.indexOf('To Name'),dt:h.indexOf('Date-Time'),len:h.indexOf('Length'),dir:h.indexOf('Direction'),resp:h.indexOf('Call Response'),res:h.indexOf('Result')};
+    var out=[];
+    rows.slice(hIdx+1).forEach(function(r){
+      if(!r) return;
+      var t=parseTsmTime(r[ci.dt]); if(!t) return;
+      var dir=String(r[ci.dir]||''); var isOut=dir.toLowerCase().indexOf('out')>=0;
+      var agente=String((isOut?r[ci.from]:r[ci.to])||'').trim(); if(!agente) return;
+      var dt=String(r[ci.dt]||''), len=String(r[ci.len]||''), resp=String(r[ci.resp]||''), res=String(r[ci.res]||'');
+      var d={ 'From Name': isOut?agente:'', 'To Name': isOut?'':agente, 'Date-Time':dt, 'Length':len, 'Direction':dir, 'Call Response':resp, 'Result':res };
+      out.push({ datos:d, t:t, base:['rc',dt,dir,len,resp,res,agente].join('|') });
+    });
+    return out;
+  }
+  function recordsDe(stateKey, filas){
+    var fuente = FUENTE[stateKey]; if(!fuente || !filas) return [];
+    var crudos = [];
+    if(stateKey==='tsm'){ crudos = recsTsm(filas); }
+    else {
+      var fn = stateKey==='alonso'?recWeaveCalls : stateKey==='alonsoSms'?recWeaveSms : stateKey==='ooma'?recOoma : null;
+      if(!fn) return [];
+      filas.forEach(function(r){ var rec=fn(r); if(rec) crudos.push(rec); });
+    }
+    var cuenta={};
+    return crudos.map(function(rec){ var n=cuenta[rec.base]||0; cuenta[rec.base]=n+1;
+      return { fuente:fuente, clave:rec.base+'#'+n, fecha:dayKey(rec.t), inicio:isoDe(rec.t), datos:rec.datos }; });
+  }
+
+  async function clGuardar(stateKey, filas){
+    if(!haySB()) return 0;
+    var recs = recordsDe(stateKey, filas); if(!recs.length) return 0;
+    for(var i=0;i<recs.length;i+=800){ await clRpc('calls_guardar', { p_filas: JSON.stringify(recs.slice(i,i+800)) }); }
+    return recs.length;
+  }
+
+  function marcarZona(elId, zoneKey, n){
+    var zone=document.getElementById('zone-'+zoneKey); if(zone) zone.classList.add('loaded');
+    var t=document.getElementById(elId+'-title'); if(t) t.textContent='✓ histórico';
+    var s=document.getElementById(elId+'-sub'); if(s) s.textContent=n+' registros';
+  }
+  function rebuild(records){
+    var byF={ weave_calls:[], weave_sms:[], ooma:[], ringcentral:[] };
+    records.forEach(function(x){ if(byF[x.fuente]) byF[x.fuente].push(x); });
+    if(byF.weave_calls.length){ state.alonso = byF.weave_calls.map(function(x){return x.datos;}); marcarZona('fal','alonso',byF.weave_calls.length); }
+    if(byF.weave_sms.length){ state.alonsoSms = byF.weave_sms.map(function(x){return x.datos;}); marcarZona('fals','alonsoSms',byF.weave_sms.length); }
+    if(byF.ooma.length){ state.ooma = byF.ooma.map(function(x){return x.datos;}); marcarZona('fo','ooma',byF.ooma.length); }
+    if(byF.ringcentral.length){
+      var hdr=['From Name','To Name','Date-Time','Length','Direction','Call Response','Result'];
+      state.tsm = [hdr].concat(byF.ringcentral.map(function(x){ var d=x.datos; return hdr.map(function(k){return d[k]!=null?d[k]:'';}); }));
+      marcarZona('fts','tsm',byF.ringcentral.length);
+    }
+    return byF;
+  }
+  async function clCargar(){
+    if(!haySB()) return;
+    try{
+      var txt = await clRpc('calls_leer', {});
+      var records = (typeof txt==='string') ? JSON.parse(txt) : (txt||[]);
+      if(!records.length){ clPill('sin histórico aún'); return; }
+      rebuild(records);
+      if(typeof analyze==='function') analyze();
+      clPill('histórico cargado: '+records.length);
+    }catch(e){ clPill('no se pudo cargar: '+e.message, true); }
+  }
+
+  window.clTrasSubir = async function(stateKey, filas){
+    if(!FUENTE[stateKey] || !haySB()) return;
+    try{ var n = await clGuardar(stateKey, filas); clPill('guardadas '+n+' en la nube'); await clCargar(); }
+    catch(e){ clPill('no se pudo guardar: '+e.message, true); }
+  };
+  window.getLastDates = async function(){
+    try{ var j = await clRpc('calls_ultima_fecha', {}); return (typeof j==='string')?JSON.parse(j):j; }
+    catch(e){ return { error:e.message }; }
+  };
+
+  function clPill(msg, err){
+    var el=document.getElementById('cl-pill');
+    if(!el){ el=document.createElement('div'); el.id='cl-pill';
+      el.style.cssText='position:fixed;right:10px;bottom:10px;z-index:60;font:11px/1.4 system-ui,sans-serif;padding:4px 10px;border-radius:999px;color:#fff;pointer-events:none;max-width:60vw';
+      if(document.body) document.body.appendChild(el); }
+    if(el){ el.textContent='Nube: '+msg; el.style.background = err?'rgba(140,30,30,.9)':'rgba(4,20,31,.82)'; }
+  }
+
+  function arrancar(){ clCargar(); }
+  if(window.PORTAL && window.PORTAL.listo) arrancar();
+  else document.addEventListener('portal:listo', arrancar, { once:true });
+})();
 </script>
 </body>
 </html>
