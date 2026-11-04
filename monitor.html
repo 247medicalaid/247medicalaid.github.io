@@ -9,7 +9,8 @@
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
-<meta name="mon-build" content="20261030-1952">
+<!-- build mon-20261103-2050: dropdown de autorizar — se retira "Monitor only"; Technical issue/Training/Other pasan a "Affects the timesheet" (clase otro, tope 2026-11-01); "Working from another computer"/"App not installed" se quitan (autorizaciones viejas se siguen mostrando) + placeholder "Choose a reason" -->
+<meta name="mon-build" content="20261103-2050">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -969,7 +970,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261030-1952';
+const MON_BUILD = '20261103-2050';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -2383,13 +2384,19 @@ function abrirAutorizar(ag, iniMs, finMs, fila, marca, esDesc){
   $('auHastaF').value = b.f; $('auHastaH').value = b.h;
   const sel = $('auMotivo');
   if (!sel.options.length) {
+    // Placeholder: ya no hay un default "seguro" (todas las razones afectan el TimeSheet), así que
+    // obligamos a elegir una a conciencia. auGuardar valida que no quede vacío.
+    sel.appendChild(new Option('— Choose a reason —', ''));
     [['mon', 'Monitor only'], ['ts', 'Affects the timesheet']].forEach(([g, etq]) => {
+      const items = MOTIVOS_AUT.filter(m => m.g === g);
+      if (!items.length) return;   // no dibujar un grupo vacío (p. ej. "Monitor only" ya no tiene razones)
       const og = document.createElement('optgroup'); og.label = etq;
-      MOTIVOS_AUT.filter(m => m.g === g).forEach(m => og.appendChild(new Option(m.en, m.v)));
+      items.forEach(m => og.appendChild(new Option(m.en, m.v)));
       sel.appendChild(og);
     });
   }
   $('auNota').value = '';
+  $('auMotivo').value = '';   // abrir siempre en el placeholder "Choose a reason"
   const inicial = autFila ? 'autorizado' : (autEraDesc ? 'descanso' : 'perdido');
   document.querySelectorAll('input[name="auQue"]').forEach(r => { r.checked = (r.value === inicial); });
   pintarMiMarca(ag);
@@ -2416,20 +2423,26 @@ function pintarMiMarca(ag){
 // Valor GUARDADO estable (español) + etiqueta en inglés + grupo. No cambiar los valores: son dato histórico
 // y los lee el backend. 'Cita médica o diligencia' se fusiona en Enfermedad (Sick): ya no es opción nueva.
 const MOTIVOS_AUT = [
-  // Monitor only (solo explican el PC; la persona puede estar trabajando) — va primero: default seguro.
-  { v:'Conectado desde otro equipo', en:'Working from another computer', g:'mon' },
-  { v:'Sin la aplicación instalada', en:'App not installed', g:'mon' },
-  { v:'Problema técnico', en:'Technical issue', g:'mon' },
-  { v:'Capacitación o reunión', en:'Training or meeting', g:'mon' },
-  { v:'Otro', en:'Other', g:'mon' },
   // Affects the timesheet (crean ausencia en el TimeSheet vía el sync inverso).
+  // (nov 2026) Technical issue / Training or meeting / Other pasaron aquí (antes "Monitor only").
+  // Afectan el TimeSheet solo desde 2026-11-01 (tope en el SQL reloj_solicitud_desde_monitor, paso121),
+  // así Octubre (cerrado y pagado) no se toca aunque el cron barra autorizaciones viejas.
+  // "Conectado desde otro equipo" y "Sin la aplicación instalada" se RETIRARON del dropdown; las
+  // autorizaciones viejas con esos motivos se siguen mostrando por MOTIVO_EN (abajo) y no afectan nada.
+  { v:'Problema técnico', en:'Technical issue', g:'ts' },
+  { v:'Capacitación o reunión', en:'Training or meeting', g:'ts' },
+  { v:'Otro', en:'Other', g:'ts' },
   { v:'Vacaciones', en:'Vacation', g:'ts' },
   { v:'Enfermedad', en:'Sick', g:'ts' },
   { v:'Permiso autorizado', en:'Authorized leave', g:'ts' },
   { v:'Ausencia no autorizada', en:'Unauthorized absence', g:'ts' }
 ];
-// Mapa valor->inglés para mostrar el motivo consistente (incluye el valor viejo fusionado).
-const MOTIVO_EN = { 'Cita médica o diligencia':'Sick' };
+// Mapa valor->inglés para mostrar el motivo consistente (incluye valores viejos ya no ofrecidos en el dropdown).
+const MOTIVO_EN = {
+  'Cita médica o diligencia':'Sick',
+  'Conectado desde otro equipo':'Working from another computer',
+  'Sin la aplicación instalada':'App not installed'
+};
 MOTIVOS_AUT.forEach(m => { MOTIVO_EN[m.v] = m.en; });
 function motivoEN(v){ return v ? (MOTIVO_EN[v] || v) : v; }
 
@@ -2455,6 +2468,7 @@ $('auGuardar').addEventListener('click', async () => {
   if ((h + ' ' + hh2) <= (d + ' ' + dh)) return mal('The end must be after the start.');
   const q = auQue();
   if (q !== 'autorizado' && d !== h) return mal('A break starts and ends on the same day.');
+  if (q === 'autorizado' && !$('auMotivo').value) return mal('Choose a reason for the authorization.');
   const btn = $('auGuardar'); btn.disabled = true;
   try {
     const quien = (S.portalUser && (S.portalUser.nombre || S.portalUser.username)) || '';
