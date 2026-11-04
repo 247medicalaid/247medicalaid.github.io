@@ -7161,6 +7161,15 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
     return r.data;
   }
   function isoDe(t){ try{ return t ? t.toISOString() : ''; }catch(e){ return ''; } }
+  // Hash opaco de la huella (cyrb53): la clave no debe exponer números del
+  // remoto en texto plano. Misma entrada -> misma clave (deduplica igual).
+  function huella53(str){
+    var h1=0xdeadbeef, h2=0x41c6ce57;
+    for(var i=0,ch; i<str.length; i++){ ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); }
+    h1=Math.imul(h1^(h1>>>16),2246822507); h1^=Math.imul(h2^(h2>>>13),3266489909);
+    h2=Math.imul(h2^(h2>>>16),2246822507); h2^=Math.imul(h1^(h1>>>13),3266489909);
+    return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);
+  }
 
   function recWeaveCalls(r){
     var o = (typeof normalizarWeave==='function' ? (normalizarWeave([r])[0]||{}) : r);
@@ -7215,7 +7224,7 @@ document.querySelectorAll('.brandmark').forEach(function(bm){
     }
     var cuenta={};
     return crudos.map(function(rec){ var n=cuenta[rec.base]||0; cuenta[rec.base]=n+1;
-      return { fuente:fuente, clave:rec.base+'#'+n, fecha:dayKey(rec.t), inicio:isoDe(rec.t), datos:rec.datos }; });
+      return { fuente:fuente, clave:huella53(rec.base)+'#'+n, fecha:dayKey(rec.t), inicio:isoDe(rec.t), datos:rec.datos }; });
   }
 
   async function clGuardar(stateKey, filas){
