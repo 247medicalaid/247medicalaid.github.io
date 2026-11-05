@@ -3475,7 +3475,6 @@ function renderAll(){
   renderWeekNav(main);
   try {
     renderKPIs(main,agents);
-    renderWeeklySummary(main,agents);
     renderCharts(main,agents);
     renderAbandonedPanel(main, agents);
     renderAdvantageAbandonedPanel(main, agents);
@@ -3496,7 +3495,10 @@ function renderAll(){
   practices.forEach(prac=>{
     const pAgents=agents.filter(a=>a.practice===prac);
     if(!pAgents.length) return;
-    renderPracticeSection(main,prac,pAgents,practiceClass[prac]||'cardio');
+    try { renderPracticeSection(main,prac,pAgents,practiceClass[prac]||'cardio'); }
+    catch(err){ console.error('renderPracticeSection '+prac+':', err);
+      const e=document.createElement('div'); e.style.cssText='padding:14px 18px;background:#fdeaea;color:#C81F29;border-radius:14px;margin:10px 0;font-size:12px;';
+      e.textContent='No se pudo dibujar la tabla de '+prac+': '+err.message; main.appendChild(e); }
   });
 
   try { renderOomaOfficePanel(main); } catch(err){ console.error('renderOomaOfficePanel:', err); }
@@ -4323,9 +4325,19 @@ function renderCharts(container,agents){
 // ─── PRACTICE SECTION ──────────────────────────────────────────────────────
 function renderPracticeSection(container,prac,agents,cls){
   const sec=document.createElement('div');
-  // La clase de la practica va tambien en la seccion, para que el marco de la
-  // tabla pueda llevar el color de la cuenta y no solo la cabecera.
   sec.className='practice-section '+cls;
+
+  // ── Semana de comparación (igual criterio que el resumen): weekA en modo
+  //    comparar; si no, la semana/mes anterior ──
+  let prevAgents=null, compareLabel='';
+  if(state.compareMode && state.weekA && state.weekB && state.weekA!==state.weekB){
+    prevAgents=filterAgentsByWeek(state.allAgents, state.weekA);
+    compareLabel='vs '+weekLabel(state.weekA);
+  } else if(state.weeks && state.weeks.length>1 && state.weekIdx>0){
+    prevAgents=filterAgentsByWeek(state.allAgents, state.weeks[state.weekIdx-1]);
+    compareLabel=state.periodMode==='month'?'vs mes anterior':'vs semana anterior';
+  }
+  const prevOf = name => prevAgents ? prevAgents.find(p=>p.name===name) : null;
 
   const hdr=document.createElement('div');
   hdr.className=`practice-header ${cls}`;
@@ -4338,24 +4350,27 @@ function renderPracticeSection(container,prac,agents,cls){
   const wrap=document.createElement('div');
   wrap.className='table-wrap';
 
-  // La columna SMS aparece siempre que el CSV de SMS esté cargado para la práctica
-  // (aunque la semana seleccionada no tenga mensajes — se muestran ceros).
   const hasSms = (prac==='Alonso Medical' && !!(state.alonsoSms && state.alonsoSms.length))
     || agents.some(a => (a.sms_sent||0) > 0 || (a.smsList && a.smsList.length));
+  const NCOLS = hasSms ? 10 : 9;
+
   const table=document.createElement('table');
+  const thR='style="text-align:right;"';
   table.innerHTML=`<thead><tr>
     <th>AGENTE</th>
-    <th>LLAMADAS / DÍA</th>
-    <th>CONTESTADAS</th>
-    <th>SALIENTES</th>
-    ${hasSms?'<th>SMS ENVIADOS</th>':''}
-    <th>PERDIDAS</th>
-    <th>TIEMPO EN LÍNEA</th>
-    <th>TIEMPO MUERTO</th>
-    <th>EFICIENCIA</th>
+    <th ${thR}>PROM. TOTAL<br>CALL / DÍA</th>
+    <th ${thR}>PROM.<br>CONTESTADAS / DÍA</th>
+    <th ${thR}>PROM.<br>REALIZADAS / DÍA</th>
+    ${hasSms?`<th ${thR}>PROM. SMS<br>/ DÍA</th>`:''}
+    <th ${thR}>PROM.<br>PERDIDAS / DÍA</th>
+    <th ${thR}>PROM. TIEMPO<br>EN LÍNEA / DÍA</th>
+    <th ${thR}>PROM. TIEMPO<br>MUERTO / DÍA</th>
+    <th ${thR}>EFICIENCIA</th>
+    <th ${thR}>DÍAS</th>
   </tr></thead>`;
 
-  const maxCalls=Math.max(...agents.map(a=>a.calls_in+a.calls_out),1);
+  const workOf = a => a.calls_answered + a.calls_out;   // Total = Contestadas + Realizadas
+  const maxWork=Math.max(...agents.map(workOf),1);
   const maxDur=Math.max(...agents.map(a=>a.total_duration),1);
   const maxDead=Math.max(...agents.map(a=>a.dead_gaps.reduce((s,g)=>s+g.minutes,0)),1);
 
@@ -4363,115 +4378,92 @@ function renderPracticeSection(container,prac,agents,cls){
   const tbody=document.createElement('tbody');
 
   sortedAgents.forEach(a=>{
-    const total=a.calls_in+a.calls_out;
-    const callPct=Math.round(total/maxCalls*100);
-    const durPct=Math.round(a.total_duration/maxDur*100);
+    const daysSet=new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
+    const days=daysSet.size||1;
+    const work=workOf(a);
+    const avgTotal=work/days;
+    const avgAns=a.calls_answered/days;
+    const avgMade=a.calls_out/days;
+    const avgMissed=a.calls_missed/days;
+    const avgSms=(a.sms_sent||0)/days;
+    const avgTalk=a.total_duration/days;              // segundos/día
     const deadMins=a.dead_gaps.reduce((s,g)=>s+g.minutes,0);
+    const avgDead=deadMins/days;                       // minutos/día
+
+    // comparativa (promedios/día de la semana anterior)
+    let pAvgTotal=null,pAvgAns=null,pAvgMade=null,pAvgMissed=null,pAvgSms=null,pAvgTalk=null,pAvgDead=null;
+    const prev=prevOf(a.name);
+    if(prev){
+      const pD=(new Set([...Object.keys(prev.byDay), ...((prev.smsList||[]).map(m=>dayKey(m.time)))]).size)||1;
+      pAvgTotal=(prev.calls_answered+prev.calls_out)/pD;
+      pAvgAns=prev.calls_answered/pD; pAvgMade=prev.calls_out/pD; pAvgMissed=prev.calls_missed/pD;
+      pAvgSms=(prev.sms_sent||0)/pD; pAvgTalk=prev.total_duration/pD;
+      pAvgDead=prev.dead_gaps.reduce((s,g)=>s+g.minutes,0)/pD;
+    }
+
+    const workPct=Math.round(work/maxWork*100);
+    const durPct=Math.round(a.total_duration/maxDur*100);
     const deadPct=Math.round(deadMins/maxDead*100);
-    const missRate=total?Math.round(a.calls_missed/total*100):0;
-    const shortName=a.name;
-    const barColor=cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--advantage)';
-    const platTag=isNoAgent(a.name)
-      ?`<span class="aplat" style="background:#eee;color:#888;font-style:italic;">SIN AGENTE</span>`
-      :a.platform==='nextiva'
-      ?`<span class="aplat tag-nextiva">NEXTIVA</span>`
-      :a.platform==='voip3'
-      ?`<span class="aplat tag-voip3">VOIP3</span>`
-      :a.platform==='weave'
-      ?`<span class="aplat tag-weave">WEAVE</span>`
-      :a.platform==='ringcentral'
-      ?`<span class="aplat" style="background:var(--tsm-bg);color:var(--tsm);">RINGCENTRAL</span>`
+    const rowCls = avgTotal>=GOAL_EXCELLENT?'row-ideal':avgTotal>=GOAL_GOOD?'row-good':avgTotal>=GOAL_MIN?'row-min':avgTotal>=GOAL_LOW?'row-low':'row-alert';
+    const barColor=cls==='cardio'?'var(--cardio)':cls==='gastro'?'var(--gastro)':cls==='mab'?'var(--mab)':cls==='advantage'?'var(--advantage)':cls==='alonso'?'var(--alonso)':'var(--tsm)';
+
+    const platTag= a.platform==='nextiva'?`<span class="aplat tag-nextiva">NEXTIVA</span>`
+      :a.platform==='voip3'?`<span class="aplat tag-voip3">VOIP3</span>`
+      :a.platform==='weave'?`<span class="aplat tag-weave">WEAVE</span>`
+      :a.platform==='ringcentral'?`<span class="aplat" style="background:var(--tsm-bg);color:var(--tsm);">RINGCENTRAL</span>`
       :`<span class="aplat tag-ooma">OOMA</span>`;
 
-    // SMS por día (solo cuando hay datos de SMS en la práctica)
-    const smsByDay = {};
-    (a.smsList||[]).forEach(m => {
-      const dk = dayKey(m.time);
-      if(!smsByDay[dk]) smsByDay[dk] = {label: dayLabel(m.time), count: 0};
-      smsByDay[dk].count++;
-    });
-    // Combinar días de llamadas y de SMS (un agente puede tener SMS un día sin llamadas)
-    const allDayKeys = [...new Set([...Object.keys(a.byDay), ...(hasSms?Object.keys(smsByDay):[])])].sort();
-    const days = allDayKeys.map(dk => [dk, a.byDay[dk] || {label: smsByDay[dk].label, count:0, in:0, out:0, missed:0}]);
-    const dayRows=days.map(([dk,d])=>{
-      const dayTotal= isNoAgent(a.name) ? (d.missed||0) : (d.in||0)+(d.out||0);
-      const cls2=isNoAgent(a.name)?'day-low':dayTotal>=GOAL_EXCELLENT?'day-ideal':dayTotal>=GOAL_GOOD?'day-good':dayTotal>=GOAL_MIN?'day-min':dayTotal>=GOAL_LOW?'day-low':'day-alert';
-      return `<tr>
-        <td>${d.label}</td>
-        <td><span class="day-pill ${cls2}" style="display:inline-block">${dayTotal}</span></td>
-        <td>${d.in||0}</td>
-        <td>${d.out||0}</td>
-        ${hasSms?`<td style="color:var(--alonso);">${smsByDay[dk]?.count||0}</td>`:''}
-        <td style="color:${(d.missed||0)>0?'var(--red)':'var(--ink2)'}">${d.missed||0}</td>
-      </tr>`;
-    }).join('');
+    // Desglose por día (pills + filas del detalle)
+    const smsByDay={};
+    (a.smsList||[]).forEach(m=>{const dk=dayKey(m.time); if(!smsByDay[dk])smsByDay[dk]={label:dayLabel(m.time),count:0}; smsByDay[dk].count++;});
+    const allDayKeys=[...new Set([...Object.keys(a.byDay), ...(hasSms?Object.keys(smsByDay):[])])].sort();
+    const daysArr=allDayKeys.map(dk=>[dk, a.byDay[dk]||{label:smsByDay[dk].label,count:0,in:0,out:0,missed:0}]);
+    const dayPills=daysArr.map(([,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<span class="day-pill ${c2}">${d.label}: ${dt}</span>`;}).join('');
+    const dayRows=daysArr.map(([dk,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<tr><td>${d.label}</td><td><span class="day-pill ${c2}" style="display:inline-block">${dt}</span></td><td>${d.in||0}</td><td>${d.out||0}</td>${hasSms?`<td style="color:var(--alonso);">${smsByDay[dk]?.count||0}</td>`:''}<td style="color:${(d.missed||0)>0?'var(--red)':'var(--ink2)'}">${d.missed||0}</td></tr>`;}).join('');
 
-    // Summary pills for collapsed view
-    const dayPills=days.map(([,d])=>{
-      const dayTotal= isNoAgent(a.name) ? (d.missed||0) : (d.in||0)+(d.out||0);
-      const cls2=isNoAgent(a.name)?'day-low':dayTotal>=GOAL_EXCELLENT?'day-ideal':dayTotal>=GOAL_GOOD?'day-good':dayTotal>=GOAL_MIN?'day-min':dayTotal>=GOAL_LOW?'day-low':'day-alert';
-      return `<span class="day-pill ${cls2}">${d.label}: ${dayTotal}</span>`;
-    }).join('');
+    // Eficiencia (uso del tiempo disponible en la semana)
+    const sched=getSched(a.practice);
+    const availSecs=sched.available_min*60*days;
+    const eff=availSecs>0?Math.round(a.total_duration/availSecs*100):0;
+    const effColor=eff>=70?'var(--green)':eff>=50?'var(--yellow)':'var(--red)';
 
-    // Days worked (needed for avg and efficiency) — incluye días con solo SMS
-    const daysWorkedSet = new Set([...Object.keys(a.byDay), ...((a.smsList||[]).map(m=>dayKey(m.time)))]);
-    const daysWorked = daysWorkedSet.size || 1;
-
-    // Main agent row (clickable)
     const tr=document.createElement('tr');
-    tr.className='agent-row';
+    tr.className='agent-row '+rowCls;
     tr.innerHTML=`
       <td class="agent-name-cell">
-        <span class="aname">${shortName}</span>${platTag}
+        <span class="aname">${a.name}</span>${platTag}
         <span class="expand-icon">▾</span>
       </td>
-      <td>
-        <div class="bar-cell">
-          <div class="bar-track"><div class="bar-fill" style="width:${callPct}%;background:${barColor}"></div></div>
-          <span class="bar-val">${total}</span>
-          <span style="font-size:10px;color:var(--muted);margin-left:4px;">~${Math.round(total/daysWorked)}/día</span>
-        </div>
-        <div class="day-row">${dayPills}</div>
+      <td style="text-align:right;background:rgba(14,134,180,0.06);">
+        <div style="font-weight:800;font-size:16px;color:#0A6A90;">${avgTotal.toFixed(1)} ${getDelta(avgTotal,pAvgTotal)}</div>
+        <div class="bar-cell" style="margin-top:4px;"><div class="bar-track"><div class="bar-fill" style="width:${workPct}%;background:${barColor}"></div></div><span class="bar-val">${work}</span></div>
+        <div class="day-row" style="justify-content:flex-end;">${dayPills}</div>
       </td>
-      <td>${a.calls_answered}</td>
-      <td>${a.calls_out}</td>
-      ${hasSms?`<td style="color:var(--alonso);font-weight:600;">${(a.sms_sent||0).toLocaleString()}</td>`:''}
-      <td style="color:${missRate>20?'var(--red)':'var(--ink2)'}">
-        ${a.calls_missed} <span style="font-size:10px;color:var(--muted)">(${missRate}%)</span>
+      <td style="text-align:right;font-weight:600;">${avgAns.toFixed(1)} ${getDelta(avgAns,pAvgAns)}</td>
+      <td style="text-align:right;font-weight:600;">${avgMade.toFixed(1)} ${getDelta(avgMade,pAvgMade)}</td>
+      ${hasSms?`<td style="text-align:right;font-weight:600;color:var(--alonso);">${avgSms.toFixed(1)} ${getDelta(avgSms,pAvgSms)}</td>`:''}
+      <td style="text-align:right;font-weight:600;color:${avgMissed>=3?'var(--red)':'var(--ink)'}">${avgMissed.toFixed(1)} ${getDelta(avgMissed,pAvgMissed,true)}</td>
+      <td style="text-align:right;font-weight:600;color:#0E86B4;">
+        <div>${fmtDur(Math.round(avgTalk))} ${getDeltaMins(avgTalk/60,pAvgTalk?pAvgTalk/60:null)}</div>
+        <div class="bar-cell" style="margin-top:4px;"><div class="bar-track"><div class="bar-fill" style="width:${durPct}%;background:#14567A"></div></div></div>
       </td>
-      <td>
-        <div class="bar-cell">
-          <div class="bar-track"><div class="bar-fill" style="width:${durPct}%;background:#14567A"></div></div>
-          <span class="bar-val">${fmtDur(a.total_duration)}</span>
-        </div>
+      <td style="text-align:right;font-weight:600;">
+        <div style="color:${avgDead>120?'var(--red)':avgDead>60?'var(--yellow)':'var(--ink2)'}">${fmtMins(Math.round(avgDead))} ${getDeltaMins(avgDead,pAvgDead,true)}</div>
+        <div class="bar-cell" style="margin-top:4px;"><div class="bar-track"><div class="bar-fill" style="width:${deadPct}%;background:var(--red)"></div></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">${a.dead_gaps.length} gaps</div>
       </td>
-      <td>
-        <div class="bar-cell">
-          <div class="bar-track"><div class="bar-fill" style="width:${deadPct}%;background:var(--red)"></div></div>
-          <span class="bar-val" style="color:${deadMins>120?'var(--red)':deadMins>60?'var(--yellow)':'var(--ink2)'}">${fmtMins(deadMins)}</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;">${a.dead_gaps.length} gaps</div>
-      </td>
+      <td style="text-align:right;"><span style="font-size:14px;font-weight:700;color:${effColor}">${eff}%</span><div style="font-size:10px;color:var(--muted);margin-top:2px;">${fmtDur(a.total_duration)} / ${fmtDur(sched.available_min*60*days)}</div></td>
+      <td style="text-align:right;color:var(--muted)">${days}</td>
     `;
-    // Efficiency cell
-    const effTd = document.createElement('td');
-    const sched = getSched(a.practice);
-    const availSecs = sched.available_min * 60 * daysWorked;
-    const eff = availSecs > 0 ? Math.round(a.total_duration / availSecs * 100) : 0;
-    const effColor = eff >= 70 ? 'var(--green)' : eff >= 50 ? 'var(--yellow)' : 'var(--red)';
-    effTd.innerHTML = '<span style="font-size:14px;font-weight:600;color:' + effColor + '">' + eff + '%</span>' +
-      '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + fmtDur(a.total_duration) + ' / ' + fmtDur(sched.available_min * 60 * daysWorked) + '</div>';
-    tr.appendChild(effTd);
-    tr.onclick = () => { tr.classList.toggle('open'); detailTr.style.display = tr.classList.contains('open') ? 'table-row' : 'none'; };
+    tr.onclick=()=>{tr.classList.toggle('open'); detailTr.style.display=tr.classList.contains('open')?'table-row':'none';};
     tbody.appendChild(tr);
 
-    // Detail row with day breakdown table
-    const detailTr = document.createElement('tr');
-    detailTr.style.display = 'none';
-    const detailTd = document.createElement('td');
-    detailTd.colSpan = hasSms ? 9 : 8;
-    detailTd.style.padding = '0';
-    detailTd.innerHTML = `
+    const detailTr=document.createElement('tr');
+    detailTr.style.display='none';
+    const detailTd=document.createElement('td');
+    detailTd.colSpan=NCOLS;
+    detailTd.style.padding='0';
+    detailTd.innerHTML=`
       <table class="day-breakdown">
         <thead><tr>
           <th>DÍA</th>
@@ -4485,7 +4477,7 @@ function renderPracticeSection(container,prac,agents,cls){
           ${dayRows}
           <tr>
             <td class="dbd-total">TOTAL SEMANA</td>
-            <td class="dbd-total">${total}</td>
+            <td class="dbd-total">${(a.calls_in+a.calls_out)}</td>
             <td class="dbd-total">${a.calls_answered}</td>
             <td class="dbd-total">${a.calls_out}</td>
             ${hasSms?`<td class="dbd-total" style="color:var(--alonso);">${a.sms_sent||0}</td>`:''}
@@ -4499,7 +4491,7 @@ function renderPracticeSection(container,prac,agents,cls){
 
   table.appendChild(tbody);
 
-  // ── Filas de "No Agent" — busca semana activa o la más reciente con datos ──
+  // ── Filas de "No Agent" (abandonadas) — semana activa o la más reciente ──
   const _curWk2 = state.weeks[state.weekIdx] || null;
   const noAgentAgents = (() => {
     const cur = state.allAgents.filter(a => isNoAgent(a.name) && a.practice===prac &&
@@ -4519,6 +4511,7 @@ function renderPracticeSection(container,prac,agents,cls){
     noAgentAgents.forEach(na => {
       const days = Object.keys(na.byDay).length || 1;
       const abandoned = na.calls_abandoned || na.calls_missed || 0;
+      const dash = '<td style="text-align:right;color:var(--muted)">—</td>';
       const tr = document.createElement('tr');
       tr.style.cssText = 'background:var(--surface2);opacity:.9;';
       tr.innerHTML = `
@@ -4530,13 +4523,15 @@ function renderPracticeSection(container,prac,agents,cls){
           </div>
           <div class="day-row">${Object.entries(na.byDay).sort(([x],[y])=>x.localeCompare(y)).map(([,d])=>`<span class="day-pill day-low">${d.label}: ${d.missed||0}</span>`).join('')}</div>
         </td>
-        <td><span style="font-size:13px;font-weight:600;color:var(--red)">${(abandoned/days).toFixed(1)}/d</span></td>
-        <td style="color:var(--muted)">—</td>
-        <td style="color:var(--muted)">—</td>
-        <td style="color:var(--red);font-weight:600">${abandoned}</td>
-        <td style="color:var(--muted)">—</td>
-        <td style="color:var(--muted)">—</td>
-        <td style="color:var(--muted)">—</td>`;
+        ${dash}
+        ${dash}
+        ${dash}
+        ${hasSms?dash:''}
+        <td style="text-align:right;color:var(--red);font-weight:600">${(abandoned/days).toFixed(1)}</td>
+        ${dash}
+        ${dash}
+        ${dash}
+        <td style="text-align:right;color:var(--muted)">${days}</td>`;
       naTbody.appendChild(tr);
     });
     table.appendChild(naTbody);
@@ -4544,6 +4539,22 @@ function renderPracticeSection(container,prac,agents,cls){
 
   wrap.appendChild(table);
   sec.appendChild(wrap);
+
+  // ── Leyenda compacta (una por tarjeta): colores de rendimiento + comparativa ──
+  const leg=document.createElement('div');
+  leg.style.cssText='padding:9px 16px;font-size:10.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line-soft);';
+  const sw=(bg,bd)=>`<span style="width:12px;height:12px;border-radius:999px;background:${bg};border:1px solid ${bd};display:inline-block;"></span>`;
+  leg.innerHTML=`
+    <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#c8ecd5','#7dd4a8')}≥${GOAL_EXCELLENT}</span>
+    <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#EFF8FD','#b3ccff')}${GOAL_GOOD}–${GOAL_EXCELLENT-1}</span>
+    <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fffbe6','#ffe58f')}${GOAL_MIN}–${GOAL_GOOD-1}</span>
+    <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fff3e0','#ffcc80')}${GOAL_LOW}–${GOAL_MIN-1}</span>
+    <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fdeaea','#f5a5a5')}&lt;${GOAL_LOW} <span style="opacity:.8;">(prom. llamadas/día)</span></span>
+    ${prevAgents?`<span style="margin-left:auto;"><b style="color:var(--ink2);">↑↓</b> ${compareLabel}</span>`:''}
+    <span style="color:var(--muted);">· clic en un agente para ver el detalle diario</span>
+  `;
+  sec.appendChild(leg);
+
   container.appendChild(sec);
 }
 
