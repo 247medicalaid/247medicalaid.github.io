@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v288-202611031705">
+<meta name="app-build" content="v289-202611050915">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8113,8 +8113,8 @@ if($('ajConceptosGuardar')) $('ajConceptosGuardar').addEventListener('click', as
 });
 function cuentasFusion(){
   const porK = {};
-  (Array.isArray(S.cuentas) ? S.cuentas : []).forEach(c => { if(c && c.nombre) porK[normCuenta(c.nombre)] = { nombre:String(c.nombre), color:(c.color || ''), pago_roles:(c.pago_roles && typeof c.pago_roles === 'object' ? c.pago_roles : null) }; });
-  [].concat(S.cuentasMon || [], (listas().cuentas || [])).forEach(n => { if(!n) return; const k = normCuenta(n); if(!porK[k]) porK[k] = { nombre:String(n), color:(colorCuenta(n) || ''), pago_roles:null }; });
+  (Array.isArray(S.cuentas) ? S.cuentas : []).forEach(c => { if(c && c.nombre) porK[normCuenta(c.nombre)] = { nombre:String(c.nombre), color:(c.color || ''), codigo:(c.codigo || ''), pago_roles:(c.pago_roles && typeof c.pago_roles === 'object' ? c.pago_roles : null) }; });
+  [].concat(S.cuentasMon || [], (listas().cuentas || [])).forEach(n => { if(!n) return; const k = normCuenta(n); if(!porK[k]) porK[k] = { nombre:String(n), color:(colorCuenta(n) || ''), codigo:'', pago_roles:null }; });
   return Object.keys(porK).map(k => porK[k]).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 function filaCuentaAj(c, esNueva){
@@ -8127,9 +8127,11 @@ function filaCuentaAj(c, esNueva){
     ? '<input type="text" class="cta-nombre" value="' + esc(c.nombre || '') + '" placeholder="Account name" maxlength="120" style="flex:1;min-width:0;padding:6px 8px">'
       + '<button class="btn-link cta-quitar" type="button" title="Remove" style="flex:0 0 auto">&times;</button>'
     : '<span class="cta-nombre" style="flex:1;min-width:0">' + esc(c.nombre) + '</span>';
-  return '<div class="cta-fila" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
+  const codChip = (!esNueva && c.codigo) ? '<span class="cta-cod" title="Fixed account code — keeps the account’s data linked even if the name changes" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:1px 6px;flex:0 0 auto">' + esc(c.codigo) + '</span>' : '';
+  return '<div class="cta-fila" data-codigo="' + esc(c.codigo || '') + '" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
     + '<input type="color" class="cta-color" value="' + col + '" style="width:42px;height:30px;padding:2px;border-radius:6px;cursor:pointer;flex:0 0 auto">'
     + nombreCtrl
+    + codChip
     + '<details class="cta-pago" style="flex-basis:100%;margin:2px 0 0 52px">'
     +   '<summary style="cursor:pointer;font-size:12px;color:var(--text3)">Paid approval: <b class="cta-pago-res">' + (custom ? 'Custom' : 'Global') + '</b></summary>'
     +   '<label class="chk-linea" style="margin-top:6px"><input type="checkbox" class="cta-pago-override"' + (custom ? ' checked' : '') + '> Use a custom rule for this account</label>'
@@ -8165,7 +8167,9 @@ if($('ajCuentasGuardar')) $('ajCuentasGuardar').addEventListener('click', async 
     const nombre = nombreDeFila(f); if(!nombre) return;
     const k = normCuenta(nombre); if(vistos[k]) return; vistos[k] = 1;
     const ci = f.querySelector('.cta-color');
+    const cod = (f.getAttribute('data-codigo') || '').trim();
     const entry = { nombre, color:(ci ? ci.value : '') };
+    if(cod) entry.codigo = cod;
     const ov = f.querySelector('.cta-pago-override');
     if(ov && ov.checked){ const pr = {}; f.querySelectorAll('.cta-pago-roles input[data-r]').forEach(ri => pr[ri.getAttribute('data-r')] = ri.checked); entry.pago_roles = pr; }
     val.push(entry);
