@@ -37,7 +37,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.12";
+        const string Version = "2.13";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
@@ -305,6 +305,7 @@ namespace Monitor247
             string agente = Json(txt, "agente");
             string cuenta = Json(txt, "cuenta");
             string apps = Json(txt, "app_telefono");
+            string codigo = Json(txt, "codigo");   // (D.2) ID del usuario del Time Clock; viaja en el latido. Puede faltar en equipos viejos (queda vacio).
             if (url.Length == 0 || token.Length == 0 || agente.Length == 0) { Log("ERROR: config.json incompleto"); return; }
 
             List<string> patrones = new List<string>();
@@ -319,7 +320,7 @@ namespace Monitor247
             string equipo = Environment.MachineName;
             string usuario = Environment.UserName;
 
-            Log("Inicio v" + Version + " - agente '" + agente + "' cuenta '" + cuenta + "' usuario '" + usuario + "'" +
+            Log("Inicio v" + Version + " - agente '" + agente + "' cuenta '" + cuenta + "' codigo '" + codigo + "' usuario '" + usuario + "'" +
                 (clave.Length > 0 ? " - con clave de equipo" : " - sin clave de equipo (se pedira al servidor)"));
             bool primerEnvio = true;
             bool haceSpeed = false;
@@ -345,7 +346,7 @@ namespace Monitor247
                     double lat, loss;
                     Latencia(out lat, out loss);
 
-                    string beat = ConstruirBeat(agente, cuenta, equipo, usuario, IdleSeconds(),
+                    string beat = ConstruirBeat(agente, cuenta, codigo, equipo, usuario, IdleSeconds(),
                         AppAbierta(patrones), primerEnvio, ProgramaActivo(), ProgramasAbiertos(), lat, loss, mbps, ubic);
                     File.AppendAllText(ColaFile, beat + "\r\n", Utf8);
                     primerEnvio = false;
@@ -523,7 +524,7 @@ namespace Monitor247
             catch { return -1; }
         }
 
-        static string ConstruirBeat(string ag, string cu, string eq, string us, uint idle, object app,
+        static string ConstruirBeat(string ag, string cu, string co, string eq, string us, uint idle, object app,
             bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps, string ubic)
         {
             int bat;
@@ -536,6 +537,7 @@ namespace Monitor247
             sb.Append("\"ts\":\"").Append(DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)).Append("\",");
             sb.Append("\"agente\":\"").Append(Esc(ag)).Append("\",");
             sb.Append("\"cuenta\":\"").Append(Esc(cu)).Append("\",");
+            sb.Append("\"codigo\":\"").Append(Esc(co)).Append("\",");
             sb.Append("\"equipo\":\"").Append(Esc(eq)).Append("\",");
             sb.Append("\"usuario\":\"").Append(Esc(us)).Append("\",");
             sb.Append("\"email\":\"").Append(Esc(CorreoWindows())).Append("\",");

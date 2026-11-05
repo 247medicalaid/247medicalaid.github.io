@@ -8,7 +8,7 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.12'
+$Version = '2.13'
 # Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
 # al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
@@ -409,7 +409,7 @@ function Send-A([string]$destino, [object[]]$beats) {
 }
 
 $script:Clave = Read-Clave
-Write-Log ("Inicio v$Version - agente '$($cfg.agente)' cuenta '$($cfg.cuenta)' usuario '$env:USERNAME' - " + $(if ($script:Clave) { 'con clave de equipo' } else { 'sin clave de equipo (se pedira al servidor)' }))
+Write-Log ("Inicio v$Version - agente '$($cfg.agente)' cuenta '$($cfg.cuenta)' codigo '$($cfg.codigo)' usuario '$env:USERNAME' - " + $(if ($script:Clave) { 'con clave de equipo' } else { 'sin clave de equipo (se pedira al servidor)' }))
 $fallosSeguidos = 0
 $primerEnvio = $true
 $primerCiclo = $true
@@ -441,7 +441,7 @@ while ($true) {
 
         $beat = [ordered]@{
             id = [guid]::NewGuid().ToString('N'); ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-            agente = [string]$cfg.agente; cuenta = [string]$cfg.cuenta; equipo = $env:COMPUTERNAME; usuario = $env:USERNAME
+            agente = [string]$cfg.agente; cuenta = [string]$cfg.cuenta; codigo = [string]$cfg.codigo; equipo = $env:COMPUTERNAME; usuario = $env:USERNAME
             email = (Get-CorreoWindows)
             idle = $idle; app = $at; inicio = $primerEnvio; progActivo = $pa; lat = $lat; loss = $net.loss; mbps = $mbps
             pantallas = $pant; energia = $ener; bateria = $bat
