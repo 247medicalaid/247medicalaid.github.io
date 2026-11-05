@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v289-202611050915">
+<meta name="app-build" content="v290-202611050946">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2669,7 +2669,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="ajuste" id="ajCuentasBox">
       <h2>Accounts</h2>
-      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Each account can also set <b>who may assign paid time off</b>, or inherit the global default. Renaming or removing an account is handled separately for now, because accounts are referenced by name throughout the app.</p>
+      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Each account can also set <b>who may assign paid time off</b>, or inherit the global default. Use <b>Rename</b> on an account to change its name everywhere in the Time Clock at once — it keeps its fixed code, so its data stays linked. (The Monitor keeps showing the old name until its next sync.)</p>
       <div id="ajCuentasLista" class="ctas-lista"></div>
       <div id="ajCuentasNuevas"></div>
       <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -3055,6 +3055,22 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="pie">
       <button class="btn btn-ghost" id="mrNo" type="button">Go back</button>
       <button class="btn mr-si" id="mrSi" type="button" disabled>Rename and save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="ovCtaRen" role="dialog" aria-modal="true" aria-labelledby="crTitulo">
+  <div class="ventana">
+    <h2 id="crTitulo">Rename account</h2>
+    <p class="muted">Renaming updates the account everywhere in the Time Clock (users, managers and lists). The account keeps its fixed code, so all its data stays linked.</p>
+    <label class="campo"><span>Current name</span><input id="crActual" readonly style="background:var(--panel2,#f5f8f9)"></label>
+    <label class="campo"><span>New name</span><input id="crNuevo" maxlength="120" placeholder="New account name"></label>
+    <div id="crPreview" class="nota" style="margin:8px 0;min-height:18px"></div>
+    <p id="crErr" style="margin:4px 0 0;color:#c0392b;min-height:16px"></p>
+    <div class="pie">
+      <button class="btn btn-ghost" id="crCancelar" type="button">Cancel</button>
+      <button class="btn btn-ink" id="crPreviewBtn" type="button">Preview</button>
+      <button class="btn btn-ink" id="crAplicar" type="button" disabled>Apply rename</button>
     </div>
   </div>
 </div>
@@ -4677,6 +4693,7 @@ async function api(action, p){
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
   if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
+  if(action === 'renombrarCuenta') return q(sb.rpc('reloj_renombrar_cuenta', { p_origen:p.origen, p_destino:p.destino, p_aplicar:!!p.aplicar }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
@@ -8128,10 +8145,12 @@ function filaCuentaAj(c, esNueva){
       + '<button class="btn-link cta-quitar" type="button" title="Remove" style="flex:0 0 auto">&times;</button>'
     : '<span class="cta-nombre" style="flex:1;min-width:0">' + esc(c.nombre) + '</span>';
   const codChip = (!esNueva && c.codigo) ? '<span class="cta-cod" title="Fixed account code — keeps the account’s data linked even if the name changes" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:1px 6px;flex:0 0 auto">' + esc(c.codigo) + '</span>' : '';
+  const renBtn = !esNueva ? '<button class="btn-link cta-ren" type="button" title="Rename this account across the Time Clock" data-nombre="' + esc(c.nombre || '') + '" style="flex:0 0 auto;font-size:12px">✎ Rename</button>' : '';
   return '<div class="cta-fila" data-codigo="' + esc(c.codigo || '') + '" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
     + '<input type="color" class="cta-color" value="' + col + '" style="width:42px;height:30px;padding:2px;border-radius:6px;cursor:pointer;flex:0 0 auto">'
     + nombreCtrl
     + codChip
+    + renBtn
     + '<details class="cta-pago" style="flex-basis:100%;margin:2px 0 0 52px">'
     +   '<summary style="cursor:pointer;font-size:12px;color:var(--text3)">Paid approval: <b class="cta-pago-res">' + (custom ? 'Custom' : 'Global') + '</b></summary>'
     +   '<label class="chk-linea" style="margin-top:6px"><input type="checkbox" class="cta-pago-override"' + (custom ? ' checked' : '') + '> Use a custom rule for this account</label>'
@@ -8197,6 +8216,58 @@ if($('ajCuentasBox')) $('ajCuentasBox').addEventListener('change', (e) => {
   const on = tg.checked;
   det.querySelectorAll('.cta-pago-roles input[data-r]').forEach(ri => ri.disabled = !on);
   const res = det.querySelector('.cta-pago-res'); if(res) res.textContent = on ? 'Custom' : 'Global';
+});
+// (E2) Renombrar una cuenta desde Accounts — motor reloj_renombrar_cuenta (preview + preserva el codigo).
+if($('ajCuentasBox')) $('ajCuentasBox').addEventListener('click', (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('.cta-ren') : null;
+  if(!btn) return;
+  e.preventDefault();
+  abrirRenCuenta(btn.getAttribute('data-nombre') || '');
+});
+function abrirRenCuenta(nombre){
+  $('crActual').value = nombre; $('crNuevo').value = '';
+  $('crPreview').textContent = ''; $('crErr').textContent = '';
+  $('crAplicar').disabled = true; $('crAplicar').dataset.merge = '';
+  abrir('ovCtaRen');
+  setTimeout(() => { const i = $('crNuevo'); if(i) i.focus(); }, 30);
+}
+if($('crNuevo')) $('crNuevo').addEventListener('input', () => { $('crAplicar').disabled = true; $('crAplicar').dataset.merge = ''; $('crPreview').textContent = ''; $('crErr').textContent = ''; });
+if($('crCancelar')) $('crCancelar').addEventListener('click', () => cerrar('ovCtaRen'));
+if($('crPreviewBtn')) $('crPreviewBtn').addEventListener('click', async () => {
+  const origen = $('crActual').value, destino = ($('crNuevo').value || '').trim();
+  $('crErr').textContent = '';
+  if(!destino){ $('crErr').textContent = 'Type the new name.'; return; }
+  if(normCuenta(destino) === normCuenta(origen)){ $('crErr').textContent = 'The new name is the same as the current one.'; return; }
+  const b = $('crPreviewBtn'); b.disabled = true; $('crPreview').textContent = 'Checking…'; $('crAplicar').disabled = true;
+  try{
+    const r = await api('renombrarCuenta', { origen, destino, aplicar:false });
+    const nEmp = (r && r.empleados != null) ? r.empleados : null;
+    const merge = !!(r && r.es_merge);
+    let msg = merge
+      ? '⚠ An account named “' + destino + '” already exists. Applying will MERGE “' + origen + '” into it — their users and settings are combined and “' + origen + '” disappears.'
+      : 'This renames the account everywhere in the Time Clock. Its fixed code stays, so its data stays linked.';
+    if(nEmp != null) msg += ' Users currently on it: ' + nEmp + '.';
+    $('crPreview').textContent = msg;
+    $('crAplicar').disabled = false; $('crAplicar').dataset.merge = merge ? '1' : '';
+  }catch(x){ $('crPreview').textContent = ''; $('crErr').textContent = x.message; }
+  finally{ b.disabled = false; }
+});
+if($('crAplicar')) $('crAplicar').addEventListener('click', async () => {
+  const origen = $('crActual').value, destino = ($('crNuevo').value || '').trim();
+  if(!destino || normCuenta(destino) === normCuenta(origen)) return;
+  const merge = $('crAplicar').dataset.merge === '1';
+  const ok = await confirmar(
+    merge ? 'Merge “' + origen + '” into “' + destino + '”?' : 'Rename “' + origen + '”?',
+    merge ? 'Their users and settings are combined under <b>' + esc(destino) + '</b>, and “' + esc(origen) + '” disappears. This can’t be undone automatically.'
+          : 'It becomes <b>' + esc(destino) + '</b> everywhere in the Time Clock (users, managers and lists). The account keeps its fixed code, so its data stays linked.',
+    merge ? 'Merge' : 'Rename', merge);
+  if(!ok) return;
+  const b = $('crAplicar'); b.disabled = true; $('crErr').textContent = '';
+  try{
+    await api('renombrarCuenta', { origen, destino, aplicar:true });
+    await cargarConfig(); S.coloresN = null; pintarCuentas();
+    cerrar('ovCtaRen'); toast(merge ? 'Accounts merged.' : 'Account renamed.');
+  }catch(x){ $('crErr').textContent = x.message; b.disabled = false; }
 });
 function pagoRolesCfg(){ const c = S.pagoRoles || {}; return { supervisor: c.supervisor === true, account: c.account !== false, sector: c.sector !== false, gm: c.gm !== false }; }
 function pintarPagoRoles(){ const c = pagoRolesCfg();
