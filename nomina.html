@@ -4602,9 +4602,10 @@ function renderCuentasFichas(){
               justo en la pantalla donde se cambia. */''}
         <input type="color" value="${esc(cuValor(jefe,'color') || '#888888')}" disabled title="Los colores de cuenta ahora se gestionan en TimeClock → Settings → Accounts" style="cursor:not-allowed">
         ${varias
-          ? `<span class="nomgrupo">${esc(titulo)}</span>`
-          : `<input class="nom" type="text" value="${esc(cuValor(jefe,'nombre'))}" aria-label="Nombre de la cuenta"
-               onchange="cuCampo('${jefe.id}','nombre',this.value,'nombre',this)">`}
+          ? `<span class="nomgrupo">${esc(displayCuenta(jefe))}</span>`
+          : `<input class="nom" type="text" value="${esc(displayCuenta(jefe))}" aria-label="Nombre de la cuenta" ${codigoDeCuenta(jefe)
+               ? `disabled title="El nombre de la cuenta se gestiona en TimeClock → Settings → Accounts" style="cursor:not-allowed"`
+               : `onchange="cuCampo('${jefe.id}','nombre',this.value,'nombre',this)"`}>`}
         ${drs.length ? '<span class="cab-pill">Callcenter</span>' : ''}
         ${owns.length ? '<span class="cab-pill">24/7</span>' : ''}
         ${tiraCobro}
@@ -5354,7 +5355,7 @@ function openModal(id, tipo){
   if(id==='modal-agente'){
     switchAgTab('nuevo');
     const sel = $('ag-cuenta');
-    sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+    sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${displayCuenta(c)}</option>`).join('');
     const std = getDiasHabilesActual();
     $('agente-edit-id').value = '';
     $('ag-nombre').value   = '';
@@ -5501,7 +5502,7 @@ function editAgente(id){
   if(!ag) return;
   switchAgTab('nuevo'); // always show the edit form, not the assign tab
   const sel = $('ag-cuenta');
-  sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${displayCuenta(c)}</option>`).join('');
   $('agente-edit-id').value = id;
   $('ag-nombre').value   = ag.nombre;
   $('ag-cuenta').value   = ag.cuenta;
@@ -8131,8 +8132,8 @@ function renderApPreview(){
   const drs  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
 
-  const drRows  = drs.map(c=>{ const r=getResultadoDr(c);   return `<tr><td>${c.nombre}</td><td class="mono" style="color:var(--accent3)">${fmt(r.totalDrCheck)}</td><td class="mono">${fmt(r.totalReal)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
-  const ownRows = owns.map(c=>{ const r=getResultadoOwn(c);  return `<tr><td>${c.nombre}</td><td class="mono" style="color:var(--accent2)">${fmt(r.totalCobro)}</td><td class="mono">${fmt(r.totalCosto)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
+  const drRows  = drs.map(c=>{ const r=getResultadoDr(c);   return `<tr><td>${displayCuenta(c)}</td><td class="mono" style="color:var(--accent3)">${fmt(r.totalDrCheck)}</td><td class="mono">${fmt(r.totalReal)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
+  const ownRows = owns.map(c=>{ const r=getResultadoOwn(c);  return `<tr><td>${displayCuenta(c)}</td><td class="mono" style="color:var(--accent2)">${fmt(r.totalCobro)}</td><td class="mono">${fmt(r.totalCosto)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
 
   const totalDrCheck = drs.reduce((s,c)=>s+getResultadoDr(c).totalDrCheck, 0);
   const totalReal    = drs.reduce((s,c)=>s+getResultadoDr(c).totalReal, 0);
@@ -8341,7 +8342,7 @@ function toggleHistDetalle(key){
 function renderHistDetalleInline(h){
   const drRows  = h.cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).map(c=>`
     <div class="hist-row">
-      <span class="lbl">${c.nombre}</span>
+      <span class="lbl">${displayCuenta(c)}</span>
       <span style="display:flex;gap:20px">
         <span class="val" style="color:var(--accent3)">${fmt(c.totalDrCheck)}</span>
         <span class="val">${fmt(c.totalReal)}</span>
@@ -8350,7 +8351,7 @@ function renderHistDetalleInline(h){
     </div>`).join('');
   const ownRows = h.cuentas.filter(c=>c.tipo==='own' && c.activo!==false).map(c=>`
     <div class="hist-row">
-      <span class="lbl">${c.nombre}</span>
+      <span class="lbl">${displayCuenta(c)}</span>
       <span style="display:flex;gap:20px">
         <span class="val" style="color:var(--accent2)">${fmt(c.totalCobro)}</span>
         <span class="val">${fmt(c.totalCosto)}</span>
@@ -8389,7 +8390,7 @@ function verDetalleCompleto(key){
 
   const cuentaDetalle = h.cuentas.map(c=>`
     <div style="margin-bottom:20px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--text)">${c.nombre} <span class="tag ${c.tipo==='dr'?'joint':'own'}">${c.tipo==='dr'?'Callcenter':'24/7'}</span></div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--text)">${displayCuenta(c)} <span class="tag ${c.tipo==='dr'?'joint':'own'}">${c.tipo==='dr'?'Callcenter':'24/7'}</span></div>
       <table class="ap-preview-table">
         <thead><tr>
           <th>Agente</th><th>Hrs</th><th>Valor/Hr</th>
@@ -12047,7 +12048,7 @@ function renderPagosClientes(){
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
         style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${c.nombre}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${displayCuenta(c)}</span>
         <span class="leve" style="font-size:11.5px">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
         ${c.pendientes
           ? `<span class="sig-pill pend">● ${c.pendientes} por cobrar</span>`
@@ -12081,7 +12082,7 @@ function renderPagosClientes(){
         <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
                     color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
           Registrando cobros de
-          <b style="color:var(--accent);font-size:12.5px;letter-spacing:.02em">${c.nombre}</b>
+          <b style="color:var(--accent);font-size:12.5px;letter-spacing:.02em">${displayCuenta(c)}</b>
         </div>
         ${c.meses.map(filaMes).join('')}
       </div>
@@ -12260,7 +12261,7 @@ function renderSigma(){
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
         style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${c.nombre}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${displayCuenta(c)}</span>
         <span class="leve" style="font-size:11.5px">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
         ${(()=>{
           // El importe pendiente ya estaba a la derecha; lo que faltaba era
@@ -12290,7 +12291,7 @@ function renderSigma(){
         <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
                     color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
           Registrando pagos de
-          <b style="color:var(--inv-sigma);font-size:12.5px;letter-spacing:.02em">${c.nombre}</b>
+          <b style="color:var(--inv-sigma);font-size:12.5px;letter-spacing:.02em">${displayCuenta(c)}</b>
         </div>
         ${c.meses.map(filaMes).join('')}
       </div>
@@ -14341,7 +14342,7 @@ function renderUtilidad(){
           return `<tr style="border-top:1px solid var(--border)">
             <td style="padding:8px 18px;color:var(--text3)">${c.fecha}</td>
             <td style="padding:8px 12px">${MESES_CRUCE[cm]} ${ca}</td>
-            <td style="padding:8px 12px;font-weight:600">${c.nombre}</td>
+            <td style="padding:8px 12px;font-weight:600">${displayCuenta(c)}</td>
             <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:#fbbf24">${fmt(c.monto)}</td>
             <td style="padding:8px 18px;text-align:right">
               <button onclick="deshacerCruce('${c.mk}','${escCruce(c.nombre)}')"
@@ -14414,7 +14415,7 @@ function renderUtilidad(){
       <tbody>
         ${md.cuentasData.map((c,i) => `
         <tr style="${i%2?'background:rgba(255,255,255,.02)':''}">
-          <td style="padding:9px 14px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">${c.nombre}</td>
+          <td style="padding:9px 14px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">${displayCuenta(c)}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--accent2);border-bottom:1px solid var(--border)">${fmt(c.ingresoSigma)}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--accent3);border-bottom:1px solid var(--border)">${fmt(c.ccCheck)}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--text);border-bottom:1px solid var(--border)">${c.numAgsDr}</td>
@@ -14582,7 +14583,7 @@ function generarUtilidadPDF(){
                   Pintar una fila entera del color de la cuenta romperia el
                   informe, asi que el color va donde si cabe — un filo a la
                   izquierda del nombre, que es lo que identifica la fila. */''}
-            <td style="${tdStyle('left','font-weight:600')};border-left:5px solid ${colorDeCuenta(c.nombre)}">${c.nombre}</td>
+            <td style="${tdStyle('left','font-weight:600')};border-left:5px solid ${colorDeCuenta(c.nombre)}">${displayCuenta(c)}</td>
             <td style="${tdStyle()}">${fmtN(c.ingresoSigma)}</td>
             <td style="${tdStyle()}">${fmtN(c.ccCheck)}</td>
             <td style="${tdStyle()}">${c.numAgsDr}</td>
