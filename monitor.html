@@ -11,7 +11,8 @@
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <!-- build mon-20261103-2050: dropdown de autorizar — se retira "Monitor only"; Technical issue/Training/Other pasan a "Affects the timesheet" (clase otro, tope 2026-11-01); "Working from another computer"/"App not installed" se quitan (autorizaciones viejas se siguen mostrando) + placeholder "Choose a reason" -->
 <!-- build mon-20261106-1100: (Rebanada 2) el panel muestra el nombre/cuenta actual del TimeClock por el enlace del agente (nomVis); 'a.agente' sigue siendo la llave de las acciones (no se rompe nada) -->
-<meta name="mon-build" content="20261106-1100">
+<!-- build mon-20261106-1525: (D.3) cuentas por codigo — chips/filtro/agrupacion/"sin cuenta" se resuelven del registro del TimeClock (reloj_config); un rename en Settings se refleja sin chips duplicados ni falsos avisos; fallback por nombre si no carga el registro -->
+<meta name="mon-build" content="20261106-1525">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -971,7 +972,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261106-1100';
+const MON_BUILD = '20261106-1525';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1026,12 +1027,24 @@ function pintar(){
   marcarSinCuenta(d);
   avisoVersiones(d);
 
-  // Cuentas
-  const cuentas = ['Todas', ...Array.from(new Set(d.agentes.map(a => a.cuenta).filter(Boolean))).sort()];
-  if (!cuentas.includes(S.cuenta)) S.cuenta = 'Todas';
-  $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c) + '" aria-pressed="' + (c === S.cuenta) + '">' + (c === 'Todas' ? 'All' : esc(c)) + '</button> ').join('');
+  // Cuentas — (D.3) chips/filtro por CODIGO del TimeClock (reloj_config). Si no
+  // hay registro, fallback por nombre. S.cuenta guarda el codigo (o 'Todas').
+  const _reg = window.__tcCuentas || null;
+  const claveCta = a => _reg ? (a.cuentaCod || '') : (a.cuenta || '');
+  let _chips;
+  if (_reg) {
+    _chips = [...new Set(d.agentes.filter(a => a.activo !== false && a.cuentaCod).map(a => a.cuentaCod))]
+      .map(cod => ({ k: cod, lbl: (_reg[cod] ? _reg[cod].nombre : cod) }))
+      .sort((x, y) => x.lbl.localeCompare(y.lbl));
+  } else {
+    _chips = [...new Set(d.agentes.map(a => a.cuenta).filter(Boolean))].sort().map(n => ({ k: n, lbl: n }));
+  }
+  const cuentas = [{ k: 'Todas', lbl: 'All' }, ..._chips];
+  if (!cuentas.some(c => c.k === S.cuenta)) S.cuenta = 'Todas';
+  const ctaSelLbl = S.cuenta === 'Todas' ? 'all accounts' : (_reg && _reg[S.cuenta] ? _reg[S.cuenta].nombre : S.cuenta);
+  $('cuentas').innerHTML = cuentas.map(c => '<button type="button" class="chip" data-c="' + esc(c.k) + '" aria-pressed="' + (c.k === S.cuenta) + '">' + esc(c.lbl) + '</button> ').join('');
 
-  const delFiltro = d.agentes.filter(a => S.cuenta === 'Todas' || a.cuenta === S.cuenta);
+  const delFiltro = d.agentes.filter(a => S.cuenta === 'Todas' || claveCta(a) === S.cuenta);
   const bajas = delFiltro.filter(a => a.activo === false);
   let lista = delFiltro.filter(a => a.activo !== false);
   const todos = lista;
@@ -1047,7 +1060,7 @@ function pintar(){
   const reinTotal = todos.reduce((s, a) => s + (a.reinicios || 0), 0);
   // Cardio y Gastro van por su cuenta. Solo tiene sentido separarlos cuando se
   // están viendo todas las cuentas; si ya hay un filtro puesto, sobra.
-  const aparte = todos.filter(a => CUENTAS_APARTE.some(c => normC(c) === normC(a.cuenta)));
+  const aparte = todos.filter(a => CUENTAS_APARTE.some(c => normC(c) === normC(a.cuentaCanon || a.cuenta)));
   const propios = todos.filter(a => aparte.indexOf(a) < 0);
   const sumaMin = l => l.reduce((s, a) => s + a.minPerdidos, 0);
   const nov = l => l.filter(sinAutorizar).length;
@@ -1064,13 +1077,13 @@ function pintar(){
        ['Lost in Cardio & Gastro', dur(sumaMin(aparte)) || '0 min', deN(aparte) + ' · tracked separately', '', 'novAparte']]
     : [['Lost time', dur(perdidos) || '0 min', deN(todos), '', 'nov']];
   const tiles = d.esHoy ? [
-    ['Agents monitored', todos.length, 'in ' + (S.cuenta === 'Todas' ? 'all accounts' : S.cuenta), '', 'todos'],
+    ['Agents monitored', todos.length, 'in ' + ctaSelLbl, '', 'todos'],
     ['Active now', cnt('verde'), 'working normally', 'verde', 'verde'],
     ['Need attention', cnt('rojo'), '10+ min inactive or offline', 'rojo', 'rojo'],
     ['Paused / alert', cnt('amarillo'), '5–10 min or app closed', 'amarillo', 'amarillo'],
     ['Monitor closes', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'times it closed or restarted today', reinTotal ? 'amarillo' : '', 'cierres']
   ].concat([]) : [
-    ['Agents', todos.length, S.cuenta === 'Todas' ? 'all accounts' : S.cuenta, '', 'todos'],
+    ['Agents', todos.length, ctaSelLbl, '', 'todos'],
     ['With issues', conNov, 'episodes of 10+ minutes', 'rojo', 'nov'],
     ['Episodes', todos.reduce((s, a) => s + a.episodios.filter(e => !e.justificado).length, 0), 'excluding authorized', '', 'nov'],
     ['Monitor closes', todos.reduce((s, a) => s + (a.reinicios || 0), 0), 'times it closed or restarted', '', 'cierres']
@@ -1144,7 +1157,7 @@ function pintar(){
    cuentas que más tiempo perdieron y, dentro de cada una, los agentes. */
 function porCuenta(lista){
   const g = {};
-  lista.forEach(a => { const c = a.cuenta || 'No account assigned'; (g[c] = g[c] || []).push(a); });
+  lista.forEach(a => { const c = a.cuentaCanon || a.cuenta || 'No account assigned'; (g[c] = g[c] || []).push(a); });
   return Object.keys(g).map(c => ({
     cuenta: c,
     agentes: g[c].sort((x, y) => (y.minPerdidos - x.minPerdidos) || x.agente.localeCompare(y.agente)),
@@ -1469,13 +1482,13 @@ function fila(a, d){
     ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : '');
 
   return '<div class="row">' +
-    '<div class="who"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
+    '<div class="who"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuentaCanon || a.cuenta) + '</span>' +
       (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
       (a.usuario ? '<small class="winuser">Windows user: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Multiple users signed in to this device today: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' users today</span>' : '') + '</small>' : '') +
       (fEquipo ? '<div class="meta mini">' + fEquipo + '</div>' : '') +
-      (a.sinCuenta ? '<br><span class="sincuenta" title="The account “' + esc(a.cuenta) + '” is no longer in the list. Reinstall the monitor on this device.">\u26a0 Agent without assigned account</span>' : '') +
+      (a.sinCuenta ? '<br><span class="sincuenta" title="The account “' + esc(a.cuentaCanon || a.cuenta) + '” is not in the Time Clock. Assign it in TimeClock → Settings → Accounts.">\u26a0 Agent without assigned account</span>' : '') +
       (a.enTC === false ? '<br><span class="sincuenta" title="This agent is not linked to anyone in the Time Clock. Link or create them in the Time Clock so the Monitor shows their official info.">⚠ Not in the Time Clock</span>' : '') +
       '<br><div class="btns-mini">' +
       (inact ? '' : '<button class="btn-mini" data-hor="' + esc(a.agente) + '" data-ini="' + esc(a.hInicio||'') + '" data-fin="' + esc(a.hFin||'') + '" data-alm="' + esc(a.hAlmuerzo||'') + '" data-sem="' + esc(a.hSemana||'') + '" type="button">Schedule</button>') +
@@ -1907,8 +1920,11 @@ function abrirReporte(){
   if (!$('rRef').value) $('rRef').value = ref;
   if (!$('rDesde').value) $('rDesde').value = masDias(ref, -13);
   if (!$('rHasta').value) $('rHasta').value = ref;
-  const cuentas = S.data ? [...new Set(S.data.agentes.map(a => a.cuenta))].sort() : [];
-  $('rCuenta').innerHTML = '<option value="Todas">All accounts</option>' + cuentas.map(c => '<option' + (c === S.cuenta ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+  // (D.3) El panel filtra por codigo (S.cuenta); el reporte va por nombre. Se
+  // resuelve el nombre canonico del codigo seleccionado para heredar el filtro.
+  const _selNom = (window.__tcCuentas && window.__tcCuentas[S.cuenta]) ? window.__tcCuentas[S.cuenta].nombre : S.cuenta;
+  const cuentas = S.data ? [...new Set(S.data.agentes.map(a => a.cuentaCanon || a.cuenta))].sort() : [];
+  $('rCuenta').innerHTML = '<option value="Todas">All accounts</option>' + cuentas.map(c => '<option' + (c === _selNom ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
   actualizarRango();
   $('modalReporte').classList.add('show');
 }
@@ -2290,11 +2306,21 @@ const foldNom = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').tr
 function nomVis(a){ return (a && a.agenteTC && String(a.agenteTC).trim()) ? String(a.agenteTC).trim() : (a ? a.agente : ''); }
 // (Fase C) El panel lee la CUENTA del TimeClock (fuente de verdad). Puro display; marca los agentes que NO están en el TimeClock.
 function aplicarIdentidadTC(d){
-  const r = window.__tcRoster; if (!r || !d || !Array.isArray(d.agentes)) return;
-  d.agentes.forEach(a => {
+  if (!d || !Array.isArray(d.agentes)) return;
+  const r = window.__tcRoster;
+  if (r) d.agentes.forEach(a => {
     const m = r[foldNom(a.agente)];
     if (m) { if (m.cuenta) a.cuenta = m.cuenta; if (m.nombre) a.agenteTC = m.nombre; a.enTC = true; a.tcCodigo = m.codigo; }
     else if (a.activo !== false) { a.enTC = false; }   // (Fase C) solo se marca a los agentes ACTIVOS; los inactivos/archivados no se señalan ni se cuentan
+  });
+  // (D.3) Resolver la CUENTA por codigo desde el registro del TimeClock. El
+  // nombre canonico es unico por codigo (estandarizacion), asi que el match
+  // nombre->codigo es limpio. Sin registro: cuentaCanon = a.cuenta, cuentaCod = null.
+  const reg = window.__tcCuentas, pn = window.__tcCtaPorNom;
+  d.agentes.forEach(a => {
+    const cod = (reg && pn && a.cuenta) ? pn[foldNom(a.cuenta)] : null;
+    a.cuentaCod = cod || null;
+    a.cuentaCanon = (cod && reg[cod]) ? reg[cod].nombre : (a.cuenta || '');
   });
 }
 async function cargarEstadoMonitor(force){
@@ -2312,6 +2338,17 @@ async function cargarEstadoMonitor(force){
     ((rr && rr.data) || []).forEach(e => { const k = foldNom(e.agente_monitor); if (k) map[k] = { nombre: e.nombre, cuenta: e.cuenta || '', codigo: e.codigo }; });
     window.__tcRoster = map;
   } catch (e) { /* sin roster → el panel sigue con lo que tiene el Monitor */ }
+  // (D.3) Registro canonico de cuentas del TimeClock (reloj_config), para anclar
+  // chips/agrupacion/"sin cuenta" por CODIGO. Misma fuente que Nomina (TC_NOMBRE).
+  try {
+    const rc = await window.sb.from('reloj_config').select('valor').eq('clave', 'cuentas').maybeSingle();
+    const arr = (rc && rc.data && Array.isArray(rc.data.valor)) ? rc.data.valor : null;
+    if (arr) {
+      const porCod = {}, porNom = {};
+      arr.forEach(e => { if (e && e.codigo && e.nombre) { porCod[e.codigo] = { nombre: e.nombre, color: e.color || '' }; porNom[foldNom(e.nombre)] = e.codigo; } });
+      window.__tcCuentas = porCod; window.__tcCtaPorNom = porNom;
+    }
+  } catch (e) { /* sin registro → fallback al comportamiento por nombre */ }
   aplicarSoloLectura();
   return ESTADO_MON;
 }
@@ -3030,13 +3067,21 @@ function avisoVersiones(d) {
 const normC = s => String(s == null ? '' : s).trim().toLowerCase();
 function cuentasValidas(d){ return (d && Array.isArray(d.cuentas)) ? new Set(d.cuentas.map(c => normC(c.n))) : null; }
 function marcarSinCuenta(d){
-  const cs = cuentasValidas(d);
-  d.agentes.forEach(a => { a.sinCuenta = !!cs && a.activo !== false && !cs.has(normC(a.cuenta)); });
+  const reg = window.__tcCuentas || null;
+  if (reg) {
+    // (D.3) "sin cuenta" = la cuenta del agente NO resuelve a ningun codigo del
+    // TimeClock. Ya no depende de la hoja Cuentas del Monitor (eco del latido).
+    d.agentes.forEach(a => { a.sinCuenta = a.activo !== false && !a.cuentaCod; });
+  } else {
+    const cs = cuentasValidas(d);
+    d.agentes.forEach(a => { a.sinCuenta = !!cs && a.activo !== false && !cs.has(normC(a.cuenta)); });
+  }
   const sin = d.agentes.filter(a => a.sinCuenta);
   $('avisoCuentas').innerHTML = sin.length
     ? '<div class="banner aviso">⚠ <b>' + sin.length + (sin.length === 1 ? ' agent without assigned account' : ' agents without assigned account') + ':</b> ' +
-      sin.map(a => esc(a.agente) + ' <span class="viejo">(had “' + esc(a.cuenta || 'no account') + '”)</span>').join(', ') +
-      '. Reinstall the monitor on ' + (sin.length === 1 ? 'their device' : 'their devices') + ' and choose the correct account.</div>'
+      sin.map(a => esc(a.agente) + ' <span class="viejo">(“' + esc(a.cuentaCanon || a.cuenta || 'no account') + '”)</span>').join(', ') +
+      (reg ? '. Assign the right account in TimeClock → Settings → Accounts.</div>'
+           : '. Reinstall the monitor on ' + (sin.length === 1 ? 'their device' : 'their devices') + ' and choose the correct account.</div>')
     : '';
 }
 
