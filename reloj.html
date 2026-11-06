@@ -8237,7 +8237,10 @@ if($('crPreviewBtn')) $('crPreviewBtn').addEventListener('click', async () => {
   const origen = $('crActual').value, destino = ($('crNuevo').value || '').trim();
   $('crErr').textContent = '';
   if(!destino){ $('crErr').textContent = 'Type the new name.'; return; }
-  if(normCuenta(destino) === normCuenta(origen)){ $('crErr').textContent = 'The new name is the same as the current one.'; return; }
+  // No-op real = nombre identico (trim). Antes se comparaba por normCuenta, que
+  // colapsa White Wilson/Total Sleep/MAB/Alonso/Access/Advantage y bloqueaba
+  // renombrar esas cuentas. La identidad la ancla el codigo (E1), no el nombre.
+  if(destino === (origen||'').trim()){ $('crErr').textContent = 'The new name is the same as the current one.'; return; }
   const b = $('crPreviewBtn'); b.disabled = true; $('crPreview').textContent = 'Checking…'; $('crAplicar').disabled = true;
   try{
     const r = await api('renombrarCuenta', { origen, destino, aplicar:false });
@@ -8254,7 +8257,7 @@ if($('crPreviewBtn')) $('crPreviewBtn').addEventListener('click', async () => {
 });
 if($('crAplicar')) $('crAplicar').addEventListener('click', async () => {
   const origen = $('crActual').value, destino = ($('crNuevo').value || '').trim();
-  if(!destino || normCuenta(destino) === normCuenta(origen)) return;
+  if(!destino || destino === (origen||'').trim()) return;
   const merge = $('crAplicar').dataset.merge === '1';
   const ok = await confirmar(
     merge ? 'Merge “' + origen + '” into “' + destino + '”?' : 'Rename “' + origen + '”?',
