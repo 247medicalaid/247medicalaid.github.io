@@ -10,7 +10,8 @@
 <style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <!-- build mon-20261103-2050: dropdown de autorizar — se retira "Monitor only"; Technical issue/Training/Other pasan a "Affects the timesheet" (clase otro, tope 2026-11-01); "Working from another computer"/"App not installed" se quitan (autorizaciones viejas se siguen mostrando) + placeholder "Choose a reason" -->
-<meta name="mon-build" content="20261103-2050">
+<!-- build mon-20261106-1100: (Rebanada 2) el panel muestra el nombre/cuenta actual del TimeClock por el enlace del agente (nomVis); 'a.agente' sigue siendo la llave de las acciones (no se rompe nada) -->
+<meta name="mon-build" content="20261106-1100">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -970,7 +971,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261103-2050';
+const MON_BUILD = '20261106-1100';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1468,7 +1469,7 @@ function fila(a, d){
     ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : '');
 
   return '<div class="row">' +
-    '<div class="who"><b>' + esc(a.agente) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
+    '<div class="who"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuenta) + '</span>' +
       (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
       (a.usuario ? '<small class="winuser">Windows user: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
@@ -1491,7 +1492,7 @@ function fila(a, d){
     '<div class="tlwrap">' +
       avisoRech +
       (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
-      '<div class="tl" role="img" aria-label="Workday of ' + esc(a.agente) + ': ' + a.episodios.length + ' issues">' + tl + '</div><div class="axis">' + axis + '</div>' +
+      '<div class="tl" role="img" aria-label="Workday of ' + esc(nomVis(a)) + ': ' + a.episodios.length + ' issues">' + tl + '</div><div class="axis">' + axis + '</div>' +
       (tomado ? '<div class="meta post tomado">' + tomado + '</div>' : '') +
       (abajo ? '<div class="meta post">' + abajo + '</div>' : '') + '</div>' +
     '<div class="nums">' + pill +
@@ -2284,12 +2285,15 @@ function aplicarSoloLectura(){
 }
 // (Fase C) Normaliza nombres para casar el agente del Monitor con agente_monitor del TimeClock.
 const foldNom = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+// (Rebanada 2) Nombre a mostrar: el actual del TimeClock si el agente está enlazado; si no, el del Monitor.
+// Puro display: 'a.agente' sigue siendo la LLAVE de las acciones (autorizar, descansos, turnos, baja…), no se toca.
+function nomVis(a){ return (a && a.agenteTC && String(a.agenteTC).trim()) ? String(a.agenteTC).trim() : (a ? a.agente : ''); }
 // (Fase C) El panel lee la CUENTA del TimeClock (fuente de verdad). Puro display; marca los agentes que NO están en el TimeClock.
 function aplicarIdentidadTC(d){
   const r = window.__tcRoster; if (!r || !d || !Array.isArray(d.agentes)) return;
   d.agentes.forEach(a => {
     const m = r[foldNom(a.agente)];
-    if (m) { if (m.cuenta) a.cuenta = m.cuenta; a.enTC = true; a.tcCodigo = m.codigo; }
+    if (m) { if (m.cuenta) a.cuenta = m.cuenta; if (m.nombre) a.agenteTC = m.nombre; a.enTC = true; a.tcCodigo = m.codigo; }
     else if (a.activo !== false) { a.enTC = false; }   // (Fase C) solo se marca a los agentes ACTIVOS; los inactivos/archivados no se señalan ni se cuentan
   });
 }
