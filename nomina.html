@@ -3970,7 +3970,7 @@ function renderResumenDr(){
     return `
     <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
-        <strong class="nomcuenta">${c.nombre}</strong>
+        <strong class="nomcuenta">${displayCuenta(c)}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
@@ -3992,7 +3992,7 @@ function renderResumenOwn(){
     return `
     <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
-        <strong class="nomcuenta">${c.nombre}</strong>
+        <strong class="nomcuenta">${displayCuenta(c)}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
@@ -4741,7 +4741,7 @@ function renderCuentasDr(){
     <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="nomcuenta">${c.nombre}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
+          <span class="nomcuenta">${displayCuenta(c)}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">Callcenter</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -5060,7 +5060,7 @@ function renderCuentasOwn(){
              derecha encima de "Dias:". Su minimo es ahora la palabra mas larga
              del nombre; si no cabe, la banda pasa de renglon (flex-wrap). -->
         <div style="display:flex;align-items:center;gap:10px;flex:1">
-          <span class="nomcuenta">${c.nombre}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
+          <span class="nomcuenta">${displayCuenta(c)}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">24/7</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -11409,6 +11409,9 @@ var OVERRIDE_NOMBRE = {
 var TC_NOMBRE = {};
 function codigoDeCuenta(c){ try{ return (c && (c.codigo || SEED_CODIGOS[c.nombre])) || null; }catch(e){ return null; } }
 function nombreCanonicoPorCodigo(codigo){ if(!codigo) return null; return OVERRIDE_NOMBRE[codigo] || TC_NOMBRE[codigo] || null; }
+// Nombre a MOSTRAR de una cuenta: canonico por codigo (igual que Invoices);
+// si no hay match cae al nombre guardado. Solo display, no toca la clave interna.
+function displayCuenta(c){ try{ var canon=nombreCanonicoPorCodigo(codigoDeCuenta(c)); return canon || (c&&c.nombre) || ''; }catch(e){ return (c&&c.nombre)||''; } }
 async function cargarNombresTimeClock(){
   try{
     if(!window.sb) return;
@@ -11419,6 +11422,9 @@ async function cargarNombresTimeClock(){
     arr.forEach(function(e){ if(e && e.codigo && e.nombre) m[e.codigo] = e.nombre; });
     TC_NOMBRE = m;
     try{ if(typeof iv2Render==='function' && document.getElementById('page-invoices')) iv2Render(); }catch(e){}
+    // Re-pintar vistas que muestran nombre de cuenta por display (resumen,
+    // editores de quincena, cuentas) una vez llegan los nombres canonicos.
+    try{ if(typeof recalcAll==='function' && typeof cuentas!=='undefined' && Array.isArray(cuentas)) recalcAll(); }catch(e){}
   }catch(e){}
 }
 try{ cargarNombresTimeClock(); setTimeout(function(){ try{ cargarNombresTimeClock(); }catch(e){} }, 3000); }catch(e){}
