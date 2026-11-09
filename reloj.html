@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="app-build" content="v290-202611050946">
+<!-- v291: Timesheet — el encabezado de una fecha se marca aprobado (color + check) solo si TODOS los agentes visibles de ese dia estan aprobados; si se desaprueba uno, se cae -->
+<meta name="app-build" content="v291-202611091416">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -27,6 +28,12 @@
 .hoja thead th button.apf{all:unset;display:block;width:100%;box-sizing:border-box;cursor:pointer;border-radius:8px;padding:2px 0;transition:background .12s,color .12s}
 .hoja thead th button.apf:hover{background:var(--brand-50);color:var(--brand-700)}
 .hoja thead th button.apf:focus-visible{outline:2px solid var(--brand-500);outline-offset:-1px}
+/* Encabezado de fecha cuando TODOS los visibles de ese día están aprobados */
+.hoja thead th.fok{background:var(--brand-50)}
+.hoja thead th.fok button.apf{color:var(--brand-700);font-weight:700}
+.hoja thead th.fok button.apf:hover{background:var(--brand-100)}
+.apf-ic{display:inline-flex;vertical-align:-3px;margin-left:3px}
+.apf-ic svg{width:13px;height:13px;color:var(--brand-600)}
 @media (max-width:520px){ #seCampos{grid-template-columns:1fr} }
 </style>
 <link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
@@ -6518,6 +6525,15 @@ function estadoPeriodo(e, h){
   h.fechas.forEach(f => { const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length || f >= h.hoy) return; cerrados++; if(d.aprobado) aprobados++; });
   return { cerrados, aprobados, todo:cerrados > 0 && aprobados === cerrados };
 }
+// ¿Está la FECHA (columna) toda aprobada? Mismo criterio que estadoPeriodo pero
+// por fecha: hay >=1 día cerrado (con marcas, pasado) y TODOS están aprobados.
+// Si se desaprueba uno, deja de estar aprobada (se recalcula en cada pintado).
+function fechaAprobada(f, h, lista){
+  if(!f || f >= h.hoy) return false;
+  let cerrados = 0, aprobados = 0;
+  lista.forEach(e => { const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length) return; cerrados++; if(d.aprobado) aprobados++; });
+  return cerrados > 0 && aprobados === cerrados;
+}
 function enlazarSeleccion(){
   const vis = empsVisibles().map(e => e.usuario);
   const pintarCasillas = () => {
@@ -6628,13 +6644,14 @@ function pintarHoja(){
   const ord = (por, txt, tit) => '<button class="ord' + (o.por === por ? ' on' : '') + '" type="button" data-ord="' + por + '" title="' + tit + '">' + txt +
     (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
   if(S.selPeriodo !== h.desde + '|' + h.hasta){ S.selHoja = new Set(); S.selPeriodo = h.desde + '|' + h.hasta; }
+  const lista = empsVisibles();
   let t = '<table class="hoja"><thead><tr><th class="nombre"><label class="selq" title="Select everyone shown"><input type="checkbox" id="hSelTodos" aria-label="Select everyone shown"></label>' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
-    h.fechas.map(f => { const fut = f > h.hoy, inner = esc(diaC(f)) + '<br>' + diaN(f);
-      return '<th class="' + (finde(f) ? 'fin' : '') + '">' + (fut ? inner : '<button type="button" class="apf" data-apf="' + f + '" title="Approve ' + esc(fechaL(f)) + ' for everyone shown">' + inner + '</button>') + '</th>'; }).join('') +
+    h.fechas.map(f => { const fut = f > h.hoy, fok = !fut && fechaAprobada(f, h, lista);
+      const inner = esc(diaC(f)) + '<br>' + diaN(f) + (fok ? '<span class="apf-ic">' + IC.ok + '</span>' : '');
+      return '<th class="' + [finde(f) ? 'fin' : '', fok ? 'fok' : ''].filter(Boolean).join(' ') + '">' + (fut ? inner : '<button type="button" class="apf' + (fok ? ' apf-ok' : '') + '" data-apf="' + f + '" title="' + (fok ? esc(fechaL(f)) + ' — everyone shown is approved. Click to review.' : 'Approve ' + esc(fechaL(f)) + ' for everyone shown') + '">' + inner + '</button>') + '</th>'; }).join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
     '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
     '</tr></thead><tbody>';
-  const lista = empsVisibles();
   let grupoAct = null;
   lista.forEach(e => {
     if(o.grupo){
