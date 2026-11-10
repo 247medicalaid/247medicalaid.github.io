@@ -35,6 +35,11 @@
 </div>
 <script>
   (function(){
+    // Registrar el service worker: Chrome (Android) EXIGE un SW con manejador de
+    // fetch para ofrecer "Instalar app" (beforeinstallprompt). Sin esto solo
+    // aparecía "Agregar a pantalla de inicio" (acceso directo), no la instalación
+    // real de la PWA. Usa el mismo sw.js del portal (scope "/").
+    if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('/sw.js'); }catch(e){} }
     function go(){ location.replace('/?app=1&goto=reloj&solochat=1'); }
     var launched = /[?&]app=1/.test(location.search)
       || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: minimal-ui)').matches))
