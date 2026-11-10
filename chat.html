@@ -14,12 +14,13 @@
 <link rel="icon" href="/icon-chat-192.png">
 <style>
   html,body{margin:0;height:100%;background:#04141F;color:#cfe8f5;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px;box-sizing:border-box;text-align:center}
+  .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;box-sizing:border-box;text-align:center}
   img.logo{width:92px;height:92px;border-radius:22px}
   h1{font-size:20px;margin:0;color:#fff;font-weight:700}
-  p{margin:0;max-width:340px;color:#9fc4d8}
-  .btn{appearance:none;border:0;border-radius:12px;background:#17A9DE;color:#04141F;font:700 15px inherit;padding:12px 22px;cursor:pointer;text-decoration:none;display:none}
-  .hint{font-size:13px;color:#6f93a6;max-width:340px;display:none}
+  p{margin:0;max-width:360px;color:#9fc4d8}
+  .btn{appearance:none;border:0;border-radius:12px;background:#17A9DE;color:#04141F;font:700 15px inherit;padding:13px 24px;cursor:pointer;text-decoration:none;display:none}
+  .btn2{background:transparent;color:#17A9DE;border:1.5px solid #17A9DE}
+  .hint{font-size:13px;color:#6f93a6;max-width:360px;display:none}
   b{color:#cfe8f5}
 </style>
 </head>
@@ -27,9 +28,10 @@
 <div class="wrap">
   <img class="logo" src="/icon-chat-192.png" alt="Chat">
   <h1>24/7 Medical Aid — Chat</h1>
-  <p id="msg">Opening Chat…</p>
-  <a class="btn" id="go" href="/?app=1&amp;goto=reloj&amp;solochat=1">Open Chat</a>
-  <p class="hint" id="hint">To keep it as a separate app: open your browser menu (⋮) and choose <b>Install app</b> / <b>Add to Home screen</b>. The Chat icon opens straight into your messages.</p>
+  <p id="msg">Add this as your Chat app, or open it now.</p>
+  <button class="btn" id="install" type="button">⬇ Install Chat app</button>
+  <a class="btn btn2" id="go" href="/?app=1&amp;goto=reloj&amp;solochat=1">Open Chat now</a>
+  <p class="hint" id="hint">Open this page in the <b>Chrome browser</b> (not inside the Time Clock app). If the button above doesn't appear, tap Chrome's menu <b>(⋮)</b> → <b>Add to Home screen</b> / <b>Install app</b>.</p>
 </div>
 <script>
   (function(){
@@ -37,12 +39,30 @@
     var launched = /[?&]app=1/.test(location.search)
       || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: minimal-ui)').matches))
       || window.navigator.standalone === true;
-    if(launched){ go(); return; }
-    // Abierto como pestaña normal (para instalar): mostrar boton + instrucciones, no redirigir solo.
-    document.getElementById('msg').textContent = 'Install this as your Chat app, or open it now.';
-    var b = document.getElementById('go'); b.style.display = 'inline-block';
-    b.addEventListener('click', function(ev){ ev.preventDefault(); go(); });
+    if(launched){ go(); return; }   // abierto como app instalada → entra directo al chat
+
+    var openBtn = document.getElementById('go');
+    openBtn.style.display = 'inline-block';
+    openBtn.addEventListener('click', function(ev){ ev.preventDefault(); go(); });
     document.getElementById('hint').style.display = 'block';
+
+    // Botón de instalación de un toque (Android/Chrome) cuando el navegador lo permite.
+    var deferred = null, ib = document.getElementById('install');
+    window.addEventListener('beforeinstallprompt', function(e){
+      e.preventDefault(); deferred = e;
+      ib.style.display = 'inline-block';
+      document.getElementById('msg').textContent = 'Tap “Install Chat app” to add it to your home screen.';
+    });
+    ib.addEventListener('click', async function(){
+      if(!deferred) return;
+      ib.disabled = true; deferred.prompt();
+      try{ await deferred.userChoice; }catch(e){}
+      deferred = null; ib.style.display = 'none'; ib.disabled = false;
+    });
+    window.addEventListener('appinstalled', function(){
+      ib.style.display = 'none';
+      document.getElementById('msg').textContent = 'Installed! Open the Chat icon from your home screen.';
+    });
   })();
 </script>
 </body>
