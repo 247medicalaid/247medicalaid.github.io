@@ -8,7 +8,7 @@
 <!-- v294: Chat — notificaciones del sistema en el celular (Android/PWA) via service worker (showNotification + vibracion) y clic que abre la conversacion; antes usaba new Notification() que falla en movil -->
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
-<meta name="app-build" content="v296-202611101122">
+<meta name="app-build" content="v297-202611101211">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -82,6 +82,25 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://247medicalaid.github.io/sb.js?v=3"></script>
+<!-- (v297) Respaldo de conexión a Supabase. Si sb.js NO alcanzó a cargar o ejecutar
+     (caché viejo del WebView2 de la app de escritorio, bloqueo de red, CDN caído…),
+     aquí definimos SB_URL / SB_KEY / window.sb con los MISMOS valores públicos, para
+     que la app nunca muera con "supabaseUrl is required". La clave es la publicable
+     (la misma que ya va en sb.js); lo que protege los datos son las reglas RLS.
+     Si sb.js sí cargó, esto es un no-op: no reemplaza ni re-crea nada. -->
+<script>
+(function(){
+  try{
+    if(!window.SB_URL) window.SB_URL = 'https://tftyyzoowctuhggwlgyt.supabase.co';
+    if(!window.SB_KEY) window.SB_KEY = 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1';
+    if(!window.sb && window.supabase && window.supabase.createClient){
+      window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, {
+        auth:{ persistSession:true, autoRefreshToken:true, storageKey:'portal247.sb' }
+      });
+    }
+  }catch(e){ /* nunca frenar el arranque por el respaldo */ }
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
