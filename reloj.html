@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <!-- v291: Timesheet — el encabezado de una fecha se marca aprobado (color + check) solo si TODOS los agentes visibles de ese dia estan aprobados; si se desaprueba uno, se cae -->
 <!-- v292: Timesheet — color del dia aprobado un poco mas oscuro (contraste, accesibilidad/daltonismo) -->
-<meta name="app-build" content="v292-202611092222">
+<!-- v293: Chat — pegar imagenes del portapapeles (Ctrl/Cmd+V) se adjuntan, como en Updates -->
+<!-- v294: Chat — notificaciones del sistema en el celular (Android/PWA) via service worker (showNotification + vibracion) y clic que abre la conversacion; antes usaba new Notification() que falla en movil -->
+<!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
+<meta name="app-build" content="v295-202611100931">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1951,6 +1954,9 @@ body.aw.aw-app .aw-item{gap:9px;font-size:13.5px;padding-left:9px;padding-right:
 body.aw.aw-app .aw-marca div{font-size:14px}
 body.aw.aw-app .aw-marca small{font-size:9px;letter-spacing:.05em;white-space:nowrap}
 #chatAg,#vChat{container-type:inline-size;container-name:chatc}
+/* (v295) Modo "solo chat" (app dedicada de Chat): oculta la navegacion del TimeClock */
+body.solochat #btnMenu,body.solochat #tabs,body.solochat #cortina,body.solochat #btnPortal,body.solochat #btnDocs,body.solochat #btnPerfil{display:none !important}
+body.solochat .marca{pointer-events:none}
 .cn-mas{display:none;font-size:18px;line-height:1;font-weight:700}
 .chat-form textarea{overflow-y:hidden}
 .chat-form textarea.alto{overflow-y:auto}
@@ -2579,7 +2585,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <div class="chat-lado-cab"><h2>Chat</h2><button class="btn btn-ink btn-sm" id="chatNuevo" type="button" aria-label="New chat"><span class="cn-mas" aria-hidden="true">+</span><span class="cn-txt"> New chat</span></button></div>
         <div class="chat-modo hidden" id="chatModo" role="group" aria-label="Which conversations"><button type="button" data-chat-modo="mios" aria-pressed="true">My chats</button><button type="button" data-chat-modo="todos" aria-pressed="false">Review all <b class="chat-rev-n hidden" id="chatRevN"></b></button></div>
         <p class="chat-aviso hidden" id="chatAvisoRev">The administrator can review the chats. Don't share patient information here.</p>
-        <button class="btn-link chat-notif hidden" id="chatNotif" type="button">🔔 Turn on desktop alerts for new messages</button>
+        <button class="btn-link chat-notif hidden" id="chatNotif" type="button">🔔 Turn on alerts for new messages</button>
         <input id="chatBuscar" type="search" placeholder="Search…" autocomplete="off" aria-label="Search conversations">
         <div class="chat-lista" id="chatLista"></div>
       </aside>
@@ -5178,8 +5184,18 @@ async function inicio(){
         if(S.vista !== 'inv') actualizarInvBadgeSolo();
       }, 180000);
       chatArrancar();
-      const pedida = location.hash.slice(1);
-      irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+      // (v295) Modo "solo chat": cuando se abre desde el icono de Chat (chat.html
+      // pone la bandera en sessionStorage). Arranca en el chat y oculta el resto.
+      let soloChat = false;
+      try{ soloChat = sessionStorage.getItem('tc_solochat') === '1'; }catch(e){}
+      if(!soloChat) soloChat = /[?&]solochat=1/.test(location.search);
+      if(soloChat){
+        document.body.classList.add('solochat');
+        irA('chat');
+      } else {
+        const pedida = location.hash.slice(1);
+        irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
+      }
     } else if(yo.empleado) irA('reloj');
     else irA('sin');
   }catch(e){
@@ -11653,12 +11669,24 @@ const CHAT_MIME = { zip:'application/zip', rar:'application/vnd.rar', '7z':'appl
   m4a:'audio/mp4', wav:'audio/wav', mov:'video/quicktime', gif:'image/gif' };
 const chatMime = f => { const ext = (String(f.name || '').split('.').pop() || '').toLowerCase();
   return CHAT_MIME[ext] || (f.type && !/x-zip-compressed/.test(f.type) ? f.type : '') || docMime(f.name); };
-$('chatAdjBtn').addEventListener('click', () => { $('chatAdjIn').value = ''; $('chatAdjIn').click(); });
-$('chatAdjIn').addEventListener('change', () => { const f = $('chatAdjIn').files[0]; if(!f) return;
-  if(f.size > 15 * 1048576){ $('chatErr').textContent = 'The file is too big. The limit is 15 MB.'; return; }
-  if(CHAT_BLOQ.test(f.name || '')){ $('chatErr').textContent = 'For safety, programs and web pages can\'t be sent (.exe, .bat, .js, .html…). Put it in a .zip or send another type of file.'; return; }
+function chatSetAdjunto(f){
+  if(!f) return false;
+  if(f.size > 15 * 1048576){ $('chatErr').textContent = 'The file is too big. The limit is 15 MB.'; return false; }
+  if(CHAT_BLOQ.test(f.name || '')){ $('chatErr').textContent = 'For safety, programs and web pages can\'t be sent (.exe, .bat, .js, .html…). Put it in a .zip or send another type of file.'; return false; }
   $('chatErr').textContent = '';
-  chatS().adjunto = f; pintarChatAdj(); $('chatTexto').focus(); });
+  chatS().adjunto = f; pintarChatAdj(); return true;
+}
+$('chatAdjBtn').addEventListener('click', () => { $('chatAdjIn').value = ''; $('chatAdjIn').click(); });
+$('chatAdjIn').addEventListener('change', () => { if(chatSetAdjunto($('chatAdjIn').files[0])) $('chatTexto').focus(); });
+// (v293) Pegar una imagen del portapapeles → se adjunta (como en Updates). Sin imagen = pegado de texto normal.
+$('chatTexto').addEventListener('paste', ev => {
+  const dt = ev.clipboardData; if(!dt) return;
+  let img = null;
+  for(const it of (dt.items || [])){ if(it.kind === 'file' && /^image\//.test(it.type || '')){ const g = it.getAsFile(); if(g){ img = g; break; } } }
+  if(!img) return;
+  ev.preventDefault();
+  chatSetAdjunto((img.name && img.name !== 'image.png') ? img : new File([img], 'pegado-' + Date.now() + '.png', { type:img.type || 'image/png' }));
+});
 function pintarChatAdj(){ const f = chatS().adjunto;
   $('chatAdj').innerHTML = f ? '<span>📎 ' + esc(f.name) + ' <small>' + updBytes(f.size) + '</small></span><button type="button" class="upd-com-x" id="chatAdjX" aria-label="Remove file">×</button>' : '';
   $('chatAdj').classList.toggle('hidden', !f); if($('chatAdjX')) $('chatAdjX').onclick = () => { chatS().adjunto = null; pintarChatAdj(); }; }
@@ -11856,8 +11884,16 @@ function popMostrar(k, a){
   el.addEventListener('click', ev => { if(el.classList.contains('mini')){ ev.stopPropagation(); el.classList.remove('mini'); setTimeout(() => { if(el.isConnected) el.classList.add('mini'); }, 25000); } }, true);
   popSonido();
   if(document.hidden && !appWin() && 'Notification' in window && Notification.permission === 'granted'){
-    try{ const n = new Notification(a.titulo, { body:a.texto || '', tag:k, icon:'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/><path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>') });
-      n.onclick = () => { try{ window.focus(); }catch(e){} n.close(); el.remove(); a.abrir(); }; }catch(e){}
+    const icono = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/><path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>');
+    const opts = { body:a.texto || '', tag:k, renotify:true, icon:icono, badge:icono, vibrate:[90, 40, 90], data:{ k:k, chatId:a.chatId || 0 } };
+    try{
+      // Móvil (Android/PWA) exige showNotification del service worker; new Notification() falla ahí.
+      if(navigator.serviceWorker && navigator.serviceWorker.ready){
+        navigator.serviceWorker.ready.then(reg => reg.showNotification(a.titulo, opts)).catch(() => {});
+      } else if(typeof Notification === 'function'){
+        const n = new Notification(a.titulo, opts); n.onclick = () => { try{ window.focus(); }catch(e){} n.close(); el.remove(); a.abrir(); };
+      }
+    }catch(e){}
   }
 }
 // con el chat en pantalla, los avisos suben para no tapar la caja de escribir
@@ -11881,7 +11917,7 @@ function popChat(){
     if(chatVisible() && c.abierto === x.id && !document.hidden) return;
     const k = 'chat|' + x.id + '|';
     popQuitar(k);   // uno por conversación: el más nuevo
-    popMostrar(k + u.id, { icono:chatAvatar(u.usuario, u.nombre, false),
+    popMostrar(k + u.id, { icono:chatAvatar(u.usuario, u.nombre, false), chatId:x.id,
       titulo:x.tipo === 'grupo' ? u.nombre + ' · ' + x.nombre : u.nombre || x.nombre,
       texto:(u.texto || (u.adjunto ? '📎 Sent a file' : '')).slice(0, 140) + (x.noLeidos > 1 ? '  (' + x.noLeidos + ' new)' : ''),
       boton:primera ? 'Open' : 'Reply', abrir:() => popIrChat(x.id) });
@@ -11913,6 +11949,13 @@ function popPermiso(){
   const b = $('chatNotif'); if(!b) return;
   const puede = !appWin() && 'Notification' in window && Notification.permission === 'default';
   b.classList.toggle('hidden', !puede);
+}
+// (v294) Clic en la notificación del sistema (lo maneja el service worker): enfoca la app y abre el chat.
+if('serviceWorker' in navigator){
+  try{ navigator.serviceWorker.addEventListener('message', ev => {
+    const d = ev.data || {};
+    if(d.tipo === 'notifClick'){ try{ window.focus(); }catch(e){} const id = Number(d.chatId); if(id && typeof popIrChat === 'function') popIrChat(id); }
+  }); }catch(e){}
 }
 
 /* ── Monitor dentro del Time Clock (v68) ── */

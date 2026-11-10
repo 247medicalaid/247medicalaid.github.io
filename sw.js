@@ -5,7 +5,8 @@
    flujo de actualización por version.txt); la caché solo es respaldo sin conexión.
    Lo de otros orígenes (Supabase, CDNs, fuentes) NO se intercepta. */
 const CACHE = 'tc-admin-v1';
-const SHELL = ['/reloj.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png'];
+const SHELL = ['/reloj.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png',
+  '/chat.html', '/manifest-chat.json', '/icon-chat-192.png', '/icon-chat-512.png', '/icon-chat-maskable-512.png'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -48,5 +49,23 @@ self.addEventListener('fetch', e => {
       if (req.mode === 'navigate') return (await caches.match('/reloj.html')) || Response.error();
       return Response.error();
     }
+  })());
+});
+
+/* (v294) Clic en una notificación del chat: enfocar una ventana existente de la
+   app y avisarle para abrir esa conversación; si no hay ninguna, abrir la app. */
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const data = e.notification.data || {};
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) {
+      if (c.url && c.url.startsWith(self.location.origin)) {
+        try { await c.focus(); } catch (_) {}
+        try { c.postMessage({ tipo: 'notifClick', chatId: data.chatId || 0, k: data.k || '' }); } catch (_) {}
+        return;
+      }
+    }
+    try { await self.clients.openWindow('/?app=1&goto=reloj'); } catch (_) {}
   })());
 });
