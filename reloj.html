@@ -9,7 +9,8 @@
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
 <!-- v299: Ausencias — ✗ roja para "Unauthorized absence"; dias con SOLO ausencia se aprueban (y bloquean); el agente no cancela lo del supervisor/sistema ni dias aprobados; Settings "Daily absence check" (Etapa 4, paso 129) -->
-<meta name="app-build" content="v299-202611111200">
+<!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
+<meta name="app-build" content="v300-202611111305">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -636,6 +637,9 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .chk input{width:18px;height:18px}
 .celda.aus{color:#1D74B8;font-size:11.5px;font-weight:700;letter-spacing:.02em;background:#E8F2FB}
 .celda.aus.np{color:#C81F29;background:#FDEBEC}
+/* v300: ausencia NO autorizada — ✗ grande y fondo rojo más oscuro */
+.celda.aus.nx{color:#A3121C;background:#F4BCC0}
+.celda.aus .aus-x{font-size:21px;line-height:1;font-weight:800;vertical-align:-3px}
 
 /* ── EDITAR HORAS DEL PERIODO (hoja por agente) ── */
 .ventana.ventana-ancha{max-width:900px}
@@ -6599,7 +6603,8 @@ function estadoPeriodo(e, h){
 function fechaAprobada(f, h, lista){
   if(!f || f >= h.hoy) return false;
   let cerrados = 0, aprobados = 0;
-  lista.forEach(e => { const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length) return; cerrados++; if(d.aprobado) aprobados++; });
+  // v300: también cuentan los días con SOLO ausencia (se aprueban desde v299): si uno no está aprobado, la fecha no se marca.
+  lista.forEach(e => { const d = e.dias[f]; if(!d || !((d.marcas && d.marcas.length) || d.ausencia)) return; cerrados++; if(d.aprobado) aprobados++; });
   return cerrados > 0 && aprobados === cerrados;
 }
 function enlazarSeleccion(){
@@ -6747,9 +6752,10 @@ function pintarHoja(){
       }
       if(!d.marcas.length && d.ausencia){
         const a = d.ausencia;
-        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
+        const _nx = ausNoAutorizada(a);
+        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (_nx ? ' nx' : '') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
           '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + (d.aprobado ? ' · approved (locked)' : '')) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + ausCorta(a) + (d.aprobado ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
+          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + (_nx ? '<span class="aus-x" aria-hidden="true">✗</span>' : ausCorta(a)) + (d.aprobado ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
