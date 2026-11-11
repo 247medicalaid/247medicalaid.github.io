@@ -9,11 +9,12 @@
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
 <!-- v299: Ausencias — ✗ roja para "Unauthorized absence"; dias con SOLO ausencia se aprueban (y bloquean); el agente no cancela lo del supervisor/sistema ni dias aprobados; Settings "Daily absence check" (Etapa 4, paso 129) -->
+<!-- v304: Chat — notificaciones PUSH reales en la app de Chat (chat.247medical-aid.com): suscripcion VAPID + reloj_push_guardar (paso 132); el servidor avisa con la app cerrada -->
 <!-- v303: Users en el celular — se cerró bien un @media (min-width:820px) que quedó abierto; la ficha del usuario mostraba íconos gigantes negros -->
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v303-202611111600">
+<meta name="app-build" content="v304-202611111700">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -11849,7 +11850,7 @@ $('chatApp').addEventListener('click', async ev => {
   }
 });
 $('chatBuscar').addEventListener('input', pintarChatLista);
-$('chatNotif').addEventListener('click', async () => { try{ await Notification.requestPermission(); }catch(e){} popPermiso();
+$('chatNotif').addEventListener('click', async () => { try{ await Notification.requestPermission(); }catch(e){} popPermiso(); pushActivar();
   if('Notification' in window && Notification.permission === 'granted') toast('Desktop alerts are on.'); });
 
 // (admin) cuántas conversaciones borradas por agentes faltan por decidir (Keep / Delete permanently)
@@ -12028,7 +12029,8 @@ function popMostrar(k, a){
   popSonido();
   if(document.hidden && !appWin() && 'Notification' in window && Notification.permission === 'granted'){
     const icono = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/><path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>');
-    const opts = { body:a.texto || '', tag:k, renotify:true, icon:icono, badge:icono, vibrate:[90, 40, 90], data:{ k:k, chatId:a.chatId || 0 } };
+    const opts = { body:a.texto || '', tag:k, renotify:!window.__pushActivo,   // (v304) con push real, el aviso del servidor ya sonó: no repetir
+      icon:icono, badge:icono, vibrate:[90, 40, 90], data:{ k:k, chatId:a.chatId || 0 } };
     try{
       // Móvil (Android/PWA) exige showNotification del service worker; new Notification() falla ahí.
       if(navigator.serviceWorker && navigator.serviceWorker.ready){
@@ -12055,6 +12057,7 @@ function popTitulo(){
 function popChat(){
   const c = S.chat; if(!c) return;
   const primera = !POP.chatListo; POP.chatListo = true;
+  if(primera){ pushActivar(); pushAbrirPendiente(); }   // (v304) push real del Chat
   c.resumen.forEach(x => {
     const u = x.ultimoMsg; if(!u || !x.noLeidos || u.usuario === c.yo || u.borrado) return;
     if(chatVisible() && c.abierto === x.id && !document.hidden) return;
@@ -12088,6 +12091,40 @@ function popUpd(){
   popTitulo();
 }
 // en el navegador (no en la app de Windows): ofrecer las notificaciones del sistema
+/* ── (v304) Notificaciones PUSH reales del Chat (paso 132) ──
+   Solo en la app de Chat (chat.247medical-aid.com, cuyo sw.js maneja «push»). Con el permiso de
+   notificaciones dado, suscribe este celular (llave VAPID pública de reloj_push_clave) y lo guarda
+   con reloj_push_guardar. El servidor (disparador + Edge Function chat-push) avisa aunque la app
+   esté cerrada. Si algo falla, el chat sigue como antes (avisos con la app abierta). */
+const PUSH_HOST = 'chat.247medical-aid.com';
+function pushB64uABytes(t){ t = String(t).replace(/-/g, '+').replace(/_/g, '/'); while(t.length % 4) t += '='; const b = atob(t), o = new Uint8Array(b.length); for(let i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; }
+function pushBytesAB64u(buf){ const b = new Uint8Array(buf); let t = ''; for(let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+async function pushActivar(){
+  try{
+    if(DEMO || location.hostname !== PUSH_HOST || pushActivar.vuelo) return;
+    if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || Notification.permission !== 'granted') return;
+    pushActivar.vuelo = true;
+    const reg = await navigator.serviceWorker.ready;
+    try{ reg.update(); }catch(e){}
+    const clave = await q(sb.rpc('reloj_push_clave')); if(!clave) return;
+    let s = await reg.pushManager.getSubscription();
+    if(s && s.options && s.options.applicationServerKey && pushBytesAB64u(s.options.applicationServerKey) !== clave){ try{ await s.unsubscribe(); }catch(e){} s = null; }
+    if(!s) s = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:pushB64uABytes(clave) });
+    const j = s.toJSON();
+    await q(sb.rpc('reloj_push_guardar', { p_endpoint:j.endpoint, p_p256dh:j.keys.p256dh, p_auth:j.keys.auth, p_origen:location.hostname, p_ua:navigator.userAgent.slice(0, 200) }));
+    window.__pushActivo = true;
+  }catch(e){ try{ console.warn('push:', e && e.message || e); }catch(_){} }
+  finally{ pushActivar.vuelo = false; }
+}
+// Tocar una notificación con la app cerrada: el sw.js deja el chat a abrir en la caché «chat-247-abrir».
+async function pushAbrirPendiente(){
+  try{
+    if(location.hostname !== PUSH_HOST || !('caches' in window)) return;
+    const c = await caches.open('chat-247-abrir'), r = await c.match('/__abrir_chat'); if(!r) return;
+    const id = Number(await r.text()); await c.delete('/__abrir_chat');
+    if(id) setTimeout(() => popIrChat(id), 300);
+  }catch(e){}
+}
 function popPermiso(){
   const b = $('chatNotif'); if(!b) return;
   const puede = !appWin() && 'Notification' in window && Notification.permission === 'default';
