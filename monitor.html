@@ -745,7 +745,7 @@ const TIPOS = {
 };
 function tipoDisp(t){ return t === 'Inactivo' ? 'Inactivo' : 'Offline'; }
 function tipoEN(t){ return tipoDisp(t) === 'Inactivo' ? 'Inactive' : 'Offline'; }
-const ESTADO_EN = {'Inactivo':'Inactive','Pausa':'Paused','Activo':'Active','Sin señal':'Offline','Sin conexión hoy':'Offline','Sin conexión':'Offline','Conexión tardía':'Late start','Día libre':'Day off','Desactivado':'Deactivated','Autorizado':'Authorized','App de teléfono cerrada':'Phone app closed','Fuera de horario':'Out of schedule'};
+const ESTADO_EN = {'Inactivo':'Inactive','Pausa':'Paused','Activo':'Active','Sin señal':'Offline','Sin conexión hoy':'Offline','Sin conexión':'Offline','Conexión tardía':'Late start','Día libre':'Day off','Desactivado':'Deactivated','Autorizado':'Authorized','App de teléfono cerrada':'VOIP app closed','Fuera de horario':'Out of schedule'};
 function estadoTxt(t){ if (t === 'Sin señal' || t === 'Sin conexión hoy' || t === 'Sin conexión') return 'Offline'; return ESTADO_EN[t] || t; }
 const NIVEL = { rojo: 0, amarillo: 1, verde: 2, gris: 3 };
 // Cuentas sobre las que no hay la misma injerencia: su tiempo perdido se
@@ -972,7 +972,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261106-1525';
+const MON_BUILD = '20261111-1625';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1363,8 +1363,8 @@ function fila(a, d){
     pill = a.episodios.length ? '<span class="pill rojo">' + icono('rojo') + a.episodios.length + ' issue(s)</span>'
                               : '<span class="pill verde">' + icono('verde') + 'No issues</span>';
   }
-  const app = (e && e.app === false) ? mi('Phone', 'closed', 'warn', 'The account phone app is not open.')
-            : ((e && e.app === true) ? mi('Phone', 'open', '', 'The account phone app is open.') : '');
+  const app = (e && e.app === false) ? mi('VOIP App', 'closed', 'warn', 'The account VOIP phone app (RingCentral, Ooma, Weave…) is not open.')
+            : ((e && e.app === true) ? mi('VOIP App', 'open', '', 'The account VOIP phone app is open.') : '');
 
   // Línea de tiempo de la jornada. Si el agente entró antes de su hora o se
   // quedó después, la barra se estira hasta una hora por cada lado para que ese
@@ -3099,7 +3099,7 @@ function pintarCuentas(){
     const n = c.orig ? agentesDe(c.orig).length : 0;
     return '<div class="crow">' +
       '<input data-ci="' + i + '" data-k="n" value="' + esc(c.n) + '" placeholder="Account name" aria-label="Account name">' +
-      '<input data-ci="' + i + '" data-k="app" value="' + esc(c.app) + '" placeholder="Phone program" aria-label="Phone program">' +
+      '<input data-ci="' + i + '" data-k="app" value="' + esc(c.app) + '" placeholder="VOIP app" aria-label="VOIP app">' +
       '<span class="cnt" title="Active agents on this account">' + (n ? n + ' ag.' : '') + '</span>' +
       '<button type="button" class="btn-mini quitar" data-quitar="' + i + '" aria-label="Remove ' + esc(c.n || 'account') + '">Remove</button></div>';
   }).join('') || '<div class="hint">No accounts. Add at least one.</div>';
