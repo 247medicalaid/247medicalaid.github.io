@@ -9,12 +9,13 @@
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
 <!-- v299: Ausencias — ✗ roja para "Unauthorized absence"; dias con SOLO ausencia se aprueban (y bloquean); el agente no cancela lo del supervisor/sistema ni dias aprobados; Settings "Daily absence check" (Etapa 4, paso 129) -->
+<!-- v305: App «24/7 Chat» — agentes/supervisores también: login con su email en chat.247medical-aid.com y solo el chat (menú con Chat/Refresh/Sign out); titulos «24/7 Chat»; enlace al portal en el mismo origen -->
 <!-- v304: Chat — notificaciones PUSH reales en la app de Chat (chat.247medical-aid.com): suscripcion VAPID + reloj_push_guardar (paso 132); el servidor avisa con la app cerrada -->
 <!-- v303: Users en el celular — se cerró bien un @media (min-width:820px) que quedó abierto; la ficha del usuario mostraba íconos gigantes negros -->
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v304-202611111700">
+<meta name="app-build" content="v305-202611111800">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1745,7 +1746,7 @@ body.aw.aw-web.aw-chatlado .aw-dock > #chatAg{display:block;margin:0;flex:1;min-
 body.aw.aw-web.aw-chatlado .aw-menu > [data-awi="chat"]{display:none}
 /* columna del chat angosta: una cosa a la vez (la lista, o la conversación con «‹» para volver), como en el celular */
 @container chatc (max-width:560px){
-  body.aw-chatlado .chat{grid-template-columns:1fr}
+  body.aw-chatlado .chat{grid-template-columns:minmax(0,1fr)}
   body.aw-chatlado .chat-conv{display:none}
   body.aw-chatlado .chat-lado{border-right:0}
   body.aw-chatlado.chat-dentro .chat-lado{display:none}
@@ -1955,7 +1956,7 @@ body.aw-app .chat{height:calc(100vh - 200px)}
 .cn-p .chat-av{width:32px;height:32px;font-size:12px}
 body.aw[data-aw="chat"] .aw-panel > [data-aw="chat"]{display:block}
 @media (max-width:760px){
-  .chat{grid-template-columns:1fr;height:calc(100vh - 150px)}
+  .chat{grid-template-columns:minmax(0,1fr);height:calc(100vh - 150px)}   /* (v305) minmax: los textos largos ya no ensanchan la lista */
   body.aw .chat{height:calc(100dvh - 330px);min-height:360px}
   body.aw.chat-dentro[data-aw="chat"] .aw-fijo{display:none}   /* dentro de una conversación: toda la pantalla para el chat */
   body.aw.chat-dentro[data-aw="chat"] .chat{height:calc(100dvh - 92px)}
@@ -1994,6 +1995,10 @@ body.aw.aw-app .aw-marca small{font-size:9px;letter-spacing:.05em;white-space:no
 /* (v295) Modo "solo chat" (app dedicada de Chat): oculta la navegacion del TimeClock */
 body.solochat #btnMenu,body.solochat #tabs,body.solochat #cortina,body.solochat #btnPortal,body.solochat #btnDocs,body.solochat #btnPerfil{display:none !important}
 body.solochat .marca{pointer-events:none}
+/* (v305) Agente en la app «24/7 Chat»: sin reloj ni el resto de paneles; solo Chat + Refresh + Sign out en el menú */
+body.solochat-ag .aw-fijo,body.solochat-ag .aw-item[data-awi]:not([data-awi="chat"]),body.solochat-ag .aw-sub,
+body.solochat-ag #avisosAgente,body.solochat-ag #idAvisoAg,body.solochat-ag #updAvisoAg,body.solochat-ag .aw-dock{display:none !important}
+body.solochat-ag .aw-grupo.g1,body.solochat-ag .aw-grupo.g3{display:none !important}
 .cn-mas{display:none;font-size:18px;line-height:1;font-weight:700}
 .chat-form textarea{overflow-y:hidden}
 .chat-form textarea.alto{overflow-y:auto}
@@ -2623,6 +2628,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <div class="chat-modo hidden" id="chatModo" role="group" aria-label="Which conversations"><button type="button" data-chat-modo="mios" aria-pressed="true">My chats</button><button type="button" data-chat-modo="todos" aria-pressed="false">Review all <b class="chat-rev-n hidden" id="chatRevN"></b></button></div>
         <p class="chat-aviso hidden" id="chatAvisoRev">The administrator can review the chats. Don't share patient information here.</p>
         <button class="btn-link chat-notif hidden" id="chatNotif" type="button">🔔 Turn on alerts for new messages</button>
+        <button class="btn-link chat-notif hidden" id="chatAppLink" type="button">📱 Get the phone app</button>
         <input id="chatBuscar" type="search" placeholder="Search…" autocomplete="off" aria-label="Search conversations">
         <div class="chat-lista" id="chatLista"></div>
       </aside>
@@ -3544,6 +3550,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
 
 const PORTAL = 'https://247medicalaid.github.io/';
+// (v305) App «24/7 Chat» (chat.247medical-aid.com) o ?solochat=1: solo el chat, para admins y agentes.
+const HOST_CHAT = location.hostname === 'chat.247medical-aid.com';
+function soloChatPedido(){ return HOST_CHAT || /[?&]solochat=1/.test(location.search); }
 const CLAVE  = 'portal247.sesion';
 // Fuera del portal (archivo descargado, vista previa) no hay sesión ni
 // servidor: se abre directamente el modo de ejemplo.
@@ -3578,11 +3587,11 @@ function _mcRamp(brand, accent){
 }
 function aplicarMarca(){
   try{
-    document.title = MARCA.appName + ' \u00b7 ' + MARCA.nombre;
+    document.title = soloChatPedido() ? '24/7 Chat' : MARCA.appName + ' \u00b7 ' + MARCA.nombre;
     const mi = document.querySelector('#marcaWeb img'), logo = MARCA.logo || MARCA.logoUrl;
     if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
     const ma = document.querySelector('#marcaWeb .txt.app');
-    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = MARCA.appName;
+    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? '24/7 Chat' : MARCA.appName;
     const vars = Object.assign({}, _mcRamp(MARCA.brand, MARCA.accent), MARCA.colores || {});
     _MARCA_VARS.forEach(k => document.documentElement.style.removeProperty(k));
     for(const k in vars) document.documentElement.style.setProperty(k, vars[k]);
@@ -4992,7 +5001,7 @@ const esCuentaPortal = ses => String(ses.user.email || '').endsWith(DOMINIO_SB);
 function caja(html){
   const v = $('velo'); if(v) v.remove();
   $('acceso').classList.remove('hidden');
-  $('accesoCaja').innerHTML = '<div class="acceso-marca"><img src="' + LOGO + '" alt="' + esc(MARCA.nombre) + '" onerror="this.remove()"><span>' + esc(MARCA.appName) + '</span></div>' + html;
+  $('accesoCaja').innerHTML = '<div class="acceso-marca"><img src="' + LOGO + '" alt="' + esc(MARCA.nombre) + '" onerror="this.remove()"><span>' + esc(soloChatPedido() ? 'Team chat' : MARCA.appName) + '</span></div>' + html;
 }
 async function cuentasFn(accion, cuerpo, jwt){
   if(DEMO) return demoCuentas(accion, cuerpo || {});
@@ -5009,11 +5018,12 @@ async function cuentasFn(accion, cuerpo, jwt){
 function cuentasOk(j){ if(!j.ok) throw new Error(enIngles(j.msg) || 'Something went wrong.'); return j; }
 const claveBuena = c => c.length >= 8 && c.length <= 72 && /[A-Za-z]/.test(c) && /\d/.test(c);
 const emailBueno = e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
-const portalLink = '<div class="pie-acc">Administrative staff: <a href="' + PORTAL + '">sign in through the portal</a>.</div>';
+const portalLink = '<div class="pie-acc">Administrative staff: <a href="' + (HOST_CHAT ? '/?portal=1&goto=reloj&solochat=1&app=1' : PORTAL) + '">sign in through the portal</a>.</div>';
 
 function pantallaLogin(aviso, email){
   appMandar({ tipo:'estado', v:1, conectado:false, empleado:false, estado:'fuera', nombre:'', minHoy:0, recordatorios:[] });
-  caja('<h1>Sign in</h1><div class="sub">Clock in and out, see your hours and send requests.</div>' +
+  caja((soloChatPedido() ? '<h1>24/7 Chat</h1><div class="sub">Sign in with your work email and password to chat with your team.</div>'
+                          : '<h1>Sign in</h1><div class="sub">Clock in and out, see your hours and send requests.</div>') +
     (aviso ? '<div class="listo">' + aviso + '</div>' : '') +
     '<form id="fLogin" novalidate><label class="campo"><span>Email</span><input id="lEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="' + esc(email || '') + '"></label>' +
     '<label class="campo"><span>Password</span><input id="lClave" type="password" autocomplete="current-password"></label>' +
@@ -5262,7 +5272,7 @@ async function inicio(){
         const pedida = location.hash.slice(1);
         irA(['reloj','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].includes(pedida) && (pedida !== 'reloj' || yo.empleado) ? pedida : 'hoy');
       }
-    } else if(yo.empleado) irA('reloj');
+    } else if(yo.empleado){ if(soloChatPedido()) document.body.classList.add('solochat-ag'); irA('reloj'); }   // (v305) agente en la app de Chat: solo el chat
     else irA('sin');
   }catch(e){
     if(e.codigo === 'SIN_SB'){
@@ -5354,6 +5364,7 @@ function appLayout(){
   const n = $('solMiasN'), copiar = () => { const x = $('awSolN'); if(!x) return; x.textContent = (n.textContent.match(/\d+/) || [''])[0]; x.classList.toggle('hidden', n.classList.contains('hidden') || !n.textContent); };
   new MutationObserver(copiar).observe(n, { childList:true, characterData:true, subtree:true, attributes:true }); copiar();
   let k = 'dia'; try{ k = localStorage.getItem('aw_panel') || 'dia'; }catch(e){}
+  if(document.body.classList.contains('solochat-ag')){ k = 'chat'; awSoloChat(); }
   appPanel(['dia', 'upd', 'chat', 'per', 'sol', 'docs', 'perfil'].indexOf(k) >= 0 ? k : 'dia');
   awDock(); AW_DOCK_MQ.addEventListener('change', awDock);   // (v91)
   chatArrancar();
@@ -5385,7 +5396,7 @@ function awDock(){
   if(!S.awListo || !document.body.classList.contains('aw-web')) return;
   const chat = $('chatAg'), dock = $('awDock'), panel = document.querySelector('.aw-panel');
   if(!chat || !dock || !panel) return;
-  if(AW_DOCK_MQ.matches){
+  if(AW_DOCK_MQ.matches && !document.body.classList.contains('solochat-ag')){   // (v305) en la app de Chat no se acopla: el chat ocupa todo
     if(chat.parentElement === dock) return;
     dock.append(chat); document.body.classList.add('aw-chatlado');
     if(document.body.dataset.aw === 'chat') appPanel('dia');
@@ -5400,7 +5411,8 @@ function appPanel(k){
   document.body.dataset.aw = k;
   document.querySelectorAll('.aw-menu [data-awi]').forEach(b => b.setAttribute('aria-current', b.dataset.awi === k ? 'true' : 'false'));
   const p = document.querySelector('.aw-panel'); if(p) p.scrollTop = 0;
-  try{ localStorage.setItem('aw_panel', k); }catch(e){}
+  if(document.body.classList.contains('solochat-ag') && k !== 'chat') k = document.body.dataset.aw = 'chat';
+  if(!document.body.classList.contains('solochat-ag')){ try{ localStorage.setItem('aw_panel', k); }catch(e){} }
   if(k === 'perfil') abrirPerfil();   // se carga cada vez que se abre (datos al día)
   if(k === 'docs') cargarMisDocs();
   if(k === 'upd') cargarUpdAg(); else if(S.updObs) S.updObs.disconnect();
@@ -5409,6 +5421,13 @@ function appPanel(k){
   setTimeout(popPosicion, 50);
   const sub = $('awDocsSub'); if(sub) sub.classList.toggle('hidden', k !== 'docs');
   document.body.classList.remove('aw-menu-abierto');
+}
+// (v305) Agente dentro de la app «24/7 Chat»: el menú queda con Chat, Refresh y Sign out; títulos del chat.
+function awSoloChat(){
+  const m = document.querySelector('.aw-marca div'); if(m) m.innerHTML = '24/7 Chat<small>24/7 Medical Aid</small>';
+  const sv = document.querySelector('.aw-marca svg');
+  if(sv) sv.outerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="16" fill="#0B2233" stroke="#17A9DE" stroke-width="4"/><rect x="14" y="17" width="36" height="25" rx="9" fill="#fff"/><path d="M20 40l-3 10 12-8z" fill="#fff"/><circle cx="24" cy="29.5" r="3" fill="#17A9DE"/><circle cx="32" cy="29.5" r="3" fill="#17A9DE"/><circle cx="40" cy="29.5" r="3" fill="#17A9DE"/></svg>';
+  const t = document.querySelector('.aw-movil b'); if(t) t.textContent = '24/7 Chat';
 }
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
@@ -11850,6 +11869,27 @@ $('chatApp').addEventListener('click', async ev => {
   }
 });
 $('chatBuscar').addEventListener('input', pintarChatLista);
+// (v305) «24/7 Chat on your phone»: QR + enlace + pasos; el admin copia una invitación lista para mandar.
+const CHAT_URL = 'https://chat.247medical-aid.com';
+const CHAT_INVITACION = 'Install the 24/7 Chat app on your phone:\n' +
+  '1. Open ' + CHAT_URL + ' in Chrome (Android) or Safari (iPhone).\n' +
+  '2. Android: tap "Install 24/7 Chat" (or Chrome menu ⋮ → Install app). iPhone: tap Share → Add to Home Screen.\n' +
+  '3. Open 24/7 Chat and sign in with the same email and password you use for the Time Clock.\n' +
+  '4. Tap "Turn on alerts" and allow notifications so new messages reach you even with the app closed.';
+if(!HOST_CHAT && $('chatAppLink')) $('chatAppLink').classList.remove('hidden');
+$('chatAppLink').addEventListener('click', async () => {
+  const adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
+  const html = '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">' +
+    '<img src="' + CHAT_URL + '/qr-chat.png" alt="QR code" width="150" height="150" style="border:1px solid var(--line);border-radius:10px;flex:none">' +
+    '<div style="min-width:200px;flex:1;font-size:14px;line-height:1.5">Scan the code with the phone\'s camera, or open <b>' + esc(CHAT_URL.replace('https://', '')) + '</b>.' +
+    '<ol style="margin:8px 0 0;padding-left:18px"><li>Android: <b>Install 24/7 Chat</b>. iPhone (Safari): <b>Share → Add to Home Screen</b>.</li>' +
+    '<li>Sign in with the <b>Time Clock email and password</b>.</li><li>Tap <b>Turn on alerts</b> and allow notifications.</li></ol></div></div>' +
+    (adm ? '<p style="margin:12px 0 0;font-size:13px;color:var(--text-muted)">Agents, supervisors and managers can use it. <b>Copy invitation</b> gives you a message ready to send them.</p>' : '');
+  if(!(await confirmar('24/7 Chat on your phone', html, adm ? 'Copy invitation' : 'Copy link', false))) return;
+  const txt = adm ? CHAT_INVITACION : CHAT_URL;
+  try{ await navigator.clipboard.writeText(txt); toast(adm ? 'Invitation copied. Paste it in a message or an Update.' : 'Link copied.'); }
+  catch(e){ toast('Couldn\'t copy. The address is ' + CHAT_URL.replace('https://', ''), 'err'); }
+});
 $('chatNotif').addEventListener('click', async () => { try{ await Notification.requestPermission(); }catch(e){} popPermiso(); pushActivar();
   if('Notification' in window && Notification.permission === 'granted') toast('Desktop alerts are on.'); });
 
@@ -12086,6 +12126,7 @@ function popIrChat(id){
   setTimeout(() => abrirChat(id), 150);
 }
 function popUpd(){
+  if(document.body.classList.contains('solochat-ag')) return;   // (v305) en la app de Chat no hay panel de Updates
   (S.updPend || []).slice(0, 3).forEach(u => popMostrar('upd|' + u.id, { icono:'<span class="pop-ic">' + IC_UPD + '</span>', titulo:'New update: ' + u.titulo,
     texto:updPlano(u.cuerpo).slice(0, 140), boton:'Read', abrir:() => popIrUpd(u.id) }));
   popTitulo();
