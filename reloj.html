@@ -8,7 +8,8 @@
 <!-- v294: Chat — notificaciones del sistema en el celular (Android/PWA) via service worker (showNotification + vibracion) y clic que abre la conversacion; antes usaba new Notification() que falla en movil -->
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
-<meta name="app-build" content="v298-202611101855">
+<!-- v299: Ausencias — ✗ roja para "Unauthorized absence"; dias con SOLO ausencia se aprueban (y bloquean); el agente no cancela lo del supervisor/sistema ni dias aprobados; Settings "Daily absence check" (Etapa 4, paso 129) -->
+<meta name="app-build" content="v299-202611111200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -669,6 +670,7 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .aus-mini{display:inline-block;font-size:9.5px;font-weight:700;padding:0 4px;border-radius:999px;background:#E8F2FB;color:#1D74B8;line-height:14px}
 .aus-mini.np{background:#FDEBEC;color:#C81F29}
 .celda.aus small{display:block;font-size:10px;font-weight:600;opacity:.8}
+.celda.aus .aus-ok{display:inline-flex;vertical-align:-2px;margin-left:3px;color:var(--brand-600)}.celda.aus .aus-ok svg{width:12px;height:12px}.celda.aus.ok{box-shadow:inset 0 0 0 2px var(--brand-50)}
 .ph tr.futuro td.phdia{color:var(--text-muted)}
 .ph tr.futuro td.sinhoras{color:#B8C4CC;text-align:center}
 .ph td.aus{white-space:nowrap}
@@ -2745,13 +2747,26 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
     <div class="ajuste" id="ajAutoSal">
       <h2>Automatic clock out</h2>
-      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. It runs once a night; use “Run now” for an immediate sweep (e.g. on payday, before closing the period).</p>
+      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. It runs once a night at the closing time (set in <b>Daily absence check</b>, below); use “Run now” for an immediate sweep (e.g. on payday, before closing the period).</p>
       <label class="chk-linea"><input type="checkbox" id="ajAuto"> Clock agents out automatically</label>
       <label class="aj-margen">Margin after their hours per day <input type="number" id="ajAutoMargen" min="0" max="240" step="5" inputmode="numeric"> min</label>
       <div class="ejemplo" id="ajAutoEjemplo"></div>
       <button class="btn btn-ink btn-sm" id="ajAutoGuardar" type="button">Save</button>
       <button class="btn btn-ghost btn-sm" id="ajAutoAhora" type="button" style="margin-left:6px">Run now</button>
       <span class="nota" id="ajAutoEstado" style="margin-left:8px"></span>
+    </div>
+    <div class="ajuste" id="ajAusDiaria">
+      <h2>Daily absence check</h2>
+      <p class="nota">Every night at the closing time, the Time Clock reviews the last few days. For each agent who was scheduled but worked less than their hours per day — or didn't clock in at all — it sends you a <b>time off request</b> for the missing time. You approve it choosing the type (for example <b>Unauthorized absence</b>) or deny it. It skips days with a pending request or an approved time off, and never checks the same day twice. Agents can't cancel these requests.</p>
+      <label class="chk-linea"><input type="checkbox" id="ajAusDia"> Check absences every night</label>
+      <label class="aj-margen">Check the last <input type="number" id="ajAusDias" min="1" max="31" step="1" inputmode="numeric"> days (today is never checked)</label>
+      <label class="aj-margen">Closing time <select id="ajCierreHora"></select> <span class="nota" style="margin:0">Orlando time · automatic clock out runs then too</span></label>
+      <div class="ejemplo" id="ajAusEjemplo"></div>
+      <button class="btn btn-ink btn-sm" id="ajAusGuardar" type="button">Save</button>
+      <button class="btn btn-ghost btn-sm" id="ajAusVer" type="button" style="margin-left:6px">Preview</button>
+      <button class="btn btn-ghost btn-sm" id="ajAusAhora" type="button" style="margin-left:6px">Run now</button>
+      <span class="nota" id="ajAusEstado" style="margin-left:8px"></span>
+      <div id="ajAusPrevia" style="margin-top:10px"></div>
     </div>
     </div>
     <div class="set-grupo sg-pay">
@@ -4009,7 +4024,7 @@ function construirHoja(raw, monDias, ahora){
       const _trab = d.incompleto ? 0 : d.min; tot.min += _trab;
       if(au && au.pagada) tot.minPto += ausTapada(Math.round(au.horas * 60), Math.round((emp.horasDia || 8) * 60), ap ? Math.round(Number(ap.horas) * 60) : _trab);
       if(m.length) tot.dias++;
-      if(ap){ tot.minAprob += Math.round(Number(ap.horas) * 60); tot.diasAprob++; }
+      if(ap){ tot.minAprob += Math.round(Number(ap.horas) * 60); if(m.length) tot.diasAprob++; }
       if(fl.some(b => b.n === 'alerta')) tot.alertas++;
     });
     return Object.assign({}, emp, { dias, totales:tot });
@@ -4059,6 +4074,14 @@ const SERVIDOR_EN = [
   [/^El orden de las marcas no es válido.*/, 'The punch order isn\'t valid: it must be clock in, lunch start, lunch end and clock out.'],
   [/^Un día pasado debe terminar con una salida\.$/, 'A past day must end with a clock-out.'],
   [/^El día (\d{4}-\d{2}-\d{2}) ya está aprobado\. .*$/, (x, f) => diaS(f) + ' is already approved, so it can\'t be changed. If something is wrong, ask your supervisor to remove the approval first.'],
+  [/^Esta solicitud la creó el sistema; la revisa tu supervisor\.$/, 'This request was created automatically; your supervisor will review it.'],
+  [/^Esta ausencia la registró tu supervisor; solo él puede quitarla\.$/, 'Your supervisor added this time off, so only they can remove it.'],
+  [/^Solo un administrador puede ver la revisión de ausencias\.$/, 'Only an administrator can see the absence check.'],
+  [/^Solo un administrador puede ejecutar la revisión de ausencias\.$/, 'Only an administrator can run the absence check.'],
+  [/^Los días a revisar deben estar entre 1 y 31\.$/, 'The days to check must be between 1 and 31.'],
+  [/^La hora de cierre debe estar entre 0 y 23\.$/, 'The closing time must be between 0 and 23.'],
+  [/^Falta indicar si la revisión de ausencias queda encendida\.$/, 'Choose whether the absence check is on.'],
+  [/^.*(reloj_guardar_eval_ausencias|reloj_ausencias_diarias_ahora).*$/, 'The daily absence check needs SQL step 129 in Supabase.'],
   [/^Escribe el usuario del portal\.$/, 'Enter the portal user.'],
   [/^Escribe el nombre\.$/, 'Enter the name.'],
   [/^El día aún no termina\.$/, 'The day isn\'t over yet.'],
@@ -4254,6 +4277,9 @@ const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
+    if(x.clave === 'auto_eval_ausencias') (S.ausDiaria = S.ausDiaria || {}).activo = x.valor === true || x.valor === 'true';   // (v299, paso 129)
+    if(x.clave === 'auto_eval_dias') (S.ausDiaria = S.ausDiaria || {}).dias = Number(x.valor) || 3;
+    if(x.clave === 'auto_cierre_hora') (S.ausDiaria = S.ausDiaria || {}).hora = x.valor == null ? 21 : Number(x.valor);
     if(x.clave === 'updates_cc' && x.valor && typeof x.valor === 'object') S.updCC = x.valor;
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
@@ -4704,7 +4730,10 @@ async function api(action, p){
   if(action === 'historialDia') return q(sb.rpc('reloj_historial_dia', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'antes') return q(sb.rpc('reloj_antes', { p_usuario:p.usuario, p_fecha:p.fecha }));
   if(action === 'guardarAutoSalida') return q(sb.rpc('reloj_guardar_auto_salida', { p_activo:p.activo, p_margen:p.margen }));   // (v92, paso 54)
-  if(action === 'autoSalidaAhora') return q(sb.rpc('reloj_auto_salida_ahora'));   // (v195, paso 85)
+  if(action === 'autoSalidaAhora') return q(sb.rpc('reloj_auto_salida_ahora'));
+  if(action === 'guardarEvalAus') return q(sb.rpc('reloj_guardar_eval_ausencias', { p_activo:p.activo, p_dias:p.dias, p_hora:p.hora }));   // (v299, paso 129)
+  if(action === 'ausDiariasPreview') return q(sb.rpc('reloj_ausencias_diarias_preview', { p_desde:p.desde, p_hasta:p.hasta }));
+  if(action === 'ausDiariasAhora') return q(sb.rpc('reloj_ausencias_diarias_ahora', { p_dias:p.dias == null ? null : p.dias }));   // (v195, paso 85)
   // (v93, paso 55) usuario de prueba: las filas las copia la base; los archivos, la página (como administrador)
   if(action === 'copiarAPrueba') return q(sb.rpc('reloj_copiar_a_prueba', { p_desde:p.desde, p_hacia:p.hacia }));
   if(action === 'pruebaEstado') return q(sb.rpc('reloj_prueba_estado', { p_usuario:p.usuario }));
@@ -5723,7 +5752,7 @@ function pintarHorario(){
       if(d.aus && d.aus.parcial) extra += evBadge(d.fecha, 'c-aus', (ausEtq(d.aus)), 'Time off ' + rango(d.aus.horaIni, d.aus.horaFin) + ' \u00b7 ' + (ausEtq(d.aus)) + (d.aus.pagada ? '' : ' (unpaid)')); }
     if(d.ped){ const _ok = d.ped.estado === 'aprobada'; extra += evBadge(d.fecha, _ok ? 'c-ok' : 'c-ped', _ok ? 'Shift \u2713' : 'Shift \u2026', 'Schedule change \u00b7 ' + (_ok ? 'Approved' : 'Pending approval') + (d.ped.permanente ? ' \u00b7 every ' + diaL(d.fecha) : '')); }
     const tieneEvento = d.ped || (d.aus && d.aus.parcial);
-    const lap = ausTotal ? '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + d.aus.id + '" data-dia="' + d.fecha + '" data-kind="aus" title="Cancel this time off" aria-label="Cancel this time off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>'
+    const lap = ausTotal ? (ausDelSupervisor(d.aus) ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed hor-x" data-cancel-sol="' + d.aus.id + '" data-dia="' + d.fecha + '" data-kind="aus" title="Cancel this time off" aria-label="Cancel this time off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td>')
       : (tieneEvento ? '<td class="ed"></td>'
       : (pasado ? '<td class="ed"></td>' : '<td class="ed"><button class="hor-ed" data-dia="' + d.fecha + '" title="Request a schedule change" aria-label="Request a schedule change"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></td>'));
     return '<tr class="' + cls.trim() + '"><td class="d"><span class="hor-dnom">' + esc(diaL(d.fecha) + ' ' + diaNum(d.fecha)) + '</span>' + (extra ? '<span class="hor-badges">' + extra + '</span>' : '') + '</td>' + cuerpo + lap + '</tr>';
@@ -6608,8 +6637,8 @@ async function aprobarPeriodo(si){
   const items = [], sinSalida = [], conHoy = [];
   let min = 0;
   l.forEach(e => h.fechas.forEach(f => {
-    const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length) return;
-    if(f >= h.hoy){ if(si && f === h.hoy) conHoy.push(e.nombre); return; }
+    const d = e.dias[f]; if(!d || ((!d.marcas || !d.marcas.length) && !d.ausencia)) return;   // (v299) solo-ausencia también
+    if(f >= h.hoy){ if(si && f === h.hoy && d.marcas && d.marcas.length) conHoy.push(e.nombre); return; }
     if(si){ if(d.incompleto && !d.aprobado){ sinSalida.push(e.nombre + ' · ' + diaS(f)); return; } items.push({ usuario:e.usuario, fecha:f }); min += d.min; }
     else if(d.aprobado){ items.push({ usuario:e.usuario, fecha:f }); min += Math.round(d.aprobado.horas * 60); }
   }));
@@ -6718,14 +6747,14 @@ function pintarHoja(){
       }
       if(!d.marcas.length && d.ausencia){
         const a = d.ausencia;
-        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
-          '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a)) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + '">' + CLASE_CORTA[a.clase] + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
+        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
+          '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + (d.aprobado ? ' · approved (locked)' : '')) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
+          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + ausCorta(a) + (d.aprobado ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const _ausCont = (d.ausencia && esParcial(d.ausencia)) ? ausTapada(minParcial(d.ausencia), Math.round((e.horasDia || 8) * 60), minPagoDia(d)) : 0;
-      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + CLASE_CORTA[d.ausencia.clase] + (_ausCont > 0 ? ' <small>' + hm(_ausCont) + ' h</small>' : '') + '</span>' : '') +
+      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + ausCorta(d.ausencia) + (_ausCont > 0 ? ' <small>' + hm(_ausCont) + ' h</small>' : '') + '</span>' : '') +
         (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? '<span class="auto-mini">AUTO</span>' : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
@@ -6755,7 +6784,7 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:#C81F29">\u2717</b> = unauthorized absence</span><span>Days with only time off can be approved too (that locks them)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 // (v232) Aprobar una FECHA para todos los empleados visibles. Incluye días con issues;
@@ -6766,9 +6795,11 @@ async function aprobarFecha(f){
   const lista = empsVisibles(), items = [], sinSalida = [], conAlerta = [];
   let min = 0, yaAp = 0;
   lista.forEach(e => { const d = e.dias[f];
-    if(!d || !d.marcas || !d.marcas.length) return;            // sin marcas o solo ausencia
+    if(!d) return;
+    const soloAus = !d.marcas || !d.marcas.length;
+    if(soloAus && !d.ausencia) return;                          // (v299) sin marcas ni ausencia: nada que aprobar
     if(d.aprobado){ yaAp++; return; }
-    if(d.incompleto || d.enCurso){ sinSalida.push(e.nombre); return; }   // falta la salida / aún abierto
+    if(!soloAus && (d.incompleto || d.enCurso)){ sinSalida.push(e.nombre); return; }   // falta la salida / aún abierto
     items.push({ usuario:e.usuario, fecha:f }); min += d.min;
     if(d.banderas && d.banderas.some(b => b.n === 'alerta')) conAlerta.push(e.nombre);
   });
@@ -6791,7 +6822,7 @@ function diasLimpios(){
   const out = [];
   empsVisibles().forEach(e => Object.keys(e.dias).forEach(f => {
     const d = e.dias[f];
-    if(f < S.hoja.hoy && !d.aprobado && !d.incompleto && d.marcas.length && !d.banderas.some(b => b.n === 'alerta' || b.n === 'aviso'))
+    if(f < S.hoja.hoy && !d.aprobado && !d.incompleto && (d.marcas.length || d.ausencia) && !d.banderas.some(b => b.n === 'alerta' || b.n === 'aviso'))
       out.push({ usuario:e.usuario, fecha:f });
   }));
   return out;
@@ -6857,6 +6888,7 @@ function vistaDia(){
   pie.push('<span class="esp"></span>');
   if(d.aprobado) pie.push('<button class="btn btn-ghost" id="dQuitar">Remove approval</button>');
   else if(fecha <= hoy && d.marcas.length && !d.incompleto && !d.enCurso) pie.push('<button class="btn btn-brand" id="dAprobar">Approve ' + dur(d.min) + '</button>');
+  else if(fecha < hoy && !d.marcas.length && d.ausencia) pie.push('<button class="btn btn-brand" id="dAprobar" title="Locks the day: the agent can\'t send requests for it">Approve day (time off)</button>');   // (v299)
   pie.push('<button class="btn btn-ink" data-cerrar>Close</button>');
   $('dPie').innerHTML = pie.join('');
   if($('dCorregir')) $('dCorregir').onclick = () => editarDia();
@@ -8352,6 +8384,7 @@ function pintarAjustes(){
   pintarPrueba();   // (v93)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
+  pintarAusDiaria();   // (v299)
 }
 // (v93) Usuario de prueba: copiarle los datos de un agente
 async function pintarPrueba(){
@@ -8477,6 +8510,67 @@ $('ajAutoAhora').addEventListener('click', async () => {
     $('ajAutoEstado').textContent = msg; toast(msg);
     if(S.vista === 'hoja'){ S.hoja = null; cargarHoja(); }
   }catch(e){ $('ajAutoEstado').textContent = e.message; }
+  b.disabled = false;
+});
+// (v299, paso 129) Revisión diaria de ausencias (Etapa 4): interruptor, ventana de días y hora de cierre.
+function horaTxt(hh){ return ((hh + 11) % 12 + 1) + ':00 ' + (hh < 12 ? 'AM' : 'PM'); }
+function pintarAusDiaria(){
+  const c = S.ausDiaria || {}, sel = $('ajCierreHora'); if(!sel) return;
+  if(!sel.options.length) sel.innerHTML = Array.from({ length:24 }, (_, hh) => '<option value="' + hh + '">' + horaTxt(hh) + '</option>').join('');
+  $('ajAusDia').checked = c.activo === true;
+  $('ajAusDias').value = c.dias != null ? c.dias : 3;
+  sel.value = String(c.hora != null && !isNaN(c.hora) ? c.hora : 21);
+  $('ajAusEstado').textContent = ''; $('ajAusPrevia').innerHTML = ''; ejemploAusDiaria();
+}
+function leerAusDiaria(){
+  const d = Math.round(Number($('ajAusDias').value)), hh = Number($('ajCierreHora').value);
+  return { activo:$('ajAusDia').checked, dias:d, hora:hh, ok:$('ajAusDias').value !== '' && d >= 1 && d <= 31 && hh >= 0 && hh <= 23 };
+}
+function ejemploAusDiaria(){
+  const c = leerAusDiaria(), hr = isNaN(c.hora) ? '' : horaTxt(c.hora);
+  $('ajAusEjemplo').innerHTML = !c.ok ? 'The days to check must be between 1 and 31.'
+    : !c.activo ? 'Off: no requests are created automatically. Automatic clock out still runs at <b>' + esc(hr) + '</b>.'
+    : 'Every night at <b>' + esc(hr) + '</b> it checks the <b>' + c.dias + (c.dias === 1 ? ' day' : ' days') + '</b> before. A day that falls out of that window is no longer checked, so keep it at 3–5 days.';
+}
+$('ajAusDia').addEventListener('change', () => { ejemploAusDiaria(); $('ajAusEstado').textContent = ''; });
+$('ajAusDias').addEventListener('input', () => { ejemploAusDiaria(); $('ajAusEstado').textContent = ''; });
+$('ajCierreHora').addEventListener('change', () => { ejemploAusDiaria(); $('ajAusEstado').textContent = ''; });
+$('ajAusGuardar').addEventListener('click', async () => {
+  const c = leerAusDiaria(), b = $('ajAusGuardar');
+  if(!c.ok){ $('ajAusEstado').textContent = 'The days to check must be between 1 and 31.'; return; }
+  b.disabled = true;
+  try{
+    await api('guardarEvalAus', { activo:c.activo, dias:c.dias, hora:c.hora });
+    S.ausDiaria = { activo:c.activo, dias:c.dias, hora:c.hora }; ejemploAusDiaria();
+    $('ajAusEstado').textContent = c.activo ? 'Saved. The absence check runs every night at ' + horaTxt(c.hora) + '.' : 'Saved. The absence check is off.'; toast('Settings saved.');
+  }catch(e){ $('ajAusEstado').textContent = e.message; }
+  b.disabled = false;
+});
+// Vista previa: qué requests crearía ahora mismo (no crea nada).
+$('ajAusVer').addEventListener('click', async () => {
+  const c = leerAusDiaria(); if(!c.ok){ $('ajAusEstado').textContent = 'The days to check must be between 1 and 31.'; return; }
+  const hoy = fechaHoy(), desde = sumarDias(hoy, -c.dias), hasta = sumarDias(hoy, -1), b = $('ajAusVer'), box = $('ajAusPrevia');
+  b.disabled = true; box.innerHTML = '<p class="nota"><span class="spin dark"></span> Checking…</p>';
+  try{
+    const l = (await api('ausDiariasPreview', { desde, hasta })) || [];
+    const n = l.reduce((x, r) => x + Number(r.dias || 0), 0), td = 'style="padding:4px 10px 4px 0;border-bottom:1px solid var(--line,#e5e7eb)"';
+    box.innerHTML = !l.length ? '<p class="nota">Nothing to send: from ' + esc(diaS(desde)) + ' to ' + esc(diaS(hasta)) + ' everyone scheduled worked their hours, or already has a request or time off.</p>'
+      : '<p class="nota" style="margin:0 0 6px">From ' + esc(diaS(desde)) + ' to ' + esc(diaS(hasta)) + ' it would send <b>' + n + (n === 1 ? ' request' : ' requests') + '</b>. This preview doesn\'t create anything.</p>' +
+        '<table style="border-collapse:collapse;font-size:13px"><thead><tr><th ' + td + ' align="left">Employee</th><th ' + td + '>Full days</th><th ' + td + '>Partial days</th><th ' + td + ' align="right">Missing</th></tr></thead><tbody>' +
+        l.map(r => '<tr><td ' + td + '>' + esc(r.nombre) + '</td><td ' + td + ' align="center">' + (r.completos || 0) + '</td><td ' + td + ' align="center">' + (r.parciales || 0) + '</td><td ' + td + ' align="right">' + hm(Math.round(Number(r.horas) * 60)) + ' h</td></tr>').join('') + '</tbody></table>';
+  }catch(e){ box.innerHTML = '<p class="nota err">' + esc(e.message) + '</p>'; }
+  b.disabled = false;
+});
+$('ajAusAhora').addEventListener('click', async () => {
+  const c = leerAusDiaria(); if(!c.ok){ $('ajAusEstado').textContent = 'The days to check must be between 1 and 31.'; return; }
+  if(!(await confirmar('Run the absence check now?', 'Creates a time off request for every scheduled day in the last <b>' + c.dias + (c.dias === 1 ? ' day' : ' days') + '</b> (not today) where an agent worked less than their hours per day or didn\'t clock in. You\'ll review them in Requests. Days already checked, with a pending request or with time off are skipped.', 'Run it', false))) return;
+  const b = $('ajAusAhora'); b.disabled = true; $('ajAusEstado').textContent = '';
+  try{
+    const r = await api('ausDiariasAhora', { dias:c.dias });
+    const n = (r && r.generadas) || 0;
+    const msg = n ? 'Created ' + n + (n === 1 ? ' request.' : ' requests.') + ' Review them in Requests.' : 'No new requests: nothing missing in those days.';
+    $('ajAusEstado').textContent = msg; toast(msg); $('ajAusPrevia').innerHTML = '';
+  }catch(e){ $('ajAusEstado').textContent = e.message; }
   b.disabled = false;
 });
 $('ajUbicGuardar').addEventListener('click', async () => {
@@ -9025,6 +9119,14 @@ const SOL_AYUDA = { turno:'For time you worked but didn\'t clock. Once approved,
                     horario:'Change your work hours. The administrator approves it and the Monitor updates your schedule.' };
 const CLASE_TXT = { vacaciones:'Vacation', enfermedad:'Sick', personal:'Personal', otro:'Other' };
 const CLASE_CORTA = { vacaciones:'VAC', enfermedad:'SICK', personal:'PERS', otro:'OFF' };
+// (v299) Conceptos que solo pone el supervisor (Etapa 2). El agente no los puede cancelar (paso 129).
+function ausDelSupervisor(z){ if(!z) return false; const id = z.conceptoId || z.concepto_id, n = z.conceptoNombre || z.concepto_nombre;
+  return id === 'aus_no_autorizada' || id === 'aus_autorizada' || n === 'Unauthorized absence' || n === 'Authorized absence'; }
+function ausNoAutorizada(z){ if(!z) return false; return (z.conceptoId || z.concepto_id) === 'aus_no_autorizada' || (z.conceptoNombre || z.concepto_nombre) === 'Unauthorized absence'; }
+// (v299) Código corto en celdas y etiquetas: la "Unauthorized absence" se ve como ✗; el resto, VAC/SICK/PERS/OFF.
+// (v299) Lo que el agente NO puede cancelar (el servidor lo exige igual, paso 129).
+function solBloqueada(s){ return !!s && (ausDelSupervisor(s) || ['auto-diario', 'monitor', 'barrido'].indexOf(s.origen) >= 0); }
+function ausCorta(z){ if(!z) return ''; return ausNoAutorizada(z) ? '✗' : (CLASE_CORTA[z.clase] || 'OFF'); }
 // Etiqueta de una ausencia: el nombre del concepto del snapshot, o la categoría como respaldo.
 function ausEtq(z, def){ if(!z) return def || 'Off'; return z.conceptoNombre || z.concepto_nombre || CLASE_TXT[z.clase] || (def || 'Off'); }
 const SOL_ESTADO = { pendiente:'Pending', aprobada:'Approved', rechazada:'Denied', cancelada:'Canceled' };
@@ -9036,7 +9138,7 @@ const SOL_IC = {
   horario:'<span class="sol-ic ic-horario"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="14.5" r="3"/><path d="M12 13v1.8l1.3.8"/></svg></span>'
 };
 const solJS = r => ({ id:r.id, usuario:r.usuario, tipo:r.tipo, fecha:r.fecha, fechaFin:r.fecha_fin, horaIni:r.hora_ini, horaFin:r.hora_fin,
-  clase:r.clase, conceptoNombre:r.concepto_nombre || null, motivo:r.motivo, estado:r.estado, pagada:r.pagada, horasDia:r.horas_dia == null ? null : Number(r.horas_dia),
+  clase:r.clase, conceptoNombre:r.concepto_nombre || null, conceptoId:r.concepto_id || null, origen:r.origen || null, motivo:r.motivo, estado:r.estado, pagada:r.pagada, horasDia:r.horas_dia == null ? null : Number(r.horas_dia),
   almIni:r.alm_ini || null, almFin:r.alm_fin || null, marcas:r.marcas || null, marcasAntes:r.marcas_antes || null, respuesta:r.respuesta || '', editada:r.editada === true, marcasAprobadas:r.marcas_aprobadas || null, creada:Date.parse(r.creada_en), decididaPor:r.decidida_por, decidida:r.decidida_en ? Date.parse(r.decidida_en) : null,
   permanente:r.permanente === true, diaSemana:r.dia_semana == null ? null : Number(r.dia_semana) });
 function h12(x){ if(!x) return ''; const [h, m] = x.split(':').map(Number); return ((h + 11) % 12 + 1) + ':' + String(m).padStart(2,'0') + (h < 12 ? ' AM' : ' PM'); }
@@ -12122,7 +12224,7 @@ function pintarMias(){
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? '<div class="t3">' + (s.pagada ? 'Paid · ' + s.horasDia + ' h/day' : 'Unpaid') + '</div>' : '') +
       (s.estado === 'aprobada' && s.editada ? '<div class="t3" style="color:var(--brand-600,#2563eb);font-weight:600">✎ Adjusted to: ' + (s.marcasAprobadas ? esc(marcasTxt(s.marcasAprobadas)) : 'adjusted times') + '</div>' : '') +
       (s.respuesta ? '<div class="t3">Answer: “' + esc(s.respuesta) + '”</div>' : '') + '</div>' +
-      '<div class="acc">' + ((s.estado === 'pendiente' || s.estado === 'aprobada') ? '<button class="btn btn-ghost btn-sm" data-cancelar="' + s.id + '"' + (s.estado === 'aprobada' ? ' data-aprob="1"' : '') + '>Cancel</button>' : '') + '</div></div>').join('')
+      '<div class="acc">' + ((s.estado === 'pendiente' || s.estado === 'aprobada') ? (solBloqueada(s) ? '<span class="nota" style="margin:0" title="Only your supervisor can change it">' + (s.origen === 'auto-diario' ? 'Automatic' : 'Set by your supervisor') + '</span>' : '<button class="btn btn-ghost btn-sm" data-cancelar="' + s.id + '"' + (s.estado === 'aprobada' ? ' data-aprob="1"' : '') + '>Cancel</button>') : '') + '</div></div>').join('')
     : '<div class="vacio" style="padding:24px">You haven\'t sent any requests yet.</div>';
   $('miasLista').querySelectorAll('[data-cancelar]').forEach(b => b.addEventListener('click', async () => {
     if(b.dataset.aprob && b.dataset.armado !== '1'){ b.dataset.armado = '1'; b.dataset.txt = b.textContent; b.textContent = 'Confirm cancel'; setTimeout(() => { if(b.dataset.armado === '1'){ b.dataset.armado = ''; b.textContent = b.dataset.txt || 'Cancel'; } }, 4000); return; }
@@ -12567,14 +12669,14 @@ function abrirPeriodo(usuario){
   // Celda «Time off»: la ausencia del día (con × para quitarla) o «+ Time off» para anotar una.
   const ausTd = (f, d) => {
     const a = d && d.ausencia;
-    if(a) return '<td class="aus"><span class="tag' + (a.pagada ? '' : ' np') + '" title="' + esc(ausEtq(a) + ' · ' + pagoTxt(a)) + '">' + CLASE_CORTA[a.clase] + '</span>' +
+    if(a) return '<td class="aus"><span class="tag' + (a.pagada ? '' : ' np') + '" title="' + esc(ausEtq(a) + ' · ' + pagoTxt(a)) + '">' + ausCorta(a) + '</span>' +
       '<span class="nota" style="margin:0">' + (esParcial(a) ? esc(franjaTxt(a)) + ' · ' : '') + (a.pagada ? (esParcial(a) ? hm(Math.round(a.horas * 60)) : a.horas) + ' h' : 'unpaid') + '</span>' +
       (a.id != null ? '<button class="q" type="button" data-quitar-aus="' + a.id + '" data-f="' + f + '" title="Remove this time off" aria-label="Remove time off ' + esc(diaS(f)) + '">×</button>' : '') + '</td>';
     return '<td class="aus"><button class="btn-link mas" type="button" data-aus="' + f + '">+ Time off</button></td>';
   };
   h.fechas.forEach(f => {
     const d = e.dias[f], marcas = d && d.marcas ? d.marcas : [], futuro = f > h.hoy, finde = [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
-    const tags = (d && d.aprobado ? '<span class="tag ok">✓</span>' : '') + (d && d.ausencia ? '<span class="tag">' + CLASE_CORTA[d.ausencia.clase] + '</span>' : '');
+    const tags = (d && d.aprobado ? '<span class="tag ok">✓</span>' : '') + (d && d.ausencia ? '<span class="tag">' + ausCorta(d.ausencia) + '</span>' : '');
     const diaTd = '<td class="phdia' + (finde ? ' fin' : '') + '">' + esc(diaS(f).replace(/,.*$/, '')) + ' ' + diaN(f) + tags + '</td>';
     if(futuro){
       t += '<tr class="futuro" data-fut="' + f + '">' + diaTd + '<td class="sinhoras" colspan="4" title="Future day: only time off can be added">—</td><td class="hrs num"></td><td></td>' + ausTd(f, d) + '</tr>';
@@ -14470,7 +14572,7 @@ async function demoApi(action, p){
         const dias = {}, tot = { min:0, minAprob:0, minPto:0, dias:0, diasAprob:0, diasAus:0, alertas:0 };
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
-          const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, horaIni:au.horaIni || null, horaFin:au.horaFin || null, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor } : null;
+          const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, horaIni:au.horaIni || null, horaFin:au.horaFin || null, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor, conceptoNombre:au.conceptoNombre || null, conceptoId:au.conceptoId || null } : null;
           if(!DM.marcas[e.usuario + '|' + f] && !aus) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
           if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += ausTapada(Math.round(aus.horas * 60), Math.round((e.horasDia || 8) * 60), d.marcas.length ? d.min : 0); }
           if(!d.marcas.length) return;
@@ -14556,6 +14658,9 @@ async function demoApi(action, p){
     return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias, ausAnio }; }
   if(action === 'pendientes') return DM.sols.filter(s => s.estado === 'pendiente').length;
   if(action === 'autoSalidaAhora') return { ok:true, activo:true, hechos:[] };
+  if(action === 'guardarEvalAus'){ S.ausDiaria = { activo:!!p.activo, dias:p.dias, hora:p.hora }; return { ok:true }; }   // (v299)
+  if(action === 'ausDiariasPreview') return [];
+  if(action === 'ausDiariasAhora') return { ok:true, generadas:0 };
   if(action === 'ausenciaAdmin'){
     const a = p.aus, ff = a.fechaFin || a.fecha;
     if(!a.clase) throw new Error('Choose the absence type.');
