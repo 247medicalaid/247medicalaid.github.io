@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v311-202611120830">
+<meta name="app-build" content="v312-202611121200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -902,6 +902,22 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 #vAjustes .aj-b-desc:hover{background:#0D3247}
 #vAjustes .aj-b-guardar{background:var(--brand-500);color:var(--ink-900);border:0;font-weight:800}
 #vAjustes .aj-b-guardar:hover{filter:brightness(1.06)}
+/* Connections (v312) */
+#vAjustes .cx-efectos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 20px 14px}
+#vAjustes .cx-ef{border:1px solid var(--aj-sep);border-radius:10px;padding:10px 14px;background:var(--aj-suave);font-size:13px;color:var(--text-muted)}
+#vAjustes .cx-ef > b{display:block;color:var(--text);font-size:13px;margin-bottom:4px}
+#vAjustes .cx-ef li b{color:var(--text)}
+#vAjustes .cx-ef ul{margin:0;padding-left:18px}
+#vAjustes .cx-ef li{margin:3px 0;line-height:1.4}
+#vAjustes .cx-pend{border:1px solid #F2C46D;background:#FFF7E6;border-radius:10px;padding:10px 14px;margin:0 20px 14px;font-size:13px}
+#vAjustes .cx-pend.hidden{display:none}
+#vAjustes .cx-pend-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#vAjustes .cx-pend-cab b{flex:1;color:#7A4B00}
+#vAjustes .cx-pend ul{margin:8px 0 0;padding-left:18px;color:var(--text)}
+#vAjustes .cx-pend li{margin:2px 0}
+#vAjustes .cx-lock{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:#EDF1F4;border-radius:99px;padding:4px 10px;white-space:nowrap}
+body.sin-monitor .tab[data-v="mon"], body.sin-monitor .campo-mon, body.sin-monitor #ivSync, body.sin-monitor #ajMonSyncBox .aj-ct2, body.sin-monitor #ajMonSyncBox .aj-ct2 + .aj-filas{display:none!important}
+@media (max-width:700px){ #vAjustes .cx-efectos{grid-template-columns:1fr;margin-left:16px;margin-right:16px} #vAjustes .cx-pend{margin-left:16px;margin-right:16px} }
 /* cuentas (v307) */
 #vAjustes .cta-cuerpo{padding-top:4px}
 #vAjustes .cta-herr{display:flex;align-items:center;gap:12px;margin:6px 0 8px}
@@ -3092,14 +3108,26 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           </div>
         </div>
 
-        <!-- MORE · Integrations -->
+        <!-- MORE · Connections (v312: antes Integrations) -->
         <div class="aj-pag" data-pag="integ">
           <div class="ajuste aj-card" id="ajMonSyncBox" data-guardar="ajMonGuardar">
             <div class="aj-ct"><h2>Agent Monitor</h2><span class="aj-pill" id="ajPillMon"></span></div>
-            <p class="aj-desc">Connects the Monitor (activity of each computer) with the Time Clock. Turn it off to use the Time Clock without the Monitor.</p>
+            <p class="aj-desc">The Monitor tracks the activity of each computer. Connected, it checks the hours people clock and shares schedules, time off and authorizations with the Time Clock. Turning it off is real: it applies to everyone.</p>
             <div class="aj-filas">
-              <div class="aj-fila"><label class="aj-fl" for="ajMonSync"><b>Send the Monitor&rsquo;s authorizations to the Time Clock</b><span>Time off you authorize in the Monitor (vacation, sick, permission, technical issue, unauthorized absence&hellip;) arrives here as a <b>time off request</b> for you to approve.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonSync" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMonSync"><b>Connect the Agent Monitor</b><span>Off = the Time Clock works on its own, the way the product works without the Monitor.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonSync" role="switch"></div></div>
             </div>
+            <div class="cx-efectos">
+              <div class="cx-ef"><b>While it&rsquo;s off</b><ul>
+                <li>The Monitor tab, the PC alerts in Daily and Timesheet and the Monitor fields in Users are hidden.</li>
+                <li>Nothing travels between the two: no schedules or time off to the Monitor, no authorizations back.</li>
+                <li>The Monitor panel becomes read only. The computers keep sending their activity; nothing is lost.</li>
+                <li>Renaming, moving or archiving a linked person is saved here and waits for the Monitor.</li></ul></div>
+              <div class="cx-ef"><b>When you turn it back on</b><ul>
+                <li>Within 5 minutes, schedules and time off approved meanwhile go to the Monitor on their own.</li>
+                <li>Authorizations entered in the Monitor before it was turned off become Requests here, as always.</li>
+                <li>The changes that were waiting are sent with <b>Send now</b> below.</li></ul></div>
+            </div>
+            <div class="cx-pend hidden" id="ajMonPend"></div>
             <div class="aj-ct aj-ct2"><h2>Paid by default when it comes from the Monitor</h2></div>
             <div class="aj-filas">
               <div class="aj-fila"><label class="aj-fl" for="ajMonPagoVac"><b>Vacation</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoVac" role="switch"></div></div>
@@ -3107,6 +3135,27 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
               <div class="aj-fila"><label class="aj-fl" for="ajMonPagoPers"><b>Personal</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoPers" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMonGuardar" type="button">Save</button><span class="nota" id="ajMonEstado"></span></div>
+          </div>
+
+          <div class="ajuste aj-card" id="ajConxBox" data-guardar="ajConxGuardar">
+            <div class="aj-ct"><h2>Your other apps</h2><span class="aj-pill" id="ajPillConx"></span></div>
+            <p class="aj-desc">Links with apps that only 24/7 Medical Aid uses. Turn them off to see the Time Clock as the product will work without them. Nothing is deleted.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajConxNomCol"><b>Account colors from the Payroll app</b><span>If an account has no color in Accounts, use its color from N&oacute;mina. Off = only the colors set in Accounts.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajConxNomCol" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajConxComp"><b>Pay stubs from the PayStub Center</b><span>Comprobantes can send each pay stub to the person&rsquo;s Documents &rarr; Paystubs. Off = only the Pay run sends them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajConxComp" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajConxGuardar" type="button">Save</button><span class="nota" id="ajConxEstado"></span></div>
+          </div>
+
+          <div class="ajuste aj-card" id="ajConxFijas">
+            <div class="aj-ct"><h2>Always on for 24/7</h2><span class="aj-pill">Outside the Time Clock</span></div>
+            <p class="aj-desc">These run outside the Time Clock and can&rsquo;t be turned off from here. In the product each one is replaced.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><span class="aj-fl"><b>Admin sign-in through the portal</b><span>Product: admins sign in with their email, like everyone else.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
+              <div class="aj-fila"><span class="aj-fl"><b>Nightly backup to Google Drive</b><span>Product: encrypted backup for each company.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
+              <div class="aj-fila"><span class="aj-fl"><b>The Payroll app reads the account names</b><span>N&oacute;mina doesn&rsquo;t go into the product.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
+              <div class="aj-fila"><span class="aj-fl"><b>The Monitor installs the Windows app</b><span>Product: its own signed installer.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
+            </div>
           </div>
         </div>
 
@@ -4037,6 +4086,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
     const mo = (marcas.find(m => /^Connecteam: /.test(m.motivo || '')) || {}).motivo;
     f.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam' + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
   }
+  if(!monOn()) return f;   // (v312) Monitor apagado: sin verificación de PC
   if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' }); return f; }
   if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Checking against the Monitor…' }); return f; }
   if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'Monitor verification isn\'t set up in this browser.' }); return f; }
@@ -4080,7 +4130,8 @@ async function cargarColores(){
   S.coloresCargando = (async () => {
     await null;   // que la asignación de arriba ocurra antes de soltar el candado
     let l = [];
-    if(DEMO) l = DEMO_COLORES;
+    if(!conx('nomina_colores')) l = [];   // (v312) conexión con Nómina apagada
+    else if(DEMO) l = DEMO_COLORES;
     else try{ const r = await q(sb.from('nomina_docs').select('datos').eq('tipo', 'config').eq('clave', '_').maybeSingle());
       let d = r && r.datos; if(typeof d === 'string') d = JSON.parse(d); l = (d && d.cuentas) || []; }catch(x){ l = []; }
     S.coloresN = l.filter(c => c && c.nombre && /^#[0-9a-f]{3,6}$/i.test(String(c.color || ''))).map(c => ({ k:normCuenta(c.nombre), p:palabrasCuenta(c.nombre), color:c.color }));
@@ -4497,6 +4548,9 @@ const SERVIDOR_EN = [
   [/^Cuenta de pago no válida\.$/, 'Invalid "paid from" option.'],
   [/^Valores de pago no válidos\.$/, 'Invalid payment values.'],
   [/^Reglas de pago no válidas\.$/, 'Invalid pay run rules.'],
+  [/^Solo un administrador puede (cambiar las conexiones|guardar cambios para el Monitor|cambiar los pendientes del Monitor)\.$/, 'Only an administrator can change connections.'],
+  [/demasiados cambios pendientes para el Monitor/, 'There are too many changes waiting for the Monitor. Turn it on and send them first.'],
+  [/reloj_guardar_conexiones|reloj_monitor_pendiente/, 'Connections need SQL step 133 in Supabase.'],
   [/reloj_nomina_importar|p_motivo/, 'Importing past pay runs needs SQL step 34 in Supabase.'],
   [/reloj_nominas|reloj_nomina_guardar|reloj_pago_defaults|pago_cuenta/, 'The Pay run needs SQL step 33 in Supabase.'],
   [/^El día (\d{4}-\d{2}-\d{2}) está aprobado\. Quita la aprobación para cambiarlo\.$/, (x, f) => diaS(f) + ' is approved, so it\'s locked. Remove the approval to change it.'],
@@ -4575,9 +4629,12 @@ async function cargarConfig(){
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
     if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
+    if(x.clave === 'conexiones' && x.valor && typeof x.valor === 'object') S.conexiones = x.valor;   // (v312)
+    if(x.clave === 'monitor_pendientes') S.monPend = Array.isArray(x.valor) ? x.valor : [];
     if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
     if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
     if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; }); }catch(e){}
+  try{ aplicarConexiones(); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -5044,6 +5101,9 @@ async function api(action, p){
   }
   if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
+  if(action === 'guardarConexiones') return q(sb.rpc('reloj_guardar_conexiones', { p:p.valor }));   // (v312, paso 133)
+  if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
+  if(action === 'monPendQuitar') return q(sb.rpc('reloj_monitor_pendientes_quitar', { p_ids:p.ids }));
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
   if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
@@ -5169,7 +5229,7 @@ async function empleadosSB(){
   await sesionSB();
   const [emps, perfiles, , monSB, mgrRows, reportaRows, monitRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
     q(sb.from('perfiles').select('usuario,nombre,activo,rol,invitado_en,activado_en')).catch(() => q(sb.from('perfiles').select('usuario,nombre,activo,rol'))), cargarConfig(),
-    monitorSB().catch(() => null),
+    (monOn() ? monitorSB().catch(() => null) : Promise.resolve(null)),
     q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => []),
     q(sb.from('reloj_reporta').select('usuario,jefe')).catch(() => []),
     q(sb.from('reloj_upd_monitorea').select('usuario,cuentas')).catch(() => [])]);
@@ -5211,6 +5271,7 @@ function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = lo
 function monGuardados(){ try{ return JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){ return {}; } }
 const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
 function monDisponible(fechas){
+  if(!monOn()) return {};   // (v312)
   const cfg = monCfg(), g = monGuardados(), hoy = fechaHoy(), r = {};
   fechas.forEach(f => {
     if(f > hoy) return;
@@ -5221,6 +5282,7 @@ function monDisponible(fechas){
   return r;
 }
 async function monPedir(fechas, alTerminar){
+  if(!monOn()) return;   // (v312)
   const cfg = monCfg(); if(!cfg) return;
   const hoy = fechaHoy(), g = monGuardados();
   const faltan = fechas.filter(f => f <= hoy && !MON.vuelo[f] &&
@@ -5932,6 +5994,7 @@ function abrirWeb(){
 })();
 
 function irA(v){
+  if(v === 'mon' && typeof monOn === 'function' && !monOn()) v = 'hoy';   // (v312) Monitor apagado
   if(S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio &&
      !confirm('You have unsaved changes in the Pay run. Leave without saving? Your changes will be lost.')) return;
   if(S.vista === 'ajustes' && v !== 'ajustes' && typeof AJ !== 'undefined' && AJ.sucios.size &&
@@ -6683,15 +6746,15 @@ const COLS_HOY = [
   { k:'depto', t:'Department', def:false, h:x => x.e.departamento ? esc(x.e.departamento) : vacioC },
   { k:'ausencia', t:'Time off', def:false, h:x => { const a = x.d && x.d.ausencia; if(!a) return vacioC;
       return esc(ausEtq(a)) + (esParcial(a) ? ' · ' + esc(franjaTxt(a)) : '') + (a.pagada ? '' : ' · unpaid'); } },
-  { k:'ausN', t:'# Absences', def:true, num:true, cls:'c-ausn', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span class="aus-n" title="PC absences of ' + CFG.AUSENCIA_MIN + '+ min during the clocked shift">' + b.nAus + '</span>' : vacioC; } },
-  { k:'ausMin', t:'T. Time Absences', def:true, num:true, cls:'c-ausmin', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span title="Total PC absence time during the clocked shift">' + b.min + ' min</span>' : vacioC; } },
+  { k:'ausN', t:'# Absences', mon:true, def:true, num:true, cls:'c-ausn', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span class="aus-n" title="PC absences of ' + CFG.AUSENCIA_MIN + '+ min during the clocked shift">' + b.nAus + '</span>' : vacioC; } },
+  { k:'ausMin', t:'T. Time Absences', mon:true, def:true, num:true, cls:'c-ausmin', h:x => { const b = x.fl.find(y => y.c === 'PC_AUSENCIAS'); return b ? '<span title="Total PC absence time during the clocked shift">' + b.min + ' min</span>' : vacioC; } },
   { k:'alertas', t:'General Alerts', def:true, cls:'c-al', h:x => { const l = x.fl.filter(b => b.n !== 'info' && b.c !== 'PC_AUSENCIAS'); return l.length ? l.map(b => '<span>' + icono(b.n) + esc(b.t) + '</span>').join('') : vacioC; } }
 ];
 const COLS_HOY_CLAVE = 'reloj_hoy_cols_v2';
 function colsHoy(){
   let g = null; try{ g = JSON.parse(localStorage.getItem(COLS_HOY_CLAVE) || 'null'); }catch(e){}
   const v = new Set(Array.isArray(g) ? g : COLS_HOY.filter(c => c.def).map(c => c.k));
-  return COLS_HOY.filter(c => v.has(c.k));
+  return COLS_HOY.filter(c => v.has(c.k) && (!c.mon || monOn()));
 }
 function guardarColsHoy(lista){ try{ localStorage.setItem(COLS_HOY_CLAVE, JSON.stringify(lista)); }catch(e){} }
 function pintarColsHoy(){
@@ -6700,7 +6763,7 @@ function pintarColsHoy(){
   caja.innerHTML = '<button type="button" id="hoyColsBtn" aria-haspopup="true" aria-expanded="' + abierto + '">' + IC_COLS + 'Columns</button>' +
     (abierto ? '<div class="hoy-cols-menu" role="menu"><div class="tit">Show columns</div>' +
       '<label class="fijo"><input type="checkbox" checked disabled> Name</label>' +
-      COLS_HOY.map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (vis.has(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('') +
+      COLS_HOY.filter(c => !c.mon || monOn()).map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (vis.has(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('') +
       '<div class="pie-cols"><button class="btn-link" type="button" id="hoyAnchosDef">Reset column widths</button><span class="esp" style="flex:1"></span>' +
       '<button class="btn-link" type="button" id="hoyColsDef">Reset to default</button></div></div>' : '');
   $('hoyColsBtn').addEventListener('click', ev => { ev.stopPropagation();
@@ -7662,6 +7725,7 @@ function monDueno(agente, excepto){
   return S.emps.empleados.find(x => x.activo && x.usuario !== excepto && monClave(x.agenteMonitor) === k) || null;
 }
 function monDupPill(e){
+  if(!monOn()) return '';   // (v312)
   const o = e.activo ? monDueno(e.agenteMonitor, e.usuario) : null;
   return o ? ' <span class="pill dup-mon" title="' + esc(e.nombre) + ' and ' + esc(o.nombre) + ' are linked to the same Monitor agent (' + esc(e.agenteMonitor) + '). Each agent can be linked to only one user: open the user to fix it.">Same Monitor as ' + esc(o.nombre) + '</span>' : '';
 }
@@ -7732,7 +7796,7 @@ function tcvHTML(e){
 const UGRUPOS = { cuenta:{ t:'Account', v:e => e.cuenta, vacio:'No account' }, titulo:{ t:'Title', v:e => e.titulo, vacio:'No title' }, ciudad:{ t:'City', v:e => e.ciudad, vacio:'No city' } };
 function uPref(k, def){ try{ const v = JSON.parse(localStorage.getItem('reloj_users_' + k)); return v == null ? def : v; }catch(e){ return def; } }
 function uGuardarPref(k, v){ try{ localStorage.setItem('reloj_users_' + k, JSON.stringify(v)); }catch(e){} }
-function uColsVer(){ const c = uPref('cols', UCOLS_BASE); return Array.isArray(c) ? UCOLS.filter(x => c.includes(x.k)) : UCOLS.filter(x => UCOLS_BASE.includes(x.k)); }
+function uColsVer(){ const c = uPref('cols', UCOLS_BASE); return (Array.isArray(c) ? UCOLS.filter(x => c.includes(x.k)) : UCOLS.filter(x => UCOLS_BASE.includes(x.k))).filter(x => x.k !== 'monitor' || monOn()); }
 // grupos: por clave normalizada; el nombre que se muestra es la forma más común
 function uGrupos(l, por){
   const g = UGRUPOS[por], m = new Map();
@@ -7793,7 +7857,7 @@ $('empsTabla').addEventListener('click', ev => {
 // columnas: el panel con casillas
 function pintarUCols(){
   const ver = uColsVer().map(c => c.k);
-  $('uColsLista').innerHTML = UCOLS.map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (ver.includes(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('');
+  $('uColsLista').innerHTML = UCOLS.filter(c => c.k !== 'monitor' || monOn()).map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (ver.includes(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('');
   $('uCols').textContent = 'Columns (' + ver.length + ')';
 }
 $('uCols').addEventListener('click', ev => { ev.stopPropagation(); const p = $('uColsPanel'), abre = p.classList.contains('hidden'); p.classList.toggle('hidden', !abre); $('uCols').setAttribute('aria-expanded', abre); });
@@ -7877,7 +7941,7 @@ const PUSH_CLAVE = 'reloj_mon_push_v1', PUSH_VIGENCIA = 15 * 60000;
 function pushesMon(){ try{ const o = JSON.parse(localStorage.getItem(PUSH_CLAVE) || '{}'), r = {}; Object.keys(o).forEach(k => { if(Date.now() - o[k].en < PUSH_VIGENCIA) r[k] = o[k]; }); return r; }catch(e){ return {}; } }
 function recordarPush(agente, cuenta){ try{ const o = pushesMon(); o[agente.toLowerCase()] = { cuenta, en:Date.now() }; localStorage.setItem(PUSH_CLAVE, JSON.stringify(o)); }catch(e){} }
 function aplicarPushes(lista){ const o = pushesMon(); (lista || []).forEach(m => { const x = o[String(m.agente).toLowerCase()]; if(x) m.cuenta = x.cuenta; }); return lista; }
-function monAgente(nombre){ return nombre && S.emps && S.emps.monitor ? S.emps.monitor.find(m => mismaCuenta(m.agente, nombre)) || null : null; }
+function monAgente(nombre){ return monOn() && nombre && S.emps && S.emps.monitor ? S.emps.monitor.find(m => mismaCuenta(m.agente, nombre)) || null : null; }
 async function monitorSB(){
   if(DEMO) return { agentes:aplicarPushes(demoMonAg().map(m => Object.assign({}, m))), cuentas:DEMO_CUENTAS_MON.slice() };
   const [a, c] = await Promise.all([q(sb.rpc('monitor_agentes_lista')), q(sb.rpc('monitor_cuentas_lista'))]);
@@ -8025,7 +8089,9 @@ $('eActivar').addEventListener('click', async () => {
     if(desact) await api('archivarEmpleado', { usuario:e.usuario }); else await api('activarEmpleado', { usuario:e.usuario, activo:true });
     // (v201/v202) Si el empleado tiene agente enlazado en el Monitor, archivar lo da de baja INMEDIATA (fecha=ayer) alla y reactivar lo reactiva.
     // Best-effort: un fallo del Monitor no bloquea el archivado del Time Clock.
-    if(e.agenteMonitor){ try{ const _ayer = new Date(Date.now()-864e5).toLocaleDateString('en-CA',{ timeZone:'America/New_York' }); await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', fecha: desact ? _ayer : '', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
+    if(e.agenteMonitor && !monOn()){ try{ const _ayer0 = new Date(Date.now()-864e5).toLocaleDateString('en-CA',{ timeZone:'America/New_York' });
+      await api('monPendiente', { p:{ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', fecha: desact ? _ayer0 : '', motivo: desact ? 'Archivado en el Time Clock' : '', quien:e.nombre } }); }catch(_x){} }
+    else if(e.agenteMonitor){ try{ const _ayer = new Date(Date.now()-864e5).toLocaleDateString('en-CA',{ timeZone:'America/New_York' }); await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', fecha: desact ? _ayer : '', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
     toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
     S.hoja = null; S.hojaHoy = null;
@@ -8209,7 +8275,7 @@ function verEmp(usuario){
   const bank = row('ID', [e.tipoId, e.numId].filter(Boolean).map(esc).join(' ')) +
     row('Bank', t(e.banco)) +
     row('Account number', t(e.cuentaBanco));
-  const app = row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') +
+  const app = (monOn() ? row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') : '') +
     row('Windows app', appUsoHTML(e)) +
     row('App version', tcvHTML(e));
   const col = (inner) => '<div class="ve-col">' + inner + '</div>';
@@ -8330,6 +8396,7 @@ $('eGuardar').addEventListener('click', async () => {
       if(!(await confirmar('Make them the manager above?', 'These accounts already have a supervisor. They will report to this person (nobody is replaced):<br><br>' + lst, 'Make manager', false))) return; } }
   const b = $('eGuardar'); b.disabled = true;
   const monAntes = monAgente(datos.agenteMonitor);
+  const _monOff = !monOn(), _ePrev = ((S.emps && S.emps.empleados) || []).find(x => x.usuario === S.empEdit) || null;   // (v312)
   try{
     let r = await api('guardarEmpleado', { empleado:datos });
     try{ const _u = datos.usuario || ((r.empleados || []).find(x => (x.email || '').toLowerCase() === datos.email) || {}).usuario;
@@ -8352,6 +8419,12 @@ $('eGuardar').addEventListener('click', async () => {
         const res0 = r.res; r = await api('empleados'); r.res = res0;
       }catch(x){ avisoMon = x.message; }
     }
+    // (v312) Monitor apagado: el renombre o el cambio de cuenta del agente se guarda y espera a que se encienda.
+    if(_monOff && _ePrev && datos.agenteMonitor){
+      const _ren = monClave(_ePrev.nombre) !== monClave(datos.nombre) && monClave(datos.agenteMonitor) !== monClave(datos.nombre);
+      const _cta = !!datos.cuenta && !mismaCuenta(_ePrev.cuenta, datos.cuenta);
+      if(_ren || _cta){ try{ await api('monPendiente', { p:{ accion:'agente', agente:datos.agenteMonitor, nuevo:_ren ? datos.nombre : '', cuenta:datos.cuenta || '', quien:datos.nombre } }); avisoMon = 'cola'; }catch(x){ avisoMon = x.message; } }
+    }
     if(!renombrado && monAntes && datos.cuenta && !mismaCuenta(monAntes.cuenta, datos.cuenta)){
       try{
         await enviarCuentaMonitor(monAntes.agente, datos.cuenta);
@@ -8373,8 +8446,9 @@ $('eGuardar').addEventListener('click', async () => {
         S.emps = await api('empleados'); pintarEmps();
       }catch(x){ toast('User saved, but the invitation wasn\'t sent: ' + x.message + ' Open the user to send it again.', 'err'); }
     } else toast(renombrado ? 'User saved. The Monitor agent “' + monAntes.agente + '” is now called “' + renombrado + '”' + (avisoMon === 'ok' ? ', in ' + datos.cuenta : '') + '.'
-      : avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.' : 'User saved.');
-    if(avisoMon && avisoMon !== 'ok') toast('User saved, but ' + avisoMon, 'err');
+      : avisoMon === 'ok' ? 'User saved. The Monitor has them in ' + datos.cuenta + ' too.'
+      : avisoMon === 'cola' ? 'User saved. The Monitor is off: the change waits in Settings \u2192 Connections until you turn it back on.' : 'User saved.');
+    if(avisoMon && avisoMon !== 'ok' && avisoMon !== 'cola') toast('User saved, but ' + avisoMon, 'err');
   }catch(e){ $('eErr').textContent = e.message; }
   b.disabled = false;
 });
@@ -8389,6 +8463,7 @@ const NOMBRE_LISTA = { cuentas:'Account', departamentos:'Department', tiposId:'I
 // Vuelve a leer las cuentas (y agentes) del Monitor; responde true si la lista de cuentas cambió.
 // Como mucho una vez cada 4 s; si ya hay un pedido en curso se reutiliza.
 function refrescarCuentasMon(){
+  if(!monOn()) return Promise.resolve(false);   // (v312)
   if(S.cuentasMonVuelo) return S.cuentasMonVuelo;
   if(S.cuentasMonEn && Date.now() - S.cuentasMonEn < 4000) return Promise.resolve(false);
   S.cuentasMonVuelo = monitorSB().then(m => {
@@ -8516,6 +8591,10 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
   catch(e){ if($('ajGMEstado')) $('ajGMEstado').textContent = ''; toast(e.message, 'err'); }
   b.disabled = false;
 });
+// (v312) Settings → Connections: interruptores reales (el del Monitor = monitor_sync.activo; los demás en reloj_config('conexiones')).
+function monOn(){ return !(S.monitorSync && S.monitorSync.activo === false); }
+function conx(k){ const c = S.conexiones || {}; return c[k] !== false; }
+function aplicarConexiones(){ document.body.classList.toggle('sin-monitor', !monOn()); if(!monOn() && S.vista === 'mon') irA('hoy'); }
 function monSyncCfg(){ const c = S.monitorSync || {}; const pg = c.pago || {}; return { activo: c.activo !== false, pago:{ vacaciones: pg.vacaciones === true, enfermedad: pg.enfermedad === true, personal: pg.personal === true } }; }
 function pintarMonitorSync(){ const c = monSyncCfg();
   if($('ajMonSync')) $('ajMonSync').checked = c.activo;
@@ -8524,10 +8603,75 @@ function pintarMonitorSync(){ const c = monSyncCfg();
   if($('ajMonPagoPers')) $('ajMonPagoPers').checked = c.pago.personal;
   if($('ajMonEstado')) $('ajMonEstado').textContent = ''; }
 if($('ajMonGuardar')) $('ajMonGuardar').addEventListener('click', async () => {
-  const b = $('ajMonGuardar'); b.disabled = true; $('ajMonEstado').textContent = 'Saving\u2026';
+  const b = $('ajMonGuardar'); b.disabled = true; $('ajMonEstado').textContent = 'Saving…';
   const val = { activo: $('ajMonSync').checked, pago:{ vacaciones: $('ajMonPagoVac').checked, enfermedad: $('ajMonPagoSick').checked, personal: $('ajMonPagoPers').checked } };
-  try{ await api('guardarMonitorSync', { valor:val }); S.monitorSync = val; $('ajMonEstado').textContent = 'Saved.'; toast('Monitor settings saved.'); }
+  const antes = monOn();
+  try{
+    if(antes && !val.activo && !(await confirmar('Turn off the Agent Monitor?', 'This is real and applies to everyone: nothing travels between the Time Clock and the Monitor until you turn it back on. The computers keep sending their activity, and nothing is deleted.', 'Turn off', true))){
+      $('ajMonEstado').textContent = 'Not saved.'; return; }
+    await api('guardarMonitorSync', { valor:val }); S.monitorSync = Object.assign({}, S.monitorSync || {}, val);
+    $('ajMonEstado').textContent = 'Saved.';
+    if(antes !== val.activo){
+      S.emps = null; S.hoja = null; S.hojaHoy = null; S.cuentasMon = val.activo ? S.cuentasMon : []; S.cuentasMonEn = 0;
+      aplicarConexiones();
+      toast(val.activo ? 'Agent Monitor connected.' : 'Agent Monitor turned off. The Time Clock now works on its own.');
+      if(val.activo && (S.monPend || []).length) setTimeout(() => monPendEnviar(true), 300);
+    } else toast('Monitor settings saved.');
+    pintarMonPend();
+  }
   catch(e){ $('ajMonEstado').textContent = e.message; }
+  finally{ b.disabled = false; }
+});
+// (v312) Cambios que esperan al Monitor (renombres, cambios de cuenta, archivados hechos con el Monitor apagado).
+function pintarMonPend(){
+  const box = $('ajMonPend'); if(!box) return;
+  const l = S.monPend || [];
+  box.classList.toggle('hidden', !l.length);
+  if(!l.length){ box.innerHTML = ''; return; }
+  const txt = x => x.accion === 'baja' ? (x.activo === '0' ? 'Archive ' : 'Reactivate ') + esc(x.agente)
+    : x.nuevo ? 'Rename ' + esc(x.agente) + ' → ' + esc(x.nuevo) + (x.cuenta ? ' (' + esc(x.cuenta) + ')' : '') : 'Move ' + esc(x.agente) + ' to ' + esc(x.cuenta);
+  box.innerHTML = '<div class="cx-pend-cab"><b>' + l.length + (l.length === 1 ? ' change is' : ' changes are') + ' waiting for the Monitor</b>' +
+    (monOn() ? '<button class="btn btn-ink btn-sm" id="ajMonPendEnviar" type="button">Send now</button>' : '<span class="muted">Turn the Monitor on to send ' + (l.length === 1 ? 'it' : 'them') + '.</span>') + '</div>' +
+    '<ul>' + l.slice(0, 12).map(x => '<li>' + txt(x) + '</li>').join('') + (l.length > 12 ? '<li>… and ' + (l.length - 12) + ' more</li>' : '') + '</ul>';
+  const bt = $('ajMonPendEnviar'); if(bt) bt.addEventListener('click', () => monPendEnviar(false));
+}
+async function monPendEnviar(preguntar){
+  const l = (S.monPend || []).slice(); if(!l.length || !monOn()) return;
+  if(preguntar && !(await confirmar('Send the waiting changes?', l.length + (l.length === 1 ? ' change was' : ' changes were') + ' made while the Monitor was off (renames, accounts or archives). Send ' + (l.length === 1 ? 'it' : 'them') + ' to the Monitor now?', 'Send now'))) return;
+  const bt = $('ajMonPendEnviar'); if(bt){ bt.disabled = true; bt.textContent = 'Sending…'; }
+  const hechos = []; let error = '';
+  for(const x of l){
+    try{
+      if(x.accion === 'baja'){
+        if(!DEMO){
+          const j = await monAccionSB({ accion:'baja', agente:x.agente, activo:x.activo, fecha:x.fecha || '', motivo:x.motivo || '' });
+          if(!j || j.ok === false) throw new Error((j && j.error) || 'the Monitor didn’t answer.');
+        }
+      } else if(x.nuevo) await renombrarAgenteMonitor(x.agente, x.nuevo, x.cuenta || '');
+      else await enviarCuentaMonitor(x.agente, x.cuenta);
+      hechos.push(x.id);
+    }catch(e){ error = (x.quien || x.agente) + ': ' + (e.message || e); break; }
+  }
+  if(hechos.length){ try{ await api('monPendQuitar', { ids:hechos }); }catch(e){ error = error || e.message; } }
+  if(!DEMO) await cargarConfig();
+  S.emps = null; pintarMonPend();
+  toast(error ? 'Sent ' + hechos.length + ' of ' + l.length + '. Stopped at ' + error : 'Sent ' + hechos.length + (hechos.length === 1 ? ' change' : ' changes') + ' to the Monitor.', error ? 'err' : '');
+}
+function pintarConexiones(){
+  if($('ajConxNomCol')) $('ajConxNomCol').checked = conx('nomina_colores');
+  if($('ajConxComp')) $('ajConxComp').checked = conx('comprobantes');
+  if($('ajConxEstado')) $('ajConxEstado').textContent = '';
+  pintarMonPend();
+}
+if($('ajConxGuardar')) $('ajConxGuardar').addEventListener('click', async () => {
+  const b = $('ajConxGuardar'); b.disabled = true; $('ajConxEstado').textContent = 'Saving…';
+  const val = { nomina_colores: $('ajConxNomCol').checked, comprobantes: $('ajConxComp').checked };
+  try{
+    const r = await api('guardarConexiones', { valor:val });
+    S.conexiones = (r && typeof r === 'object' && 'nomina_colores' in r) ? r : Object.assign({}, S.conexiones || {}, val);
+    S.coloresN = null; S.coloresCargando = null; S.hoja = null; S.hojaHoy = null;
+    $('ajConxEstado').textContent = 'Saved.'; toast('Connections saved.');
+  }catch(e){ $('ajConxEstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
 const CONCEPTOS_DEF = [
@@ -8763,7 +8907,7 @@ if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -8799,7 +8943,7 @@ const AJ_SEC = [
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Default dollar rate and withholdings for each pay run.', tono:'a' },
-  { k:'integ',     g:'More',    t:'Integrations',      d:'Connect the Agent Monitor.', tono:'s' }
+  { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor and your other apps.', tono:'s' }
 ];
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
@@ -8829,7 +8973,7 @@ function ajResumen(k){
       case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = typeof reglasPago === 'function' ? reglasPago() : {}; return [['Add to the TRM', (R.extra != null ? R.extra : '—') + ' COP'], ['Maximum', (R.tope != null ? R.tope : '—') + ' COP'], ['Rete ICA', (R.ica != null ? R.ica : '—') + ' ‰']]; }
-      case 'integ': { const m = typeof monSyncCfg === 'function' ? monSyncCfg() : {}; return [['Agent Monitor', m.activo ? ajPill('Connected', 'ok') : ajPill('Off')]]; }
+      case 'integ': { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length; return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')], ['Other apps', n + ' of 2 on']]; }
     }
   }catch(e){}
   return [];
@@ -8879,6 +9023,7 @@ function ajPills(){
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
   set('ajPillMon', typeof monSyncCfg === 'function' ? monSyncCfg().activo : true, 'Connected', 'Off');
+  { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length; set('ajPillConx', n === 2, n === 2 ? 'All on' : n + ' of 2 on', n + ' of 2 on'); }
   if($('ajZonaTxt')) $('ajZonaTxt').textContent = MARCA.zonaLabel || 'local time';
 }
 function ajIr(k, opt){
@@ -14655,8 +14800,8 @@ function demoDia(e, f){
   if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
   { const fa = salidaAutoBandera(m); if(fa) d.banderas.push(fa); }   // (v92)
   if(m.length && m.every(x => x.origen === 'importado')){ d.banderas.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam.' }); d.monitor = null; return d; }
-  if(!e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
-  const mo = d.monitor;
+  if(monOn() && !e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
+  const mo = monOn() ? d.monitor : null;
   if(mo && m.length){
     if(mo.p - m[0].ms > 15 * 60000) d.banderas.push({ c:'PC_TARDE', n:'alerta', t:'Clocked in at ' + hora(m[0].ms) + '; their PC started reporting at ' + hora(mo.p) + ' (' + Math.round((mo.p - m[0].ms) / 60000) + ' min later).' });
     let mins = 0; mo.e.forEach(ep => bloques.forEach(b => { mins += Math.max(0, Math.min(b[1], ep[2]) - Math.max(b[0], ep[1])); }));
@@ -15418,6 +15563,9 @@ async function demoApi(action, p){
   }
   if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
+  if(action === 'guardarConexiones'){ S.conexiones = Object.assign({ nomina_colores:true, comprobantes:true }, S.conexiones || {}, p.valor); return S.conexiones; }
+  if(action === 'monPendiente'){ const e = Object.assign({ id:'d' + Date.now() + Math.random().toString(36).slice(2, 6), ts:new Date().toISOString(), por:'carloshtl75' }, p.p); S.monPend = (S.monPend || []).concat([e]); return { ok:true, id:e.id, total:S.monPend.length }; }
+  if(action === 'monPendQuitar'){ S.monPend = (S.monPend || []).filter(x => (p.ids || []).indexOf(x.id) < 0); return { ok:true, total:S.monPend.length }; }
   if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
   if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
   if(action === 'guardarCuentas'){ S.cuentas = p.valor; return { ok:true }; }

@@ -2390,6 +2390,15 @@ function tcEmparejar(nombre, emps){
 function cerrarEnvioReloj(){ if(tcEstado && tcEstado.enviando) return; document.getElementById('modal-reloj').classList.remove('show'); }
 async function abrirEnvioReloj(){
   if(!empleados.length) return;
+  // (12 nov 2026) Interruptor en Time Clock → Settings → Connections («Pay stubs from the PayStub Center»).
+  try{
+    if(window.sb){ const rc = await window.sb.from('reloj_config').select('valor').eq('clave', 'conexiones').maybeSingle();
+      if(rc && rc.data && rc.data.valor && rc.data.valor.comprobantes === false){
+        document.getElementById('tc-prog').style.display = 'none'; document.getElementById('tc-enviar').style.display = 'none';
+        document.getElementById('tc-sub').textContent = 'Envío apagado';
+        document.getElementById('tc-cuerpo').innerHTML = '<p>El envío de comprobantes al Time Clock está <b>apagado</b>. Para encenderlo: Time Clock → Settings → Connections → «Pay stubs from the PayStub Center».</p><p>Mientras tanto, los comprobantes se envían desde el Pay run del Time Clock («Send to profiles»).</p>';
+        document.getElementById('modal-reloj').classList.add('show'); return; } }
+  }catch(e){ /* si no se puede leer, se sigue como siempre */ }
   if(typeof verificarNominaDoble === 'function' && !verificarNominaDoble()) return;
   const sel = document.getElementById('period-select'), p = periodos[parseInt(sel.value)];
   const fin = tcFechaISO(empleados[0].end);
