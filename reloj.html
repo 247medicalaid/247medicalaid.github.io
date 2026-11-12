@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v308-202611112100">
+<meta name="app-build" content="v309-202611112130">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2984,11 +2984,11 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           </div>
         </div>
 
-        <!-- COMPANY · Lists -->
+        <!-- COMPANY · Profile options (antes Lists) -->
         <div class="aj-pag" data-pag="listas">
           <div class="ajuste aj-card" id="ajListasBox" data-guardar="ajListasGuardar">
-            <div class="aj-ct"><h2>Lists</h2></div>
-            <p class="aj-desc">The choices in each person&rsquo;s profile. Click an option to rename it, use &times; to remove it. Removing an option doesn&rsquo;t change the people who already have it. Accounts are managed in <a href="#" data-ir="cuentas">Accounts</a>.</p>
+            <div class="aj-ct"><h2>Profile options</h2></div>
+            <p class="aj-desc">The dropdown lists in each person&rsquo;s profile. Click an option to rename it, use &times; to remove it. Removing an option doesn&rsquo;t change the people who already have it. Accounts are managed in <a href="#" data-ir="cuentas">Accounts</a>.</p>
             <div class="aj-cuerpo-card"><div class="listas" id="ajListas"></div></div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajListasGuardar" type="button">Save</button><span class="nota" id="ajListasEstado"></span></div>
           </div>
@@ -3368,7 +3368,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo" style="--w:190px"><span>Bank name</span><select id="eBanco"></select></label>
         <label class="campo" style="--w:150px"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
       </div>
-      <p class="nota" style="margin:-4px 0 4px">Edit the options of Account, Department, ID type and Bank name in <b>Settings → Lists</b>.</p>
+      <p class="nota" style="margin:-4px 0 4px">Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.</p>
       <button class="btn-link bh-enlace" type="button" id="eBancoHist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>View change history</button>
     </div>
     <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
@@ -8464,7 +8464,7 @@ $('ajListasGuardar').addEventListener('click', async () => {
   const b = $('ajListasGuardar'); b.disabled = true;
   try{
     await api('guardarConfig', { clave:'listas', valor:val });
-    S.listas = Object.assign({}, S.listas || LISTAS_BASE, val); pintarListas(); $('ajListasEstado').textContent = 'Saved.'; toast('Lists saved.');
+    S.listas = Object.assign({}, S.listas || LISTAS_BASE, val); pintarListas(); $('ajListasEstado').textContent = 'Saved.'; toast('Profile options saved.');
   }catch(e){ $('ajListasEstado').textContent = e.message; }
   b.disabled = false;
 });
@@ -8769,7 +8769,7 @@ const AJ_SEC = [
   { k:'inicio',    g:'',        t:'Overview',          d:'How the Time Clock is set up.', tono:'s' },
   { k:'marca',     g:'Company', t:'Brand & region',    d:'Company name, logo, colors and time zone.', tono:'b' },
   { k:'cuentas',   g:'Company', t:'Accounts',          d:'The clients, departments or teams your people work on.', tono:'b' },
-  { k:'listas',    g:'Company', t:'Lists',             d:'Options for profiles: departments, ID types, banks…', tono:'b' },
+  { k:'listas',    g:'Company', t:'Profile options',   d:'The choices people pick in their profile: department, ID type and bank.', tono:'b' },
   { k:'equipo',    g:'People',  t:'Roles & managers',  d:'General Manager, managers and supervisors.', tono:'v' },
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
@@ -8798,7 +8798,7 @@ function ajResumen(k){
       case 'cuentas': { const n = (typeof cuentasFusion === 'function' ? cuentasFusion() : (S.cuentas || [])).length; const ov = (S.cuentas || []).filter(c => c && c.pago_roles).length;
         return [['Accounts', n ? String(n) : ajPill('None yet', 'w')], ['Paid approval', ov ? ov + ' with their own rule' : 'General rule']]; }
       case 'listas': { const L = S.listas || (typeof LISTAS_BASE !== 'undefined' ? LISTAS_BASE : {}); const ks = Object.keys(L).filter(x => x !== 'cuentas' && Array.isArray(L[x]));
-        return [['Lists', String(ks.length)], ['Options', String(ks.reduce((t, x) => t + L[x].length, 0))]]; }
+        return [['Fields', String(ks.length)], ['Options', String(ks.reduce((t, x) => t + L[x].length, 0))]]; }
       case 'equipo': return [['General Manager', S.gm ? esc(nom(S.gm)) : ajPill('Not set', 'w')], ['Managers & supervisors', String(emps.filter(e => e.esManager).length)]];
       case 'tiempo': return [['Rounding', red === 1 ? 'Exact' : 'Every ' + red + ' min'], ['Location', S.ubicObligatoria !== false ? 'Required' : 'Optional'],
         ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
@@ -8817,7 +8817,7 @@ function ajSub(k){
   switch(k){
     case 'marca': return v(0) + ' · ' + v(1);
     case 'cuentas': return v(0) + ' accounts · ' + v(1).toLowerCase();
-    case 'listas': return v(0) + ' lists · ' + v(1) + ' options';
+    case 'listas': return v(0) + ' fields · ' + v(1) + ' options';
     case 'equipo': return 'GM: ' + v(0) + ' · ' + v(1) + ' managers';
     case 'tiempo': return 'Rounding ' + v(0).toLowerCase() + ' · auto clock out ' + v(2).toLowerCase();
     case 'ausencias': return v(0) + ' types · paid by ' + v(1);
