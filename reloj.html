@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v313-202611121345">
+<meta name="app-build" content="v314-202611121600">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1168,6 +1168,64 @@ tr.cerrado td{background:#F6FAFC}
 .opciones input{width:17px;height:17px}
 .ejemplo{font-size:13.5px;color:var(--text-muted);background:var(--sand);border-radius:10px;padding:9px 12px;margin-bottom:12px}
 .ejemplo b{color:var(--text)}
+/* (v314) Horario en el Time Clock: popup como el del Monitor + horas por día */
+.ventana.ho-ventana{max-width:860px}
+.ho-sem{display:grid;grid-template-columns:122px repeat(4,minmax(128px,1fr)) 52px;grid-auto-flow:row dense;gap:6px 8px;align-items:center;margin-top:12px}
+.ho-sem .cab{font-size:11.5px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.ho-sem .cab.h{text-align:right}
+.ho-sem .dia{grid-column:1;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;cursor:pointer;color:var(--text)}
+.ho-sem .dia input{width:17px;height:17px;accent-color:var(--brand-600);margin:0;flex:none}
+.ho-sem .dia.off{color:var(--text-muted)}
+.ho-sem .hc{display:block;margin:0}
+.ho-sem .hc span{display:none;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px}
+.ho-sem input[type=time]{width:100%;min-width:0;padding:7px 6px 7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--paper);
+  font-family:inherit;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)}
+.ho-sem input[type=time]::-webkit-calendar-picker-indicator{margin-left:2px;padding:0;width:15px;height:15px;cursor:pointer}
+.ho-sem input[type=time]:focus{outline:none;border-color:var(--brand-500);box-shadow:0 0 0 3px var(--brand-50)}
+.ho-sem .hh{grid-column:6;text-align:right;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)}
+.ho-sem .hh.mal{color:var(--accent-600)}
+.ho-sem .libre{grid-column:2 / span 4;font-size:13px;color:var(--text-muted);font-style:italic;padding:7px 2px}
+.ho-tot{display:flex;justify-content:flex-end;gap:6px;font-size:12.5px;color:var(--text-muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.ho-tot b{color:var(--text);font-variant-numeric:tabular-nums}
+.ho-acc{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:10px}
+.ho-acc .btn-link{font-size:13.5px;font-weight:600;text-decoration:underline;text-underline-offset:2px;padding:3px 0}
+.ho-desde{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:10px;font-size:13.5px;color:var(--text-muted)}
+.ho-desde input{padding:6px 9px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:14px;color:var(--text);background:var(--paper)}
+.ho-aviso{font-size:12.5px;color:var(--text-muted);margin-top:8px;min-height:18px}
+.ho-aviso.mal{color:var(--accent-600);font-weight:600}
+.ho-aviso.hd{color:#8A5A00}
+.ho-vers{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:13px}
+.ho-vers summary{cursor:pointer;color:var(--brand-700);font-weight:600}
+.ho-vers ul{list-style:none;margin:6px 0 0;padding:0}
+.ho-vers li{display:flex;gap:10px;align-items:baseline;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);color:var(--text-muted)}
+.ho-vers li:last-child{border-bottom:0}
+.ho-vers li b{color:var(--text);font-weight:600}
+.ho-vers li .tag{font-size:11px;font-weight:700;color:#0E7A52;background:#E7F6EC;border-radius:999px;padding:1px 7px;margin-left:6px}
+.ho-vers li .btn-link{font-size:12.5px;padding:0;color:var(--accent-600);flex:none}
+@media (max-width:760px){
+  .ho-sem{grid-template-columns:1fr 1fr;grid-auto-flow:row}
+  .ho-sem .cab{display:none}
+  .ho-sem .dia{grid-column:1;margin-top:8px;padding-top:8px;border-top:1px solid var(--line) !important}
+  .ho-sem .hh{grid-column:2;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);align-self:stretch;display:flex;align-items:center;justify-content:flex-end}
+  .ho-sem .hc span{display:block}
+  .ho-sem .libre{grid-column:1 / span 2;padding:0 2px 2px}
+}
+/* enlace al horario en la ficha + vista previa al pasar el mouse */
+.hor-link{font-size:14px;font-weight:600;padding:0;text-align:left;text-decoration:underline;text-decoration-color:rgba(14,134,180,.35);text-underline-offset:3px}
+.hor-link .mas{font-weight:500;color:var(--text-muted);text-decoration:none;margin-left:4px}
+.hor-link.nada{color:var(--text-muted);font-weight:500}
+#horTip{position:fixed;z-index:80;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:10px 12px 9px;
+  min-width:260px;max-width:340px;pointer-events:none;font-size:13px}
+#horTip h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
+.ht-f{display:grid;grid-template-columns:78px 1fr auto;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px dashed var(--line)}
+.ht-f:last-of-type{border-bottom:0}
+.ht-d{font-weight:600;color:var(--text)}
+.ht-t{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ht-a{display:block;font-size:12px;color:var(--text-muted);white-space:nowrap}
+.ht-h{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.ht-l{color:var(--text-muted);font-style:italic}
+.ht-pie{margin-top:6px;font-size:11.5px;color:var(--text-muted)}
+#eHorFila .emp-mgr-sum{font-variant-numeric:tabular-nums}
 /* ── USERS (ficha) ── */
 .ventana.ventana-ficha{max-width:780px}
 /* v74: ficha en 3 columnas, barra de botones fija abajo */
@@ -3386,6 +3444,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo c4" style="--w:205px"><span id="eJefeLbl">Supervisor</span><input id="eJefe" type="text" readonly placeholder="—"></label>
         <input id="eCargo" type="hidden"><datalist id="eCargoLista"></datalist>
         <div class="emp-mgr-row"><span class="emp-mgr-rowlbl">Manages accounts</span><span id="eMgrSum" class="emp-mgr-sum">Not a manager</span><button type="button" class="btn btn-ghost btn-sm" id="eMgrBtn">Manage accounts…</button></div>
+        <div class="emp-mgr-row hidden" id="eHorFila"><span class="emp-mgr-rowlbl">Schedule</span><span id="eHorSum" class="emp-mgr-sum">—</span><button type="button" class="btn btn-ghost btn-sm" id="eHorBtn">Edit schedule…</button></div>
         <div class="fila-mon-emp">
           <label class="campo campo-mon" style="--w:210px"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 11h2l2-3 2 5 2-2h2M9 21h6M12 17v4"/></svg>Agent in the Monitor</span><select id="eMonitor"></select><small id="eMonitorNota">One Monitor agent per user.</small></label>
           <input id="eNomina" type="hidden">
@@ -3428,6 +3487,29 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     </div>
   </div>
 </div>
+
+<!-- (v314) Horario del usuario en el Time Clock -->
+<div class="overlay hidden" id="ovHorario" role="dialog" aria-modal="true" aria-labelledby="hoTitulo">
+  <div class="ventana ho-ventana">
+    <h2 id="hoTitulo">Schedule for <span id="hoNombre"></span></h2>
+    <div class="sub">Set the workday and lunch for each day. Used to compute absences, the clock-in reminder and “Your schedule”. Uncheck the days the person does not work.</div>
+    <div class="ho-sem" id="hoSem"></div>
+    <div class="ho-tot" id="hoTot"></div>
+    <div class="ho-acc">
+      <button class="btn-link" id="hoCopiar" type="button">Copy the first day to the other checked days</button>
+      <button class="btn-link" id="hoGeneral" type="button">Back to the general schedule (8:00 AM – 5:00 PM, Monday to Friday)</button>
+    </div>
+    <div class="ho-desde"><label for="hoDesde">Applies from</label><input type="date" id="hoDesde"><span id="hoDesdeNota">Days before this date keep the schedule they had.</span></div>
+    <div class="ho-aviso" id="hoAviso">Lunch is optional: leave it blank if it does not apply that day.</div>
+    <details class="ho-vers hidden" id="hoVers"><summary id="hoVersT">Schedule history</summary><ul id="hoVersL"></ul></details>
+    <div class="pie">
+      <span class="esp"></span>
+      <button class="btn btn-ghost" type="button" id="hoCancelar">Cancel</button>
+      <button class="btn btn-ink" type="button" id="hoGuardar">Save schedule</button>
+    </div>
+  </div>
+</div>
+<div id="horTip" class="hidden" role="tooltip"></div>
 
 <!-- (v74) cambios sin guardar en la ficha -->
 <!-- (v79) advertencia: renombrar un agente del Monitor con un nombre muy distinto al del usuario -->
@@ -4636,6 +4718,7 @@ async function cargarConfig(){
     if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
     if(x.clave === 'conexiones' && x.valor && typeof x.valor === 'object') S.conexiones = x.valor;   // (v312)
     if(x.clave === 'monitor_pendientes') S.monPend = Array.isArray(x.valor) ? x.valor : [];
+    if(x.clave === 'horarios' && x.valor && typeof x.valor === 'object') S.horFuente = x.valor.fuente || '';   // (v314, paso 139)
     if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
     if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
     if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; }); }catch(e){}
@@ -5108,6 +5191,10 @@ async function api(action, p){
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
   if(action === 'guardarConexiones') return q(sb.rpc('reloj_guardar_conexiones', { p:p.valor }));   // (v312, paso 133)
   if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
+  if(action === 'horariosResumen') return q(sb.rpc('reloj_horarios_resumen'));   // (v314, paso 139)
+  if(action === 'horarioVer') return q(sb.rpc('reloj_horario_ver', { p_usuario:p.usuario }));
+  if(action === 'horarioGuardar') return q(sb.rpc('reloj_horario_guardar', { p_usuario:p.usuario, p_semana:p.semana, p_desde:p.desde || null, p_motivo:p.motivo || null }));
+  if(action === 'horarioBorrar') return q(sb.rpc('reloj_horario_borrar', { p_id:p.id }));
   if(action === 'monPendQuitar') return q(sb.rpc('reloj_monitor_pendientes_quitar', { p_ids:p.ids }));
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
@@ -7712,6 +7799,7 @@ $('hExpDetalle').addEventListener('click', () => {
 async function cargarEmps(){
   $('empsTabla').innerHTML = '<div style="padding:24px;color:var(--text-muted)"><span class="spin dark"></span> Loading…</div>';
   S.appUso = S.appUso || undefined; cargarAppUso(); tcCargarDesplegada();
+  cargarHorarios();
   try{ S.emps = await api('empleados'); pintarEmps(); }
   catch(e){ $('empsTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
@@ -8222,6 +8310,7 @@ function abrirEmp(usuario){
   $('eErr').textContent = '';
   pintarAccesoEmp(e);
   pintarCuentaMon();
+  pintarHorFila(e);
   abrir('ovEmp');
   $('ovEmp').querySelector('.ventana').scrollTop = 0;
   empFotoNueva();
@@ -8267,7 +8356,8 @@ function verEmp(usuario){
       ? row('Manager', (e.usuario === (S.gm || '') ? '\u2014' : esc(e.jefeManager || nombreGM())) + ' <span class="ve-tag">' + esc(e.rolManager || 'Manager') + '</span>') + ((e.gestiona || []).length ? row('Manages', (e.gestiona || []).map(esc).join(', ')) : '')
       : row('Supervisor', e.jefe ? esc(e.jefe) : '')) +
     row('Start date', e.fechaIngreso ? esc(fechaUS(e.fechaIngreso)) : '') +
-    row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '');
+    row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '') +
+    (horOn() ? row('Schedule', horLinkHTML(e.usuario)) : '');
   const pay = row('Pay rate', tienePago ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '') +
     row('Paid from', e.pagoCuenta === 'personal' ? 'Personal' : 'Nómina 247') +
     (Number(e.aportesCop) > 0 ? row('Aportes', cop(e.aportesCop)) : '') +
@@ -8293,6 +8383,201 @@ function verEmp(usuario){
   const v = $('ovVerEmp').querySelector('.ventana'); if(v) v.scrollTop = 0;
 }
 $('veCerrar').addEventListener('click', () => cerrar('ovVerEmp'));
+
+/* ══════════ (v314) HORARIOS EN EL TIME CLOCK (paso 139) ══════════
+   Se guardan por versiones con fecha (los días pasados conservan su horario). Formato de la semana igual al del Monitor:
+   { lun:{i:'08:00', f:'17:00', aa:'14:00', ab:'15:00'} | null (libre), … dom }. Con el Monitor encendido, al guardar se le manda. */
+const HO_DIAS = [['lun','Monday','Mon'],['mar','Tuesday','Tue'],['mie','Wednesday','Wed'],['jue','Thursday','Thu'],['vie','Friday','Fri'],['sab','Saturday','Sat'],['dom','Sunday','Sun']];
+const HO_GENERAL = { i:'08:00', f:'17:00', aa:'', ab:'' };
+const horOn = () => S.horFuente === 'tc' && S.horarios !== null && S.horarios !== undefined;
+async function cargarHorarios(){
+  if(S.horFuente !== 'tc'){ S.horarios = null; return; }
+  try{ S.horarios = await api('horariosResumen') || {}; }catch(e){ S.horarios = null; }
+}
+const hoMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+function hoMinDia(d){
+  if(!d) return null; const a = hoMin(d.i), b = hoMin(d.f); if(a == null || b == null || b <= a) return null;
+  let t = b - a; const x = hoMin(d.aa), y = hoMin(d.ab); if(x != null && y != null && y > x) t -= (y - x); return t;
+}
+const hoRango = d => h12(d.i) + ' – ' + h12(d.f);
+const hoAlm = d => d && d.aa && d.ab ? (d.aa < '12:00' === d.ab < '12:00' ? h12(d.aa).replace(/ (AM|PM)$/, '') : h12(d.aa)) + ' – ' + h12(d.ab) : '';
+// Agrupa días seguidos con el mismo horario: [{dias:'Mon – Thu', d}]
+function hoGrupos(sem){
+  const out = []; let g = null;
+  HO_DIAS.forEach(([k, , c]) => { const d = sem ? sem[k] : null, clave = d ? [d.i, d.f, d.aa, d.ab].join('|') : 'libre';
+    if(g && g.clave === clave){ g.fin = c; g.n++; } else { g = { clave, ini:c, fin:c, n:1, d }; out.push(g); } });
+  const libres = out.filter(x => !x.d);   // los libres se juntan en una sola fila («Sat, Sun»)
+  const res = out.filter(x => x.d).map(x => ({ dias:x.n === 1 ? x.ini : x.n === 2 ? x.ini + ', ' + x.fin : x.ini + ' – ' + x.fin, d:x.d }));
+  if(libres.length) res.push({ dias:libres.map(x => x.n === 1 ? x.ini : x.n === 2 ? x.ini + ', ' + x.fin : x.ini + ' – ' + x.fin).join(', '), d:null });
+  return res;
+}
+function horLinkHTML(u){
+  const h = S.horarios && S.horarios[u];
+  if(!h || !h.semana) return '<button type="button" class="btn-link hor-link nada" data-hor-abrir="' + esc(u) + '">Not set · Add</button>';
+  const gs = hoGrupos(h.semana).filter(x => x.d);
+  const g = gs[0]; if(!g) return '<button type="button" class="btn-link hor-link" data-hor-abrir="' + esc(u) + '">Off every day</button>';
+  return '<button type="button" class="btn-link hor-link" data-hor-abrir="' + esc(u) + '" data-hor-tip="' + esc(u) + '">' + esc(g.dias + ' · ' + hoRango(g.d)) +
+    (gs.length > 1 ? '<span class="mas">+' + (gs.length - 1) + ' more</span>' : '') + '</button>';
+}
+function horTipHTML(u){
+  const h = S.horarios && S.horarios[u]; if(!h || !h.semana) return '';
+  const filas = hoGrupos(h.semana).map(g => '<div class="ht-f"><span class="ht-d">' + esc(g.dias) + '</span><span>' +
+    (g.d ? '<span class="ht-t">' + esc(hoRango(g.d)) + '</span>' + (hoAlm(g.d) ? '<span class="ht-a">Lunch ' + esc(hoAlm(g.d)) + '</span>' : '') : '<span class="ht-l">Day off</span>') +
+    '</span><span class="ht-h">' + (g.d ? hm(hoMinDia(g.d)) + ' h' : '') + '</span></div>').join('');
+  return '<h4>Current schedule</h4>' + filas + '<div class="ht-pie">' + (h.desde && h.desde > '2000-01-01' ? 'Since ' + esc(fechaUS(h.desde)) + ' · ' : '') + 'Click to edit</div>';
+}
+function horTipMostrar(el){
+  const t = $('horTip'), html = horTipHTML(el.dataset.horTip); if(!html) return;
+  t.innerHTML = html; t.classList.remove('hidden');
+  const r = el.getBoundingClientRect(), w = t.offsetWidth, hgt = t.offsetHeight;
+  let x = Math.min(r.left, innerWidth - w - 10), y = r.bottom + 8; if(y + hgt > innerHeight - 10) y = r.top - hgt - 8;
+  t.style.left = Math.max(10, x) + 'px'; t.style.top = Math.max(10, y) + 'px';
+}
+document.addEventListener('mouseover', ev => { const el = ev.target.closest && ev.target.closest('[data-hor-tip]'); if(el && matchMedia('(hover:hover)').matches) horTipMostrar(el); });
+document.addEventListener('mouseout', ev => { const el = ev.target.closest && ev.target.closest('[data-hor-tip]'); if(el && !el.contains(ev.relatedTarget)) $('horTip').classList.add('hidden'); });
+document.addEventListener('click', ev => { const el = ev.target.closest && ev.target.closest('[data-hor-abrir]'); if(!el) return;
+  ev.preventDefault(); $('horTip').classList.add('hidden'); abrirHorario(el.dataset.horAbrir); });
+function pintarHorFila(e){
+  const fila = $('eHorFila'); if(!fila) return;
+  fila.classList.toggle('hidden', !horOn());
+  if(!horOn()) return;
+  if(!e){ $('eHorSum').textContent = 'Save the user first'; $('eHorBtn').disabled = true; $('eHorBtn').removeAttribute('data-hor-abrir'); return; }
+  $('eHorBtn').disabled = false; $('eHorBtn').dataset.horAbrir = e.usuario;
+  const h = S.horarios && S.horarios[e.usuario], g = h && h.semana ? hoGrupos(h.semana).filter(x => x.d) : [];
+  $('eHorSum').innerHTML = !h || !h.semana ? 'Not set' : g.length ? esc(g[0].dias + ' · ' + hoRango(g[0].d)) + (g.length > 1 ? ' <span style="color:var(--text-muted)">+' + (g.length - 1) + ' more</span>' : '') : 'Off every day';
+  $('eHorSum').dataset.horTip = e.usuario;
+}
+
+const HO = { u:null, sem:null, vers:[] };
+async function abrirHorario(u){
+  const e = S.emps && S.emps.empleados.find(x => x.usuario === u); if(!e) return;
+  HO.u = u; $('hoNombre').textContent = e.nombre || u;
+  $('hoSem').innerHTML = '<span class="cab" style="grid-column:1/-1"><span class="spin dark"></span> Loading…</span>'; $('hoTot').textContent = '';
+  $('hoDesde').value = fechaHoy(); $('hoDesde').max = fechaHoy();
+  hoAviso(''); $('hoVers').classList.add('hidden'); $('hoGuardar').disabled = true;
+  abrir('ovHorario');
+  try{
+    const r = await api('horarioVer', { usuario:u });
+    HO.sem = r && r.semana ? JSON.parse(JSON.stringify(r.semana)) : { lun:{...HO_GENERAL}, mar:{...HO_GENERAL}, mie:{...HO_GENERAL}, jue:{...HO_GENERAL}, vie:{...HO_GENERAL}, sab:null, dom:null };
+    HO.vers = (r && r.versiones) || [];
+    if(!r || !r.semana) hoAviso('No schedule yet: this is the general schedule. Adjust it and save.');
+    pintarHoSem(); pintarHoVers(); $('hoGuardar').disabled = false;
+  }catch(err){ $('hoSem').innerHTML = '<span class="err" style="grid-column:1/-1">' + esc(err.message) + '</span>'; }
+}
+function hoAviso(t, cls){ const a = $('hoAviso'); a.textContent = t || 'Lunch is optional: leave it blank if it does not apply that day.'; a.className = 'ho-aviso' + (cls ? ' ' + cls : ''); }
+function pintarHoSem(){
+  let h = '<span class="cab">Day</span><span class="cab">Start</span><span class="cab">End</span><span class="cab">Lunch from</span><span class="cab">Lunch to</span><span class="cab h">Hours</span>';
+  HO_DIAS.forEach(([k, n]) => {
+    const d = HO.sem[k];
+    h += '<label class="dia' + (d ? '' : ' off') + '"><input type="checkbox" data-trab="' + k + '"' + (d ? ' checked' : '') + '>' + n + '</label>' + (d ? '<span class="hh" data-hh="' + k + '"></span>' : '<span class="hh"></span>');
+    if(d){
+      const inp = (c, et, v) => '<label class="hc"><span>' + et + '</span><input type="time" data-k="' + k + '" data-c="' + c + '" aria-label="' + n + ' ' + et.toLowerCase() + '" value="' + (v || '') + '"></label>';
+      h += inp('i', 'Start', d.i) + inp('f', 'End', d.f) + inp('aa', 'Lunch from', d.aa) + inp('ab', 'Lunch to', d.ab);
+    } else h += '<span class="libre">Off</span>';
+  });
+  $('hoSem').innerHTML = h; hoHoras();
+}
+function hoLeer(){
+  const sem = {};
+  HO_DIAS.forEach(([k]) => {
+    const c = $('hoSem').querySelector('[data-trab="' + k + '"]');
+    if(!c || !c.checked){ sem[k] = null; return; }
+    const v = x => { const el = $('hoSem').querySelector('input[data-k="' + k + '"][data-c="' + x + '"]'); return el ? el.value : ''; };
+    sem[k] = { i:v('i'), f:v('f'), aa:v('aa'), ab:v('ab') };
+  });
+  return sem;
+}
+function hoHoras(){
+  const sem = hoLeer(); let tot = 0, dias = 0; const porDia = new Set();
+  HO_DIAS.forEach(([k]) => { const el = $('hoSem').querySelector('[data-hh="' + k + '"]'); if(!el) return;
+    const m = hoMinDia(sem[k]); el.textContent = m == null ? '—' : hm(m); el.classList.toggle('mal', m == null);
+    if(m != null){ tot += m; dias++; porDia.add(m); } });
+  $('hoTot').innerHTML = dias ? '<span>' + dias + ' day' + (dias === 1 ? '' : 's') + ' a week ·</span><span>Total</span><b>' + hm(tot) + ' h</b>' : '';
+  const e = S.emps && S.emps.empleados.find(x => x.usuario === HO.u);
+  if(e && e.horasDia && porDia.size === 1 && [...porDia][0] !== Math.round(e.horasDia * 60) && !$('hoAviso').classList.contains('mal'))
+    hoAviso('This schedule is ' + hm([...porDia][0]) + ' h a day; the profile says ' + e.horasDia + ' h per day (used for payroll and overtime).', 'hd');
+  else if($('hoAviso').classList.contains('hd')) hoAviso('');
+}
+$('hoSem').addEventListener('input', () => hoHoras());
+$('hoSem').addEventListener('change', ev => {
+  const c = ev.target.closest('[data-trab]'); if(!c) return;
+  HO.sem = hoLeer(); const k = c.dataset.trab;
+  if(c.checked){ const prev = HO_DIAS.map(d => d[0]).filter(x => x !== k && HO.sem[x]).pop(); HO.sem[k] = prev ? { ...HO.sem[prev] } : { ...HO_GENERAL }; }
+  pintarHoSem();
+});
+$('hoCopiar').addEventListener('click', () => {
+  HO.sem = hoLeer(); const primero = HO_DIAS.map(d => d[0]).find(k => HO.sem[k]);
+  if(!primero){ hoAviso('Check at least one day.', 'mal'); return; }
+  HO_DIAS.forEach(([k]) => { if(HO.sem[k]) HO.sem[k] = { ...HO.sem[primero] }; });
+  pintarHoSem(); toast('Copied the schedule from ' + HO_DIAS.find(d => d[0] === primero)[1] + '.');
+});
+$('hoGeneral').addEventListener('click', () => {
+  HO.sem = { lun:{...HO_GENERAL}, mar:{...HO_GENERAL}, mie:{...HO_GENERAL}, jue:{...HO_GENERAL}, vie:{...HO_GENERAL}, sab:null, dom:null };
+  pintarHoSem(); hoAviso('General schedule filled in. Press “Save schedule” to keep it.');
+});
+$('hoCancelar').addEventListener('click', () => cerrar('ovHorario'));
+function pintarHoVers(){
+  const v = HO.vers || [];
+  $('hoVers').classList.toggle('hidden', v.length < 2);
+  if(v.length < 2) return;
+  const hoy = fechaHoy(); let vigente = null; v.forEach(x => { if(x.desde <= hoy && (!vigente || x.desde > vigente.desde)) vigente = x; });
+  $('hoVersT').textContent = 'Schedule history (' + v.length + ')';
+  $('hoVersL').innerHTML = v.map(x => {
+    const g = hoGrupos(x.semana).filter(y => y.d).map(y => y.dias + ' ' + hoRango(y.d)).join(' · ') || 'Off every day';
+    return '<li><span><b>' + (x.desde <= '2000-01-01' ? 'From the start' : 'From ' + esc(fechaUS(x.desde))) + '</b>' + (x === vigente ? '<span class="tag">Current</span>' : '') +
+      ' · ' + esc(g) + (x.origen === 'monitor' ? ' · imported from the Monitor' : '') + '</span>' +
+      (x === v[v.length - 1] ? '' : '<button type="button" class="btn-link" data-ho-borrar="' + x.id + '">Remove</button>') + '</li>';
+  }).join('');
+}
+$('hoVersL').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-ho-borrar]'); if(!b) return;
+  if(!confirm('Remove this schedule from the history? The days it covered will use the schedule before it.')) return;
+  b.disabled = true;
+  try{ await api('horarioBorrar', { id:+b.dataset.hoBorrar }); await horarioDespues('Schedule removed'); }
+  catch(err){ hoAviso(err.message, 'mal'); b.disabled = false; }
+});
+function hoValidar(sem){
+  for(const [k, n] of HO_DIAS){
+    const d = sem[k]; if(!d) continue;
+    if(!d.i || !d.f) return n + ': missing start or end time';
+    if(d.f <= d.i) return n + ': end must be after start';
+    if((d.aa && !d.ab) || (!d.aa && d.ab)) return n + ': fill both lunch times or leave them blank';
+    if(d.aa && d.ab <= d.aa) return n + ': lunch must end after it starts';
+    if(d.aa && (d.aa < d.i || d.ab > d.f)) return n + ': lunch must be within the workday';
+  }
+  if(!HO_DIAS.some(([k]) => sem[k])) return 'The person must work at least one day.';
+  return '';
+}
+// Manda el horario vigente al Monitor (si está encendido y la persona tiene agente). Devuelve un texto para el aviso.
+async function hoAlMonitor(u, txt){
+  const e = S.emps && S.emps.empleados.find(x => x.usuario === u);
+  if(!monOn() || !e || !e.agenteMonitor || !txt) return '';
+  if(DEMO) return ' and sent to the Monitor';
+  const sem = {}; txt.split(';').forEach(t => { const [k, v] = t.split('='); sem[k] = v; });
+  const prim = HO_DIAS.map(d => d[0]).find(k => sem[k] && sem[k] !== 'libre'); const m = prim ? /^([\d:]+)-([\d:]+)(?:\/([\d:]+)-([\d:]+))?$/.exec(sem[prim]) : null;
+  try{
+    const j = await monAccionSB({ accion:'horario', agente:e.agenteMonitor, inicio:m ? m[1] : '', fin:m ? m[2] : '', almuerzo:m && m[3] ? m[3] + '-' + m[4] : '', semana:txt });
+    if(j && j.ok) return ' and sent to the Monitor';
+    return '. The Monitor didn\'t get it' + (j && j.error ? ' (' + j.error + ')' : '') + '; it will get it on the next sync';
+  }catch(err){ return '. The Monitor didn\'t get it; it will get it on the next sync'; }
+}
+async function horarioDespues(msg, txt){
+  const u = HO.u, extra = await hoAlMonitor(u, txt);
+  await cargarHorarios();
+  cerrar('ovHorario'); toast(msg + extra + '.');
+  if(!$('ovVerEmp').classList.contains('hidden')) verEmp(u);
+  if(!$('ovEmp').classList.contains('hidden') && S.empEdit === u) pintarHorFila(S.emps.empleados.find(x => x.usuario === u));
+}
+$('hoGuardar').addEventListener('click', async () => {
+  const sem = hoLeer(), err = hoValidar(sem);
+  if(err){ hoAviso(err, 'mal'); return; }
+  const desde = $('hoDesde').value || fechaHoy();
+  if(desde > fechaHoy()){ hoAviso('The start date cannot be in the future.', 'mal'); return; }
+  const b = $('hoGuardar'); b.disabled = true;
+  try{ const r = await api('horarioGuardar', { usuario:HO.u, semana:sem, desde }); await horarioDespues('Schedule saved', r && r.vigente); }
+  catch(e2){ hoAviso(e2.message, 'mal'); }
+  b.disabled = false;
+});
 $('eNuevo').addEventListener('click', () => abrirEmp(null));
 // Al escribir el nombre de alguien nuevo se proponen su agente del Monitor y su nombre en la nómina.
 ['eNombre', 'eApellidos'].forEach(id => $(id).addEventListener('change', () => {
@@ -14712,7 +14997,7 @@ async function guardarPagoImp(cerrarla){
 const DM = { listo:false };
 function demoInit(){
   if(DM.listo) return; DM.listo = true;
-  S.zona = 'America/New_York'; S.modoPruebas = true;
+  S.zona = 'America/New_York'; S.modoPruebas = true; S.horFuente = 'tc';   // (v314)
   const hoy = fechaHoy();
   DM.emps = [
     { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', titulo:'TOTAL SLEEP', ciudad:'Cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
@@ -15284,6 +15569,25 @@ function demoChat2(action, p){
     Object.keys(DM.chatCop).forEach(k => { if(DM.chatCop[k].c === p.id) delete DM.chatCop[k]; }); return { ok:true, archivos:[] }; }
   return demoChat(action, p);
 }
+function demoHorarios(action, p){
+  if(!DM.horarios){ DM.horarios = []; let id = 1;
+    const b = (i, f, aa, ab) => ({ i, f, aa:aa || '', ab:ab || '' }), sem = (x, vie) => ({ lun:x, mar:x, mie:x, jue:x, vie:vie || x, sab:null, dom:null });
+    const base = { 'laura.a':sem(b('08:00','17:00','14:00','15:00'), b('07:30','15:30')), 'claudia.c':sem(b('09:00','18:00','12:00','13:00')),
+      'farouk.n':sem(b('08:00','16:45','15:15','16:00')), 'saori.m':sem(b('08:00','17:00','12:30','13:30')) };
+    Object.keys(base).forEach(u => DM.horarios.push({ id:id++, usuario:u, desde:'2000-01-01', semana:base[u], origen:'monitor', creado:new Date().toISOString(), por:'paso139' })); }
+  const hoy = fechaHoy(), vig = u => DM.horarios.filter(x => x.usuario === u && x.desde <= hoy).sort((a, c) => c.desde.localeCompare(a.desde) || c.id - a.id)[0];
+  const txt = s => HO_DIAS.map(([k]) => k + '=' + (s[k] ? s[k].i + '-' + s[k].f + (s[k].aa ? '/' + s[k].aa + '-' + s[k].ab : '') : 'libre')).join(';');
+  if(action === 'horariosResumen'){ const r = {}; [...new Set(DM.horarios.map(x => x.usuario))].forEach(u => { const v = vig(u); r[u] = { semana:v ? v.semana : null, desde:v ? v.desde : null, n:DM.horarios.filter(x => x.usuario === u).length }; }); return r; }
+  if(action === 'horarioVer'){ const v = vig(p.usuario); return { semana:v ? v.semana : null, desde:v ? v.desde : null, versiones:DM.horarios.filter(x => x.usuario === p.usuario).sort((a, c) => c.desde.localeCompare(a.desde)) }; }
+  if(action === 'horarioGuardar'){ const err = hoValidar(p.semana); if(err) throw new Error(err);
+    const ex = DM.horarios.find(x => x.usuario === p.usuario && x.desde === p.desde);
+    if(ex){ ex.semana = p.semana; ex.origen = 'admin'; } else DM.horarios.push({ id:DM.horarios.length + 100, usuario:p.usuario, desde:p.desde, semana:p.semana, origen:'admin', creado:new Date().toISOString(), por:'demo' });
+    return { ok:true, vigente:txt(vig(p.usuario).semana) }; }
+  if(action === 'horarioBorrar'){ const v = DM.horarios.find(x => x.id === p.id); if(!v) throw new Error('That schedule no longer exists.');
+    if(!DM.horarios.some(x => x.usuario === v.usuario && x !== v && x.desde < v.desde)) throw new Error('The first schedule can\'t be removed; edit it instead.');
+    DM.horarios = DM.horarios.filter(x => x !== v); return { ok:true, vigente:txt(vig(v.usuario).semana) }; }
+  return {};
+}
 async function demoApi(action, p){
   demoInit();
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
@@ -15568,6 +15872,7 @@ async function demoApi(action, p){
   }
   if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
+  if(action.startsWith('horario')){ await new Promise(r => setTimeout(r, 120)); return demoHorarios(action, p || {}); }   // (v314)
   if(action === 'guardarConexiones'){ S.conexiones = Object.assign({ nomina_colores:true, comprobantes:true }, S.conexiones || {}, p.valor); return S.conexiones; }
   if(action === 'monPendiente'){ const e = Object.assign({ id:'d' + Date.now() + Math.random().toString(36).slice(2, 6), ts:new Date().toISOString(), por:'carloshtl75' }, p.p); S.monPend = (S.monPend || []).concat([e]); return { ok:true, id:e.id, total:S.monPend.length }; }
   if(action === 'monPendQuitar'){ S.monPend = (S.monPend || []).filter(x => (p.ids || []).indexOf(x.id) < 0); return { ok:true, total:S.monPend.length }; }

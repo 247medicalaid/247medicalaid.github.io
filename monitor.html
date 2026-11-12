@@ -7,12 +7,13 @@
 <!-- build mon-20261028-2013: etapa3 ausencias auto — "Unauthorized absence" se dibuja en ámbar/rayas + ✗ (motivo "Ausencia no autorizada") -->
 <!-- build mon-202610190241: flechas de dia < > en la fecha (no pasa de hoy) -->
 <!-- build mon-202610182033: Actualizar fuerza recarga fresca + fetch no-store -->
-<style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}</style>
+<style>.chip-fnav{padding-left:10px;padding-right:10px;font-size:18px;line-height:1;font-weight:700}body.hor-tc [data-hor], body.hor-tc [data-turno]{opacity:.5}
+</style>
 <title>Monitor de Agentes – 24/7 Medical Aid</title>
 <!-- build mon-20261103-2050: dropdown de autorizar — se retira "Monitor only"; Technical issue/Training/Other pasan a "Affects the timesheet" (clase otro, tope 2026-11-01); "Working from another computer"/"App not installed" se quitan (autorizaciones viejas se siguen mostrando) + placeholder "Choose a reason" -->
 <!-- build mon-20261106-1100: (Rebanada 2) el panel muestra el nombre/cuenta actual del TimeClock por el enlace del agente (nomVis); 'a.agente' sigue siendo la llave de las acciones (no se rompe nada) -->
 <!-- build mon-20261106-1525: (D.3) cuentas por codigo — chips/filtro/agrupacion/"sin cuenta" se resuelven del registro del TimeClock (reloj_config); un rename en Settings se refleja sin chips duplicados ni falsos avisos; fallback por nombre si no carga el registro -->
-<meta name="mon-build" content="20261106-1525">
+<meta name="mon-build" content="20261112-1700">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -693,6 +694,10 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
   // (Fase A) Acciones que MODIFICAN. Con el Monitor apagado (solo lectura) se bloquean aquí, en el embudo.
   const ESCRITURAS_MON = new Set(['baja','agente','horario','turno_guardar','turno_borrar','autorizar','autorizar_borrar','descanso_marcar','descanso_borrar','guardarCuentas']);
   async function pedirSB(params){
+    if (window.__horTC && params && ['horario','turno_guardar','turno_borrar'].indexOf(params.accion) >= 0) {
+      try { if (typeof toast === 'function') toast(HOR_TC_MSG, 'err'); } catch(e){}
+      return { status: 423, j: { ok:false, error:HOR_TC_MSG } };
+    }
     if (window.__monOff && params && ESCRITURAS_MON.has(params.accion)) {
       try { if (typeof toast === 'function') toast('The Monitor is off (read only). Turn it back on in the Time Clock settings to make changes.', 'err'); } catch(e){}
       return { status: 423, j: { ok:false, error:'The Monitor is off (read only).' } };
@@ -973,7 +978,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261112-0830';
+const MON_BUILD = '20261112-1700';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1776,6 +1781,7 @@ let semEdit = {};
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-hor]');
   if (!b) return;
+  if (window.__horTC) { toast(HOR_TC_MSG, 'err'); return; }
   horAgente = b.dataset.hor;
   $('hAgente').textContent = horAgente;
   let sem = b.dataset.sem ? leerSemanaTxt(b.dataset.sem) : null;
@@ -2224,6 +2230,7 @@ async function pintarTurnos(){
 }
 
 function abrirTurno(ag){
+  if (window.__horTC) { toast(HOR_TC_MSG, 'err'); return; }
   turAgente = ag;
   $('tAgente').textContent = ag;
   const hoy = new Date().toISOString().slice(0, 10);
@@ -2291,9 +2298,11 @@ const sello = ms => { const d = new Date(ms);
 // Etapa 3b: estado en el TimeClock de las ausencias que NACIERON en el Monitor (para resaltar las rechazadas).
 let ESTADO_MON = null;
 // (Fase A) Pinta/quita el banner y marca el <body> cuando el Monitor está apagado (solo lectura).
+const HOR_TC_MSG = 'Schedules are managed in the Time Clock now: Users → the person → Schedule. Shift changes go through Requests.';
 function aplicarSoloLectura(){
   const off = !!window.__monOff;
   document.body.classList.toggle('mon-off', off);
+  document.body.classList.toggle('hor-tc', !!window.__horTC);
   if (off && !document.getElementById('monRoBanner')) {
     const b = document.createElement('div'); b.id = 'monRoBanner';
     b.textContent = 'Monitor is OFF — read only. Turn the Monitor sync back on in the Time Clock settings to make changes.';
@@ -2350,6 +2359,9 @@ async function cargarEstadoMonitor(force){
       window.__tcCuentas = porCod; window.__tcCtaPorNom = porNom;
     }
   } catch (e) { /* sin registro → fallback al comportamiento por nombre */ }
+  // (paso 139) Los horarios viven en el Time Clock: aquí solo se ven.
+  try { const rh = await window.sb.from('reloj_config').select('valor').eq('clave', 'horarios').maybeSingle();
+        window.__horTC = !!(rh && rh.data && rh.data.valor && rh.data.valor.fuente === 'tc'); } catch (e) { window.__horTC = false; }
   aplicarSoloLectura();
   return ESTADO_MON;
 }
