@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v307-202611112030">
+<meta name="app-build" content="v308-202611112100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -960,6 +960,31 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
   #vAjustes .cta-filtro{max-width:none;flex:1}
   #vAjustes .cta-total{flex:none}
 }
+/* listas (v308) */
+#vAjustes .listas{grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin:4px 0 0}
+#vAjustes .lst-cab{display:flex;align-items:center;gap:9px;margin:0 0 8px}
+#vAjustes .lst-ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand-600);flex:none}
+#vAjustes .lst-ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#vAjustes .lista h3{flex:1;margin:0;font:700 14.5px/1.2 var(--font-body);text-transform:none;letter-spacing:0;color:var(--text)}
+#vAjustes .lst-n{min-width:22px;text-align:center;font:700 12px/1 var(--font-body);padding:4px 7px;border-radius:99px;background:#EDF1F4;color:#5D7383}
+#vAjustes .lst-caja{border:1px solid var(--aj-line);border-radius:12px;background:#fff;overflow:hidden}
+#vAjustes .lista .op{display:flex;align-items:center;gap:4px;margin:0;padding:3px 6px 3px 4px;border-bottom:1px solid var(--aj-sep);transition:background .15s}
+#vAjustes .lista .op:hover{background:var(--aj-suave)}
+#vAjustes .lista .op input{flex:1;min-width:0;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 9px;font:inherit;font-size:14px;color:var(--text)}
+#vAjustes .lista .op input:hover{border-color:var(--aj-line);background:#fff}
+#vAjustes .lista .op input:focus{outline:none;border-color:var(--brand-500);background:#fff;box-shadow:0 0 0 3px var(--brand-100)}
+#vAjustes .lista .op button{flex:none;width:30px;height:30px;border:0;background:transparent;border-radius:7px;color:#9AB0BD;font-size:17px;cursor:pointer;opacity:.55;transition:opacity .15s,background .15s,color .15s}
+#vAjustes .lista .op:hover button,#vAjustes .lista .op:focus-within button{opacity:1}
+#vAjustes .lista .op button:hover{background:#FDECEC;color:#C0262D}
+#vAjustes .lista .nueva{display:flex;align-items:center;gap:6px;margin:0;padding:6px 6px 6px 12px;background:var(--aj-suave)}
+#vAjustes .lst-mas{color:var(--brand-600);font-weight:700;font-size:17px;line-height:1}
+#vAjustes .lista .nueva input{flex:1;min-width:0;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 6px;font:inherit;font-size:14px}
+#vAjustes .lista .nueva input:focus{outline:none;border-color:var(--brand-500);background:#fff;box-shadow:0 0 0 3px var(--brand-100)}
+#vAjustes .lista .nueva button{flex:none;border:0;background:var(--brand-600);color:#fff;border-radius:8px;padding:7px 12px;font:700 12.5px/1 var(--font-body);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s}
+#vAjustes .lista .nueva:focus-within button,#vAjustes .lista .nueva:has(input:not(:placeholder-shown)) button{opacity:1;pointer-events:auto}
+#vAjustes .lista.vacia .ops::before{content:"No options yet";display:block;padding:12px 14px;color:var(--text-muted);font-size:13px;border-bottom:1px solid var(--aj-sep)}
+#vAjustes .aj-desc a{color:var(--brand-700);font-weight:600}
+@media (hover:none){ #vAjustes .lista .op button{opacity:1} #vAjustes .lista .nueva button{opacity:1;pointer-events:auto} }
 /* tablas y listas dentro de las tarjetas */
 #vAjustes .roles-tabla{min-width:520px}
 /* celular y tableta */
@@ -2963,7 +2988,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <div class="aj-pag" data-pag="listas">
           <div class="ajuste aj-card" id="ajListasBox" data-guardar="ajListasGuardar">
             <div class="aj-ct"><h2>Lists</h2></div>
-            <p class="aj-desc">The options you can pick in a person&rsquo;s profile (department, ID type, bank&hellip;). Edit an option to rename it, remove it with &times; or add new ones. Removing an option doesn&rsquo;t change the people who already have it.</p>
+            <p class="aj-desc">The choices in each person&rsquo;s profile. Click an option to rename it, use &times; to remove it. Removing an option doesn&rsquo;t change the people who already have it. Accounts are managed in <a href="#" data-ir="cuentas">Accounts</a>.</p>
             <div class="aj-cuerpo-card"><div class="listas" id="ajListas"></div></div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajListasGuardar" type="button">Save</button><span class="nota" id="ajListasEstado"></span></div>
           </div>
@@ -8350,25 +8375,33 @@ function refrescarCuentasMon(){
   }).catch(() => false).finally(() => { S.cuentasMonVuelo = null; });
   return S.cuentasMonVuelo;
 }
+const LISTA_IC = {
+  departamentos:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>',
+  tiposId:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h3"/></svg>',
+  bancos:'<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>'
+};
 function pintarListas(){
   const L = listas();
-  refrescarCuentasMon().then(cambio => { if(cambio && S.vista === 'ajustes') pintarListas(); });
-  $('ajListas').innerHTML = Object.keys(NOMBRE_LISTA).map(k => k === 'cuentas' && S.cuentasMon && S.cuentasMon.length
-    ? '<div class="lista fija" data-l="cuentas"><h3>Account</h3><div class="ops">' + S.cuentasMon.map(o => '<div class="op fija">' + esc(o) + '</div>').join('') + '</div>' +
-      '<p class="fija-nota">The same list as the Monitor. Add, rename or remove accounts in the <b>Monitor panel → Cuentas</b>; the installer uses it too.</p></div>'
-    : '<div class="lista" data-l="' + k + '"><h3>' + NOMBRE_LISTA[k] + '</h3>' +
-    '<div class="ops">' + (L[k] || []).map(o => filaOp(o)).join('') + '</div>' +
-    '<div class="nueva"><input placeholder="New option" maxlength="80" aria-label="New ' + NOMBRE_LISTA[k] + ' option"><button type="button">Add</button></div></div>').join('');
+  refrescarCuentasMon();   // mantiene al día las cuentas del Monitor (las usa Accounts); la lista de cuentas ya no se muestra aquí
+  $('ajListas').innerHTML = Object.keys(NOMBRE_LISTA).filter(k => k !== 'cuentas').map(k =>
+    '<div class="lista" data-l="' + k + '">'
+    + '<div class="lst-cab"><span class="lst-ic">' + (LISTA_IC[k] || '') + '</span><h3>' + NOMBRE_LISTA[k] + '</h3><span class="lst-n"></span></div>'
+    + '<div class="lst-caja"><div class="ops">' + (L[k] || []).map(o => filaOp(o)).join('') + '</div>'
+    + '<div class="nueva"><span class="lst-mas" aria-hidden="true">+</span><input placeholder="Add an option" maxlength="80" aria-label="New ' + NOMBRE_LISTA[k] + ' option"><button type="button">Add</button></div></div>'
+    + '</div>').join('');
   $('ajListas').querySelectorAll('.lista:not(.fija)').forEach(enlazarLista);
   $('ajListasEstado').textContent = '';
 }
 const filaOp = o => '<div class="op"><input value="' + esc(o) + '" maxlength="80" aria-label="Option"><button type="button" title="Remove" aria-label="Remove ' + esc(o) + '">×</button></div>';
+function contarLista(div){ const n = div.querySelectorAll('.ops .op').length, e = div.querySelector('.lst-n'); if(e) e.textContent = n; div.classList.toggle('vacia', !n); }
 function enlazarLista(div){
   const ops = div.querySelector('.ops'), nueva = div.querySelector('.nueva input');
-  const quitar = () => ops.querySelectorAll('.op button').forEach(b => { b.onclick = () => { b.parentNode.remove(); $('ajListasEstado').textContent = 'Unsaved changes'; }; });
-  quitar();
+  const quitar = () => ops.querySelectorAll('.op button').forEach(b => { b.onclick = () => { b.parentNode.remove(); contarLista(div); $('ajListasEstado').textContent = 'Unsaved changes'; }; });
+  quitar(); contarLista(div);
   ops.addEventListener('input', () => { $('ajListasEstado').textContent = 'Unsaved changes'; });
-  const agregar = () => { const v = nueva.value.trim(); if(!v) return; ops.insertAdjacentHTML('beforeend', filaOp(v)); nueva.value = ''; quitar(); nueva.focus(); $('ajListasEstado').textContent = 'Unsaved changes'; };
+  const agregar = () => { const v = nueva.value.trim(); if(!v) return;
+    if([...ops.querySelectorAll('.op input')].some(i => i.value.trim().toLowerCase() === v.toLowerCase())){ nueva.select(); return; }
+    ops.insertAdjacentHTML('beforeend', filaOp(v)); nueva.value = ''; quitar(); contarLista(div); nueva.focus(); $('ajListasEstado').textContent = 'Unsaved changes'; };
   div.querySelector('.nueva button').onclick = agregar;
   nueva.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
 }
@@ -8421,7 +8454,7 @@ if($('ajMarcaGuardar')) $('ajMarcaGuardar').addEventListener('click', async () =
 });
 $('ajListasGuardar').addEventListener('click', async () => {
   const val = {};
-  if(S.cuentasMon && S.cuentasMon.length) val.cuentas = S.cuentasMon.slice();
+  { const prevC = (S.cuentasMon && S.cuentasMon.length) ? S.cuentasMon : (listas().cuentas || []); if(prevC.length) val.cuentas = prevC.slice(); }   // la lista de cuentas no se edita aquí: se conserva
   $('ajListas').querySelectorAll('.lista:not(.fija)').forEach(div => {
     const vistos = new Set(), l = [];
     div.querySelectorAll('.op input').forEach(i => { const v = i.value.trim(); if(v && !vistos.has(v.toLowerCase())){ vistos.add(v.toLowerCase()); l.push(v); } });
