@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v314-202611121730">
+<meta name="app-build" content="v315-202611121800">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -7444,9 +7444,14 @@ const msDe = t => typeof t === 'number' ? t : Date.parse(t);
 const SOL_UN = { turno:'a shift request', almuerzo:'a break request', ausencia:'an absence request', correccion:'an hours correction' };
 function solDetalle(x){
   if(x.tipo === 'correccion') return marcasTxt(x.marcas);
-  if(x.tipo === 'ausencia') return (ausEtq(x, 'Absence')) + ' · ' + (x.fecha === (x.fechaFin || x.fecha) ? diaS(x.fecha) : diaS(x.fecha) + ' – ' + diaS(x.fechaFin));
+  if(x.tipo === 'ausencia') return (ausEtq(x, 'Absence')) + ' · ' + (x.fecha === (x.fechaFin || x.fecha) ? diaS(x.fecha) : diaS(x.fecha) + ' – ' + diaS(x.fechaFin)) +
+    (x.horaIni && x.horaFin ? ' · ' + h12(x.horaIni) + ' – ' + h12(x.horaFin) : '');   // (v315) la hora de la ausencia, no solo el día
   return h12(x.horaIni) + ' – ' + h12(x.horaFin) + (x.almIni ? ' · lunch ' + h12(x.almIni) + ' – ' + h12(x.almFin) : '');
 }
+// (v315) ¿Esta solicitud la creó el Monitor (no la persona)? y su motivo sin el prefijo
+const hDelMonitor = x => !!x && x.tipo === 'ausencia' && (x.origen === 'monitor' || /^(From the Monitor|Desde el Monitor)\b/i.test(String(x.motivo || '')));
+const hMotivo = m => String(m || '').replace(/^(From the Monitor|Desde el Monitor)\s*:?\s*/i, '').replace(/^Ausencia no autorizada\s*(·\s*)?/i, '');
+const fmtDia = t => { const d = new Date(t); return new Intl.DateTimeFormat('en-CA', { timeZone:S.zona || 'America/New_York', year:'numeric', month:'2-digit', day:'2-digit' }).format(d); };
 const marcasDeAudit = l => (l || []).map(m => ({ tipo:m.tipo, hora:m.hora || hhmm(msDe(m.ts)) }));
 function armarHist(r, fecha, e){
   const ev = [], emps = (S.dia.fuente && S.dia.fuente.empleados) || [];
@@ -7464,11 +7469,20 @@ function armarHist(r, fecha, e){
       (cambio ? '<div class="de">Changed later</div>' : ''), m.id);
   });
   audit.forEach(a => {
-    const d = a.detalle || {}, s0 = d.id != null ? solDe(d.id) : null, nom = s0 ? SOL_TIPO[s0.tipo].toLowerCase() : 'request';
+    const d = a.detalle || {}, s0 = d.id != null ? solDe(d.id) : null,
+          nom = s0 ? SOL_TIPO[s0.tipo].toLowerCase() + (s0.tipo === 'ausencia' && s0.horaIni && s0.horaFin ? ' (' + h12(s0.horaIni) + ' – ' + h12(s0.horaFin) + ')' : '') : 'request';   // (v315) con su hora
     if(a.accion === 'solicitar'){
-      const x = Object.assign({ fechaFin:d.fechaFin || d.fecha }, d); vistos.add('sol' + d.id);
-      add(a.en, 'sol', '<b>Sent ' + (SOL_UN[d.tipo] || 'a request') + '</b>' + por(a.autor) +
-        '<div class="de">' + esc(solDetalle(x)) + (d.motivo ? ' · “' + esc(d.motivo) + '”' : '') + '</div>', a.id);
+      const x = Object.assign({ fechaFin:d.fechaFin || d.fecha }, s0 || {}, d); vistos.add('sol' + d.id);
+      // (v315) Una ausencia que llegó del Monitor se ubica a la HORA EN QUE PASÓ (no cuando se registró),
+      // para que el historial se lea en orden; abajo dice cuándo se registró.
+      const delMon = hDelMonitor(x);
+      if(delMon && x.horaIni && x.fecha === fecha){
+        add(wall(fecha, x.horaIni), 'sol', '<b>Absence ' + esc(h12(x.horaIni) + (x.horaFin ? ' – ' + h12(x.horaFin) : '')) + '</b> <span class="quien">· from the Monitor</span>' +
+          '<div class="de">' + esc(ausEtq(x, 'Absence')) + (hMotivo(x.motivo) ? ' · “' + esc(hMotivo(x.motivo)) + '”' : '') +
+          ' · registered as a request at ' + esc(hora(msDe(a.en))) + (fmtDia(msDe(a.en)) !== fecha ? ' (' + esc(fmt(msDe(a.en), { month:'short', day:'numeric' })) + ')' : '') + '</div>', a.id);
+      } else
+      add(a.en, 'sol', '<b>' + (delMon ? 'Absence from the Monitor' : 'Sent ' + (SOL_UN[d.tipo] || 'a request')) + '</b>' + (delMon ? '' : por(a.autor)) +
+        '<div class="de">' + esc(solDetalle(x)) + (d.motivo ? ' · “' + esc(delMon ? hMotivo(d.motivo) : d.motivo) + '”' : '') + '</div>', a.id);
     } else if(a.accion === 'cancelarSolicitud'){ vistos.add('fin' + d.id);
       add(a.en, 'gris', '<b>Canceled the ' + nom + '</b>' + por(a.autor), a.id);
     } else if(a.accion === 'aprobarSolicitud' || a.accion === 'rechazarSolicitud'){
@@ -7496,8 +7510,13 @@ function armarHist(r, fecha, e){
   });
   // solicitudes sin registro en la auditoría (las de antes, o reemplazadas solas)
   sols.forEach(x => {
-    if(!vistos.has('sol' + x.id)) add(x.creada, 'sol', '<b>Sent ' + SOL_UN[x.tipo] + '</b>' + por(x.usuario) +
-      '<div class="de">' + esc(solDetalle(x)) + (x.motivo ? ' · “' + esc(x.motivo) + '”' : '') + '</div>', -1);
+    if(!vistos.has('sol' + x.id)){
+      if(hDelMonitor(x) && x.horaIni && x.fecha === fecha)
+        add(wall(fecha, x.horaIni), 'sol', '<b>Absence ' + esc(h12(x.horaIni) + (x.horaFin ? ' – ' + h12(x.horaFin) : '')) + '</b> <span class="quien">· from the Monitor</span>' +
+          '<div class="de">' + esc(ausEtq(x, 'Absence')) + (hMotivo(x.motivo) ? ' · “' + esc(hMotivo(x.motivo)) + '”' : '') + ' · registered as a request at ' + esc(hora(x.creada)) + '</div>', -1);
+      else add(x.creada, 'sol', '<b>Sent ' + SOL_UN[x.tipo] + '</b>' + por(x.usuario) +
+        '<div class="de">' + esc(solDetalle(x)) + (x.motivo ? ' · “' + esc(x.motivo) + '”' : '') + '</div>', -1);
+    }
     if(!vistos.has('fin' + x.id) && x.decidida && x.estado !== 'pendiente'){
       const k = x.estado === 'aprobada' ? 'ok' : x.estado === 'rechazada' ? 'neg' : 'gris';
       const txt = x.estado === 'cancelada' ? (x.respuesta === 'Replaced by a newer request' ? 'Request replaced by a newer one' : 'Canceled the ' + SOL_TIPO[x.tipo].toLowerCase())
