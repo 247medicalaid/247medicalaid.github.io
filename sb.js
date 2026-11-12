@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════════════
    sb.js — conexión a Supabase compartida por todas las apps del portal.
    Va en la raíz del repo 247medicalaid.github.io. Necesita cargarse después de
-   https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+   https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js
 
    La clave de aquí es la PUBLICABLE: está hecha para ir en las páginas. Lo que
    protege los datos son las reglas de acceso (RLS) de cada tabla.
@@ -13,11 +13,32 @@
 
   window.SB_URL = SB_URL;
   window.SB_KEY = SB_KEY;
-  window.sb = (window.supabase && window.supabase.createClient)
-    ? window.supabase.createClient(SB_URL, SB_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, storageKey: 'portal247.sb' }
-      })
-    : null;
+  function crearSb() {
+    return window.supabase.createClient(SB_URL, SB_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'portal247.sb' }
+    });
+  }
+  window.sb = (window.supabase && window.supabase.createClient) ? crearSb() : null;
+
+  /* (12 nov 2026) Si la librería supabase-js no cargó desde jsdelivr (CDN caído o
+     bloqueado en esa red), se trae de la copia propia en github.io y, si no, de unpkg.
+     window.sbListo se resuelve en true cuando window.sb queda listo (o false si no hubo forma). */
+  var RESPALDOS = ['https://247medicalaid.github.io/supabase-js-2.119.0.js',
+                   'https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js'];
+  window.sbListo = window.sb ? Promise.resolve(true) : new Promise(function (res) {
+    (function sig(i) {
+      if (window.supabase && window.supabase.createClient) {
+        try { if (!window.sb) window.sb = crearSb(); } catch (e) {}
+        return res(!!window.sb);
+      }
+      if (i >= RESPALDOS.length) return res(false);
+      var sc = document.createElement('script'), hecho = false;
+      var seguir = function () { if (hecho) return; hecho = true; clearTimeout(t); sig(i + 1); };
+      var t = setTimeout(seguir, 10000);
+      sc.src = RESPALDOS[i]; sc.onload = seguir; sc.onerror = seguir;
+      (document.head || document.documentElement).appendChild(sc);
+    })(0);
+  });
 
   /* Entra a Supabase con la misma clave derivada que usa el portal. Si la
      cuenta aún no existe allá, la crea portal-sync tras confirmar con el
@@ -30,6 +51,7 @@
     return window.sbPendiente;
   };
   async function conectar(usuario, dk) {
+    if (!window.sb) await window.sbListo;
     if (!window.sb) return false;
     var email = String(usuario).trim().toLowerCase() + '@' + DOMINIO;
     try {
@@ -70,6 +92,7 @@
     return j || { ok: false, codigo: 'HTTP_' + r.status };
   };
   window.sbEntrarRapido = async function (usuario, dk) {
+    if (!window.sb) await window.sbListo;
     if (!window.sb) return { ok: false, codigo: 'SIN_SUPABASE' };
     var email = String(usuario).trim().toLowerCase() + '@' + DOMINIO;
     try {
