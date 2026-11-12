@@ -1,0 +1,532 @@
+﻿# =====================================================================
+#  Monitor 24/7 Medical Aid - Agente de actividad (Windows) - respaldo
+#  Version PowerShell (se usa solo si el equipo no puede compilar el .exe).
+#  Cada minuto envia: inactividad, programa activo, programas abiertos con
+#  RAM, calidad de internet (latencia/perdida) y si la app de telefono esta
+#  abierta. A demanda corre un test de megas. Guarda offline si no hay red.
+#  Captura SOLO nombres de programa, nunca titulos de ventana ni paginas web.
+#  Compatible con Windows PowerShell 5.1
+# =====================================================================
+$ErrorActionPreference = 'Stop'
+$Version = '2.14'
+# Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
+# al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
+$SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
+$script:avisoRespaldo = [DateTime]::MinValue
+$script:ultimaOtra = ''
+
+$Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ConfigFile = Join-Path $Base 'config.json'
+$DataDir    = Join-Path $env:LOCALAPPDATA 'Monitor247'
+$EstadoDir  = Join-Path $Base 'estado'          # lo lee el actualizador para confirmar que seguimos reportando
+$UltimoFile = Join-Path $EstadoDir 'ultimo.txt'
+# 2.7: clave propia del equipo, cifrada para este PC (DPAPI, ambito de la maquina; la misma
+# que usa el .exe). Se recibe del servidor en "clave_equipo".
+$ClaveFile  = Join-Path $EstadoDir 'clave.dat'
+$Entropia   = [Text.Encoding]::UTF8.GetBytes('Monitor247-clave-equipo')
+$script:Clave = ''
+$ColaFile   = Join-Path $DataDir 'cola.jsonl'
+$LogFile    = Join-Path $DataDir 'monitor.log'
+$Utf8       = New-Object System.Text.UTF8Encoding($false)
+$Intervalo  = 180
+$MaxCola    = 5000
+$MaxLote    = 200
+$TopProgs   = 12
+$SpeedUrl   = 'https://speed.cloudflare.com/__down?bytes=10000000'
+
+if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir -Force | Out-Null }
+
+function Write-Log([string]$msg) {
+    try {
+        if ((Test-Path $LogFile) -and ((Get-Item $LogFile).Length -gt 1MB)) { Move-Item $LogFile "$LogFile.old" -Force }
+        Add-Content -Path $LogFile -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg)
+    } catch { }
+}
+
+# Una sola copia por sesion. Si la copia anterior murio sin liberar el candado,
+# WaitOne lanza AbandonedMutexException PERO igual nos da el candado: lo tomamos.
+$mutex = New-Object System.Threading.Mutex($false, 'Local\Monitor247_Agente')
+try { $tengoMutex = $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $tengoMutex = $true }
+if (-not $tengoMutex) { exit 0 }
+
+try { $cfg = Get-Content $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json }
+catch { Write-Log "ERROR: no se pudo leer config.json: $_"; exit 1 }
+
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Monitor247Win {
+    [StructLayout(LayoutKind.Sequential)]
+    struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+    [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    public static uint IdleSeconds() {
+        LASTINPUTINFO lii = new LASTINPUTINFO();
+        lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
+        if (!GetLastInputInfo(ref lii)) return 0;
+        unchecked { return ((uint)Environment.TickCount - lii.dwTime) / 1000; }
+    }
+    // (2.14) Otra sesion de Windows en uso: la sesion de este agente NO esta activa y otra SI.
+    [DllImport("wtsapi32.dll", SetLastError = true)] static extern bool WTSEnumerateSessions(IntPtr h, int r, int v, out IntPtr lista, out int n);
+    [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool WTSQuerySessionInformation(IntPtr h, int id, int clase, out IntPtr buf, out int n);
+    [DllImport("wtsapi32.dll")] static extern void WTSFreeMemory(IntPtr p);
+    [StructLayout(LayoutKind.Sequential)] struct WTS_SESSION_INFO { public int SessionId; public IntPtr pWinStationName; public int State; }
+    static string UsuarioDeSesion(int id) {
+        IntPtr buf; int n;
+        if (!WTSQuerySessionInformation(IntPtr.Zero, id, 5, out buf, out n)) return "";
+        try { return Marshal.PtrToStringUni(buf) ?? ""; } finally { WTSFreeMemory(buf); }
+    }
+    public static string OtraSesion() {
+        try {
+            int propia = System.Diagnostics.Process.GetCurrentProcess().SessionId;
+            IntPtr lista; int cuantas;
+            if (!WTSEnumerateSessions(IntPtr.Zero, 0, 1, out lista, out cuantas)) return "";
+            bool propiaActiva = false; string otra = "";
+            try {
+                int tam = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                for (int i = 0; i < cuantas; i++) {
+                    WTS_SESSION_INFO s = (WTS_SESSION_INFO)Marshal.PtrToStructure(new IntPtr(lista.ToInt64() + (long)i * tam), typeof(WTS_SESSION_INFO));
+                    if (s.State != 0) continue;
+                    if (s.SessionId == propia) { propiaActiva = true; continue; }
+                    string u = UsuarioDeSesion(s.SessionId);
+                    if (u.Length > 0 && otra.Length == 0) otra = u;
+                }
+            } finally { WTSFreeMemory(lista); }
+            if (propiaActiva || otra.Length == 0) return "";
+            if (string.Equals(otra, Environment.UserName, StringComparison.OrdinalIgnoreCase)) return "";
+            return otra;
+        } catch { return ""; }
+    }
+    public static int ForegroundPid() {
+        uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return (int)pid;
+    }
+
+    // ---- Pantallas activas del escritorio (nuevo en la 2.5) ----
+    delegate bool EnumMonitorsProc(IntPtr h, IntPtr dc, IntPtr r, IntPtr d);
+    [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, EnumMonitorsProc fn, IntPtr data);
+    public static int Pantallas() {
+        try {
+            int n = 0;
+            EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, delegate(IntPtr h, IntPtr dc, IntPtr r, IntPtr d) { n++; return true; }, IntPtr.Zero);
+            return n;
+        } catch { return -1; }
+    }
+
+    // ---- Enchufado o en bateria (nuevo en la 2.5) ----
+    [StructLayout(LayoutKind.Sequential)]
+    struct SPS { public byte AC; public byte Flag; public byte Pct; public byte Sys; public int Vida; public int VidaTotal; }
+    [DllImport("kernel32.dll")] static extern bool GetSystemPowerStatus(out SPS s);
+    // "ac" enchufado, "bat" en bateria, "fijo" sin bateria, "" no se sabe
+    public static string Energia() {
+        try {
+            SPS s;
+            if (!GetSystemPowerStatus(out s)) return "";
+            if ((s.Flag & 128) != 0) return "fijo";
+            if (s.AC == 1) return "ac";
+            if (s.AC == 0) return "bat";
+            return "";
+        } catch { return ""; }
+    }
+    public static int Bateria() {
+        try { SPS s; if (!GetSystemPowerStatus(out s)) return -1; return s.Pct <= 100 ? s.Pct : -1; } catch { return -1; }
+    }
+}
+'@
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+$patrones = @()
+if ($cfg.app_telefono) { $patrones = @($cfg.app_telefono -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+
+# Correo con el que se inicio sesion en Windows. Segun el tipo de cuenta puede
+# venir del dominio/Entra, de la cuenta Microsoft o de la identidad de Office.
+# En equipos con cuenta local de Windows no existe y queda vacio.
+$script:Correo = $null
+$script:CorreoTs = [datetime]::MinValue
+
+function Get-CorreoWindows {
+    if ($script:Correo -ne $null -and ((Get-Date) - $script:CorreoTs).TotalMinutes -lt 60) { return $script:Correo }
+    $mail = ''
+    # 1) Dominio o Microsoft Entra ID
+    try {
+        $u = (& whoami /upn 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $u -and $u -match '@') { $mail = $u.Trim() }
+    } catch { }
+    # 2) Equipos registrados en Entra / Intune
+    if (-not $mail) {
+        try {
+            $d = (& dsregcmd /status 2>$null)
+            if ($d) {
+                $m = $d | Select-String -Pattern '(Executing Account Name|UserPrincipalName)\s*:\s*(\S+@\S+)'
+                if ($m) { $mail = ($m[0].Matches[0].Groups[2].Value).Trim() }
+            }
+        } catch { }
+    }
+    # 3) Cuenta Microsoft usada para iniciar sesion
+    if (-not $mail) {
+        try {
+            $k = 'HKCU:\Software\Microsoft\IdentityCRL\UserExtendedProperties'
+            if (Test-Path $k) {
+                $n = Get-ChildItem $k -ErrorAction SilentlyContinue | ForEach-Object { $_.PSChildName } | Where-Object { $_ -match '@' } | Select-Object -First 1
+                if ($n) { $mail = $n.Trim() }
+            }
+        } catch { }
+    }
+    # 4) Identidad de Office / Microsoft 365 (puede ser otra cuenta)
+    if (-not $mail) {
+        try {
+            $k = 'HKCU:\Software\Microsoft\Office\16.0\Common\Identity\Identities'
+            if (Test-Path $k) {
+                foreach ($i in (Get-ChildItem $k -ErrorAction SilentlyContinue)) {
+                    $e = (Get-ItemProperty $i.PSPath -Name 'EmailAddress' -ErrorAction SilentlyContinue).EmailAddress
+                    if ($e -and $e -match '@') { $mail = $e.Trim(); break }
+                }
+            }
+        } catch { }
+    }
+    $script:Correo = $mail
+    $script:CorreoTs = Get-Date
+    return $mail
+}
+
+function Test-AppTelefono {
+    if ($patrones.Count -eq 0) { return $null }
+    try {
+        foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
+            foreach ($pat in $patrones) { if ($p.ProcessName -like "*$pat*") { return $true } }
+        }
+    } catch { }
+    return $false
+}
+
+function Get-ProgActivo {
+    try {
+        $procId = [Monitor247Win]::ForegroundPid()
+        if ($procId -le 0) { return '' }
+        $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+        if ($p) { if ($p.Description) { return $p.Description } else { return $p.ProcessName } } else { return '' }
+    } catch { return '' }
+}
+
+function Get-Programas {
+    try {
+        Get-Process -ErrorAction SilentlyContinue | Group-Object ProcessName | ForEach-Object {
+            $d = ($_.Group | ForEach-Object { $_.Description } | Where-Object { $_ } | Select-Object -First 1)
+            $nom = if ($d) { $d } else { $_.Name }
+            [pscustomobject]@{ n = $nom; mb = [int][math]::Round(((($_.Group | Measure-Object WorkingSet64 -Sum).Sum) / 1MB)) }
+        } | Sort-Object mb -Descending | Select-Object -First $TopProgs
+    } catch { @() }
+}
+
+function Get-Latencia {
+    $tries = 3; $ok = 0; $sum = 0.0
+    for ($i = 0; $i -lt $tries; $i++) {
+        try {
+            $c = New-Object Net.Sockets.TcpClient
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            $ar = $c.BeginConnect('1.1.1.1', 443, $null, $null)
+            if ($ar.AsyncWaitHandle.WaitOne(2000) -and $c.Connected) { $c.EndConnect($ar); $sw.Stop(); $sum += $sw.Elapsed.TotalMilliseconds; $ok++ }
+            $c.Close()
+        } catch { }
+        Start-Sleep -Milliseconds 120
+    }
+    if ($ok -gt 0) { return @{ ms = [math]::Round($sum / $ok); loss = [math]::Round(($tries - $ok) / $tries, 3) } }
+    return @{ ms = -1; loss = 1 }
+}
+
+function Invoke-SpeedTest {
+    try {
+        $req = [Net.HttpWebRequest]::Create($SpeedUrl)
+        $req.Proxy = $null   # ir directo; evita que la deteccion automatica de proxy (WPAD) cuelgue
+        $req.Method = 'GET'; $req.Timeout = 20000; $req.ReadWriteTimeout = 30000; $req.KeepAlive = $false
+        $sw = [Diagnostics.Stopwatch]::StartNew(); $total = 0L; $buf = New-Object byte[] 65536
+        $resp = $req.GetResponse(); $st = $resp.GetResponseStream()
+        while (($r = $st.Read($buf, 0, $buf.Length)) -gt 0) { $total += $r; if ($sw.Elapsed.TotalSeconds -gt 25) { break } }
+        $st.Close(); $resp.Close(); $sw.Stop()
+        if ($sw.Elapsed.TotalSeconds -le 0 -or $total -le 0) { return -1 }
+        return [math]::Round($total * 8 / $sw.Elapsed.TotalSeconds / 1e6, 1)
+    } catch { return -1 }
+}
+
+# El panel pidio actualizar este equipo sin esperar la revision de cada hora.
+# Aqui no se actualiza nada: solo se deja el aviso y, si se puede, se despierta
+# al actualizador, que es quien descarga, verifica la huella, respalda y
+# reinicia. Si no se puede despertar, el actualizador vera el aviso en su ciclo
+# de cinco minutos.
+# ---------------------------------------------------------------------
+# Inventario del equipo (nuevo en la 2.5). Se arma una vez y se guarda en
+# estado\equipo.json; se rehace si falta o tiene mas de 7 dias. Solo viaja
+# en el latido de arranque, porque cambia muy poco.
+# ---------------------------------------------------------------------
+function Get-Inventario {
+    $cache = Join-Path $EstadoDir 'equipo.json'
+    try {
+        if ((Test-Path $cache) -and ((Get-Date).ToUniversalTime() - (Get-Item $cache).LastWriteTimeUtc).TotalDays -lt 7) {
+            $viejo = Get-Content $cache -Raw -Encoding UTF8
+            if ($viejo -and $viejo.Trim().StartsWith('{')) { return ($viejo | ConvertFrom-Json) }
+        }
+    } catch { }
+
+    $rBios = 'HKLM:\HARDWARE\DESCRIPTION\System\BIOS'
+    $rWin  = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    function RegVal($ruta, $nombre) {
+        try { $v = (Get-ItemProperty -Path $ruta -Name $nombre -ErrorAction Stop).$nombre; if ($null -eq $v) { '' } else { ([string]$v).Trim() } }
+        catch { '' }
+    }
+
+    $marca  = RegVal $rBios 'SystemManufacturer'
+    $modelo = RegVal $rBios 'SystemProductName'
+    if (-not $modelo) { $modelo = RegVal $rBios 'SystemFamily' }
+
+    $serie = ''
+    try {
+        $s = ([string](Get-CimInstance -ClassName Win32_BIOS -ErrorAction Stop).SerialNumber).Trim()
+        if ($s.Length -gt 64) { $s = $s.Substring(0, 64) }
+        if ($s.ToLowerInvariant() -notin @('none', 'default string', 'to be filled by o.e.m.', 'system serial number')) { $serie = $s }
+    } catch { }
+
+    $nombreWin = RegVal $rWin 'ProductName'
+    $verWin    = RegVal $rWin 'DisplayVersion'
+    $buildWin  = RegVal $rWin 'CurrentBuild'
+    # Windows 11 sigue diciendo "Windows 10" en ProductName; la compilacion lo delata
+    $b = 0; [int]::TryParse($buildWin, [ref]$b) | Out-Null
+    if ($b -ge 22000 -and $nombreWin -match 'Windows 10') { $nombreWin = $nombreWin -replace 'Windows 10', 'Windows 11' }
+    $windows = (($nombreWin + ' ' + $verWin).Trim() + $(if ($buildWin) { " ($buildWin)" } else { '' }))
+
+    $instalado = ''
+    try {
+        $seg = (Get-ItemProperty -Path $rWin -Name 'InstallDate' -ErrorAction Stop).InstallDate
+        if ($seg) { $instalado = ([DateTime]'1970-01-01T00:00:00Z').ToUniversalTime().AddSeconds([int64]$seg).ToString('yyyy-MM-dd') }
+    } catch { }
+
+    $ramGb = 0
+    try { $ramGb = [int][math]::Round((Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).TotalPhysicalMemory / 1GB) } catch { }
+
+    $discoGb = 0; $libreGb = 0
+    try {
+        $u = (Get-Item $env:WINDIR).PSDrive
+        $discoGb = [int][math]::Round(($u.Used + $u.Free) / 1GB)
+        $libreGb = [int][math]::Round($u.Free / 1GB)
+    } catch { }
+
+    $inv = [ordered]@{
+        marca = $marca; modelo = $modelo; serie = $serie; windows = $windows
+        instalado = $instalado; ramGb = $ramGb; discoGb = $discoGb; libreGb = $libreGb
+    }
+    try { [IO.File]::WriteAllText($cache, ($inv | ConvertTo-Json -Compress), $Utf8) } catch { }
+    return $inv
+}
+
+# 2.8: ubicacion de Windows (System.Device) cuando el servidor la pide ("ubicar").
+# 2.9: sin cambios en el agente; el actualizador 2.9 instala la app 247 Time Clock (TimeTrack).
+function Get-Ubicacion([string]$motivo) {
+    $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $mot = if ($motivo -eq 'perdido') { 'perdido' } else { 'turno' }
+    $r = [ordered]@{ ts = $ts; estado = 'error' }
+    $w = $null
+    try {
+        Add-Type -AssemblyName System.Device
+        $w = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::High)
+        [void]$w.TryStart($false, [TimeSpan]::FromSeconds(5))
+        $tope = (Get-Date).AddSeconds(20)
+        while ($true) {
+            $st = [string]$w.Status; $perm = [string]$w.Permission
+            if ($st -eq 'Disabled') { $r.estado = 'apagada'; break }
+            if ($perm -eq 'Denied') { $r.estado = 'denegada'; break }
+            $loc = $w.Position.Location
+            if ($st -eq 'Ready' -and $loc -and -not $loc.IsUnknown) {
+                $r.estado = 'ok'
+                $r.lat = [Math]::Round($loc.Latitude, 6); $r.lng = [Math]::Round($loc.Longitude, 6)
+                $r.prec = if ($loc.HorizontalAccuracy -ge 0) { [int][Math]::Round($loc.HorizontalAccuracy) } else { $null }
+                break
+            }
+            if ((Get-Date) -gt $tope) { $r.estado = 'sin_dato'; break }
+            Start-Sleep -Milliseconds 500
+        }
+    } catch { $r.estado = 'error'; Write-Log "Ubicacion: $($_.Exception.Message)" }
+    finally { try { if ($w) { $w.Stop(); $w.Dispose() } } catch { } }
+    $r.motivo = $mot
+    Write-Log ("Ubicacion ($mot): " + $r.estado)
+    return $r
+}
+
+function Protect-Clave([byte[]]$datos, [bool]$cifrar) {
+    Add-Type -AssemblyName System.Security
+    $ambito = [Security.Cryptography.DataProtectionScope]::LocalMachine
+    if ($cifrar) { return [Security.Cryptography.ProtectedData]::Protect($datos, $Entropia, $ambito) }
+    return [Security.Cryptography.ProtectedData]::Unprotect($datos, $Entropia, $ambito)
+}
+
+function Read-Clave {
+    try {
+        if (-not (Test-Path $ClaveFile)) { return '' }
+        $c = [Text.Encoding]::UTF8.GetString((Protect-Clave ([IO.File]::ReadAllBytes($ClaveFile)) $false)).Trim()
+        if ($c.StartsWith('eq_')) { return $c }
+    } catch { Write-Log "No se pudo leer la clave del equipo ($($_.Exception.Message)); se pedira una nueva" }
+    return ''
+}
+
+function Save-Clave([string]$c) {
+    $script:Clave = $c   # aunque falle el archivo, en esta sesion se usa la nueva
+    try { [IO.File]::WriteAllBytes($ClaveFile, (Protect-Clave ([Text.Encoding]::UTF8.GetBytes($c)) $true)) }
+    catch { Write-Log "No se pudo guardar la clave del equipo: $($_.Exception.Message)" }
+}
+
+function Remove-Clave {
+    $script:Clave = ''
+    try { if (Test-Path $ClaveFile) { Remove-Item $ClaveFile -Force } } catch { }
+    Write-Log 'Clave de equipo descartada; se pedira una nueva'
+}
+
+# Lee la respuesta de un lote. Si trae clave nueva, la guarda. Si el servidor no acepto el
+# lote por la clave o el token, lanza: el lote se queda en la cola y se reintenta (nada se
+# pierde mientras el equipo espera aprobacion). Otros errores se tratan como hasta la 2.6.
+function Read-Respuesta([string]$r) {
+    if (-not $r) { return }
+    $m = [regex]::Match($r, '"clave_equipo"\s*:\s*"(eq_[A-Za-z0-9_-]+)"')
+    if ($m.Success -and $m.Groups[1].Value -ne $script:Clave) { Save-Clave $m.Groups[1].Value; Write-Log 'Clave de equipo recibida y guardada' }
+    if ($r -match '"clave_invalida"\s*:\s*true') { Remove-Clave; throw 'La clave de este equipo no es valida; se pedira una nueva' }
+    if ($r -notmatch '"ok"\s*:\s*false') { return }
+    if ($r -match '"pendiente"\s*:\s*true') { throw 'Equipo pendiente de aprobacion en el panel del Monitor; los latidos esperan en la cola' }
+    if ($r -match '"anulada"\s*:\s*true') { throw 'Este equipo fue anulado en el panel del Monitor' }
+    $e = [regex]::Match($r, '"error"\s*:\s*"((?:\\.|[^"\\])*)"').Groups[1].Value
+    if ($e -match 'token|reinstale') { throw "El servidor rechazo el envio: $e" }
+}
+
+function Request-Actualizacion {
+    # El aviso va dentro de 'estado', la unica carpeta donde el agente tiene
+    # permiso de escritura (corre como usuario normal). Hasta la 2.3 se escribia
+    # en la carpeta principal y Windows lo rechazaba: el boton no hacia nada.
+    $sello = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    try { [IO.File]::WriteAllText((Join-Path $EstadoDir 'forzar.txt'), $sello, $Utf8) }
+    catch { Write-Log "No se pudo dejar el aviso de actualizacion: $($_.Exception.Message)"; return }
+    try { Start-ScheduledTask -TaskName 'Monitor247_Actualizador' -ErrorAction Stop; Write-Log 'Actualizacion pedida desde el panel: actualizador lanzado' }
+    catch { Write-Log "Actualizacion pedida desde el panel; el actualizador la tomara en su proximo ciclo ($($_.Exception.Message))" }
+}
+
+function Send-Lote([object[]]$beats) {
+    # Con clave de equipo no hay atajo al Apps Script: si Supabase no responde, los
+    # latidos esperan en la cola (el Apps Script no conoce las claves).
+    if ($script:Clave) { return (Send-A $SupabaseUrl $beats) }
+    try { return (Send-A $SupabaseUrl $beats) }
+    catch {
+        if (((Get-Date).ToUniversalTime() - $script:avisoRespaldo).TotalMinutes -ge 30) {
+            Write-Log "Supabase no respondio ($($_.Exception.Message)); se envia directo al Apps Script"
+            $script:avisoRespaldo = (Get-Date).ToUniversalTime()
+        }
+        return (Send-A $cfg.url $beats)
+    }
+}
+
+function Send-A([string]$destino, [object[]]$beats) {
+    $cuerpo = @{ token = $cfg.token; version = $Version; beats = $beats }
+    if ($script:Clave) { $cuerpo.clave = $script:Clave }
+    $body = $cuerpo | ConvertTo-Json -Depth 8 -Compress
+    $bytes = [Text.Encoding]::UTF8.GetBytes($body)
+    $req = [Net.HttpWebRequest]::Create($destino)
+    $req.Proxy = $null   # ir directo; evita que la deteccion automatica de proxy (WPAD) cuelgue el envio
+    $req.Method = 'POST'; $req.ContentType = 'application/json; charset=utf-8'
+    $req.AllowAutoRedirect = $true; $req.Timeout = 30000; $req.ContentLength = $bytes.Length   # seguir el 302 para leer la respuesta (comando de velocidad)
+    $s = $req.GetRequestStream(); $s.Write($bytes, 0, $bytes.Length); $s.Close()
+    $code = 0; $cuerpo = ''
+    try {
+        $resp = $req.GetResponse(); $code = [int]$resp.StatusCode
+        $sr = New-Object IO.StreamReader($resp.GetResponseStream()); $cuerpo = $sr.ReadToEnd(); $sr.Close(); $resp.Close()
+    } catch [Net.WebException] {
+        if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } else { throw }
+    }
+    if ($code -ne 200 -and $code -ne 302) { throw "HTTP $code" }
+    return $cuerpo
+}
+
+$script:Clave = Read-Clave
+Write-Log ("Inicio v$Version - agente '$($cfg.agente)' cuenta '$($cfg.cuenta)' codigo '$($cfg.codigo)' usuario '$env:USERNAME' - " + $(if ($script:Clave) { 'con clave de equipo' } else { 'sin clave de equipo (se pedira al servidor)' }))
+$fallosSeguidos = 0
+$primerEnvio = $true
+$primerCiclo = $true
+$haceSpeed = $false
+$haceUbic = $false
+$ubicMotivo = ''
+
+while ($true) {
+    $inicioCiclo = Get-Date
+    $lineas = $null; $enviados = 0
+    try {
+        $mbps = $null
+        if ($haceSpeed) { $m = Invoke-SpeedTest; $haceSpeed = $false; if ($m -ge 0) { $mbps = $m }; Write-Log "Test de velocidad: $m Mbps" }
+        $ubic = $null
+        if ($haceUbic) { $ubic = Get-Ubicacion $ubicMotivo; $haceUbic = $false }
+
+        if ($primerCiclo) { Write-Log "diag: midiendo internet" }
+        $net = Get-Latencia
+        $lat = if ($net.ms -ge 0) { $net.ms } else { $null }
+
+        if ($primerCiclo) { Write-Log "diag: leyendo programas" }
+        $idle = [int][Monitor247Win]::IdleSeconds()
+        $pant = [int][Monitor247Win]::Pantallas(); if ($pant -lt 0) { $pant = $null }
+        $ener = [string][Monitor247Win]::Energia()
+        $bat  = [int][Monitor247Win]::Bateria();  if ($bat -lt 0)  { $bat  = $null }
+        # (2.14) Si la persona trabaja en OTRO usuario de Windows, se avisa (el panel lo lee de progActivo).
+        $otra = ''
+        try { $otra = [string][Monitor247Win]::OtraSesion() } catch { $otra = '' }
+        if ($otra -ne $script:ultimaOtra) {
+            if ($otra) { Write-Log "Otra sesion de Windows en uso: '$otra' (en esta sesion no se ve la actividad)" }
+            else { Write-Log 'La sesion de este agente vuelve a ser la que esta en uso' }
+            $script:ultimaOtra = $otra
+        }
+        $pa   = if ($otra) { '~otraSesion:' + $otra } else { Get-ProgActivo }
+        $at   = Test-AppTelefono
+        $pr   = @(Get-Programas)
+
+        $beat = [ordered]@{
+            id = [guid]::NewGuid().ToString('N'); ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            agente = [string]$cfg.agente; cuenta = [string]$cfg.cuenta; codigo = [string]$cfg.codigo; equipo = $env:COMPUTERNAME; usuario = $env:USERNAME
+            otraSesion = $otra
+            email = (Get-CorreoWindows)
+            idle = $idle; app = $at; inicio = $primerEnvio; progActivo = $pa; lat = $lat; loss = $net.loss; mbps = $mbps
+            pantallas = $pant; energia = $ener; bateria = $bat
+            progs = $pr
+        }
+        if ($ubic) { $beat.ubic = $ubic }
+        # El inventario del equipo solo viaja en el latido de arranque.
+        if ($primerEnvio) { $beat.equipo_info = Get-Inventario }
+        $primerEnvio = $false
+        [IO.File]::AppendAllText($ColaFile, ($beat | ConvertTo-Json -Depth 8 -Compress) + "`r`n", $Utf8)
+
+        if ($primerCiclo) { Write-Log "diag: enviando al servidor" }
+        $lineas = @([IO.File]::ReadAllLines($ColaFile, $Utf8) | Where-Object { $_.Trim() })
+        if ($lineas.Count -gt $MaxCola) { $lineas = $lineas[($lineas.Count - $MaxCola)..($lineas.Count - 1)] }
+        $respuesta = ''
+        while ($enviados -lt $lineas.Count) {
+            $fin = [Math]::Min($enviados + $MaxLote, $lineas.Count) - 1
+            $lote = @($lineas[$enviados..$fin] | ForEach-Object { $_ | ConvertFrom-Json })
+            $respuesta = Send-Lote $lote
+            Read-Respuesta $respuesta   # guarda la clave nueva; si el lote no se acepto, lanza y sigue en cola
+            $enviados = $fin + 1
+        }
+        [IO.File]::WriteAllText($ColaFile, '', $Utf8)
+        # El actualizador lee esta marca para confirmar que la version instalada funciona
+        try { [IO.File]::WriteAllText($UltimoFile, ($Version + '|' + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')), $Utf8) } catch { }
+        if ($primerCiclo) { Write-Log "diag: primer envio OK" }
+        if ($respuesta -and $respuesta.IndexOf('"cmd":"speedtest"') -ge 0) { $haceSpeed = $true }
+        if ($respuesta -and $respuesta.IndexOf('"actualizar":true') -ge 0) { Request-Actualizacion }
+        if ($respuesta -and $respuesta.IndexOf('"ubicar":true') -ge 0) {
+            $haceUbic = $true
+            $ubicMotivo = if ($respuesta -match '"ubicar_motivo"\s*:\s*"perdido"') { 'perdido' } else { 'turno' }
+        }
+        if ($fallosSeguidos -gt 0) { Write-Log "Conexion restablecida; enviados $enviados latidos pendientes" }
+        $fallosSeguidos = 0
+    } catch {
+        $fallosSeguidos++
+        try {
+            if ($lineas -and $lineas.Count -gt 0 -and $enviados -lt $lineas.Count) {
+                [IO.File]::WriteAllLines($ColaFile, [string[]]$lineas[$enviados..($lineas.Count - 1)], $Utf8)
+            }
+        } catch { }
+        if ($fallosSeguidos -eq 1 -or ($fallosSeguidos % 30) -eq 0) { Write-Log "Sin conexion con el servidor ($fallosSeguidos): $($_.Exception.Message)" }
+    }
+    $primerCiclo = $false
+    $espera = $Intervalo - ((Get-Date) - $inicioCiclo).TotalSeconds
+    if ($espera -gt 1) { Start-Sleep -Seconds ([int]$espera) }
+}
