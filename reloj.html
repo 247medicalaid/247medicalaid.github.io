@@ -9,13 +9,14 @@
 <!-- v295: Chat — modo "solo chat" (app dedicada): arranca en el chat y oculta la navegacion del TimeClock, activado por chat.html (icono separado) -->
 <!-- v296: FIX modo "solo chat" ahora SOLO por URL (no sessionStorage); antes se "pegaba" al icono del TimeClock y lo dejaba sin el panel completo. El TimeClock vuelve a mostrar todo. -->
 <!-- v299: Ausencias — ✗ roja para "Unauthorized absence"; dias con SOLO ausencia se aprueban (y bloquean); el agente no cancela lo del supervisor/sistema ni dias aprobados; Settings "Daily absence check" (Etapa 4, paso 129) -->
+<!-- v306: Settings rediseñado — menú de secciones (Company/People/Time/Money/More), resumen con avance, buscador, filas con interruptores, barra única Save changes/Discard; en el celular lista → sección -->
 <!-- v305: App «24/7 Chat» — agentes/supervisores también: login con su email en chat.247medical-aid.com y solo el chat (menú con Chat/Refresh/Sign out); titulos «24/7 Chat»; enlace al portal en el mismo origen -->
 <!-- v304: Chat — notificaciones PUSH reales en la app de Chat (chat.247medical-aid.com): suscripcion VAPID + reloj_push_guardar (paso 132); el servidor avisa con la app cerrada -->
 <!-- v303: Users en el celular — se cerró bien un @media (min-width:820px) que quedó abierto; la ficha del usuario mostraba íconos gigantes negros -->
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v305-202611111800">
+<meta name="app-build" content="v306-202611112000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -769,6 +770,171 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .sg-brand{--g:#DB2777;--g-soft:#FCE7F3;--g-ink:#9D174E}
 .sg-monitor{--g:#0891B2;--g-soft:#E0F7FB;--g-ink:#0A6E86}
 .sg-leave{--g:#0D9488;--g-soft:#E3F6F3;--g-ink:#0A6E66}
+/* ══ (v306) SETTINGS: menú de secciones + resumen + filas + interruptores + barra única de guardar ══ */
+#vAjustes{--aj-line:var(--line);--aj-suave:#F6F8FA;--aj-sep:#EEF2F5}
+#vAjustes .t-b{--t:#0E86B4;--t-soft:#E6F4FB}
+#vAjustes .t-v{--t:#6D4AE0;--t-soft:#EEEAFD}
+#vAjustes .t-g{--t:#0E9F6E;--t-soft:#E5F6EF}
+#vAjustes .t-r{--t:#D23B4F;--t-soft:#FDECEE}
+#vAjustes .t-a{--t:#B9770E;--t-soft:#FBF1DD}
+#vAjustes .t-s{--t:#56707F;--t-soft:#EDF1F4}
+#vAjustes .aj-cab{align-items:center}
+#vAjustes .aj-volver{display:none;border:0;background:none;color:var(--brand-700);font:700 15px/1 var(--font-display);padding:6px 4px;cursor:pointer}
+#vAjustes .aj-lead{margin:-6px 0 18px;color:var(--text-muted);font-size:15px;max-width:70ch}
+#vAjustes .aj-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:24px;align-items:start;max-width:1180px}
+/* menú */
+#vAjustes .aj-nav{position:sticky;top:12px;background:var(--paper);border:1px solid var(--aj-line);border-radius:14px;padding:10px}
+#vAjustes .aj-buscar{position:relative;margin-bottom:6px}
+#vAjustes .aj-buscar input{width:100%;box-sizing:border-box;border:1px solid var(--aj-line);border-radius:10px;padding:9px 10px 9px 34px;font:inherit;font-size:14px;color:var(--text);
+  background:var(--aj-suave) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235D7383' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") 11px 50% no-repeat}
+#vAjustes .aj-buscar input:focus{outline:none;border-color:var(--brand-500);background-color:#fff;box-shadow:0 0 0 3px var(--brand-100)}
+#vAjustes .aj-res{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:#fff;border:1px solid var(--aj-line);border-radius:12px;box-shadow:0 12px 30px rgba(4,20,31,.14);padding:6px;max-height:360px;overflow:auto}
+#vAjustes .aj-res button{display:block;width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:8px 10px;cursor:pointer;font:inherit}
+#vAjustes .aj-res button:hover,#vAjustes .aj-res button:focus{background:var(--brand-50);outline:none}
+#vAjustes .aj-res b{display:block;font-size:14px;color:var(--text)}
+#vAjustes .aj-res span{display:block;font-size:12px;color:var(--text-muted)}
+#vAjustes .aj-res-nada{margin:6px 8px;font-size:13px;color:var(--text-muted)}
+#vAjustes .aj-nav-g{font:700 11px/1 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:#8AA0AE;margin:14px 10px 6px}
+#vAjustes .aj-nav-a{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;border-radius:10px;padding:7px 8px;cursor:pointer;
+  font:600 14.5px/1.25 var(--font-body);color:var(--text);text-align:left}
+#vAjustes .aj-nav-a:hover{background:var(--aj-suave)}
+#vAjustes .aj-nav-a.on{background:var(--brand-50);color:var(--brand-700);font-weight:700}
+#vAjustes .aj-nav-a:focus-visible{outline:2px solid var(--brand-500);outline-offset:1px}
+#vAjustes .aj-nav-t{flex:1;min-width:0}
+#vAjustes .aj-nav-t small{display:none;font-weight:500;font-size:12.5px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vAjustes .aj-flecha{display:none;color:#9AB0BD;font-size:20px}
+#vAjustes .aj-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--t-soft);color:var(--t)}
+#vAjustes .aj-ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* páginas */
+#vAjustes .aj-pag{display:none}
+#vAjustes .aj-pag.on{display:block}
+#vAjustes .aj-pag-cab{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+#vAjustes .aj-pag-cab .aj-ic{width:44px;height:44px;border-radius:12px}
+#vAjustes .aj-pag-cab .aj-ic svg{width:23px;height:23px}
+#vAjustes .aj-pag-cab h2{font-size:21px;margin:0}
+#vAjustes .aj-pag-cab p{margin:2px 0 0;color:var(--text-muted);font-size:14px}
+/* tarjetas */
+#vAjustes .aj-card{max-width:none;padding:0;margin:0 0 16px;border-radius:14px;overflow:visible;border:1px solid var(--aj-line);transition:box-shadow .2s,border-color .2s}
+#vAjustes .aj-card.sucia{border-color:#F2C46B;box-shadow:0 0 0 3px #FCEFD2}
+#vAjustes .aj-card.flash{animation:ajFlash 1.6s ease}
+@keyframes ajFlash{0%,40%{box-shadow:0 0 0 4px var(--brand-100);border-color:var(--brand-500)}100%{box-shadow:none}}
+#vAjustes .aj-ct{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--aj-sep);flex-wrap:wrap}
+#vAjustes .aj-ct h2{font-size:16px;margin:0;color:var(--text);flex:1;min-width:0}
+#vAjustes .aj-ct2{border-top:1px solid var(--aj-sep);background:var(--aj-suave)}
+#vAjustes .aj-ct2 h2{font-size:14.5px}
+#vAjustes .aj-desc{margin:12px 20px 4px;color:var(--text-muted);font-size:13.5px;line-height:1.55;max-width:80ch}
+#vAjustes .aj-filas{padding:0}
+#vAjustes .aj-fila{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 24px;align-items:center;padding:13px 20px;border-top:1px solid var(--aj-sep)}
+#vAjustes .aj-filas > .aj-fila:first-child{border-top:0}
+#vAjustes .aj-desc + .aj-filas > .aj-fila:first-child{border-top:1px solid var(--aj-sep);margin-top:10px}
+#vAjustes .aj-fl{display:block;cursor:default;min-width:0}
+#vAjustes label.aj-fl{cursor:pointer}
+#vAjustes .aj-fl > b{display:block;font-size:14.5px;font-weight:650;color:var(--text)}
+#vAjustes .aj-fl > span{display:block;font-size:13px;color:var(--text-muted);margin-top:2px;line-height:1.45}
+#vAjustes .aj-fr{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+#vAjustes .aj-fr input[type=text],#vAjustes .aj-fr select{width:270px;max-width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--aj-line);border-radius:9px;font:inherit;font-size:14px;background:#fff;color:var(--text)}
+#vAjustes .aj-fr input:focus,#vAjustes .aj-fr select:focus{outline:none;border-color:var(--brand-500);box-shadow:0 0 0 3px var(--brand-100)}
+#vAjustes .aj-num{width:86px;padding:8px 10px;border:1px solid var(--aj-line);border-radius:9px;font:inherit;font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+#vAjustes .aj-num-l{width:110px}
+#vAjustes .aj-uni{font-size:13.5px;color:var(--text-muted);min-width:30px}
+#vAjustes .aj-cuerpo-card{padding:12px 20px 16px;overflow-x:auto}
+#vAjustes .aj-card .ejemplo{margin:0 20px 14px}
+#vAjustes .aj-fila + .ejemplo,#vAjustes .aj-filas + .ejemplo{margin-top:2px}
+#vAjustes .aj-pie{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 20px;border-top:1px solid var(--aj-sep);background:var(--aj-suave);border-radius:0 0 14px 14px}
+#vAjustes .aj-pie .nota{margin:0 0 0 auto;font-size:13px}
+#vAjustes .aj-pie:not(:has(.btn:not(.hidden))):has(.nota:empty){display:none}
+#vAjustes #ajAusPrevia:not(:empty){padding:0 20px 16px}
+#vAjustes .aj-botones{display:flex;gap:10px;align-items:center}
+#vAjustes .aj-logo{gap:14px}
+#vAjustes .aj-colores{gap:16px}
+#vAjustes .aj-colores .campo-color{font-size:11px}
+#vAjustes .aj-fila-alta{align-items:center}
+/* interruptor */
+#vAjustes input.aj-sw{appearance:none;-webkit-appearance:none;width:44px;height:26px;margin:0;border-radius:99px;background:#C9D3DA;position:relative;cursor:pointer;flex:none;transition:background .18s}
+#vAjustes input.aj-sw::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(4,20,31,.25);transition:transform .18s}
+#vAjustes input.aj-sw:checked{background:var(--brand-600)}
+#vAjustes input.aj-sw:checked::before{transform:translateX(18px)}
+#vAjustes input.aj-sw:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
+#vAjustes input.aj-sw:disabled{opacity:.5;cursor:not-allowed}
+/* control segmentado (redondeo) */
+#vAjustes .aj-seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--aj-line);border-radius:10px;overflow:hidden;background:#fff}
+#vAjustes .aj-seg label{position:relative;cursor:pointer;margin:0}
+#vAjustes .aj-seg input{position:absolute;opacity:0;pointer-events:none}
+#vAjustes .aj-seg span{display:block;padding:7px 13px;font-size:13.5px;border-right:1px solid var(--aj-line);white-space:nowrap}
+#vAjustes .aj-seg label:last-child span{border-right:0}
+#vAjustes .aj-seg input:checked + span{background:var(--brand-600);color:#fff;font-weight:700}
+#vAjustes .aj-seg input:focus-visible + span{outline:2px solid var(--brand-500);outline-offset:-2px}
+/* pastillas de estado */
+#vAjustes .aj-pill{display:inline-flex;align-items:center;font:700 12px/1 var(--font-body);padding:5px 9px;border-radius:99px;background:#EDF1F4;color:#5D7383;white-space:nowrap}
+#vAjustes .aj-pill.ok{background:#E2F5EC;color:#14794A}
+#vAjustes .aj-pill.w{background:#FFF1DA;color:#8A5600}
+#vAjustes .aj-pill:empty{display:none}
+/* resumen */
+#vAjustes .aj-prog{background:var(--paper);border:1px solid var(--aj-line);border-radius:14px;padding:14px 18px;margin:0 0 16px}
+#vAjustes .aj-prog-cab{display:flex;justify-content:space-between;gap:10px;font-size:14.5px}
+#vAjustes .aj-prog-cab span{color:var(--text-muted);font-size:13.5px}
+#vAjustes .aj-prog-bar{height:8px;background:#EDF1F4;border-radius:99px;overflow:hidden;margin:10px 0 0}
+#vAjustes .aj-prog-bar i{display:block;height:100%;background:#1E9E62;border-radius:99px;transition:width .4s}
+#vAjustes .aj-prog-falta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#vAjustes .aj-chip{border:1px solid #F2C46B;background:#FFF8EA;color:#7A4D00;border-radius:99px;padding:5px 11px;font:600 13px/1.2 var(--font-body);cursor:pointer}
+#vAjustes .aj-chip:hover{background:#FCEFD2}
+#vAjustes .aj-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+#vAjustes .aj-tile{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:left;background:var(--paper);border:1px solid var(--aj-line);border-radius:14px;padding:16px;cursor:pointer;font:inherit;color:var(--text);transition:border-color .15s,box-shadow .15s,transform .15s}
+#vAjustes .aj-tile:hover{border-color:var(--t);box-shadow:0 6px 18px rgba(4,20,31,.08);transform:translateY(-1px)}
+#vAjustes .aj-tile:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
+#vAjustes .aj-tile .aj-ic{width:38px;height:38px;border-radius:11px;margin-bottom:10px;align-self:flex-start}
+#vAjustes .aj-tile .aj-ic svg{width:20px;height:20px}
+#vAjustes .aj-tile b{display:block;font:800 15.5px/1.2 var(--font-display)}
+#vAjustes .aj-tile p{margin:3px 0 10px;color:var(--text-muted);font-size:13px;line-height:1.45}
+#vAjustes .aj-tile dl{margin:auto 0 0}
+#vAjustes .aj-tile dl div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-top:1px dashed var(--aj-sep);font-size:13px}
+#vAjustes .aj-tile dt{color:var(--text-muted)}
+#vAjustes .aj-tile dd{margin:0;font-weight:600;text-align:right}
+/* barra de guardar */
+#vAjustes .aj-barra{position:sticky;bottom:14px;z-index:20;margin:8px 0 0;background:var(--ink-900);color:#fff;border-radius:14px;padding:10px 12px 10px 18px;
+  display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(4,20,31,.28)}
+#vAjustes .aj-barra.hidden{display:none}
+#vAjustes .aj-barra-txt{flex:1;min-width:0;font-size:14px;line-height:1.35}
+#vAjustes .aj-barra-txt b{display:block}
+#vAjustes .aj-barra-txt span{display:block;color:#9FC4D8;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vAjustes .aj-barra.err{background:#7A1620}
+#vAjustes .aj-b-desc{background:transparent;border:1px solid #3A5568;color:#fff}
+#vAjustes .aj-b-desc:hover{background:#0D3247}
+#vAjustes .aj-b-guardar{background:var(--brand-500);color:var(--ink-900);border:0;font-weight:800}
+#vAjustes .aj-b-guardar:hover{filter:brightness(1.06)}
+/* tablas y listas dentro de las tarjetas */
+#vAjustes .roles-tabla{min-width:520px}
+/* celular y tableta */
+@media (max-width:819px){
+  #vAjustes .aj-layout{display:flex;flex-direction:column;align-items:stretch;gap:14px}
+  #vAjustes .aj-nav{position:static;padding:8px}
+  #vAjustes .aj-nav-a{padding:10px 8px}
+  #vAjustes .aj-nav-t small{display:block}
+  #vAjustes .aj-flecha{display:block}
+  #vAjustes .aj-nav-a[data-ir="inicio"]{display:none}
+  #vAjustes .aj-nav-a.on{background:none;color:var(--text);font-weight:600}
+  #vAjustes[data-sec="inicio"] .aj-cuerpo{order:-1}
+  #vAjustes[data-sec="inicio"] .aj-tiles{display:none}
+  #vAjustes:not([data-sec="inicio"]) .aj-nav,#vAjustes:not([data-sec="inicio"]) .aj-lead{display:none}
+  #vAjustes:not([data-sec="inicio"]) .aj-volver{display:inline-block}
+  #vAjustes:not([data-sec="inicio"]) .aj-cab h1{display:none}
+  #vAjustes .aj-pag-cab{margin-bottom:12px}
+  #vAjustes .aj-pag-cab .aj-ic{width:38px;height:38px}
+  #vAjustes .aj-pag-cab h2{font-size:19px}
+  #vAjustes .aj-ct,#vAjustes .aj-fila,#vAjustes .aj-pie,#vAjustes .aj-cuerpo-card{padding-left:16px;padding-right:16px}
+  #vAjustes .aj-desc{margin-left:16px;margin-right:16px}
+  #vAjustes .aj-card .ejemplo{margin-left:16px;margin-right:16px}
+}
+@media (max-width:620px){
+  #vAjustes .aj-fila{grid-template-columns:1fr}
+  #vAjustes .aj-fila:has(> .aj-fr > .aj-sw){grid-template-columns:minmax(0,1fr) auto}
+  #vAjustes .aj-fr{justify-content:flex-start}
+  #vAjustes .aj-fr input[type=text],#vAjustes .aj-fr select{width:100%}
+  #vAjustes .aj-seg{display:grid;grid-template-columns:repeat(5,1fr);width:100%}
+  #vAjustes .aj-seg span{padding:8px 4px;text-align:center}
+  #vAjustes .aj-barra{bottom:10px;padding:8px 8px 8px 14px}
+  #vAjustes .aj-barra-txt span{display:none}
+}
 .cpt-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .cpt-row:last-child{border-bottom:0}
 .cpt-dot{width:12px;height:12px;border-radius:50%;flex:none}
@@ -2668,187 +2834,214 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   </section>
 
   <!-- ADMIN: SETTINGS -->
-  <section id="vAjustes" class="hidden">
-    <div class="cabecera"><h1>Settings</h1></div>
-    <div class="set-grupo sg-brand">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><div><h2 class="set-grupo-tit">Appearance</h2><p class="set-grupo-sub">Your logo, company name, colors and time zone. Changes apply to everyone.</p></div></div>
-      <div class="ajuste" id="ajMarca">
-        <h2>Brand</h2>
-        <p class="nota">What everyone sees across the Time Clock: the company name, the logo in the header and the login, and the colors.</p>
-        <div class="ficha-grid" style="grid-template-columns:1fr 1fr">
-          <label class="campo"><span>Company name</span><input id="ajMarcaNombre" type="text" maxlength="120" placeholder="24/7 Medical Aid"></label>
-          <label class="campo"><span>App name</span><input id="ajMarcaApp" type="text" maxlength="60" placeholder="Time Clock"></label>
+  <section id="vAjustes" class="hidden" data-sec="inicio">
+    <!-- (v306) Settings rediseñado: menú de secciones + resumen + una sección a la vez + barra única de guardar.
+         Cada tarjeta conserva sus IDs y su botón de guardar (oculto): la barra los dispara. Ver ajMontar(). -->
+    <div class="cabecera aj-cab"><button class="aj-volver" id="ajVolver" type="button" aria-label="Back to Settings">&lsaquo; Settings</button><h1>Settings</h1></div>
+    <p class="aj-lead">Set up the Time Clock for how your office works. Changes apply to everyone.</p>
+    <div class="aj-layout">
+      <nav class="aj-nav" id="ajNav" aria-label="Settings sections">
+        <div class="aj-buscar"><input id="ajBuscar" type="search" placeholder="Search settings&hellip;" autocomplete="off" aria-label="Search settings"><div class="aj-res hidden" id="ajBuscarRes" role="listbox"></div></div>
+        <div id="ajNavLista"></div>
+      </nav>
+      <div class="aj-cuerpo">
+
+        <!-- RESUMEN -->
+        <div class="aj-pag" data-pag="inicio">
+          <div class="aj-prog" id="ajProg"></div>
+          <div class="aj-tiles" id="ajTiles"></div>
         </div>
-        <div class="marca-logo-fila">
-          <div class="marca-logo-prev" id="ajMarcaLogoPrev"></div>
-          <div class="marca-logo-ctrl">
-            <input type="file" id="ajMarcaLogoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden">
-            <button class="btn btn-ghost btn-sm" type="button" id="ajMarcaLogoBtn">Upload logo&hellip;</button>
-            <button class="btn btn-ghost btn-sm" type="button" id="ajMarcaLogoDef">Use default</button>
-            <p class="nota" style="margin:6px 0 0">PNG, JPG, SVG or WebP &middot; keep it small (an SVG or an image under ~250&nbsp;KB works best).</p>
+
+        <!-- COMPANY · Brand & region -->
+        <div class="aj-pag" data-pag="marca">
+          <div class="ajuste aj-card" id="ajMarca" data-guardar="ajMarcaGuardar">
+            <div class="aj-ct"><h2>Company</h2></div>
+            <p class="aj-desc">What everyone sees across the Time Clock: the company name in the header and the login, and the name of the app.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><div class="aj-fl"><b>Company name</b><span>Shown in the header, the login and emails.</span></div><div class="aj-fr"><input id="ajMarcaNombre" type="text" maxlength="120" placeholder="24/7 Medical Aid"></div></div>
+              <div class="aj-fila"><div class="aj-fl"><b>App name</b><span>The name of this app for your team.</span></div><div class="aj-fr"><input id="ajMarcaApp" type="text" maxlength="60" placeholder="Time Clock"></div></div>
+              <div class="aj-fila aj-fila-alta"><div class="aj-fl"><b>Logo</b><span>PNG, JPG, SVG or WebP &middot; an SVG or an image under ~250&nbsp;KB works best.</span></div>
+                <div class="aj-fr aj-logo"><div class="marca-logo-prev" id="ajMarcaLogoPrev"></div>
+                  <input type="file" id="ajMarcaLogoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden">
+                  <div class="aj-botones"><button class="btn btn-ghost btn-sm" type="button" id="ajMarcaLogoBtn">Upload&hellip;</button><button class="btn-link" type="button" id="ajMarcaLogoDef">Use default</button></div></div></div>
+              <div class="aj-fila"><div class="aj-fl"><b>Colors</b><span>Main color for buttons and highlights; accent for alerts.</span></div>
+                <div class="aj-fr aj-colores"><label class="campo-color"><span>Main</span><input id="ajMarcaBrand" type="color" value="#0E86B4"></label><label class="campo-color"><span>Accent</span><input id="ajMarcaAccent" type="color" value="#C81F29"></label><button class="btn-link" type="button" id="ajMarcaColDef">Reset</button></div></div>
+            </div>
+            <div class="aj-ct aj-ct2"><h2>Region</h2></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><div class="aj-fl"><b>Time zone</b><span>All punches, schedules and nightly checks use this time zone.</span></div><div class="aj-fr"><select id="ajMarcaZona">
+                <option value="America/New_York">Eastern &mdash; New York / Orlando</option>
+                <option value="America/Chicago">Central &mdash; Chicago</option>
+                <option value="America/Denver">Mountain &mdash; Denver</option>
+                <option value="America/Phoenix">Mountain, no DST &mdash; Phoenix</option>
+                <option value="America/Los_Angeles">Pacific &mdash; Los Angeles</option>
+                <option value="America/Anchorage">Alaska &mdash; Anchorage</option>
+                <option value="Pacific/Honolulu">Hawaii &mdash; Honolulu</option>
+                <option value="America/Bogota">Colombia &mdash; Bogot&aacute;</option>
+                <option value="America/Mexico_City">Mexico &mdash; Mexico City</option>
+                <option value="America/Lima">Peru &mdash; Lima</option>
+                <option value="America/Santiago">Chile &mdash; Santiago</option>
+                <option value="America/Argentina/Buenos_Aires">Argentina &mdash; Buenos Aires</option>
+                <option value="America/Sao_Paulo">Brazil &mdash; S&atilde;o Paulo</option>
+                <option value="Europe/Madrid">Spain &mdash; Madrid</option>
+              </select></div></div>
+              <div class="aj-fila"><div class="aj-fl"><b>Time label</b><span>Shown next to the clock, e.g. &laquo;Orlando time&raquo;.</span></div><div class="aj-fr"><input id="ajMarcaZonaLabel" type="text" maxlength="60" placeholder="Orlando time"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMarcaGuardar" type="button">Save</button><span class="nota" id="ajMarcaEstado"></span></div>
           </div>
         </div>
-        <div class="marca-colores-fila">
-          <label class="campo-color"><span>Main color</span><input id="ajMarcaBrand" type="color" value="#0E86B4"></label>
-          <label class="campo-color"><span>Accent color</span><input id="ajMarcaAccent" type="color" value="#C81F29"></label>
-          <button class="btn-link" type="button" id="ajMarcaColDef">Reset to default colors</button>
+
+        <!-- COMPANY · Accounts -->
+        <div class="aj-pag" data-pag="cuentas">
+          <div class="ajuste aj-card" id="ajCuentasBox" data-guardar="ajCuentasGuardar">
+            <div class="aj-ct"><h2>Accounts</h2><button class="btn btn-ghost btn-sm" type="button" id="ajCuentasAgregar">+ Add account</button></div>
+            <p class="aj-desc">The accounts (clients, departments or teams) your people work on, each with its color. Each account can also set <b>who may assign paid time off</b> or use the general rule. <b>Rename</b> changes the name everywhere at once &mdash; its data stays linked.</p>
+            <div class="aj-cuerpo-card"><div id="ajCuentasLista" class="ctas-lista"></div><div id="ajCuentasNuevas"></div></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" type="button" id="ajCuentasGuardar">Save</button><span class="nota" id="ajCuentasEstado"></span></div>
+          </div>
         </div>
-        <div class="ficha-grid" style="grid-template-columns:1fr 1fr">
-          <label class="campo"><span>Time zone</span><select id="ajMarcaZona">
-            <option value="America/New_York">Eastern &mdash; New York / Orlando</option>
-            <option value="America/Chicago">Central &mdash; Chicago</option>
-            <option value="America/Denver">Mountain &mdash; Denver</option>
-            <option value="America/Phoenix">Mountain, no DST &mdash; Phoenix</option>
-            <option value="America/Los_Angeles">Pacific &mdash; Los Angeles</option>
-            <option value="America/Anchorage">Alaska &mdash; Anchorage</option>
-            <option value="Pacific/Honolulu">Hawaii &mdash; Honolulu</option>
-            <option value="America/Bogota">Colombia &mdash; Bogotá</option>
-            <option value="America/Mexico_City">Mexico &mdash; Mexico City</option>
-            <option value="America/Lima">Peru &mdash; Lima</option>
-            <option value="America/Santiago">Chile &mdash; Santiago</option>
-            <option value="America/Argentina/Buenos_Aires">Argentina &mdash; Buenos Aires</option>
-            <option value="America/Sao_Paulo">Brazil &mdash; São Paulo</option>
-            <option value="Europe/Madrid">Spain &mdash; Madrid</option>
-          </select></label>
-          <label class="campo"><span>Time label (next to the clock)</span><input id="ajMarcaZonaLabel" type="text" maxlength="60" placeholder="Orlando time"></label>
+
+        <!-- COMPANY · Lists -->
+        <div class="aj-pag" data-pag="listas">
+          <div class="ajuste aj-card" id="ajListasBox" data-guardar="ajListasGuardar">
+            <div class="aj-ct"><h2>Lists</h2></div>
+            <p class="aj-desc">The options you can pick in a person&rsquo;s profile (department, ID type, bank&hellip;). Edit an option to rename it, remove it with &times; or add new ones. Removing an option doesn&rsquo;t change the people who already have it.</p>
+            <div class="aj-cuerpo-card"><div class="listas" id="ajListas"></div></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajListasGuardar" type="button">Save</button><span class="nota" id="ajListasEstado"></span></div>
+          </div>
         </div>
-        <button class="btn btn-ink btn-sm" id="ajMarcaGuardar" type="button">Save appearance</button>
-        <span class="nota" id="ajMarcaEstado" style="margin-left:8px"></span>
+
+        <!-- PEOPLE · Roles & managers -->
+        <div class="aj-pag" data-pag="equipo">
+          <div class="ajuste aj-card" id="ajRoles" data-guardar="ajGMGuardar">
+            <div class="aj-ct"><h2>General Manager</h2></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><div class="aj-fl"><b>General Manager</b><span>The top of the organization. Receives what nobody else above manages.</span></div><div class="aj-fr"><select id="ajGM"></select></div></div>
+            </div>
+            <div class="aj-ct aj-ct2"><h2>Managers &amp; supervisors</h2></div>
+            <p class="aj-desc">Everyone who manages an account, with their title and accounts. Set who manages each account in <b>Users</b> (open a person &rarr; <b>Manage accounts</b>). With 1 account a person is a <b>Supervisor</b>; with 2 or more, an <b>Account Manager</b>.</p>
+            <div class="aj-cuerpo-card"><div id="ajRolesLista" class="roles-lista"></div></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajGMGuardar" type="button">Save</button><span class="nota" id="ajGMEstado"></span></div>
+          </div>
+        </div>
+
+        <!-- TIME · Time tracking -->
+        <div class="aj-pag" data-pag="tiempo">
+          <div class="ajuste aj-card" id="ajRedBox" data-guardar="ajGuardar">
+            <div class="aj-ct"><h2>Hour rounding</h2></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><div class="aj-fl"><b>Round each punch to</b><span>Used for the Timesheet, approvals, exports and My clock. Real punch times are always kept.</span></div>
+                <div class="aj-fr"><div class="aj-seg" id="ajRedondeo" role="radiogroup" aria-label="Rounding">
+                  <label><input type="radio" name="redondeo" value="1"><span>Exact</span></label>
+                  <label><input type="radio" name="redondeo" value="5"><span>5 min</span></label>
+                  <label><input type="radio" name="redondeo" value="6"><span>6 min</span></label>
+                  <label><input type="radio" name="redondeo" value="10"><span>10 min</span></label>
+                  <label><input type="radio" name="redondeo" value="15"><span>15 min</span></label>
+                </div></div></div>
+            </div>
+            <div class="ejemplo" id="ajEjemplo"></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajGuardar" type="button">Save</button><span class="nota" id="ajEstado"></span></div>
+          </div>
+          <div class="ajuste aj-card" id="ajUbicBox" data-guardar="ajUbicGuardar">
+            <div class="aj-ct"><h2>Location</h2><span class="aj-pill" id="ajPillUbic"></span></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajUbic"><b>Require location to clock in and out</b><span>Each punch saves where it was made (GPS on phones, Wi&#8209;Fi on computers). When required, a punch isn&rsquo;t recorded until the person shares their location.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajUbic" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajUbicGuardar" type="button">Save</button><span class="nota" id="ajUbicEstado"></span></div>
+          </div>
+          <div class="ajuste aj-card" id="ajAutoSal" data-guardar="ajAutoGuardar">
+            <div class="aj-ct"><h2>Automatic clock out</h2><span class="aj-pill" id="ajPillAuto"></span></div>
+            <p class="aj-desc">For people who forget to clock out: when their worked time (lunch doesn&rsquo;t count) reaches their hours per day plus the margin, they&rsquo;re clocked out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet so you can check it.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajAuto"><b>Clock people out automatically</b><span>Runs every night at the closing time (see <b>Daily absence check</b>).</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajAuto" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajAutoMargen"><b>Margin after their hours per day</b><span>Extra time allowed before the automatic clock out.</span></label><div class="aj-fr"><input type="number" id="ajAutoMargen" class="aj-num" min="0" max="240" step="5" inputmode="numeric"><span class="aj-uni">min</span></div></div>
+            </div>
+            <div class="ejemplo" id="ajAutoEjemplo"></div>
+            <div class="aj-pie"><button class="btn btn-ghost btn-sm" id="ajAutoAhora" type="button">Run now</button><button class="btn btn-ink btn-sm hidden" id="ajAutoGuardar" type="button">Save</button><span class="nota" id="ajAutoEstado"></span></div>
+          </div>
+          <div class="ajuste aj-card" id="ajAusDiaria" data-guardar="ajAusGuardar">
+            <div class="aj-ct"><h2>Daily absence check</h2><span class="aj-pill" id="ajPillAus"></span></div>
+            <p class="aj-desc">Every night the Time Clock reviews the last few days. For each person who was scheduled but worked less than their hours &mdash; or didn&rsquo;t clock in &mdash; it sends you a <b>time off request</b> for the missing time. You approve it choosing the type (e.g. <b>Unauthorized absence</b>) or deny it. People can&rsquo;t cancel these requests.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajAusDia"><b>Check absences every night</b><span>Days with a pending request or approved time off are skipped; a day is never checked twice.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajAusDia" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajAusDias"><b>Look back</b><span>How many closed days to review. Today is never checked.</span></label><div class="aj-fr"><input type="number" id="ajAusDias" class="aj-num" min="1" max="31" step="1" inputmode="numeric"><span class="aj-uni">days</span></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajCierreHora"><b>Closing time</b><span>The nightly check and the automatic clock out run at this time (<span id="ajZonaTxt">Orlando time</span>).</span></label><div class="aj-fr"><select id="ajCierreHora"></select></div></div>
+            </div>
+            <div class="ejemplo" id="ajAusEjemplo"></div>
+            <div class="aj-pie"><button class="btn btn-ghost btn-sm" id="ajAusVer" type="button">Preview</button><button class="btn btn-ghost btn-sm" id="ajAusAhora" type="button">Run now</button><button class="btn btn-ink btn-sm hidden" id="ajAusGuardar" type="button">Save</button><span class="nota" id="ajAusEstado"></span></div>
+            <div id="ajAusPrevia"></div>
+          </div>
+        </div>
+
+        <!-- TIME · Time off -->
+        <div class="aj-pag" data-pag="ausencias">
+          <div class="ajuste aj-card" id="ajConceptosBox" data-guardar="ajConceptosGuardar">
+            <div class="aj-ct"><h2>Absence types</h2><button class="btn btn-ghost btn-sm" type="button" id="ajConceptosAdd">+ Add type</button></div>
+            <p class="aj-desc">The reasons for time off, each with a category. <b>Whether time off is paid is chosen when it&rsquo;s approved</b>, not here. The category locks once a type is created. Editing a type doesn&rsquo;t change time off already recorded.</p>
+            <div class="aj-cuerpo-card"><div id="ajConceptosLista"></div></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" type="button" id="ajConceptosGuardar">Save</button><span class="nota" id="ajConceptosEstado"></span></div>
+          </div>
+          <div class="ajuste aj-card" id="ajPagoRolesBox" data-guardar="ajPRGuardar">
+            <div class="aj-ct"><h2>Who can assign paid time off</h2></div>
+            <p class="aj-desc">Only these roles can choose <b>paid</b> when adding or approving time off; everyone else can only record it as unpaid. Administrators always can. Each account can override this in <b>Accounts</b>.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajPRGm"><b>General Manager</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajPRGm" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajPRSector"><b>Sector Manager</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajPRSector" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajPRAccount"><b>Account Manager</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajPRAccount" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajPRSup"><b>Supervisor</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajPRSup" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" type="button" id="ajPRGuardar">Save</button><span class="nota" id="ajPREstado"></span></div>
+          </div>
+        </div>
+
+        <!-- MONEY · Payroll -->
+        <div class="aj-pag" data-pag="nomina">
+          <div class="ajuste aj-card" id="ajPago" data-guardar="ajPagoGuardar">
+            <div class="aj-ct"><h2>Pay run defaults</h2></div>
+            <p class="aj-desc">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. These are the <b>default</b> values for each new pay run &mdash; you can still change them inside a pay run. Rete ICA is withheld only from people paid from N&oacute;mina 247.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajPagoExtra"><b>Add to the TRM</b><span>Pesos added to the day&rsquo;s exchange rate.</span></label><div class="aj-fr"><input id="ajPagoExtra" class="aj-num aj-num-l" type="number" min="0" max="5000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajPagoTope"><b>Maximum per dollar</b><span>The rate never goes above this.</span></label><div class="aj-fr"><input id="ajPagoTope" class="aj-num aj-num-l" type="number" min="0" max="20000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajPagoIca"><b>Rete ICA</b><span>Withholding per thousand.</span></label><div class="aj-fr"><input id="ajPagoIca" class="aj-num" type="number" min="0" max="100" step="0.01" inputmode="decimal"><span class="aj-uni">&permil;</span></div></div>
+            </div>
+            <p class="ejemplo" id="ajPagoEjemplo"></p>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajPagoGuardar" type="button">Save</button><span class="nota" id="ajPagoEstado"></span></div>
+          </div>
+        </div>
+
+        <!-- MORE · Integrations -->
+        <div class="aj-pag" data-pag="integ">
+          <div class="ajuste aj-card" id="ajMonSyncBox" data-guardar="ajMonGuardar">
+            <div class="aj-ct"><h2>Agent Monitor</h2><span class="aj-pill" id="ajPillMon"></span></div>
+            <p class="aj-desc">Connects the Monitor (activity of each computer) with the Time Clock. Turn it off to use the Time Clock without the Monitor.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajMonSync"><b>Send the Monitor&rsquo;s authorizations to the Time Clock</b><span>Time off you authorize in the Monitor (vacation, sick, permission, technical issue, unauthorized absence&hellip;) arrives here as a <b>time off request</b> for you to approve.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonSync" role="switch"></div></div>
+            </div>
+            <div class="aj-ct aj-ct2"><h2>Paid by default when it comes from the Monitor</h2></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajMonPagoVac"><b>Vacation</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoVac" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMonPagoSick"><b>Sick</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoSick" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMonPagoPers"><b>Personal</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoPers" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMonGuardar" type="button">Save</button><span class="nota" id="ajMonEstado"></span></div>
+          </div>
+        </div>
+
+        <!-- MORE · Advanced -->
+        <div class="aj-pag" data-pag="avanzado">
+          <div class="ajuste aj-card" id="ajPrueba">
+            <div class="aj-ct"><h2>Test user</h2></div>
+            <p class="aj-desc">Copy an agent&rsquo;s punches, approved days, requests and time off, documents and paystubs to your test user, then sign in as the test user to try the agent view with real information. Only the test user is changed (never a real agent); copying replaces what it had. Test users show with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or payroll exports.</p>
+            <div class="aj-cuerpo-card"><div id="prCuerpo"></div></div>
+          </div>
+        </div>
+
+        <div class="aj-barra hidden" id="ajBarra" role="status" aria-live="polite">
+          <span class="aj-barra-txt" id="ajBarraTxt">Unsaved changes</span>
+          <button class="btn aj-b-desc" id="ajDescartar" type="button">Discard</button>
+          <button class="btn aj-b-guardar" id="ajGuardarTodo" type="button">Save changes</button>
+        </div>
       </div>
-    </div>
-    <div class="set-grupo sg-team">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><h2 class="set-grupo-tit">Team &amp; organization</h2><p class="set-grupo-sub">The org chart and the options people can be given.</p></div></div>
-    <div class="ajuste" id="ajRoles">
-      <h2>Managers &amp; supervisors</h2>
-      <p class="nota">Pick the General Manager (the top of the org). Below are everyone who manages an account, with their title and accounts. Set who manages each account in <b>Users</b> (open a person &rarr; <b>Manage accounts</b>). A person with 1 account is a <b>Supervisor</b>; with 2+ accounts, an <b>Account Manager</b>.</p>
-      <label class="chk-linea" style="gap:10px;flex-wrap:wrap">General Manager <select id="ajGM" style="min-width:220px"></select> <button class="btn btn-ink btn-sm" id="ajGMGuardar" type="button">Save</button> <span class="nota" id="ajGMEstado"></span></label>
-      <div id="ajRolesLista" class="roles-lista"></div>
-    </div>
-    <div class="ajuste" id="ajCuentasBox">
-      <h2>Accounts</h2>
-      <p class="nota">The accounts your team works on, each with its color. The color is used across the Time Clock (and, when the Payroll module is in use, it shows there too). Pick a color per account below, or add a new account. Each account can also set <b>who may assign paid time off</b>, or inherit the global default. Use <b>Rename</b> on an account to change its name everywhere in the Time Clock at once — it keeps its fixed code, so its data stays linked. (The Monitor keeps showing the old name until its next sync.)</p>
-      <div id="ajCuentasLista" class="ctas-lista"></div>
-      <div id="ajCuentasNuevas"></div>
-      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" type="button" id="ajCuentasAgregar">Add account</button>
-        <button class="btn btn-ink btn-sm" type="button" id="ajCuentasGuardar">Save accounts</button>
-        <span class="nota" id="ajCuentasEstado"></span>
-      </div>
-    </div>
-    <div class="ajuste">
-      <h2>Lists</h2>
-      <p class="nota">The options users can be given in Users. Rename an option by editing it, remove it with ×, or add new ones. Removing an option doesn't change the users who already have it. Account colors are set above in <b>Accounts</b>.</p>
-      <div class="listas" id="ajListas"></div>
-      <button class="btn btn-ink btn-sm" id="ajListasGuardar" type="button">Save lists</button>
-      <span class="nota" id="ajListasEstado" style="margin-left:8px"></span>
-    </div>
-    </div>
-    <div class="set-grupo sg-clock">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><h2 class="set-grupo-tit">Clock &amp; hours</h2><p class="set-grupo-sub">How punches are rounded, located and auto-closed.</p></div></div>
-    <div class="ajuste">
-      <h2>Hour rounding</h2>
-      <p class="nota">When hours are calculated (Timesheet, approvals, exports and My clock), each punch is rounded to the nearest step. The real punch times are kept exactly as they were.</p>
-      <div class="opciones" id="ajRedondeo">
-        <label><input type="radio" name="redondeo" value="1"> Exact (to the minute)</label>
-        <label><input type="radio" name="redondeo" value="5"> Every 5 minutes</label>
-        <label><input type="radio" name="redondeo" value="6"> Every 6 minutes (1/10 of an hour)</label>
-        <label><input type="radio" name="redondeo" value="10"> Every 10 minutes</label>
-        <label><input type="radio" name="redondeo" value="15"> Every 15 minutes</label>
-      </div>
-      <div class="ejemplo" id="ajEjemplo"></div>
-      <button class="btn btn-ink btn-sm" id="ajGuardar" type="button">Save</button>
-      <span class="nota" id="ajEstado" style="margin-left:8px"></span>
-    </div>
-    <div class="ajuste">
-      <h2>Location</h2>
-      <p class="nota">Each clock in, lunch and clock out saves where it was made (from the browser: GPS on phones, Wi‑Fi on computers). When it's required, the Time Clock won't record a punch until the agent shares their location.</p>
-      <label class="chk-linea"><input type="checkbox" id="ajUbic"> Require location to clock in and out</label>
-      <button class="btn btn-ink btn-sm" id="ajUbicGuardar" type="button">Save</button>
-      <span class="nota" id="ajUbicEstado" style="margin-left:8px"></span>
-    </div>
-    <div class="ajuste" id="ajAutoSal">
-      <h2>Automatic clock out</h2>
-      <p class="nota">For agents who forget to clock out. When an agent's worked time (lunch doesn't count) reaches their hours per day plus this margin, the Time Clock clocks them out at that exact time. The day is marked <span class="auto-mini">AUTO</span> in the Timesheet with an alert so you can check it and correct it. It runs once a night at the closing time (set in <b>Daily absence check</b>, below); use “Run now” for an immediate sweep (e.g. on payday, before closing the period).</p>
-      <label class="chk-linea"><input type="checkbox" id="ajAuto"> Clock agents out automatically</label>
-      <label class="aj-margen">Margin after their hours per day <input type="number" id="ajAutoMargen" min="0" max="240" step="5" inputmode="numeric"> min</label>
-      <div class="ejemplo" id="ajAutoEjemplo"></div>
-      <button class="btn btn-ink btn-sm" id="ajAutoGuardar" type="button">Save</button>
-      <button class="btn btn-ghost btn-sm" id="ajAutoAhora" type="button" style="margin-left:6px">Run now</button>
-      <span class="nota" id="ajAutoEstado" style="margin-left:8px"></span>
-    </div>
-    <div class="ajuste" id="ajAusDiaria">
-      <h2>Daily absence check</h2>
-      <p class="nota">Every night at the closing time, the Time Clock reviews the last few days. For each agent who was scheduled but worked less than their hours per day — or didn't clock in at all — it sends you a <b>time off request</b> for the missing time. You approve it choosing the type (for example <b>Unauthorized absence</b>) or deny it. It skips days with a pending request or an approved time off, and never checks the same day twice. Agents can't cancel these requests.</p>
-      <label class="chk-linea"><input type="checkbox" id="ajAusDia"> Check absences every night</label>
-      <label class="aj-margen">Check the last <input type="number" id="ajAusDias" min="1" max="31" step="1" inputmode="numeric"> days (today is never checked)</label>
-      <label class="aj-margen">Closing time <select id="ajCierreHora"></select> <span class="nota" style="margin:0">Orlando time · automatic clock out runs then too</span></label>
-      <div class="ejemplo" id="ajAusEjemplo"></div>
-      <button class="btn btn-ink btn-sm" id="ajAusGuardar" type="button">Save</button>
-      <button class="btn btn-ghost btn-sm" id="ajAusVer" type="button" style="margin-left:6px">Preview</button>
-      <button class="btn btn-ghost btn-sm" id="ajAusAhora" type="button" style="margin-left:6px">Run now</button>
-      <span class="nota" id="ajAusEstado" style="margin-left:8px"></span>
-      <div id="ajAusPrevia" style="margin-top:10px"></div>
-    </div>
-    </div>
-    <div class="set-grupo sg-pay">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><div><h2 class="set-grupo-tit">Payroll</h2><p class="set-grupo-sub">Default dollar rate and withholdings for each pay run.</p></div></div>
-    <div class="ajuste" id="ajPago">
-      <h2>Pay run</h2>
-      <p class="nota">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. These are the <b>default</b> values for each new pay run; you can still change them in a pay run. Rete ICA is withheld only from people paid from Nómina 247.</p>
-      <div class="ficha-grid" style="grid-template-columns:repeat(3,1fr)">
-        <label class="campo"><span>Add to the TRM (COP)</span><input id="ajPagoExtra" type="number" min="0" max="5000" step="1" inputmode="numeric"></label>
-        <label class="campo"><span>Maximum (COP per dollar)</span><input id="ajPagoTope" type="number" min="0" max="20000" step="1" inputmode="numeric"></label>
-        <label class="campo"><span>Rete ICA (per thousand)</span><input id="ajPagoIca" type="number" min="0" max="100" step="0.01" inputmode="decimal"></label>
-      </div>
-      <p class="nota" id="ajPagoEjemplo"></p>
-      <button class="btn btn-ink btn-sm" id="ajPagoGuardar" type="button">Save</button>
-      <span class="nota" id="ajPagoEstado" style="margin-left:8px"></span>
-    </div>
-    </div>
-    <div class="set-grupo sg-leave">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span><div><h2 class="set-grupo-tit">Absence types</h2><p class="set-grupo-sub">The time-off concepts (reasons) shared by the Time Clock and the Monitor. Whether a given absence is paid is decided by a manager when it's approved.</p></div></div>
-    <div class="ajuste" id="ajConceptosBox">
-      <p class="nota" style="margin-top:0">Each type is just a reason and its category. <b>Whether time off is paid is chosen at approval</b>, not here. The category locks once a type is created &mdash; to change it, delete the type and add a new one. Editing a type here does not change time off already recorded.</p>
-      <div id="ajConceptosLista"></div>
-      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="ajConceptosAdd">+ Add type</button>
-      <button class="btn btn-ink btn-sm" type="button" id="ajConceptosGuardar">Save</button>
-      <span class="nota" id="ajConceptosEstado"></span></div>
-    </div>
-    <div class="ajuste" id="ajPagoRolesBox">
-      <h2>Who can assign paid time off</h2>
-      <p class="nota">Only these roles can choose a <b>paid</b> type when adding or approving time off. Everyone else can use unpaid types only. Admins can always.</p>
-      <div style="display:flex;gap:12px 20px;flex-wrap:wrap">
-        <label class="chk-linea"><input type="checkbox" id="ajPRSector"> Sector Manager</label>
-        <label class="chk-linea"><input type="checkbox" id="ajPRAccount"> Account Manager</label>
-        <label class="chk-linea"><input type="checkbox" id="ajPRSup"> Supervisor</label>
-        <label class="chk-linea"><input type="checkbox" id="ajPRGm"> General Manager</label>
-      </div>
-      <button class="btn btn-ink btn-sm" type="button" id="ajPRGuardar" style="margin-top:12px">Save</button>
-      <span class="nota" id="ajPREstado" style="margin-left:8px"></span>
-    </div>
-    </div>
-    <div class="set-grupo sg-monitor">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><div><h2 class="set-grupo-tit">Monitor integration</h2><p class="set-grupo-sub">Connect authorized leave from the Agent Monitor with timesheets. Turn this off to run the Time Clock without the Monitor.</p></div></div>
-    <div class="ajuste" id="ajMonSyncBox">
-      <label class="chk-linea" style="align-items:flex-start;gap:10px"><input type="checkbox" id="ajMonSync" style="margin-top:3px"> <span><b>Sync authorized leave from the Monitor to timesheets</b><br><span class="nota">When a full-day Vacation, Sick or Authorized leave is approved in the Monitor for someone who did not clock in, it is added to their timesheet automatically.</span></span></label>
-      <h2 style="margin-top:16px">Pay for Monitor leave</h2>
-      <p class="nota">Choose which of these count as <b>paid</b> time off when added from the Monitor. Off = unpaid (the default).</p>
-      <div class="ficha-grid" style="grid-template-columns:repeat(3,1fr);max-width:520px">
-        <label class="chk-linea"><input type="checkbox" id="ajMonPagoVac"> Vacation paid</label>
-        <label class="chk-linea"><input type="checkbox" id="ajMonPagoSick"> Sick paid</label>
-        <label class="chk-linea"><input type="checkbox" id="ajMonPagoPers"> Personal paid</label>
-      </div>
-      <button class="btn btn-ink btn-sm" id="ajMonGuardar" type="button" style="margin-top:14px">Save</button>
-      <span class="nota" id="ajMonEstado" style="margin-left:8px"></span>
-    </div>
-    </div>
-    <div class="set-grupo sg-tools">
-      <div class="set-grupo-cab"><span class="set-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/></svg></span><div><h2 class="set-grupo-tit">Tools</h2><p class="set-grupo-sub">A sandbox user to preview the agent view with real data.</p></div></div>
-    <div class="ajuste" id="ajPrueba">
-      <h2>Test user</h2>
-      <p class="nota">Copy an agent's punches, approved days, requests and time off, documents and paystubs (with their files) to your test user — the test user also sees that agent's payment summary. Then sign in as the test user to see and try the agent view with real information. You can only copy to the test user (never a real agent); if it already has data you'll be warned, and copying replaces it. «Clear test user data» empties it when you're done. Whatever the test user had is replaced; the agent's own data isn't changed. The profile and the chat aren't copied. Test users show in the Timesheet with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or the payroll exports.</p>
-      <div id="prCuerpo"></div>
-    </div>
     </div>
   </section>
 
@@ -5632,6 +5825,8 @@ function abrirWeb(){
 function irA(v){
   if(S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio &&
      !confirm('You have unsaved changes in the Pay run. Leave without saving? Your changes will be lost.')) return;
+  if(S.vista === 'ajustes' && v !== 'ajustes' && typeof AJ !== 'undefined' && AJ.sucios.size &&
+     !confirm('You have unsaved changes in Settings. Leave without saving? Your changes will be lost.')) return;   // (v306)
   S.vista = v; document.body.dataset.vista = v;
   ['reloj','sin','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
@@ -5642,7 +5837,7 @@ function irA(v){
   if(v === 'hoja'){ if(!S.periodo) elegirPreset('q0'); else if(S.periodoDePago){ S.periodoDePago = false; ponerPeriodo(S.periodo.desde, S.periodo.hasta); } else cargarHoja(); }
   if(v === 'emps') cargarEmps();
   if(v === 'sols') cargarSols();
-  if(v === 'ajustes') pintarAjustes();
+  if(v === 'ajustes'){ AJ.entrado = false; pintarAjustes(); }
   if(v === 'aus') cargarAus();
   if(v === 'docs') cargarDocs();
   if(v === 'inv') cargarInv();
@@ -8424,6 +8619,250 @@ function pintarAjustes(){
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
   pintarAusDiaria();   // (v299)
+  ajTrasPintar();      // (v306) Settings: resumen, barra y sección
+}
+/* ══════════════════ (v306) SETTINGS: secciones, resumen, buscador y una sola barra de guardar ══════════════════
+   Pedido de Carlos (11 nov): que Settings se vea como una app profesional, configurable para cualquier oficina,
+   intuitiva y fácil. Cada tarjeta (.aj-card) conserva sus IDs, su lógica de pintar y su botón de guardar (oculto,
+   data-guardar). Esta capa: menú de secciones, página de resumen con avance, buscador, interruptores, y una barra
+   «Save changes / Discard» que detecta qué tarjetas cambiaron y dispara sus botones de guardar uno por uno. */
+const AJ_IC = {
+  inicio:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  marca:'<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.1 0 5.6-2.5 5.6-5.6C21.6 6 17.3 2 12 2z"/>',
+  cuentas:'<path d="M12 2l10 5-10 5L2 7z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
+  listas:'<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
+  equipo:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  tiempo:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  ausencias:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M9 15l2 2 4-4"/>',
+  nomina:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  integ:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>'
+};
+const AJ_SEC = [
+  { k:'inicio',    g:'',        t:'Overview',          d:'How the Time Clock is set up.', tono:'s' },
+  { k:'marca',     g:'Company', t:'Brand & region',    d:'Company name, logo, colors and time zone.', tono:'b' },
+  { k:'cuentas',   g:'Company', t:'Accounts',          d:'The clients, departments or teams your people work on.', tono:'b' },
+  { k:'listas',    g:'Company', t:'Lists',             d:'Options for profiles: departments, ID types, banks…', tono:'b' },
+  { k:'equipo',    g:'People',  t:'Roles & managers',  d:'General Manager, managers and supervisors.', tono:'v' },
+  { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
+  { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
+  { k:'nomina',    g:'Money',   t:'Payroll',           d:'Default dollar rate and withholdings for each pay run.', tono:'a' },
+  { k:'integ',     g:'More',    t:'Integrations',      d:'Connect the Agent Monitor.', tono:'s' },
+  { k:'avanzado',  g:'More',    t:'Advanced',          d:'A test user to preview the agent view with real data.', tono:'s' }
+];
+const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
+const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
+function ajIco(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (AJ_IC[k] || AJ_IC.inicio) + '</svg>'; }
+function ajSec(k){ return AJ_SEC.find(s => s.k === k) || AJ_SEC[0]; }
+function ajMovil(){ return window.matchMedia && matchMedia('(max-width: 819px)').matches; }
+function ajTituloCard(c){ const h = c.querySelector('.aj-ct h2'); return h ? h.textContent.trim() : ''; }
+function ajSinTildes(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function ajPill(txt, tipo){ return '<span class="aj-pill ' + (tipo || '') + '">' + esc(txt) + '</span>'; }
+
+// Resumen de cada sección (lo GUARDADO, no lo que se está editando).
+function ajResumen(k){
+  const emps = (S.emps && S.emps.empleados) || [];
+  const nom = u => { const e = emps.find(x => x.usuario === u); return e ? e.nombre : u; };
+  const red = S.redondeo || 1, as = S.autoSalida || {}, ad = S.ausDiaria || {};
+  try{
+    switch(k){
+      case 'marca': { const z = $('ajMarcaZona'); const o = z && [].find.call(z.options, x => x.value === (MARCA.zona || S.zona)); return [
+        ['Company', esc(MARCA.nombre || '—')], ['Time zone', esc(o ? o.textContent.replace(/\s+—.*$/, '') : (MARCA.zona || ''))], ['Logo', MARCA.logo ? 'Custom' : 'Default']]; }
+      case 'cuentas': { const n = (typeof cuentasFusion === 'function' ? cuentasFusion() : (S.cuentas || [])).length; const ov = (S.cuentas || []).filter(c => c && c.pago_roles).length;
+        return [['Accounts', n ? String(n) : ajPill('None yet', 'w')], ['Paid approval', ov ? ov + ' with their own rule' : 'General rule']]; }
+      case 'listas': { const L = S.listas || (typeof LISTAS_BASE !== 'undefined' ? LISTAS_BASE : {}); const ks = Object.keys(L).filter(x => x !== 'cuentas' && Array.isArray(L[x]));
+        return [['Lists', String(ks.length)], ['Options', String(ks.reduce((t, x) => t + L[x].length, 0))]]; }
+      case 'equipo': return [['General Manager', S.gm ? esc(nom(S.gm)) : ajPill('Not set', 'w')], ['Managers & supervisors', String(emps.filter(e => e.esManager).length)]];
+      case 'tiempo': return [['Rounding', red === 1 ? 'Exact' : 'Every ' + red + ' min'], ['Location', S.ubicObligatoria !== false ? 'Required' : 'Optional'],
+        ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
+      case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
+        return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
+      case 'nomina': { const R = typeof reglasPago === 'function' ? reglasPago() : {}; return [['Add to the TRM', (R.extra != null ? R.extra : '—') + ' COP'], ['Maximum', (R.tope != null ? R.tope : '—') + ' COP'], ['Rete ICA', (R.ica != null ? R.ica : '—') + ' ‰']]; }
+      case 'integ': { const m = typeof monSyncCfg === 'function' ? monSyncCfg() : {}; return [['Agent Monitor', m.activo ? ajPill('Connected', 'ok') : ajPill('Off')]]; }
+      case 'avanzado': return [['Test user', 'Preview the agent view']];
+    }
+  }catch(e){}
+  return [];
+}
+// Línea corta bajo cada sección en el menú del celular.
+function ajSub(k){
+  const r = ajResumen(k), v = i => (r[i] ? r[i][1].replace(/<[^>]+>/g, '') : '');
+  switch(k){
+    case 'marca': return v(0) + ' · ' + v(1);
+    case 'cuentas': return v(0) + ' accounts · ' + v(1).toLowerCase();
+    case 'listas': return v(0) + ' lists · ' + v(1) + ' options';
+    case 'equipo': return 'GM: ' + v(0) + ' · ' + v(1) + ' managers';
+    case 'tiempo': return 'Rounding ' + v(0).toLowerCase() + ' · auto clock out ' + v(2).toLowerCase();
+    case 'ausencias': return v(0) + ' types · paid by ' + v(1);
+    case 'nomina': return 'TRM + ' + v(0) + ' · Rete ICA ' + v(2);
+    default: return v(0);
+  }
+}
+// Lista de puesta en marcha (lo básico para que una oficina nueva funcione bien).
+function ajPasos(){
+  const n = (typeof cuentasFusion === 'function' ? cuentasFusion() : (S.cuentas || [])).length;
+  return [
+    { t:'Company name', ok: !!(MARCA.nombre && MARCA.nombre.trim()), k:'marca' },
+    { t:'Logo', ok: !!(MARCA.logo || MARCA.logoUrl), k:'marca' },
+    { t:'Time zone', ok: !!(MARCA.zona || S.zona), k:'marca' },
+    { t:'At least one account', ok: n > 0, k:'cuentas' },
+    { t:'General Manager', ok: !!S.gm, k:'equipo' },
+    { t:'Absence types', ok: (typeof conceptosAus === 'function' ? conceptosAus() : []).length > 0, k:'ausencias' },
+    { t:'Pay run defaults', ok: !!S.reglasPago, k:'nomina' }
+  ];
+}
+function ajPintarResumen(){
+  if(!AJ.montado) return;
+  const P = ajPasos(), hechos = P.filter(p => p.ok).length, falta = P.filter(p => !p.ok);
+  $('ajProg').innerHTML = '<div class="aj-prog-cab"><b>' + (falta.length ? 'Setup' : 'Setup complete') + '</b><span>' + hechos + ' of ' + P.length + ' done</span></div>' +
+    '<div class="aj-prog-bar"><i style="width:' + Math.round(hechos * 100 / P.length) + '%"></i></div>' +
+    (falta.length ? '<div class="aj-prog-falta">' + falta.map(p => '<button type="button" class="aj-chip" data-ir="' + p.k + '">' + esc(p.t) + ' &rsaquo;</button>').join('') + '</div>' : '');
+  $('ajTiles').innerHTML = AJ_SEC.filter(s => s.k !== 'inicio').map(s => '<button type="button" class="aj-tile t-' + s.tono + '" data-ir="' + s.k + '"><span class="aj-ic">' + ajIco(s.k) + '</span>' +
+    '<b>' + esc(s.t) + '</b><p>' + esc(s.d) + '</p><dl>' + ajResumen(s.k).map(r => '<div><dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd></div>').join('') + '</dl></button>').join('');
+  // Sub-línea de cada sección en el menú (se ve en el celular)
+  AJ_SEC.forEach(s => { const sm = document.querySelector('#ajNavLista [data-ir="' + s.k + '"] small'); if(sm) sm.textContent = ajSub(s.k); });
+  ajPills();
+}
+function ajPills(){
+  const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
+  set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Optional');
+  set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
+  set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
+  set('ajPillMon', typeof monSyncCfg === 'function' ? monSyncCfg().activo : true, 'Connected', 'Off');
+  if($('ajZonaTxt')) $('ajZonaTxt').textContent = MARCA.zonaLabel || 'local time';
+}
+function ajIr(k, opt){
+  if(!AJ.montado) return;
+  const s = ajSec(k); AJ.sec = s.k;
+  $('vAjustes').dataset.sec = s.k;
+  document.querySelectorAll('#vAjustes .aj-pag').forEach(p => p.classList.toggle('on', p.dataset.pag === s.k));
+  document.querySelectorAll('#ajNavLista [data-ir]').forEach(a => { const on = a.dataset.ir === s.k; a.classList.toggle('on', on); if(on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if(s.k === 'inicio') ajPintarResumen();
+  try{ localStorage.setItem('aj_sec', s.k); }catch(e){}
+  if(!(opt && opt.sinScroll)){ const v = $('vAjustes'); const y = v.getBoundingClientRect().top + window.scrollY - 70; if(window.scrollY > y) window.scrollTo({ top:Math.max(0, y) }); }
+}
+function ajMarcarSucio(card){
+  if(AJ.pintando || AJ.guardando || !card || !card.dataset.guardar) return;
+  AJ.sucios.add(card.id); card.classList.add('sucia'); ajBarra();
+}
+function ajBarra(msgErr){
+  const b = $('ajBarra'); if(!b) return;
+  const ids = [...AJ.sucios].filter(id => $(id));
+  b.classList.toggle('hidden', !ids.length && !msgErr);
+  b.classList.toggle('err', !!msgErr);
+  const nombres = ids.map(id => ajTituloCard($(id))).filter(Boolean);
+  $('ajBarraTxt').innerHTML = msgErr ? esc(msgErr) : ('<b>Unsaved changes</b><span>' + esc(nombres.slice(0, 3).join(' · ') + (nombres.length > 3 ? ' +' + (nombres.length - 3) : '')) + '</span>');
+  $('ajGuardarTodo').classList.toggle('hidden', !ids.length);
+  $('ajDescartar').textContent = ids.length ? 'Discard' : 'Close';
+}
+async function ajGuardarTodo(){
+  if(AJ.guardando) return;
+  const ids = [...AJ.sucios].filter(id => $(id));
+  if(!ids.length) return ajBarra();
+  AJ.guardando = true; const bt = $('ajGuardarTodo'); bt.disabled = true; bt.textContent = 'Saving…'; $('ajDescartar').disabled = true;
+  const fallos = [];
+  for(const id of ids){
+    const card = $(id), btn = $(card.dataset.guardar), est = card.querySelector('.aj-pie .nota');
+    if(!btn){ AJ.sucios.delete(id); continue; }
+    if(est) est.textContent = '';
+    const gmPedido = id === 'ajRoles' ? ($('ajGM').value || '') : null;   // pintarRoles() borra su estado al guardar bien
+    btn.click();
+    await new Promise(r => setTimeout(r, 40));
+    const t0 = Date.now();
+    while(btn.disabled && Date.now() - t0 < 180000) await new Promise(r => setTimeout(r, 120));
+    const txt = est ? est.textContent.trim() : '';
+    if(/^saved/i.test(txt) || (gmPedido !== null && (S.gm || '') === gmPedido)){ AJ.sucios.delete(id); card.classList.remove('sucia'); }
+    else fallos.push({ id, msg: txt && !/^saving/i.test(txt) ? txt : 'It wasn’t saved.' });
+  }
+  AJ.guardando = false; bt.disabled = false; bt.textContent = 'Save changes'; $('ajDescartar').disabled = false;
+  ajPintarResumen();
+  if(fallos.length){
+    const f = fallos[0], card = $(f.id);
+    ajBarra('Couldn’t save ' + ajTituloCard(card) + ': ' + f.msg);
+    const pag = card.closest('.aj-pag'); if(pag && pag.dataset.pag !== AJ.sec) ajIr(pag.dataset.pag, { sinScroll:true });
+    ajResaltar(card);
+  }else{ ajBarra(); toast('Settings saved.'); }
+}
+function ajDescartar(){
+  if(AJ.guardando) return;
+  AJ.sucios.clear(); document.querySelectorAll('#vAjustes .aj-card.sucia').forEach(c => c.classList.remove('sucia'));
+  pintarAjustes(); ajBarra();
+}
+function ajResaltar(card){
+  if(!card) return;
+  card.scrollIntoView({ block:'center', behavior:'smooth' });
+  card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+}
+// Buscador: tarjetas y filas por su texto.
+function ajIndice(){
+  const out = [];
+  document.querySelectorAll('#vAjustes .aj-pag').forEach(p => {
+    const sec = ajSec(p.dataset.pag); if(sec.k === 'inicio') return;
+    out.push({ sec, card:null, t:sec.t, txt:ajSinTildes(sec.t + ' ' + sec.d) });
+    p.querySelectorAll('.aj-card').forEach(c => {
+      const t = ajTituloCard(c);
+      out.push({ sec, card:c, t, txt:ajSinTildes(t + ' ' + (c.querySelector('.aj-desc') ? c.querySelector('.aj-desc').textContent : '')) });
+      c.querySelectorAll('.aj-fila .aj-fl b, .aj-ct2 h2').forEach(b => { const tb = b.textContent.trim(); if(tb && tb !== t) out.push({ sec, card:c, t:tb, sub:t, txt:ajSinTildes(tb + ' ' + ((b.nextElementSibling && b.nextElementSibling.textContent) || '')) }); });
+    });
+  });
+  return out;
+}
+function ajBuscar(){
+  const q = ajSinTildes($('ajBuscar').value.trim()), box = $('ajBuscarRes');
+  if(!q){ box.classList.add('hidden'); box.innerHTML = ''; return; }
+  const pal = q.split(/\s+/);
+  const vistos = new Set();
+  const res = ajIndice().filter(x => pal.every(w => x.txt.includes(w))).filter(x => { const key = x.sec.k + '|' + x.t; if(vistos.has(key)) return false; vistos.add(key); return true; }).slice(0, 8);
+  box.innerHTML = res.length ? res.map((x, i) => '<button type="button" role="option" data-i="' + i + '"><b>' + esc(x.t) + '</b><span>' + esc(x.sec.t + (x.sub ? ' › ' + x.sub : '')) + '</span></button>').join('')
+    : '<p class="aj-res-nada">No settings match &laquo;' + esc($('ajBuscar').value.trim()) + '&raquo;.</p>';
+  box.classList.remove('hidden');
+  box.querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => { const x = res[Number(b.dataset.i)]; $('ajBuscar').value = ''; box.classList.add('hidden'); ajIr(x.sec.k, { sinScroll:true }); if(x.card) setTimeout(() => ajResaltar(x.card), 60); }));
+}
+function ajMontar(){
+  if(AJ.montado || !$('vAjustes')) return;
+  AJ.montado = true;
+  // Menú
+  let g = null, html = '';
+  AJ_SEC.forEach(s => {
+    if(s.g !== g){ if(s.g) html += '<div class="aj-nav-g">' + esc(s.g) + '</div>'; g = s.g; }
+    html += '<button type="button" class="aj-nav-a t-' + s.tono + '" data-ir="' + s.k + '"><span class="aj-ic">' + ajIco(s.k) + '</span><span class="aj-nav-t">' + esc(s.t) + '<small></small></span><span class="aj-flecha" aria-hidden="true">&rsaquo;</span></button>';
+  });
+  $('ajNavLista').innerHTML = html;
+  // Encabezado de cada sección
+  document.querySelectorAll('#vAjustes .aj-pag').forEach(p => {
+    const s = ajSec(p.dataset.pag); if(s.k === 'inicio') return;
+    p.insertAdjacentHTML('afterbegin', '<div class="aj-pag-cab t-' + s.tono + '"><span class="aj-ic">' + ajIco(s.k) + '</span><div><h2>' + esc(s.t) + '</h2><p>' + esc(s.d) + '</p></div></div>');
+  });
+  // Navegación
+  $('vAjustes').addEventListener('click', e => { const a = e.target.closest('[data-ir]'); if(a && $('vAjustes').contains(a)){ e.preventDefault(); ajIr(a.dataset.ir); } });
+  $('ajVolver').addEventListener('click', () => ajIr('inicio'));
+  // Cambios sin guardar
+  document.querySelectorAll('#vAjustes .aj-card[data-guardar]').forEach(card => {
+    const marcar = e => { if(e.target.closest('#ajAusPrevia')) return; ajMarcarSucio(card); };
+    card.addEventListener('input', marcar); card.addEventListener('change', marcar);
+    card.addEventListener('click', e => {
+      const b = e.target.closest('button'); if(!b || !card.contains(b)) return;
+      if(b.id === card.dataset.guardar || AJ_NO_SUCIO.includes(b.id) || b.classList.contains('cta-ren') || b.closest('#ajAusPrevia')) return;
+      setTimeout(() => ajMarcarSucio(card), 0);
+    });
+  });
+  $('ajGuardarTodo').addEventListener('click', ajGuardarTodo);
+  $('ajDescartar').addEventListener('click', () => { if(AJ.sucios.size) ajDescartar(); else ajBarra(); });
+  // Buscador
+  $('ajBuscar').addEventListener('input', ajBuscar);
+  $('ajBuscar').addEventListener('keydown', e => { if(e.key === 'Enter'){ const b = $('ajBuscarRes').querySelector('button[data-i]'); if(b){ e.preventDefault(); b.click(); } } if(e.key === 'Escape'){ $('ajBuscar').value = ''; ajBuscar(); } });
+  document.addEventListener('click', e => { if(!e.target.closest('.aj-buscar')) $('ajBuscarRes').classList.add('hidden'); });
+  window.addEventListener('beforeunload', e => { if(S.vista === 'ajustes' && AJ.sucios.size){ e.preventDefault(); e.returnValue = ''; } });
+}
+// Lo llama pintarAjustes al final: el formulario quedó igual a lo guardado.
+function ajTrasPintar(){
+  ajMontar();
+  AJ.sucios.clear(); document.querySelectorAll('#vAjustes .aj-card.sucia').forEach(c => c.classList.remove('sucia'));
+  ajBarra(); ajPintarResumen();
+  if(S.vista === 'ajustes' && !AJ.guardando){
+    let k = 'inicio'; if(!ajMovil()){ try{ k = localStorage.getItem('aj_sec') || 'inicio'; }catch(e){} }
+    if(!AJ.entrado){ AJ.entrado = true; ajIr(k, { sinScroll:true }); } else ajIr(AJ.sec, { sinScroll:true });
+  }
 }
 // (v93) Usuario de prueba: copiarle los datos de un agente
 async function pintarPrueba(){
