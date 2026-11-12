@@ -13,7 +13,7 @@
 <!-- build mon-20261103-2050: dropdown de autorizar — se retira "Monitor only"; Technical issue/Training/Other pasan a "Affects the timesheet" (clase otro, tope 2026-11-01); "Working from another computer"/"App not installed" se quitan (autorizaciones viejas se siguen mostrando) + placeholder "Choose a reason" -->
 <!-- build mon-20261106-1100: (Rebanada 2) el panel muestra el nombre/cuenta actual del TimeClock por el enlace del agente (nomVis); 'a.agente' sigue siendo la llave de las acciones (no se rompe nada) -->
 <!-- build mon-20261106-1525: (D.3) cuentas por codigo — chips/filtro/agrupacion/"sin cuenta" se resuelven del registro del TimeClock (reloj_config); un rename en Settings se refleja sin chips duplicados ni falsos avisos; fallback por nombre si no carga el registro -->
-<meta name="mon-build" content="20261112-1700">
+<meta name="mon-build" content="20261112-1800">
 <!-- etapa2: motivos agrupados (Affects timesheet / Monitor only) + Cita medica->Sick; valores estables 2026-10-27 -->
 <!-- etapa3b: resaltar/anotar autorizaciones RECHAZADAS en el TimeClock (solo lectura, monitor_solicitudes_estado) 2026-10-27 -->
 <!-- etapa3b-2: aviso de rechazo en la TARJETA del agente (barra de tiempo) + quitar ahí mismo 2026-10-27 -->
@@ -85,6 +85,7 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
 .banner.aviso{background:var(--warning-bg);border:1px solid var(--warning);font-weight:400}
 .banner.ok{background:var(--good-bg);border:1px solid var(--good);font-weight:400}
 .banner.aviso .viejo{color:var(--text-2)}
+.sincuenta.otra-ses{border-color:var(--danger,#C0392B);background:#FDECEA;color:#9B1C1C}
 .sincuenta{display:inline-block;margin-top:5px;font-size:12px;font-weight:700;border:1px solid var(--warning);background:var(--warning-bg);border-radius:6px;padding:2px 7px}
 button.sincuenta{font-family:inherit;color:inherit;cursor:pointer}
 button.sincuenta:hover{filter:brightness(1.15)}
@@ -214,6 +215,8 @@ html.embed body{background:var(--bg)}
 /* El aviso nunca depende solo del color: la ficha lleva ⚠ delante. */
 .meta .mi.warn{border-color:var(--warning);background:var(--warning-bg)}
 .meta .mi.warn b,.meta .mi.warn i{color:var(--serious)}
+.meta .mi.rojo{border-color:#C0392B;background:#FDECEA}
+.meta .mi.rojo b,.meta .mi.rojo i{color:#9B1C1C}
 .meta .mi.crit{border-color:var(--critical);background:var(--critical-bg)}
 .meta .mi.crit b,.meta .mi.crit i{color:var(--critical)}
 /* Cabecera de cuenta: los agentes van agrupados por practica. */
@@ -978,7 +981,7 @@ async function cargar(forzar){
 }
 
 // Auto-actualización: si se publicó una versión MÁS NUEVA de monitor.html, recargar (una vez).
-const MON_BUILD = '20261112-1700';
+const MON_BUILD = '20261112-1800';
 let _verRecargando = false;
 async function chequearVersion(){
   if (_verRecargando || S.demo) return;
@@ -1484,8 +1487,15 @@ function fila(a, d){
   // (almuerzo y descansos) y, en otra fila, en qué está ahora mismo.
   const arriba = fHorario;
   const tomado = almuerzoHtml(a) + descansosHtml(a);
-  const abajo = app + (envivo && a.vivo && a.vivo.progActivo
-    ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : '');
+  // (agente 2.14) La persona trabaja en OTRO usuario de Windows: el Monitor corre en su usuario de siempre
+  // y no ve su actividad, así que lo que parezca inactividad no es real. El agente lo marca en progActivo.
+  const otraSes = (envivo && a.vivo && /^~otraSesion:/.test(a.vivo.progActivo || '')) ? String(a.vivo.progActivo).slice(12) : '';
+  const OTRA_TIT = 'This person is working in another Windows user on this computer (' + otraSes + '). The Monitor runs in ' +
+    (a.usuario ? 'the user “' + a.usuario + '”' : 'another user') + ', so it cannot see their keyboard and mouse and any “inactive” time now is not real. ' +
+    'Ask them to sign out of “' + otraSes + '” and work in their usual user, or restart the PC and sign in only to the user they need.';
+  const abajo = app + (otraSes ? mi('Windows user', esc(otraSes), 'rojo', OTRA_TIT, 'the Monitor can\'t see this user')
+    : (envivo && a.vivo && a.vivo.progActivo
+    ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : ''));
 
   return '<div class="row">' +
     '<div class="who"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuentaCanon || a.cuenta) + '</span>' +
@@ -1493,6 +1503,7 @@ function fila(a, d){
       (a.usuario ? '<small class="winuser">Windows user: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Multiple users signed in to this device today: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' users today</span>' : '') + '</small>' : '') +
+      (otraSes ? '<br><span class="sincuenta otra-ses" title="' + esc(OTRA_TIT) + '">\u26a0 Working in another Windows user: ' + esc(otraSes) + '</span>' : '') +
       (fEquipo ? '<div class="meta mini">' + fEquipo + '</div>' : '') +
       (a.sinCuenta ? '<br><span class="sincuenta" title="The account “' + esc(a.cuentaCanon || a.cuenta) + '” is not in the Time Clock. Assign it in TimeClock → Settings → Accounts.">\u26a0 Agent without assigned account</span>' : '') +
       (a.enTC === false ? '<br><span class="sincuenta" title="This agent is not linked to anyone in the Time Clock. Link or create them in the Time Clock so the Monitor shows their official info.">⚠ Not in the Time Clock</span>' : '') +
