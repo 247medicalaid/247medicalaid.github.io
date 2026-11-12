@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v315-202611121800">
+<meta name="app-build" content="v316-202611121900">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -397,6 +397,35 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .marcar.alm:hover:not(:disabled){background:var(--brand-700)}
 .marcar-2{width:100%;padding:15px;font-size:16px}
 
+/* (v316) Barra del día del admin: carriles con nombre, horas en punto y etiquetas */
+.cd{margin:4px 0 2px}
+.cd-fila{display:grid;grid-template-columns:74px minmax(0,1fr);align-items:center;gap:8px;margin-bottom:6px}
+.cd-rot{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);text-align:right;line-height:1.15}
+.cd-pista{position:relative;height:30px;background:var(--sand-2);border-radius:7px;overflow:hidden}
+.cd-pista.fina{height:22px}
+.cd-pista.pc{height:16px}
+.cd-g{position:absolute;top:0;bottom:0;width:1px;background:rgba(15,40,60,.08);pointer-events:none}
+.cd-s{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;
+  font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;border-radius:4px}
+.cd-s span{padding:0 5px;overflow:hidden;text-overflow:ellipsis}
+.cd-s.trab{background:var(--st-trab)}
+.cd-s.trab.vivo{opacity:.7}
+.cd-s.alm{background:repeating-linear-gradient(135deg,var(--st-alm) 0 5px,#E3A33E 5px 10px);color:#fff}
+.cd-s.aus{background:repeating-linear-gradient(135deg,#7A5BC7 0 5px,#9A80D9 5px 10px)}
+.cd-s.aus.np{background:repeating-linear-gradient(135deg,#8A6FD1 0 5px,#B9A6E8 5px 10px)}
+.cd-s.prog{background:#DCE8F1;border:1.5px dashed #6F93AE;color:#2D5470;border-radius:6px;justify-content:flex-start}
+.cd-s.progalm{background:repeating-linear-gradient(135deg,#F3E2C4 0 5px,#FBF1DF 5px 10px);color:#8A5A00;border-radius:0}
+.cd-s.libre{background:transparent;color:var(--text-muted);font-weight:600;justify-content:flex-start}
+.cd-s.pcon{background:#8FA3AF;border-radius:3px}
+.cd-s.pc{background:var(--accent-500);border-radius:2px}
+.cd-ahora{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-900);pointer-events:none}
+.cd-eje{position:relative;height:16px;margin-left:82px;font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.cd-eje span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.cd-eje span.ini{transform:none}
+.cd-eje span.fin{transform:translateX(-100%)}
+.cd-eje .ahora-t{color:var(--ink-900);font-weight:700}
+.cd .leyenda{margin-left:82px;margin-top:6px}
+@media (max-width:560px){ .cd-fila{grid-template-columns:52px minmax(0,1fr);gap:6px} .cd-rot{font-size:10px} .cd-eje,.cd .leyenda{margin-left:58px} }
 .cinta-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 12px;margin-top:14px}
 .cinta-box h2{font-size:16px;margin-bottom:12px}
 .cinta{position:relative;height:30px;background:var(--sand-2);border-radius:8px;overflow:hidden}
@@ -5192,6 +5221,7 @@ async function api(action, p){
   if(action === 'guardarConexiones') return q(sb.rpc('reloj_guardar_conexiones', { p:p.valor }));   // (v312, paso 133)
   if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
   if(action === 'horariosResumen') return q(sb.rpc('reloj_horarios_resumen'));   // (v314, paso 139)
+  if(action === 'horarioDe') return q(sb.rpc('reloj_horario_de', { p_usuario:p.usuario, p_fecha:p.fecha }));   // (v316, paso 140)
   if(action === 'horarioVer') return q(sb.rpc('reloj_horario_ver', { p_usuario:p.usuario }));
   if(action === 'horarioGuardar') return q(sb.rpc('reloj_horario_guardar', { p_usuario:p.usuario, p_semana:p.semana, p_desde:p.desde || null, p_motivo:p.motivo || null }));
   if(action === 'horarioBorrar') return q(sb.rpc('reloj_horario_borrar', { p_id:p.id }));
@@ -5222,6 +5252,7 @@ async function api(action, p){
   if(action === 'primerLatido') return q(sb.rpc('reloj_primer_latido', { p_dias:p.dias }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
+  if(action === 'ajustarAusencia') return q(sb.rpc('reloj_ajustar_ausencia', { p_id:p.id, p:p.sol }));   // (v316, paso 140)
   if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas, p_respuesta: p.respuesta == null ? null : p.respuesta,
     p_concepto_id: p.conceptoId == null ? null : p.conceptoId, p_concepto_nombre: p.conceptoNombre == null ? null : p.conceptoNombre }));
@@ -6675,6 +6706,97 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
   eje.innerHTML = marcasEje.map(x => '<span>' + esc(x) + '</span>').join('');
 }
 
+/* (v316) Barra del día para el admin: tres carriles con nombre y la misma escala.
+   SCHEDULE = turno programado (con su almuerzo) · PUNCHES = lo marcado (trabajo, almuerzo y la ausencia aprobada)
+   · PC = lo que vio el Monitor. Horas en punto, etiquetas dentro de los tramos que caben, leyenda solo con lo que hay. */
+S.horDia = S.horDia || {};
+function cintaDia(fecha, d, marcas, e){
+  const el = $('dCinta'); if(!el) return;
+  const u = e && e.usuario, clave = u + '|' + fecha, prog = S.horDia[clave];
+  if(u && prog === undefined){
+    S.horDia[clave] = null;   // pidiendo
+    api('horarioDe', { usuario:u, fecha }).then(r => { S.horDia[clave] = r || { hay:false }; if(S.dia && S.dia.fecha === fecha && S.dia.e.usuario === u && $('dCinta')) cintaDia(fecha, S.dia.d, S.dia.ed ? null : S.dia.d.marcas, S.dia.e); })
+      .catch(() => { S.horDia[clave] = { hay:false, err:true }; });
+  }
+  if(!marcas) marcas = d.marcas;
+  const t = ahora(), esHoy = fecha === fechaHoy(), tramos = []; let abierto = null, tipoAb = null;
+  marcas.forEach(m => {
+    if(m.tipo === 'entrada' || m.tipo === 'almuerzo_fin'){ if(abierto && tipoAb === 'alm') tramos.push(['alm', abierto, m.ms]); abierto = m.ms; tipoAb = 'trab'; }
+    else { if(abierto) tramos.push([tipoAb, abierto, m.ms]); if(m.tipo === 'almuerzo_ini'){ abierto = m.ms; tipoAb = 'alm'; } else abierto = null; }
+  });
+  if(abierto && esHoy) tramos.push([tipoAb + ' vivo', abierto, t]);
+  const au = d.ausencia, ausP = au && esParcial(au) ? [wall(fecha, au.horaIni.slice(0, 5)), wall(fecha, au.horaFin.slice(0, 5))] : null;
+  const pr = S.horDia[clave];
+  const progOk = pr && pr.hay && !pr.libre && pr.inicio && pr.fin;
+  const pIni = progOk ? wall(fecha, pr.inicio) : null, pFin = progOk ? wall(fecha, pr.fin) : null;
+  const ausTodo = au && !ausP ? (progOk ? [pIni, pFin] : [wall(fecha, '08:00'), wall(fecha, '17:00')]) : null;
+  // escala: de la primera a la última cosa del día, con margen, en horas en punto (mínimo 8 a. m. – 6 p. m.)
+  const puntos = [wall(fecha, '08:00'), wall(fecha, '18:00')];
+  tramos.forEach(x => puntos.push(x[1], x[2])); if(ausP) puntos.push(...ausP); if(ausTodo) puntos.push(...ausTodo);
+  if(progOk) puntos.push(pIni, pFin);
+  if(d.monitor && d.monitor.p != null) puntos.push(d.monitor.p, d.monitor.u);
+  const H = 3600000, base = wall(fecha, '00:00');
+  let ini = base + Math.floor((Math.min(...puntos) - base) / H) * H - H, fin = base + Math.ceil((Math.max(...puntos) - base) / H) * H + H;
+  ini = Math.max(ini, base); fin = Math.min(fin, base + 24 * H);
+  const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
+  const ancho = (el.clientWidth || 600) - 82;
+  const etq = (a, b, txt) => ((pct(b) - pct(a)) / 100 * ancho) >= txt.length * 6.3 + 10 ? '<span>' + esc(txt) + '</span>' : '';
+  const corta = ms => hora(ms).replace(/ (AM|PM)$/, '');
+  const seg = (cls, a, b, tit, txt) => '<div class="cd-s ' + cls + '" title="' + esc(tit) + '" style="left:' + pct(a) + '%;width:' + Math.max(.4, pct(b) - pct(a)) + '%">' + (txt ? etq(a, b, txt) : '') + '</div>';
+  const paso = (fin - ini) / H > 13 ? 2 : 1, guias = [];
+  for(let m = ini; m <= fin; m += paso * H) guias.push(m);
+  const rejilla = guias.slice(1, -1).map(m => '<i class="cd-g" style="left:' + pct(m) + '%"></i>').join('');
+  const ahoraH = esHoy && t > ini && t < fin ? '<i class="cd-ahora" style="left:' + pct(t) + '%" title="Now ' + esc(hora(t)) + '"></i>' : '';
+  const ley = new Set();
+  // SCHEDULE
+  let hProg = '';
+  if(progOk){
+    ley.add('prog');
+    const aI = pr.almIni ? wall(fecha, pr.almIni) : null, aF = pr.almFin ? wall(fecha, pr.almFin) : null;
+    hProg = seg('prog', pIni, pFin, 'Scheduled ' + hora(pIni) + ' – ' + hora(pFin) + (aI ? ' · lunch ' + hora(aI) + ' – ' + hora(aF) : ''), hora(pIni) + ' – ' + hora(pFin));
+    if(aI && aF){ hProg += seg('progalm', aI, aF, 'Scheduled lunch ' + hora(aI) + ' – ' + hora(aF), 'Lunch'); ley.add('progalm'); }
+  } else if(pr && pr.hay && pr.libre) hProg = '<div class="cd-s libre" style="left:1%;width:98%"><span>Day off on the schedule</span></div>';
+  else if(pr === null || pr === undefined) hProg = '<div class="cd-s libre" style="left:1%;width:98%"><span>Loading…</span></div>';
+  else hProg = '<div class="cd-s libre" style="left:1%;width:98%"><span>No schedule set</span></div>';
+  // PUNCHES
+  let hMar = tramos.map(x => {
+    const alm = x[0].startsWith('alm'); ley.add(alm ? 'alm' : 'trab');
+    const min = Math.round((x[2] - x[1]) / 60000);
+    return seg(x[0].replace('trab', 'trab').replace('alm', 'alm'), x[1], x[2],
+      (alm ? 'Lunch ' : 'Worked ') + hora(x[1]) + ' – ' + (x[0].includes('vivo') ? 'now' : hora(x[2])) + ' · ' + dur(min),
+      alm ? 'Lunch ' + hm(min) : corta(x[1]) + ' – ' + (x[0].includes('vivo') ? 'now' : corta(x[2])) + ' · ' + hm(min));
+  }).join('');
+  if(au){
+    const [a, b] = ausP || ausTodo; ley.add('aus');
+    hMar = seg('aus' + (au.pagada ? '' : ' np'), a, b, 'Approved time off: ' + ausEtq(au) + (ausP ? ' · ' + franjaTxt(au) : ' · all day') + ' · ' + pagoTxt(au),
+      (ausP ? 'Time off ' + corta(a) + ' – ' + corta(b) : 'Time off · all day')) + hMar;
+  }
+  // PC
+  let hPc = '';
+  if(d.monitor && d.monitor.p != null){
+    ley.add('pcon');
+    hPc = seg('pcon', d.monitor.p, d.monitor.u, 'PC online ' + hora(d.monitor.p) + ' – ' + hora(d.monitor.u), '');
+    (d.monitor.e || []).forEach(ep => { ley.add('pc'); hPc += seg('pc', ep[1], ep[2], (EPISODIO_EN[ep[0]] || ep[0]) + ' ' + hora(ep[1]) + ' – ' + hora(ep[2]) + ' · ' + dur(Math.round((ep[2] - ep[1]) / 60000)), ''); });
+  }
+  const fila = (rot, cls, cont) => '<div class="cd-fila"><span class="cd-rot">' + rot + '</span><div class="cd-pista' + (cls ? ' ' + cls : '') + '">' + rejilla + cont + ahoraH + '</div></div>';
+  // etiquetas del eje: solo las que caben (cada 1, 2 o 3 horas según el ancho), sin la primera ni la última
+  const pxHora = ancho / ((fin - ini) / H), cadaH = Math.max(paso, Math.ceil(44 / pxHora));
+  const eje = guias.filter((m, i) => i > 0 && i < guias.length - 1 && Math.round((m - base) / H) % cadaH === 0)
+    .map(m => '<span style="left:' + pct(m) + '%">' + esc(hora(m).replace(':00', '')) + '</span>').join('');
+  const LEY = { prog:['<i style="background:#DCE8F1;border:1.5px dashed #6F93AE"></i>', 'Scheduled shift'], progalm:['<i style="background:repeating-linear-gradient(135deg,#F3E2C4 0 4px,#FBF1DF 4px 8px)"></i>', 'Scheduled lunch'],
+    trab:['<i style="background:var(--st-trab)"></i>', 'Worked (punches)'], alm:['<i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>', 'Lunch taken'],
+    aus:['<i style="background:repeating-linear-gradient(135deg,#7A5BC7 0 4px,#9A80D9 4px 8px)"></i>', 'Approved time off'],
+    pcon:['<i style="background:#8FA3AF"></i>', 'PC online'], pc:['<i style="background:var(--accent-500)"></i>', 'PC inactive'] };
+  el.innerHTML = fila('Schedule', 'fina', hProg) + fila('Punches', '', hMar || '<div class="cd-s libre" style="left:1%;width:98%"><span>No punches</span></div>') +
+    (hPc ? fila('PC', 'pc', hPc) : '') +
+    '<div class="cd-eje">' + eje + '</div>' +
+    '<div class="leyenda">' + [...ley].map(k => '<span>' + LEY[k][0] + LEY[k][1] + '</span>').join('') + (ahoraH ? '<span><i style="background:var(--ink-900);width:2px"></i>Now</span>' : '') + '</div>';
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', 'Day: ' + (progOk ? 'scheduled ' + hora(pIni) + ' to ' + hora(pFin) + '. ' : '') +
+    (tramos.length ? tramos.map(x => (x[0].startsWith('alm') ? 'lunch ' : 'worked ') + hora(x[1]) + ' to ' + hora(x[2])).join(', ') : 'no punches') +
+    (au ? '. Approved time off ' + (ausP ? franjaTxt(au) : 'all day') : ''));
+}
+
 function pedirMarca(tipo){
   if(S.ocupado) return;
   if(tipo === 'salida'){
@@ -7349,11 +7471,8 @@ function abrirDia(usuario, fecha, fuente){
 function vistaDia(){
   const { e, fecha, d } = S.dia, hoy = S.dia.fuente.hoy;
   let h = '';
+  if(d.marcas.length || d.ausencia) h += '<div class="cd" id="dCinta"></div>';   // (v316)
   if(d.marcas.length){
-    h += '<div class="cinta" id="dCinta"></div><div class="eje" id="dEje"></div>' +
-      '<div class="leyenda"><span><i style="background:var(--st-trab)"></i>Clocked work</span>' +
-      '<span><i style="background:repeating-linear-gradient(135deg,var(--st-alm) 0 4px,#E3A33E 4px 8px)"></i>Lunch</span>' +
-      (d.monitor ? '<span><i style="background:#8FA3AF;height:6px"></i>PC online (bottom lane)</span><span><i style="background:var(--accent-500);height:6px"></i>PC inactive</span>' : '') + '</div>';
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
       (d.ubic && d.ubic.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>An unusual punch location was detected. Check Punch locations below.</span></div>' : '') +
@@ -7373,7 +7492,7 @@ function vistaDia(){
     d.banderas.slice().sort((a, b) => ['alerta','aviso','info'].indexOf(a.n) - ['alerta','aviso','info'].indexOf(b.n)).map(b => '<li>' + icono(b.n) + '<span>' + esc(b.t) + '</span></li>').join('') + '</ul></div>';
   h += '<details class="bloque"><summary style="cursor:pointer;font-weight:600;font-size:15px;color:var(--text);margin:0 0 4px">History</summary><div id="dHist"><div class="nota"><span class="spin dark"></span> Loading…</div></div></details>';
   $('dCuerpo').innerHTML = h;
-  if(d.marcas.length) cintaEn($('dCinta'), $('dEje'), fecha, d.marcas, d.monitor, false);
+  if($('dCinta')) cintaDia(fecha, d, d.marcas, e);   // (v316)
   conectarUbicBloque();
   cargarHistDia();
   cargarAntesDia();
@@ -7493,6 +7612,9 @@ function armarHist(r, fecha, e){
     } else if(a.accion === 'revertirSolicitud'){
       add(a.en, 'gris', '<b>Undid the approval of the ' + nom + '</b>' + por(a.autor) + (d.respuesta ? '<div class="de">Note: “' + esc(d.respuesta) + '”</div>' : '') +
         '<div class="de">The request went back to Pending.</div>', a.id);
+    } else if(a.accion === 'ajustarSolicitud'){   // (v316)
+      const rng = z => z ? (z.horaIni ? h12(String(z.horaIni).slice(0, 5)) + ' – ' + h12(String(z.horaFin).slice(0, 5)) : diaS(z.fecha) + (z.fechaFin && z.fechaFin !== z.fecha ? ' – ' + diaS(z.fechaFin) : '') + ' (all day)') : '';
+      add(a.en, 'cor', '<b>Adjusted the absence request</b>' + por(a.autor) + (d.antes && d.despues ? '<div class="de">' + esc(rng(d.antes)) + ' → ' + esc(rng(d.despues)) + '</div>' : ''), a.id);
     } else if(a.accion === 'modificarSolicitud'){
       add(a.en, 'cor', '<b>Edited the approved ' + nom + '</b>' + por(a.autor), a.id);
     } else if(a.accion === 'corregir'){
@@ -7618,7 +7740,7 @@ function revisarEdicion(){
   if(!err && estado !== 'fuera' && fecha < hoy) err = 'A past day must end with a Clock out.';
   const lista = l.filter(x => x.hora).map(x => ({ tipo:x.tipo, hora:x.envio }));
   // cinta y totales en vivo
-  if($('dCinta') && !err) cintaEn($('dCinta'), $('dEje'), fecha, lista.map(m => ({ tipo:m.tipo, ms:wall(fecha, m.hora.slice(0, 5)) + (segDe(m.hora) % 60) * 1000 })), d.monitor, false);
+  if($('dCinta') && !err) cintaDia(fecha, d, lista.map(m => ({ tipo:m.tipo, ms:wall(fecha, m.hora.slice(0, 5)) + (segDe(m.hora) % 60) * 1000 })), S.dia.e);   // (v316)
   let alm = 0, ini = null; ordenarMarcas(lista).forEach(m => { if(m.tipo === 'almuerzo_ini') ini = aMin(m.hora); else if(m.tipo === 'almuerzo_fin' && ini != null){ alm += aMin(m.hora) - ini; ini = null; } });
   const trab = minutosLista(lista), cambio = l.some(x => x.cambio) || S.dia.ed.quitadas > 0;
   $('dEdTot').innerHTML = err ? '' : '<span>Worked <b' + (trab !== d.min ? ' class="dif"' : '') + '>' + dur(trab) + '</b>' + (trab !== d.min && !d.incompleto ? ' <span class="nota" style="margin:0">(was ' + dur(d.min) + ')</span>' : '') + '</span>' +
@@ -13421,6 +13543,7 @@ function rqHTML(s, r){
   let h = '<article class="rq" data-rq="' + s.id + '"><div class="rq-cab">' + SOL_IC[s.tipo] +
     '<div class="rq-tit"><div class="t1">' + esc(titulo.replace(/ · $/, '')) + '</div><div class="t2">Requested on ' + esc(pedida) + '</div></div>' +
     '<div class="rq-acc">' +
+      (s.tipo === 'ausencia' ? '<button type="button" class="rq-edit" data-aed="' + s.id + '" title="Adjust the dates or times before approving"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>' : '') +   // (v316)
       (s.tipo === 'turno' || s.tipo === 'almuerzo' || s.tipo === 'correccion' ? '<button type="button" class="rq-edit" data-sed="' + s.id + '" title="Edit the punches, then approve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>' : '') +
       '<span class="rq-par no"><button type="button" data-rapido="no" data-id="' + s.id + '">Decline</button><button type="button" data-dec="no" data-id="' + s.id + '" title="Decline with a note" aria-label="Decline with a note">' + IC_NOTA + '</button></span>' +
       '<span class="rq-par si"><button type="button" data-rapido="si" data-id="' + s.id + '">Approve</button><button type="button" data-dec="si" data-id="' + s.id + '" title="' + (s.tipo === 'ausencia' ? 'Approve with a note or choose if it\'s paid' : 'Approve with a note') + '" aria-label="Approve with a note">' + IC_NOTA + '</button></span>' +
@@ -13445,7 +13568,7 @@ function rqHTML(s, r){
     const choq = choqueAusencia(s, r);
     if(choq.length){
       const det = choq.map(c => diaS(c.fecha) + (c.inTxt ? ' (' + c.inTxt + (c.outTxt ? ' – ' + c.outTxt : ' – still in') + ')' : '')).join(', ');
-      h += '<div class="rq-aviso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>This time off overlaps hours already worked: <b>' + esc(det) + '</b>. Approving won\'t remove those punches — if that isn\'t intended, adjust the absence hours or fix that day\'s punches first.</span></div>';
+      h += '<div class="rq-aviso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>This time off overlaps hours already worked: <b>' + esc(det) + '</b>. Use <b>Edit</b> to adjust the absence hours. Approving won\'t remove those punches — if that isn\'t intended, adjust the absence hours or fix that day\'s punches first.</span></div>';
     }
   } else {
     const { antes, despues, kept } = ladosSol(s, r);
@@ -13546,6 +13669,7 @@ function pintarSols(){
   $('solsLista').querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => abrirDecision(Number(b.dataset.id), b.dataset.dec)));
   $('solsLista').querySelectorAll('[data-rapido]').forEach(b => b.addEventListener('click', () => decidirRapido(Number(b.dataset.id), b.dataset.rapido === 'si', b)));
   $('solsLista').querySelectorAll('[data-sed]').forEach(b => b.addEventListener('click', () => abrirSolEd(Number(b.dataset.sed))));
+  $('solsLista').querySelectorAll('[data-aed]').forEach(b => b.addEventListener('click', () => abrirAjusteAus(Number(b.dataset.aed))));   // (v316)
   asegurarColores(() => { if(S.vista === 'sols') pintarSols(); });
 }
 function abrirDecision(id, modo){
@@ -13582,7 +13706,54 @@ function abrirDecision(id, modo){
   $('xErr').textContent = '';
   abrir('ovDec');
 }
+/* (v316) Ajustar una solicitud de ausencia PENDIENTE (fechas / horas) antes de decidirla. Útil para las que llegan del
+   Monitor y se cruzan con horas ya trabajadas. Queda pendiente y marcada como editada; el Monitor ya no la pisa (paso 140). */
+function abrirAjusteAus(id){
+  const r = S.sols, s = r && r.sols.find(x => x.id === id); if(!s) return;
+  const emp = r.emps.find(e => e.usuario === s.usuario) || {};
+  S.dec = { s, modo:'ajustar', emp };
+  $('xTitulo').textContent = 'Edit absence request';
+  $('xSub').textContent = (emp.nombre || s.usuario) + ' · ' + solCuando(s);
+  $('xErr').textContent = '';
+  const parc = esParcial(s), marcas = (r.dias && r.dias[s.usuario + '|' + s.fecha]) || [];
+  const ent = marcas.filter(m => m.tipo === 'entrada').map(m => m.hora.slice(0, 5)).sort(), sal = marcas.filter(m => m.tipo === 'salida').map(m => m.hora.slice(0, 5)).sort();
+  const w0 = ent[0] || null, w1 = sal.length ? sal[sal.length - 1] : null;
+  let h = '<p class="muted" style="font-size:14px;margin-bottom:10px">“' + esc(s.motivo) + '”</p>';
+  if(w0) h += '<div class="aviso info" style="margin-bottom:12px">' + IC.info + '<span>Worked on ' + esc(diaS(s.fecha)) + ': <b>' + esc(h12(w0) + ' – ' + (w1 ? h12(w1) : 'still in')) + '</b>' +
+    (parc ? '' : '. The absence covers the whole day.') + '</span></div>';
+  h += '<label class="chk" style="margin-bottom:10px"><input type="checkbox" id="aaParc"' + (parc ? ' checked' : '') + '> Part of the day</label>' +
+    '<div class="dos-col"><label class="campo"><span>From</span><input type="date" id="aaDesde" value="' + s.fecha + '"></label>' +
+    '<label class="campo" id="aaHastaC"' + (parc ? ' style="display:none"' : '') + '><span>To</span><input type="date" id="aaHasta" value="' + (s.fechaFin || s.fecha) + '"></label></div>' +
+    '<div class="dos-col" id="aaHoras"' + (parc ? '' : ' style="display:none"') + '><label class="campo"><span>Start</span><input type="time" id="aaIni" value="' + esc((s.horaIni || '').slice(0, 5)) + '"></label>' +
+    '<label class="campo"><span>End</span><input type="time" id="aaFin" value="' + esc((s.horaFin || '').slice(0, 5)) + '"></label></div>';
+  const atajos = [];
+  if(w0 && parc && s.horaIni && s.horaFin && s.horaIni.slice(0, 5) < w0 && s.horaFin.slice(0, 5) > w0) atajos.push(['fin', w0, 'End it at clock-in (' + h12(w0) + ')']);
+  if(w1 && parc && s.horaIni && s.horaFin && s.horaIni.slice(0, 5) < w1 && s.horaFin.slice(0, 5) > w1) atajos.push(['ini', w1, 'Start it at clock-out (' + h12(w1) + ')']);
+  if(atajos.length) h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 12px">' + atajos.map(a => '<button type="button" class="btn btn-ghost btn-sm" data-aat="' + a[0] + '" data-h="' + a[1] + '">' + esc(a[2]) + '</button>').join('') + '</div>';
+  h += '<p class="nota" style="margin:0 0 4px">The request stays <b>Pending</b> with the new dates or times; approve it after saving. ' + (s.origen === 'monitor' ? 'The Monitor won\'t change it back.' : '') + '</p>';
+  $('xCuerpo').innerHTML = h;
+  $('aaParc').addEventListener('change', () => { const on = $('aaParc').checked; $('aaHoras').style.display = on ? '' : 'none'; $('aaHastaC').style.display = on ? 'none' : ''; });
+  $('xCuerpo').querySelectorAll('[data-aat]').forEach(b => b.addEventListener('click', () => { $(b.dataset.aat === 'fin' ? 'aaFin' : 'aaIni').value = b.dataset.h; }));
+  const b = $('xSi'); b.textContent = 'Save changes'; b.className = 'btn btn-brand'; b.disabled = false;
+  abrir('ovDec');
+}
+async function guardarAjusteAus(){
+  const { s } = S.dec, b = $('xSi'), parc = $('aaParc').checked;
+  const sol = { fecha:$('aaDesde').value, fechaFin:parc ? $('aaDesde').value : ($('aaHasta').value || $('aaDesde').value),
+                horaIni:parc ? $('aaIni').value : '', horaFin:parc ? $('aaFin').value : '' };
+  if(!sol.fecha){ $('xErr').textContent = 'Choose the date.'; return; }
+  if(parc && (!sol.horaIni || !sol.horaFin)){ $('xErr').textContent = 'Fill both times, or uncheck “Part of the day”.'; return; }
+  if(parc && sol.horaFin <= sol.horaIni){ $('xErr').textContent = 'The end time must be after the start time.'; return; }
+  if(!parc && sol.fechaFin < sol.fecha){ $('xErr').textContent = 'The end date can\'t be before the start date.'; return; }
+  b.disabled = true;
+  try{
+    await api('ajustarAusencia', { id:s.id, sol });
+    cerrar('ovDec'); toast('Request updated. It\'s still pending: approve it when ready.');
+    cargarSols();
+  }catch(e){ $('xErr').textContent = e.message; b.disabled = false; }
+}
 $('xSi').addEventListener('click', async () => {
+  if(S.dec.modo === 'ajustar') return guardarAjusteAus();   // (v316)
   if(S.dec.modo === 'editar' || S.dec.modo === 'deshacer') return guardarCambioAprobada();
   const { s, aprobar } = S.dec, b = $('xSi');
   const p = { id:s.id, aprobar, respuesta:$('xNota').value.trim() };
@@ -15596,6 +15767,8 @@ function demoHorarios(action, p){
     Object.keys(base).forEach(u => DM.horarios.push({ id:id++, usuario:u, desde:'2000-01-01', semana:base[u], origen:'monitor', creado:new Date().toISOString(), por:'paso139' })); }
   const hoy = fechaHoy(), vig = u => DM.horarios.filter(x => x.usuario === u && x.desde <= hoy).sort((a, c) => c.desde.localeCompare(a.desde) || c.id - a.id)[0];
   const txt = s => HO_DIAS.map(([k]) => k + '=' + (s[k] ? s[k].i + '-' + s[k].f + (s[k].aa ? '/' + s[k].aa + '-' + s[k].ab : '') : 'libre')).join(';');
+  if(action === 'horarioDe'){ const v = vig(p.usuario), k = HO_DIAS[(new Date(p.fecha + 'T12:00:00Z').getUTCDay() + 6) % 7][0], x = v && v.semana[k];
+    return v ? { hay:true, libre:!x, inicio:x ? x.i : null, fin:x ? x.f : null, almIni:x && x.aa || null, almFin:x && x.ab || null } : { hay:false }; }
   if(action === 'horariosResumen'){ const r = {}; [...new Set(DM.horarios.map(x => x.usuario))].forEach(u => { const v = vig(u); r[u] = { semana:v ? v.semana : null, desde:v ? v.desde : null, n:DM.horarios.filter(x => x.usuario === u).length }; }); return r; }
   if(action === 'horarioVer'){ const v = vig(p.usuario); return { semana:v ? v.semana : null, desde:v ? v.desde : null, versiones:DM.horarios.filter(x => x.usuario === p.usuario).sort((a, c) => c.desde.localeCompare(a.desde)) }; }
   if(action === 'horarioGuardar'){ const err = hoValidar(p.semana); if(err) throw new Error(err);
@@ -15609,6 +15782,11 @@ function demoHorarios(action, p){
 }
 async function demoApi(action, p){
   demoInit();
+  if(action === 'ajustarAusencia'){ const x = DM.sols.find(z => z.id === p.id); if(!x) throw new Error('That request no longer exists.');
+    if(x.estado !== 'pendiente') throw new Error('This request was already decided; refresh the page.');
+    const antes = { fecha:x.fecha, fechaFin:x.fechaFin, horaIni:x.horaIni || null, horaFin:x.horaFin || null };
+    Object.assign(x, { fecha:p.sol.fecha, fechaFin:p.sol.fechaFin, horaIni:p.sol.horaIni || null, horaFin:p.sol.horaFin || null, editada:true });
+    return { ok:true, _antes:antes }; }
   if(action === 'setManager'){ await new Promise(r => setTimeout(r, 80)); try{ const e = (DM.emps || []).find(x => x.usuario === p.usuario); if(e) e.esManager = !!p.esManager; }catch(x){} return { ok:true }; }
   if(action === 'setCuentaManager'){ DM.cuentaMgr = DM.cuentaMgr || {}; if(p.usuario) DM.cuentaMgr[p.cuenta] = p.usuario; else delete DM.cuentaMgr[p.cuenta]; try{ const s = new Set(Object.values(DM.cuentaMgr)); (DM.emps || []).forEach(e => e.esManager = s.has(e.usuario)); }catch(x){} return { ok:true }; }
   if(action === 'setReporta'){ DM.reportaA = DM.reportaA || {}; if(p.jefe) DM.reportaA[p.usuario] = p.jefe; else delete DM.reportaA[p.usuario]; return { ok:true }; }
@@ -16035,6 +16213,7 @@ demoApi = async function(action, p){
   if(action === 'decidir' && estAntes === 'pendiente') log('carloshtl75', p.aprobar ? 'aprobarSolicitud' : 'rechazarSolicitud', { id:p.id });
   if(action === 'revertir') log('carloshtl75', 'revertirSolicitud', { id:p.id, respuesta:p.respuesta || '' });
   if(action === 'modificarSolicitud') log('carloshtl75', 'modificarSolicitud', { id:p.id });
+  if(action === 'ajustarAusencia') log('carloshtl75', 'ajustarSolicitud', { id:p.id, antes:r && r._antes, despues:p.sol });
   if(action === 'aprobar' || action === 'desaprobar') log('carloshtl75', action, { dias:p.items.map(i => ({ usuario:i.usuario, fecha:i.fecha,
     horas:Math.round(demoDia(DM.emps.find(e => e.usuario === i.usuario), i.fecha).min / 0.6) / 100 })) });
   return r;
