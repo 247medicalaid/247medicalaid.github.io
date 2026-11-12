@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v316-202611121900">
+<meta name="app-build" content="v317-202611121845">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -397,6 +397,16 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .marcar.alm:hover:not(:disabled){background:var(--brand-700)}
 .marcar-2{width:100%;padding:15px;font-size:16px}
 
+/* (v317) Marcas editables dentro del Edit de una ausencia */
+.aa-sec{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px;background:var(--sand-2)}
+.aa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.aa-cab h4{margin:0;font-size:14px}
+.aa-m{display:grid;grid-template-columns:minmax(0,1fr) 132px 30px;gap:6px;align-items:center;margin-bottom:6px}
+.aa-m select,.aa-m input{padding:6px 8px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:14px;background:var(--paper);color:var(--text);min-width:0}
+.aa-m input.cambio,.aa-m input.nuevo{border-color:var(--brand-500);background:#EEF7FB;font-weight:700}
+.aa-x{border:0;background:transparent;font-size:20px;line-height:1;color:var(--text-muted);cursor:pointer;border-radius:8px;height:30px}
+.aa-x:hover{background:var(--paper);color:var(--accent-600)}
+.aa-tot{font-size:13px;color:var(--text-muted);margin-top:4px}
 /* (v316) Barra del día del admin: carriles con nombre, horas en punto y etiquetas */
 .cd{margin:4px 0 2px}
 .cd-fila{display:grid;grid-template-columns:74px minmax(0,1fr);align-items:center;gap:8px;margin-bottom:6px}
@@ -13590,7 +13600,7 @@ async function decidirRapido(id, aprobar, b){
     if(s.tipo === 'horario') await api('decidirHorario', { id:id, estado:aprobar ? 'aprobada' : 'rechazada', respuesta:'' });
     else await api('decidir', { id, aprobar, respuesta:'' });
     toast(aprobar ? 'Request approved.' + (s.tipo === 'ausencia' || s.tipo === 'horario' ? '' : ' ' + diaS(s.fecha) + ' was updated.') : 'Request declined.');
-    S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
+    S.hoja = null; S.hojaHoy = null; cargarSols();
   }catch(e){ card.querySelectorAll('button').forEach(x => { x.disabled = false; });
     const conflicto = aprobar && (s.tipo === 'turno' || s.tipo === 'almuerzo' || s.tipo === 'correccion') && /punch order isn.?t valid|orden de las marcas/i.test(e.message || '');
     if(conflicto){ if(await confirmar('Fix the times first', 'This request conflicts with the punches already on <b>' + esc(diaS(s.fecha)) + '</b>, so the order isn\'t valid. Correct the times before approving.', 'Edit times', false)) abrirSolEd(id); return; }
@@ -13629,7 +13639,7 @@ async function seAprobar(){
   try{
     await api('decidir', { id:_solEdId, aprobar:true, marcas:x.marcas, respuesta:($('seNota').value || '').trim() });
     cerrar('ovSolEd'); toast('Request approved with your changes. ' + diaS(s.fecha) + ' was updated.');
-    S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
+    S.hoja = null; S.hojaHoy = null; cargarSols();
   }catch(e){ b.disabled = false; $('seErr').textContent = e.message; }
 }
 if($('seAprobar')) $('seAprobar').addEventListener('click', seAprobar);
@@ -13673,6 +13683,7 @@ function pintarSols(){
   asegurarColores(() => { if(S.vista === 'sols') pintarSols(); });
 }
 function abrirDecision(id, modo){
+  $('ovDec').querySelector('.ventana').style.maxWidth = '460px';   // (v317) el Edit de ausencia la ensancha
   if(modo === 'editar' || modo === 'deshacer') return abrirCambioAprobada(id, modo);
   const aprobar = modo === 'si';
   const r = S.sols, s = r.sols.find(x => x.id === id); if(!s) return;
@@ -13712,7 +13723,7 @@ function abrirAjusteAus(id){
   const r = S.sols, s = r && r.sols.find(x => x.id === id); if(!s) return;
   const emp = r.emps.find(e => e.usuario === s.usuario) || {};
   S.dec = { s, modo:'ajustar', emp };
-  $('xTitulo').textContent = 'Edit absence request';
+  $('xTitulo').textContent = 'Edit absence & punches';
   $('xSub').textContent = (emp.nombre || s.usuario) + ' · ' + solCuando(s);
   $('xErr').textContent = '';
   const parc = esParcial(s), marcas = (r.dias && r.dias[s.usuario + '|' + s.fecha]) || [];
@@ -13729,12 +13740,31 @@ function abrirAjusteAus(id){
   const atajos = [];
   if(w0 && parc && s.horaIni && s.horaFin && s.horaIni.slice(0, 5) < w0 && s.horaFin.slice(0, 5) > w0) atajos.push(['fin', w0, 'End it at clock-in (' + h12(w0) + ')']);
   if(w1 && parc && s.horaIni && s.horaFin && s.horaIni.slice(0, 5) < w1 && s.horaFin.slice(0, 5) > w1) atajos.push(['ini', w1, 'Start it at clock-out (' + h12(w1) + ')']);
-  if(atajos.length) h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 12px">' + atajos.map(a => '<button type="button" class="btn btn-ghost btn-sm" data-aat="' + a[0] + '" data-h="' + a[1] + '">' + esc(a[2]) + '</button>').join('') + '</div>';
-  h += '<p class="nota" style="margin:0 0 4px">The request stays <b>Pending</b> with the new dates or times; approve it after saving. ' + (s.origen === 'monitor' ? 'The Monitor won\'t change it back.' : '') + '</p>';
+  if(atajos.length) h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 12px">' + atajos.map(a => '<button type="button" class="btn btn-ghost btn-sm" data-aat="' + a[0] + '" data-h="' + a[1] + '">' + esc(a[2].replace(/^End it/, 'Shorten the absence: end').replace(/^Start it/, 'Shorten the absence: start')) + '</button>').join('') + '</div>';
+  // (v317) Las marcas de ese día, editables, para que el turno cuadre con la ausencia (o al revés)
+  AA.orig = marcas.map(m => ({ tipo:m.tipo, hora:String(m.hora) })); AA.lista = AA.orig.map(m => ({ tipo:m.tipo, hora:m.hora.slice(0, 5), orig:m.hora }));
+  h += '<div class="aa-sec"><div class="aa-cab"><h4>Punches on ' + esc(diaS(s.fecha)) + '</h4>' +
+    (marcas.length ? '<button type="button" class="btn btn-ghost btn-sm" id="aaAjustar" title="Move the punches so the worked time doesn\'t overlap the absence">Fit punches around the absence</button>' : '') + '</div>' +
+    '<div id="aaMarcas"></div><button type="button" class="btn-link" id="aaMas" style="font-size:13.5px;font-weight:600;margin-top:4px">+ Add punch</button>' +
+    '<div class="aa-tot" id="aaTot"></div></div>';
+  h += '<label class="campo" style="margin-top:10px"><span>Reason for the punch change (optional)</span><input id="aaMotivo" maxlength="300" autocomplete="off" placeholder="Adjusted to the absence request"></label>';
+  h += '<p class="nota" style="margin:0 0 4px">The request stays <b>Pending</b>; approve it after saving. ' + (s.origen === 'monitor' ? 'The Monitor won\'t change it back. ' : '') + 'Punch changes are saved to the Timesheet right away.</p>';
   $('xCuerpo').innerHTML = h;
+  pintarAAMarcas();
+  $('aaMas').addEventListener('click', () => { leerAAMarcas(); const ult = AA.lista[AA.lista.length - 1]; AA.lista.push({ tipo:!ult || ult.tipo === 'salida' ? 'entrada' : 'salida', hora:'' }); pintarAAMarcas(); });
+  if($('aaAjustar')) $('aaAjustar').addEventListener('click', () => {
+    leerAAMarcas();
+    const parcOn = $('aaParc').checked, a0 = parcOn ? $('aaIni').value : null, a1 = parcOn ? $('aaFin').value : null;
+    if(!parcOn || !a0 || !a1){ $('xErr').textContent = 'The absence covers the whole day: remove the punches instead, or mark it as part of the day.'; return; }
+    const r2 = ajustarMarcasAusencia(AA.lista.filter(m => m.hora), a0, a1);
+    if(r2.err){ $('xErr').textContent = r2.err; return; }
+    AA.lista = r2.lista; $('xErr').textContent = ''; pintarAAMarcas();
+    toast('Punches moved around ' + h12(a0) + ' – ' + h12(a1) + '. Review them and save.');
+  });
   $('aaParc').addEventListener('change', () => { const on = $('aaParc').checked; $('aaHoras').style.display = on ? '' : 'none'; $('aaHastaC').style.display = on ? 'none' : ''; });
   $('xCuerpo').querySelectorAll('[data-aat]').forEach(b => b.addEventListener('click', () => { $(b.dataset.aat === 'fin' ? 'aaFin' : 'aaIni').value = b.dataset.h; }));
   const b = $('xSi'); b.textContent = 'Save changes'; b.className = 'btn btn-brand'; b.disabled = false;
+  $('ovDec').querySelector('.ventana').style.maxWidth = '520px';
   abrir('ovDec');
 }
 async function guardarAjusteAus(){
@@ -13745,12 +13775,82 @@ async function guardarAjusteAus(){
   if(parc && (!sol.horaIni || !sol.horaFin)){ $('xErr').textContent = 'Fill both times, or uncheck “Part of the day”.'; return; }
   if(parc && sol.horaFin <= sol.horaIni){ $('xErr').textContent = 'The end time must be after the start time.'; return; }
   if(!parc && sol.fechaFin < sol.fecha){ $('xErr').textContent = 'The end date can\'t be before the start date.'; return; }
+  // (v317) marcas
+  leerAAMarcas();
+  const marcasNuevas = AA.lista.filter(m => m.hora).map(m => ({ tipo:m.tipo, hora:(m.orig && m.orig.slice(0, 5) === m.hora) ? m.orig : m.hora }));
+  const cambioMarcas = JSON.stringify(marcasNuevas.map(m => m.tipo + m.hora.slice(0, 5))) !== JSON.stringify(AA.orig.map(m => m.tipo + m.hora.slice(0, 5)));
+  if(cambioMarcas){ const e2 = validarAAMarcas(marcasNuevas, sol.fecha); if(e2){ $('xErr').textContent = e2; return; } }
+  const cambioSol = sol.fecha !== s.fecha || sol.fechaFin !== (s.fechaFin || s.fecha) || (sol.horaIni || '') !== (s.horaIni || '').slice(0, 5) || (sol.horaFin || '') !== (s.horaFin || '').slice(0, 5);
+  if(!cambioMarcas && !cambioSol){ $('xErr').textContent = 'Nothing changed.'; return; }
   b.disabled = true;
   try{
-    await api('ajustarAusencia', { id:s.id, sol });
-    cerrar('ovDec'); toast('Request updated. It\'s still pending: approve it when ready.');
-    cargarSols();
-  }catch(e){ $('xErr').textContent = e.message; b.disabled = false; }
+    if(cambioMarcas){   // primero las marcas: si el día está aprobado (bloqueado) no se toca nada
+      const ml = ordenarMarcas(marcasNuevas.slice()), mot = $('aaMotivo').value.trim() || 'Adjusted to the absence request';
+      try{ await api('corregir', { usuario:s.usuario, fecha:s.fecha, marcas:ml, motivo:mot }); }
+      catch(e1){ if(!/invalid time|hora no v/i.test(e1.message)) throw e1;   // servidor viejo: solo HH:MM
+        await api('corregir', { usuario:s.usuario, fecha:s.fecha, marcas:ml.map(m => ({ tipo:m.tipo, hora:m.hora.slice(0, 5) })), motivo:mot }); }
+    }
+    if(cambioSol) await api('ajustarAusencia', { id:s.id, sol });
+    cerrar('ovDec');
+    toast((cambioSol && cambioMarcas ? 'Absence and punches updated' : cambioMarcas ? 'Punches updated' : 'Absence updated') + '. The request is still pending: approve it when ready.');
+    S.hoja = null; S.hojaHoy = null; cargarSols();
+  }catch(e){ $('xErr').textContent = /approv|aprob/i.test(e.message) && !/remove|quit/i.test(e.message) ? e.message + ' Remove the day\'s approval in the Timesheet first.' : e.message; b.disabled = false; }
+}
+const AA = { orig:[], lista:[] };
+const AA_TIPOS = ['entrada', 'almuerzo_ini', 'almuerzo_fin', 'salida'];
+function pintarAAMarcas(){
+  const el = $('aaMarcas'); if(!el) return;
+  el.innerHTML = AA.lista.length ? AA.lista.map((m, i) => '<div class="aa-m" data-i="' + i + '"><select aria-label="Punch type">' + AA_TIPOS.map(t => '<option value="' + t + '"' + (t === m.tipo ? ' selected' : '') + '>' + NOMBRE_TIPO[t] + '</option>').join('') + '</select>' +
+    '<input type="time" value="' + esc(m.hora) + '" aria-label="Time"' + (m.orig && m.orig.slice(0, 5) !== m.hora ? ' class="cambio"' : !m.orig ? ' class="nuevo"' : '') + '>' +
+    '<button type="button" class="aa-x" title="Remove this punch" aria-label="Remove this punch">×</button></div>').join('') : '<p class="muted" style="font-size:13.5px;margin:4px 0">No punches on this day.</p>';
+  el.querySelectorAll('.aa-x').forEach(b => b.addEventListener('click', () => { leerAAMarcas(); AA.lista.splice(Number(b.closest('.aa-m').dataset.i), 1); pintarAAMarcas(); }));
+  el.querySelectorAll('select,input').forEach(x => x.addEventListener('change', () => { leerAAMarcas(); aaTotal(); x.classList.toggle('cambio', true); }));
+  aaTotal();
+}
+function leerAAMarcas(){
+  const el = $('aaMarcas'); if(!el) return;
+  el.querySelectorAll('.aa-m').forEach(f => { const m = AA.lista[Number(f.dataset.i)]; if(!m) return; m.tipo = f.querySelector('select').value; m.hora = f.querySelector('input').value; });
+}
+function aaTotal(){
+  const l = AA.lista.filter(m => m.hora).map(m => ({ tipo:m.tipo, hora:m.hora })), err = validarAAMarcas(l, null);
+  $('aaTot').innerHTML = err ? '<span class="err" style="margin:0">' + esc(err) + '</span>' : 'Worked <b>' + dur(minutosLista(l)) + '</b>';
+}
+// Revisa el orden: Clock in → (Lunch start → Lunch end)* → Clock out, sin horas repetidas.
+function validarAAMarcas(l, fecha){
+  const o = ordenarMarcas(l.slice()); let est = 'fuera', prev = null;
+  for(const m of o){
+    if(prev && m.hora.slice(0, 5) === prev) return 'Two punches at ' + h12(m.hora.slice(0, 5)) + '.';
+    const ok = { fuera:['entrada'], trab:['almuerzo_ini', 'salida'], alm:['almuerzo_fin'] }[est];
+    if(ok.indexOf(m.tipo) < 0) return 'At ' + h12(m.hora.slice(0, 5)) + ' the order isn\'t valid (' + NOMBRE_TIPO[m.tipo] + ').';
+    est = m.tipo === 'entrada' || m.tipo === 'almuerzo_fin' ? 'trab' : m.tipo === 'almuerzo_ini' ? 'alm' : 'fuera'; prev = m.hora.slice(0, 5);
+  }
+  if(est !== 'fuera' && fecha && fecha < fechaHoy()) return 'A past day must end with a Clock out.';
+  return '';
+}
+// Mueve las marcas para que el trabajo no se cruce con la ausencia a0–a1 (HH:MM).
+function ajustarMarcasAusencia(l, a0, a1){
+  const o = ordenarMarcas(l.map(m => ({ tipo:m.tipo, hora:m.hora.slice(0, 5), orig:m.orig }))), out = [];
+  let est = 'fuera';
+  for(const m of o){
+    const t = m.hora, dentro = t > a0 && t < a1;
+    if(est === 'fuera' && m.tipo === 'entrada'){
+      if(dentro) out.push({ tipo:'entrada', hora:a1, orig:m.orig }); else out.push(m);   // entró durante la ausencia → entra al terminar
+      est = 'trab'; continue;
+    }
+    if(est === 'trab' && (m.tipo === 'salida' || m.tipo === 'almuerzo_ini')){
+      const ult = out[out.length - 1];
+      if(ult.hora < a0 && t > a1){ out.push({ tipo:'salida', hora:a0 }); out.push({ tipo:'entrada', hora:a1 }); }   // la ausencia cae en medio del trabajo → se parte el turno
+      if(dentro) out.push({ tipo:m.tipo, hora:a0, orig:m.orig }); else out.push(m);   // salió durante la ausencia → sale al empezar
+      est = m.tipo === 'salida' ? 'fuera' : 'alm'; continue;
+    }
+    if(est === 'alm' && m.tipo === 'almuerzo_fin' && dentro){ out.push({ tipo:m.tipo, hora:a1, orig:m.orig }); est = 'trab'; continue; }   // vuelve del almuerzo al terminar la ausencia
+    out.push(m); est = m.tipo === 'almuerzo_fin' ? 'trab' : est;
+  }
+  // tramos que quedaron vacíos (entra y sale a la misma hora) se quitan
+  const lim = []; for(let i = 0; i < out.length; i++){ const a = out[i], b = out[i + 1];
+    if(b && a.tipo === 'entrada' && b.tipo === 'salida' && a.hora >= b.hora){ i++; continue; } lim.push(a); }
+  const err = validarAAMarcas(lim, null);
+  return err ? { err:'Couldn\'t fit the punches automatically (' + err + ') — edit them by hand.' } : { lista:lim };
 }
 $('xSi').addEventListener('click', async () => {
   if(S.dec.modo === 'ajustar') return guardarAjusteAus();   // (v316)
@@ -13765,12 +13865,13 @@ $('xSi').addEventListener('click', async () => {
     if(s.tipo === 'horario') await api('decidirHorario', { id:s.id, estado:aprobar ? 'aprobada' : 'rechazada', respuesta:p.respuesta });
     else await api('decidir', p);
     cerrar('ovDec'); toast(aprobar ? 'Request approved.' : 'Request denied.');
-    S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
+    S.hoja = null; S.hojaHoy = null; cargarSols();
   }catch(e){ $('xErr').textContent = (aprobar ? 'Couldn\'t approve: ' : '') + e.message; b.disabled = false; }
 });
 
 /* ── administrador: deshacer o editar una solicitud aprobada ── */
 function abrirCambioAprobada(id, modo){
+  $('ovDec').querySelector('.ventana').style.maxWidth = '460px';
   const r = S.sols, s = r.sols.find(x => x.id === id); if(!s) return;
   const emp = r.emps.find(e => e.usuario === s.usuario) || {};
   S.dec = { s, modo, emp };
@@ -13846,7 +13947,7 @@ async function guardarCambioAprobada(){
   try{
     await api(accion, p);
     cerrar('ovDec'); toast(modo === 'deshacer' ? 'Approval undone. The request is pending again.' : 'Request updated.');
-    S.hoja = null; S.hojaHoy = null; S.yoEn = 0; cargarSols();
+    S.hoja = null; S.hojaHoy = null; cargarSols();
   }catch(e){ $('xErr').textContent = e.message; b.disabled = false; }
 }
 
@@ -15898,7 +15999,8 @@ async function demoApi(action, p){
       .map(s => ({ usuario:s.usuario, fecha:s.fecha, fechaFin:s.fechaFin, horaIni:s.horaIni || null, horaFin:s.horaFin || null, clase:s.clase, motivo:s.motivo || '',
         pagada:s.pagada == null ? ['vacaciones', 'enfermedad'].includes(s.clase) : !!s.pagada, horasDia:s.horasDia == null ? null : s.horasDia, importacion:s.importacion == null ? null : s.importacion })) };
   if(action === 'solicitudes'){ const anio = hoy.slice(0,4) + '-01-01';
-    const dias = {}; DM.sols.forEach(s => { if(s.estado === 'pendiente' && (s.tipo === 'turno' || s.tipo === 'almuerzo')) dias[s.usuario + '|' + s.fecha] = (DM.marcas[s.usuario + '|' + s.fecha] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })); });
+    const dias = {}; DM.sols.forEach(s => { if(s.estado === 'pendiente' && (s.tipo === 'turno' || s.tipo === 'almuerzo')) dias[s.usuario + '|' + s.fecha] = (DM.marcas[s.usuario + '|' + s.fecha] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) }));
+      if(s.estado === 'pendiente' && s.tipo === 'ausencia') dias[s.usuario + '|' + s.fecha] = (DM.marcas[s.usuario + '|' + s.fecha] || []).map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) + ':00' })); });
     const ausAnio = {}; DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada').forEach(s => { (ausAnio[s.usuario] = ausAnio[s.usuario] || []).push(s); });
     return { sols:DM.sols, emps:DM.emps, usados:usadosPorUsuario(DM.sols.filter(s => s.tipo === 'ausencia' && s.estado === 'aprobada'), anio), dias, ausAnio }; }
   if(action === 'pendientes') return DM.sols.filter(s => s.estado === 'pendiente').length;
