@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v310-202611112200">
+<meta name="app-build" content="v311-202611120830">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -88,7 +88,7 @@
   }
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
 <script src="https://247medicalaid.github.io/sb.js?v=3"></script>
 <!-- (v297) Respaldo de conexión a Supabase. Si sb.js NO alcanzó a cargar o ejecutar
      (caché viejo del WebView2 de la app de escritorio, bloqueo de red, CDN caído…),
@@ -5259,6 +5259,38 @@ async function monPedir(fechas, alTerminar){
 const LOGO = MARCA.logoUrl;
 // La sesión del agente se guarda aparte de la del portal: si un administrador y un agente usan el
 // mismo navegador, no se pisan.
+// (v311) Si la librería de Supabase no cargó desde jsdelivr (CDN caído o bloqueado en la red del agente),
+// se trae de una copia propia en github.io y, si no, de unpkg. Sin esto el login fallaba con
+// «Cannot read properties of undefined (reading 'auth')».
+const SUPA_RESPALDOS = ['https://247medicalaid.github.io/supabase-js-2.119.0.js', 'https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js'];
+let supaCargando = null;
+function supaLista(){ return !!(window.supabase && window.supabase.createClient); }
+function asegurarSupabase(){
+  if(DEMO || supaLista()) return Promise.resolve(true);
+  if(supaCargando) return supaCargando;
+  const cargar = url => new Promise(res => {
+    const sc = document.createElement('script'); let fin = false;
+    const listo = ok => { if(fin) return; fin = true; clearTimeout(t); res(ok && supaLista()); };
+    const t = setTimeout(() => listo(false), 10000);
+    sc.src = url; sc.async = true; sc.onload = () => listo(true); sc.onerror = () => listo(false);
+    document.head.appendChild(sc);
+  });
+  supaCargando = (async () => {
+    for(const u of SUPA_RESPALDOS){ if(await cargar(u)) break; }
+    const ok = supaLista();
+    if(ok){
+      try{
+        if(!window.SB_URL) window.SB_URL = 'https://tftyyzoowctuhggwlgyt.supabase.co';
+        if(!window.SB_KEY) window.SB_KEY = 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1';
+        if(!window.sb) window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'portal247.sb' } });
+      }catch(e){}
+    }
+    supaCargando = null;
+    return ok;
+  })();
+  return supaCargando;
+}
+const ERR_SIN_CONEXION = 'Couldn\u2019t connect to the Time Clock. Check your internet connection and try again.';
 function clienteAgente(){
   if(!S.sbAg && window.supabase && window.supabase.createClient)
     S.sbAg = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'reloj247.agente' } });
@@ -5308,6 +5340,7 @@ function pantallaLogin(aviso, email){
     try{
       if(DEMO){ await new Promise(r => setTimeout(r, 300)); if(clave !== 'Demo1234') throw new Error('Wrong email or password.');
         S.demoAgente = true; $('acceso').classList.add('hidden'); document.body.insertAdjacentHTML('afterbegin', '<div class="velo" id="velo"><div class="spin"></div></div>'); return inicio(); }
+      if(!(await asegurarSupabase())) throw new Error(ERR_SIN_CONEXION);
       const { error } = await clienteAgente().auth.signInWithPassword({ email, password:clave });
       if(error) throw new Error(/invalid login|invalid credentials/i.test(error.message) ? 'Wrong email or password.' : error.message);
       location.replace(location.pathname);
@@ -5375,6 +5408,7 @@ async function pantallaClave(tipo, token){
       const r = cuentasOk(await cuentasFn('activar', { token, clave:c }));
       limpiar();
       if(DEMO){ S.demoAgente = true; $('acceso').classList.add('hidden'); document.body.insertAdjacentHTML('afterbegin', '<div class="velo" id="velo"><div class="spin"></div></div>'); return inicio(); }
+      if(!(await asegurarSupabase())) return pantallaLogin(ERR_SIN_CONEXION, r.email);
       const { error } = await clienteAgente().auth.signInWithPassword({ email:r.email, password:c });
       if(error) return pantallaLogin('Your password is saved. Sign in with it.', r.email);
       location.replace(location.pathname);
@@ -5480,6 +5514,7 @@ $('btnSalir').addEventListener('click', async () => {
 });
 
 async function inicio(){
+  await asegurarSupabase();   // (v311) respaldo si jsdelivr no cargó
   const qs = new URLSearchParams(location.search), tok = qs.get('invite') || qs.get('reset');
   if(tok) return pantallaClave(qs.get('invite') ? 'invitacion' : 'clave', tok);
   let s = null;
