@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v312-202611121200">
+<meta name="app-build" content="v313-202611121345">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1397,13 +1397,17 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .per tr.abierta td{background:var(--brand-50) !important;border-bottom-color:transparent}
 .per tr.per-ed td{background:var(--brand-50);padding:4px 8px 12px;white-space:normal;text-align:left;border-bottom:1px solid var(--line)}
 .ped{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:end}
-.ped-campos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.ped-campos{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .ped label span{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;white-space:nowrap}
 .ped input{width:100%;min-width:0;padding:6px 6px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:14px;font-family:inherit;color:var(--text)}
+/* v313: que la hora se lea completa, con AM/PM (antes se cortaba en «08:00 AI») */
+.ped input[type=time]{min-width:122px;padding:7px 6px 7px 9px;font-size:14.5px;font-variant-numeric:tabular-nums;letter-spacing:0}
+.ped input[type=time]::-webkit-calendar-picker-indicator{margin-left:2px;padding:0;width:15px;height:15px;cursor:pointer}
+.ped input[type=time]::-webkit-datetime-edit-ampm-field{font-weight:700}
 .ped input.cambio{border-color:var(--brand-500);box-shadow:0 0 0 1px var(--brand-500)}
-.ped-motivo{grid-column:1;margin-top:2px}
-.ped-der{grid-row:1 / span 2;grid-column:2;display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:128px}
-.ped-hrs{font-size:12px;color:var(--text-muted);text-align:center}
+.ped-motivo{grid-column:1;grid-row:2;margin-top:2px}
+.ped-der{grid-row:2;grid-column:2;display:flex;flex-direction:row;align-items:center;gap:8px}
+.ped-hrs{font-size:12px;color:var(--text-muted);text-align:right;white-space:nowrap}
 .ped-hrs b{color:var(--text);font-size:14px}
 .ped-err{grid-column:1 / -1;color:var(--accent-600);font-size:12.5px;font-weight:600;min-height:0}
 .ped-nota{font-size:12.5px;color:var(--ink-700);margin:4px 0 8px}
@@ -1427,7 +1431,8 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .per-ayuda .est-dia{cursor:default;margin-left:0;width:15px;height:15px}
 .per-ayuda .est-dia svg{width:10px;height:10px}
 .ped-nota.neg{color:#7A1418;background:var(--accent-50);border-radius:8px;padding:6px 9px}
-@media (max-width:560px){ .ped{grid-template-columns:1fr} .ped-campos{grid-template-columns:1fr 1fr} .ped-der{grid-row:auto;grid-column:1;flex-direction:row;align-items:center;order:3} .ped-err{order:4} .ped-der .btn{flex:1} .ped-hrs{text-align:left;flex:none} }
+@media (max-width:760px){ .ped-campos{grid-template-columns:1fr 1fr} }
+@media (max-width:560px){ .ped{grid-template-columns:1fr} .ped-campos{grid-template-columns:1fr 1fr} .ped-der{grid-row:auto;grid-column:1;flex-direction:row;align-items:center;order:3} .ped-motivo{grid-row:auto} .ped-err{order:4} .ped-der .btn{flex:1} .ped-hrs{text-align:left;flex:none} }
 .ic-correccion{background:linear-gradient(135deg,#F08A00,#F7B733)}
 .sol-item .antes{color:var(--text-muted)}
 
