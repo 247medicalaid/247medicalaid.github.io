@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v309-202611112130">
+<meta name="app-build" content="v310-202611112200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3107,15 +3107,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
               <div class="aj-fila"><label class="aj-fl" for="ajMonPagoPers"><b>Personal</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoPers" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMonGuardar" type="button">Save</button><span class="nota" id="ajMonEstado"></span></div>
-          </div>
-        </div>
-
-        <!-- MORE · Advanced -->
-        <div class="aj-pag" data-pag="avanzado">
-          <div class="ajuste aj-card" id="ajPrueba">
-            <div class="aj-ct"><h2>Test user</h2></div>
-            <p class="aj-desc">Copy an agent&rsquo;s punches, approved days, requests and time off, documents and paystubs to your test user, then sign in as the test user to try the agent view with real information. Only the test user is changed (never a real agent); copying replaces what it had. Test users show with a <span class="pill-test">TEST</span> tag and are never included in the Pay run or payroll exports.</p>
-            <div class="aj-cuerpo-card"><div id="prCuerpo"></div></div>
           </div>
         </div>
 
@@ -8742,7 +8733,6 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
-  pintarPrueba();   // (v93)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
   pintarAusDiaria();   // (v299)
@@ -8774,8 +8764,7 @@ const AJ_SEC = [
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Default dollar rate and withholdings for each pay run.', tono:'a' },
-  { k:'integ',     g:'More',    t:'Integrations',      d:'Connect the Agent Monitor.', tono:'s' },
-  { k:'avanzado',  g:'More',    t:'Advanced',          d:'A test user to preview the agent view with real data.', tono:'s' }
+  { k:'integ',     g:'More',    t:'Integrations',      d:'Connect the Agent Monitor.', tono:'s' }
 ];
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
@@ -8806,7 +8795,6 @@ function ajResumen(k){
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = typeof reglasPago === 'function' ? reglasPago() : {}; return [['Add to the TRM', (R.extra != null ? R.extra : '—') + ' COP'], ['Maximum', (R.tope != null ? R.tope : '—') + ' COP'], ['Rete ICA', (R.ica != null ? R.ica : '—') + ' ‰']]; }
       case 'integ': { const m = typeof monSyncCfg === 'function' ? monSyncCfg() : {}; return [['Agent Monitor', m.activo ? ajPill('Connected', 'ok') : ajPill('Off')]]; }
-      case 'avanzado': return [['Test user', 'Preview the agent view']];
     }
   }catch(e){}
   return [];
@@ -8991,99 +8979,7 @@ function ajTrasPintar(){
     if(!AJ.entrado){ AJ.entrado = true; ajIr(k, { sinScroll:true }); } else ajIr(AJ.sec, { sinScroll:true });
   }
 }
-// (v93) Usuario de prueba: copiarle los datos de un agente
-async function pintarPrueba(){
-  const c = $('prCuerpo'); if(!c) return;
-  if(!S.emps){ c.innerHTML = '<p class="nota"><span class="spin dark"></span> Loading users…</p>'; try{ S.emps = await api('empleados'); }catch(e){ c.innerHTML = '<p class="nota err">' + esc(e.message) + '</p>'; return; } }
-  if(S.prCopiando) return;
-  const emps = S.emps.empleados || [], pruebas = emps.filter(e => e.prueba);
-  if(!S.pruebaListo && !DEMO){ c.innerHTML = '<p class="nota">This needs SQL step 55 in Supabase.</p>'; return; }
-  if(!pruebas.length){ c.innerHTML = '<p class="nota">There\'s no test user yet. Put «(Test)» in your test user\'s name in Users and run SQL step 55 again.</p>'; return; }
-  const fuentes = emps.filter(e => !e.prueba).sort((a, b) => (b.activo === true) - (a.activo === true) || a.nombre.localeCompare(b.nombre, 'es', { sensitivity:'base' }));
-  const ant = $('prDesde') ? $('prDesde').value : '';
-  c.innerHTML = '<div class="aj-prueba"><label class="campo"><span>Copy from</span><select id="prDesde"><option value="">Choose an agent…</option>' +
-      fuentes.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === ant ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' (archived)') + '</option>').join('') + '</select></label>' +
-    '<label class="campo"><span>To</span><select id="prHacia" disabled title="You can only copy to the test user">' + pruebas.map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + '</option>').join('') + '</select></label></div>' +
-    '<div class="pr-estado nota" id="prEstado"></div>' +
-    '<div class="pr-btns"><button class="btn btn-ink btn-sm" id="prCopiar" type="button">Copy data…</button>' +
-    '<button class="btn btn-ghost btn-sm" id="prVaciar" type="button" disabled>Clear test user data</button>' +
-    '<span class="nota" id="prcEstado"></span></div>';
-  $('prCopiar').addEventListener('click', copiarAPrueba);
-  $('prVaciar').addEventListener('click', vaciarPrueba);
-  $('prDesde').addEventListener('change', () => { $('prcEstado').textContent = ''; });
-  cargarEstadoPrueba();
-}
-async function copiarAPrueba(){
-  const desde = $('prDesde').value, hacia = $('prHacia').value, est = $('prcEstado');
-  if(!desde){ est.textContent = 'Choose the agent to copy from.'; return; }
-  const ed = S.emps.empleados.find(e => e.usuario === desde), eh = S.emps.empleados.find(e => e.usuario === hacia);
-  let aviso = '';   // v110: antes de copiar, avisar si el usuario de prueba ya tiene datos
-  try{ const s = await api('pruebaEstado', { usuario:hacia }); if(s && s.total > 0) aviso = ' <b>' + esc(eh.nombre) + ' already has data</b> (' + resumenFilasPrueba(s.filas) + '); it will be replaced.'; }catch(e){}
-  const ok = await confirmar('Copy ' + ed.nombre + '\'s data to ' + eh.nombre + '?',
-    'Everything <b>' + esc(eh.nombre) + '</b> has now (punches, approved days, requests and time off, documents and paystubs) is <b>replaced</b> with a copy of <b>' + esc(ed.nombre) + '</b>\'s, and ' + esc(eh.nombre) + ' will see <b>' + esc(ed.nombre) + '</b>\'s payment summary too. ' +
-    esc(ed.nombre) + '\'s own data isn\'t changed. The profile and the chat aren\'t copied.' + aviso, 'Copy data');
-  if(!ok) return;
-  const b = $('prCopiar'); b.disabled = true; $('prDesde').disabled = true; S.prCopiando = true;
-  try{
-    est.textContent = 'Copying the data…';
-    const r = await api('copiarAPrueba', { desde, hacia });
-    if((r.borrar || []).length){ est.textContent = 'Removing the old files…'; try{ await api('pruebaBorrarArchivos', { rutas:r.borrar }); }catch(e){} }
-    const lista = r.copiar || []; let hechos = 0, fallos = 0;
-    for(let i = 0; i < lista.length; i += 4){
-      est.textContent = 'Copying files… ' + Math.min(i + 4, lista.length) + ' / ' + lista.length;
-      const res = await Promise.allSettled(lista.slice(i, i + 4).map(x => api('pruebaCopiarArchivo', x)));
-      res.forEach(x => { if(x.status === 'fulfilled') hechos++; else fallos++; });
-    }
-    const f = r.filas || {}, n = k => Number(f[k]) || 0, pl = (v, a, b) => v + ' ' + (v === 1 ? a : b);
-    est.innerHTML = '<b>Done.</b> ' + esc(eh.nombre) + ' now has ' + esc(ed.nombre) + '\'s ' + [pl(n('reloj_marcas'), 'punch', 'punches'), pl(n('reloj_aprobaciones'), 'approved day', 'approved days'),
-      pl(n('reloj_solicitudes'), 'request', 'requests'), pl(n('reloj_docs'), 'document', 'documents'), pl(n('reloj_paystubs'), 'paystub', 'paystubs')].join(', ') +
-      (lista.length ? ' (' + pl(hechos, 'file', 'files') + ' copied' + (fallos ? ', <b>' + fallos + ' couldn\'t be copied</b>' : '') + ')' : '') + ', plus the payment summary. Sign in as ' + esc(eh.nombre) + ' to see it.';
-    toast('Data copied to ' + eh.nombre + '.');
-    if(S.hoja) S.hoja = null;   // el Timesheet se vuelve a cargar al abrirlo
-    cargarEstadoPrueba();
-  }catch(e){ est.textContent = e.message; }
-  S.prCopiando = false; b.disabled = false; $('prDesde').disabled = false;
-}
-// v110: estado del usuario de prueba (para avisar antes de copiar y habilitar «Clear»)
-async function cargarEstadoPrueba(){
-  const est = $('prEstado'), bv = $('prVaciar'), hacia = $('prHacia') ? $('prHacia').value : '';
-  if(!est || !hacia) return;
-  try{
-    const s = await api('pruebaEstado', { usuario:hacia }); S.prEstado = s;
-    const eh = S.emps.empleados.find(e => e.usuario === hacia), nom = eh ? eh.nombre : hacia;
-    if(s && s.total > 0){
-      est.innerHTML = '<b>' + esc(nom) + '</b> currently has copied data: ' + resumenFilasPrueba(s.filas) + '. Copying replaces it; «Clear test user data» empties it.';
-      if(bv) bv.disabled = false;
-    }else{
-      est.innerHTML = '<b>' + esc(nom) + '</b> is empty — no data copied yet.';
-      if(bv) bv.disabled = true;
-    }
-  }catch(e){ est.textContent = ''; if(bv) bv.disabled = true; }   // sin el paso 59: no se muestra el estado
-}
-async function vaciarPrueba(){
-  const hacia = $('prHacia').value, eh = S.emps.empleados.find(e => e.usuario === hacia), est = $('prcEstado');
-  const ok = await confirmar('Clear ' + eh.nombre + '\'s data?',
-    'This permanently removes all of <b>' + esc(eh.nombre) + '</b>\'s copied data (punches, approved days, requests and time off, documents and paystubs, with their files) and leaves only the profile. No real agent is affected.', 'Clear data');
-  if(!ok) return;
-  const b = $('prVaciar'), bc = $('prCopiar'); if(b) b.disabled = true; if(bc) bc.disabled = true; S.prCopiando = true;
-  try{
-    est.textContent = 'Clearing…';
-    const r = await api('vaciarPrueba', { usuario:hacia });
-    if((r.borrar || []).length){ try{ await api('pruebaBorrarArchivos', { rutas:r.borrar }); }catch(e){} }
-    est.innerHTML = '<b>Cleared.</b> ' + esc(eh.nombre) + ' now has no data (only the profile).';
-    toast(eh.nombre + ' cleared.');
-    if(S.hoja) S.hoja = null;
-    cargarEstadoPrueba();
-  }catch(e){ est.textContent = e.message; if(b) b.disabled = false; }
-  S.prCopiando = false; if(bc) bc.disabled = false;
-}
-function resumenFilasPrueba(f){
-  const n = k => Number((f || {})[k]) || 0, pl = (v, a, b) => v + ' ' + (v === 1 ? a : b);
-  const parts = [[n('reloj_marcas'), 'punch', 'punches'], [n('reloj_aprobaciones'), 'approved day', 'approved days'],
-    [n('reloj_solicitudes'), 'request', 'requests'], [n('reloj_docs'), 'document', 'documents'], [n('reloj_paystubs'), 'paystub', 'paystubs']]
-    .filter(p => p[0] > 0).map(p => pl(p[0], p[1], p[2]));
-  return parts.length ? parts.join(', ') : 'no items';
-}
+// (v310) Se quitó Settings → Advanced (usuario de prueba: copiar/vaciar datos). Las funciones SQL reloj_copiar_a_prueba / reloj_vaciar_prueba quedan sin uso.
 // (v92) Clock out automático
 function ejemploAutoSalida(){
   const mg = Math.round(Number($('ajAutoMargen').value)), ok = $('ajAutoMargen').value !== '' && mg >= 0 && mg <= 240;
