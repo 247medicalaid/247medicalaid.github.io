@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v330-202611131045">
+<meta name="app-build" content="v331-202611131245">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1382,6 +1382,32 @@ tr.cerrado td{background:#F6FAFC}
 .ve-k{color:var(--text-muted);font-size:12.5px}
 .ve-v{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
 .ve-nada{color:#9DB0BA;font-weight:400}
+/* (v331) email/teléfono: se parte si es largo + botón copiar */
+.ve-copiable{display:inline-flex;align-items:flex-start;gap:6px;min-width:0;max-width:100%}
+.ve-copiable .txt{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+.ve-copiar{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:7px;width:26px;height:24px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);padding:0}
+.ve-copiar svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ve-copiar:hover{color:var(--brand-700);border-color:var(--brand-500)}
+.ve-copiar.ok{color:#fff;background:var(--brand-600);border-color:var(--brand-600)}
+/* (v331) horario en la ficha */
+.ve-hor{border-top:1px solid #EEF3F5;padding:8px 0 2px}
+.ve-hor-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.ve-hor-ed{font-size:13px;font-weight:600}
+.ve-hor-tab{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ve-hor-f{display:grid;grid-template-columns:minmax(72px,auto) 1fr auto;grid-template-areas:"d t h" "d a h";gap:1px 14px;align-items:baseline;padding:8px 12px;font-size:13.5px}
+.ve-hor-f .d{grid-area:d}.ve-hor-f .t{grid-area:t}.ve-hor-f .a{grid-area:a}.ve-hor-f .h{grid-area:h;align-self:center}
+.ve-hor-f + .ve-hor-f{border-top:1px solid #EEF3F5}
+.ve-hor-f .d{font-weight:700;color:var(--text)}
+.ve-hor-f .t{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ve-hor-f .a{color:var(--text-muted);font-size:12.5px;white-space:nowrap}
+.ve-hor-f .h{color:var(--brand-700);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;min-width:44px}
+.ve-hor-f.libre{background:var(--sand-2)}
+.ve-hor-f.libre .t{color:var(--text-muted);font-weight:500}
+.ve-hor-pie{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--text-muted);padding:7px 2px 0}
+.ve-hor-pie b{color:var(--text)}
+.ve-hor-nada{margin:0;color:#9DB0BA;font-size:13.5px}
+.ve-hor-f.libre{grid-template-areas:"d t h"}
+.ve-hor-f.libre .a{display:none}
 .ve-tag{background:#e6f4fa;color:#0A6A90;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px}
 .ve-notas{font-weight:400;white-space:pre-wrap;color:#33505E;line-height:1.5}
 .u-ver-nom{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
@@ -8694,13 +8720,16 @@ function verEmp(usuario){
       : row('Supervisor', e.jefe ? esc(e.jefe) : '')) +
     row('Start date', e.fechaIngreso ? esc(fechaUS(e.fechaIngreso)) : '') +
     row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '') +
-    (horOn() ? row('Schedule', horLinkHTML(e.usuario)) : '');
+    (horOn() ? horFichaHTML(e.usuario) : '');   // (v331) horario como tabla de la ficha
   const pay = row('Pay rate', tienePago ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '') +
     row('Paid from', e.pagoCuenta === 'personal' ? 'Personal' : 'Nómina 247') +
     (Number(e.aportesCop) > 0 ? row('Aportes', cop(e.aportesCop)) : '') +
     (e.pagoFijoCop != null ? row('Fixed pay', cop(e.pagoFijoCop)) : '');
-  const personal = row('Mobile phone', t(e.telefono)) +
-    row('Email', t(e.email || e.usuario)) +
+  // (v331) texto largo que se parte y botón para copiarlo
+  const copiable = (v, que) => v ? '<span class="ve-copiable"><span class="txt">' + esc(v).replace(/@/g, '<wbr>@') + '</span><button type="button" class="ve-copiar" data-copiar="' + esc(v) + '" data-copiar-que="' + que + '" title="Copy ' + que + '" aria-label="Copy ' + que + '">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button></span>' : '';
+  const personal = row('Mobile phone', copiable(e.telefono, 'phone')) +
+    row('Email', copiable(e.email || e.usuario, 'email')) +
     row('Birthday', e.cumpleanos ? esc(fechaUS(e.cumpleanos)) : '') +
     row('Home address', t(e.direccion)) +
     row('City', t(e.ciudad));
@@ -8720,6 +8749,15 @@ function verEmp(usuario){
   const v = $('ovVerEmp').querySelector('.ventana'); if(v) v.scrollTop = 0;
 }
 $('veCerrar').addEventListener('click', () => cerrar('ovVerEmp'));
+// (v331) copiar email / teléfono de la ficha
+document.addEventListener('click', async ev => { const b = ev.target.closest && ev.target.closest('[data-copiar]'); if(!b) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const v = b.dataset.copiar, que = b.dataset.copiarQue || 'text';
+  try{ await navigator.clipboard.writeText(v); }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = v; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e2){} ta.remove(); }
+  b.classList.add('ok'); setTimeout(() => b.classList.remove('ok'), 1400);
+  toast((que === 'email' ? 'Email' : que === 'phone' ? 'Phone' : 'Text') + ' copied: ' + v);
+});
 
 /* ══════════ (v314) HORARIOS EN EL TIME CLOCK (paso 139) ══════════
    Se guardan por versiones con fecha (los días pasados conservan su horario). Formato de la semana igual al del Monitor:
@@ -8755,6 +8793,20 @@ function horLinkHTML(u){
   const g = gs[0]; if(!g) return '<button type="button" class="btn-link hor-link" data-hor-abrir="' + esc(u) + '">Off every day</button>';
   return '<button type="button" class="btn-link hor-link" data-hor-abrir="' + esc(u) + '" data-hor-tip="' + esc(u) + '">' + esc(g.dias + ' · ' + hoRango(g.d)) +
     (gs.length > 1 ? '<span class="mas">+' + (gs.length - 1) + ' more</span>' : '') + '</button>';
+}
+// (v331) Horario en la ficha del usuario: tabla clara (días · horario · almuerzo · horas) + total semanal y desde cuándo.
+function horFichaHTML(u){
+  const h = S.horarios && S.horarios[u];
+  const cab = '<div class="ve-hor-cab"><span class="ve-k">Schedule</span><button type="button" class="btn-link ve-hor-ed" data-hor-abrir="' + esc(u) + '">' + (h && h.semana ? 'Edit' : 'Add schedule') + '</button></div>';
+  if(!h || !h.semana) return '<div class="ve-hor">' + cab + '<p class="ve-hor-nada">No schedule yet.</p></div>';
+  const gs = hoGrupos(h.semana);
+  const sem = HO_DIAS.reduce((s, [k]) => s + (hoMinDia(h.semana[k]) || 0), 0);
+  const filas = gs.map(g => g.d
+    ? '<div class="ve-hor-f"><span class="d">' + esc(g.dias) + '</span><span class="t">' + esc(hoRango(g.d)) + '</span>' +
+      '<span class="a">' + (hoAlm(g.d) ? 'Lunch ' + esc(hoAlm(g.d)) : 'No lunch') + '</span><span class="h">' + hm(hoMinDia(g.d)) + ' h</span></div>'
+    : '<div class="ve-hor-f libre"><span class="d">' + esc(g.dias) + '</span><span class="t">Day off</span><span class="a"></span><span class="h"></span></div>').join('');
+  return '<div class="ve-hor">' + cab + '<div class="ve-hor-tab">' + filas + '</div>' +
+    '<div class="ve-hor-pie"><span>' + (h.desde && h.desde > '2000-01-01' ? 'Since ' + esc(fechaUS(h.desde)) : '') + '</span><span>Weekly total <b>' + hm(sem) + ' h</b></span></div></div>';
 }
 function horTipHTML(u){
   const h = S.horarios && S.horarios[u]; if(!h || !h.semana) return '';
