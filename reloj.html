@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v326-202611122030">
+<meta name="app-build" content="v327-202611130930">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -214,7 +214,13 @@ body[data-vista="hoja"] #hojaTabla .hoja thead .nombre{z-index:4}
 }
 @media (max-width:699px){ body[data-vista="hoja"] #hojaTabla{overflow-x:auto;overflow-y:visible} }
 /* v98: Timesheet congelado — sin el margen de 80 px al final, para que la tabla sea más larga */
-@media (min-width:700px){ body[data-vista="hoja"] main{padding-bottom:14px} body[data-vista="hoja"] #vHoja .barra-acc{margin:12px 0 8px} }
+@media (min-width:700px){ body[data-vista="hoja"] main{padding-bottom:14px} body[data-vista="hoja"] #vHoja .barra-acc{margin:12px 0 8px}
+  /* (v327) menos aire arriba: más filas visibles */
+  body[data-vista="hoja"] main{padding-top:12px}
+  body[data-vista="hoja"] #vHoja .cabecera{margin-bottom:10px}
+  body[data-vista="hoja"] #hojaResumen{margin-bottom:10px}
+  body[data-vista="hoja"] #vHoja .hc-fila{margin:0 0 6px}
+  body[data-vista="hoja"] #vHoja .barra-acc{margin:8px 0 4px} }
 /* Pay run: resumen, encabezados y totales fijos */
 body[data-vista="pago"] #pyTabla{overflow:auto;max-height:max(340px, calc(100vh - var(--top-h,57px) - var(--pres-h,0px) - var(--pabajo-h,0px) - 20px))}
 body[data-vista="pago"] #pyTabla .hoja thead th{z-index:3}
@@ -478,6 +484,12 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .leyenda-box.abierta .lt-caret{transform:rotate(180deg)}
 #hojaLeyendaBox .leyenda{display:none;margin-top:8px}
 #hojaLeyendaBox.abierta .leyenda{display:flex}
+/* (v327) Symbols & notes: botón compacto en la barra de acciones; el contenido flota encima (no le quita alto a la tabla) */
+#vHoja .hc-fila{position:relative}
+.ley-flot{position:static;flex:none}
+.hc-mon:empty + .ley-flot{margin-left:auto}
+.ley-flot .leyenda-tog{width:auto;padding:4px 10px;min-height:0;font-size:12.5px;gap:6px}
+.ley-flot .leyenda{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:min(980px,calc(100vw - 32px));background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 18px 40px -18px rgba(4,20,31,.45);margin:0 !important}
 
 .marcas{list-style:none;margin-top:12px;border-top:1px solid var(--line)}
 .marcas li{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:15px}
@@ -1142,6 +1154,8 @@ table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;co
 .marcas .corr.auto{color:#B42318}
 .auto-mini{display:inline-block;font-size:9.5px;font-weight:700;padding:0 4px;border-radius:999px;background:#FDECEA;color:#B42318;line-height:14px;letter-spacing:.02em}
 .auto-tag{display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;padding:0 5px;border-radius:999px;background:#FDECEA;color:#B42318;line-height:16px;vertical-align:1px}
+.globo-auto{white-space:pre !important}
+.ot-dot{font-weight:800;color:#9A5B00;font-size:13px;line-height:1}
 .globo-auto{position:fixed;z-index:3000;background:var(--ink-900, #0B2233);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;box-shadow:0 4px 12px rgba(11,34,51,.25);pointer-events:none}
 .globo-auto.hidden{display:none}
 .pill-test{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:0 6px;border-radius:999px;background:#EDE7FB;color:#5A43A0;line-height:16px;letter-spacing:.05em;vertical-align:1px}
@@ -2852,7 +2866,10 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="hSelQuitar" type="button">Remove approval</button>
       <button class="btn btn-ghost btn-sm" id="hSelLimpiar" type="button">Clear</button>
     </div>
-    <div class="hc-fila"><p class="dc-cuantos" id="hojaCuantos"></p><span class="per-ok-et hidden" id="hojaPerOk"></span><span class="hc-mon" id="hojaMon"></span></div>
+    <div class="hc-fila"><p class="dc-cuantos" id="hojaCuantos"></p><span class="per-ok-et hidden" id="hojaPerOk"></span><span class="hc-mon" id="hojaMon"></span><div class="leyenda-box ley-flot" id="hojaLeyendaBox">
+        <button type="button" class="leyenda-tog btn btn-ghost btn-sm" id="hojaLeyendaTog" aria-expanded="false" aria-controls="hojaLeyenda"><svg viewBox="0 0 24 24" aria-hidden="true" class="lt-ic"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Symbols &amp; notes</span><svg viewBox="0 0 24 24" aria-hidden="true" class="lt-caret"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="leyenda" id="hojaLeyenda"></div>
+      </div></div>
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
@@ -2862,10 +2879,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="hExpNomina" title="Hours worked (the approved hours on approved days) plus paid time off, by employee">Export payroll (Excel)</button>
       <button class="btn btn-ghost btn-sm" id="hExpResumen">Export summary for Payroll</button>
       <button class="btn btn-ghost btn-sm" id="hExpDetalle">Export daily detail</button>
-    </div>
-    <div class="leyenda-box" id="hojaLeyendaBox">
-      <button type="button" class="leyenda-tog" id="hojaLeyendaTog" aria-expanded="false" aria-controls="hojaLeyenda"><svg viewBox="0 0 24 24" aria-hidden="true" class="lt-ic"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Symbols &amp; notes</span><svg viewBox="0 0 24 24" aria-hidden="true" class="lt-caret"><path d="M6 9l6 6 6-6"/></svg></button>
-      <div class="leyenda" id="hojaLeyenda"></div>
     </div>
   </section>
 
@@ -4206,15 +4219,15 @@ function salidaAutoBandera(marcas){
 function globoAutoMostrar(c){
   let g = $('globoAuto');
   if(!g){ g = document.createElement('div'); g.id = 'globoAuto'; g.className = 'globo-auto hidden'; g.setAttribute('role', 'tooltip'); document.body.appendChild(g); }
-  g.textContent = 'Auto clock out';
+  g.textContent = c.dataset.globo || 'Auto clock out';
   g.classList.remove('hidden');
   const r = c.getBoundingClientRect(), w = g.offsetWidth, h = g.offsetHeight;
   let y = r.top - h - 6; if(y < 8) y = r.bottom + 6;
   g.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; g.style.top = y + 'px';
 }
 function globoAutoOcultar(){ const g = $('globoAuto'); if(g) g.classList.add('hidden'); }
-document.addEventListener('mouseover', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
-document.addEventListener('focusin', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
+document.addEventListener('mouseover', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto],.celda[data-globo]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
+document.addEventListener('focusin', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto],.celda[data-globo]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
 document.addEventListener('scroll', globoAutoOcultar, true);
 document.addEventListener('click', globoAutoOcultar, true);
 function banderas(dia, marcas, emp, mon, ahora, ub){
@@ -7486,14 +7499,15 @@ function pintarHoja(){
       if(!d.marcas.length && d.ausencia){
         const a = d.ausencia;
         const _nx = ausNoAutorizada(a);
-        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (_nx ? ' nx' : '') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
+        const _gA = esParcial(a) ? ausEtq(a) + ' ' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h' : '';   // (v327) las horas van al globo
+        t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (_nx ? ' nx' : '') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '"' + (_gA ? ' data-globo="' + esc(_gA) + '"' : '') + ' data-u="' + esc(e.usuario) + '" data-f="' + f +
           '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + (d.aprobado ? ' · approved (locked)' : '')) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + (_nx ? '<span class="aus-x" aria-hidden="true">✗</span>' : ausCorta(a)) + (d.aprobado && !perOk ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
+          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + (_nx ? '<span class="aus-x" aria-hidden="true">✗</span>' : ausCorta(a)) + (d.aprobado && !perOk ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const _ausCont = (d.ausencia && esParcial(d.ausencia)) ? ausTapada(minParcial(d.ausencia), Math.round((e.horasDia || 8) * 60), minPagoDia(d)) : 0;
-      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + ausCorta(d.ausencia) + (_ausCont > 0 ? ' <small>' + hm(_ausCont) + ' h</small>' : '') + '</span>' : '') +
+      const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + ausCorta(d.ausencia) + '</span>' : '') +
         (d.aprobado && !perOk ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? '<span class="auto-mini">AUTO</span>' : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
@@ -7501,9 +7515,13 @@ function pintarHoja(){
       t += '<td><button class="celda' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
         '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' + (d.incompleto ? 'clock-out missing' : dur(d.min)) +
         (d.aprobado ? ', approved' : '') + (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? ', automatic clock out' : '') + (otd ? ', overtime ' + dur(otd) : '') + (n === 'alerta' ? ', with alerts' : n === 'aviso' ? ', with warnings' : '') + '"' +
-        (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? ' data-auto="1"'
-          : otd ? ' title="Overtime: ' + hm(otd) + ' above ' + (e.horasDia || 8) + ' h"' : '') + '>' +
-        '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot num">+' + hm(otd) + '</span>' : '') + ics + '</span></button></td>';
+        ((() => {   // (v327) lo que antes ocupaba ancho (+1:00, OFF 1:27 h) va en el globo al pasar el mouse
+          const g = [];
+          if(d.banderas.some(b => b.c === 'SALIDA_AUTO')) g.push('Auto clock out');
+          if(otd) g.push('Overtime +' + hm(otd) + ' (above ' + (e.horasDia || 8) + ' h)');
+          if(_ausCont > 0) g.push(ausEtq(d.ausencia) + ' ' + hm(_ausCont) + ' h');
+          return g.length ? ' data-globo="' + esc(g.join('\n')) + '"' : ''; })()) + '>' +
+        '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot-dot" aria-hidden="true">+</span>' : '') + ics + '</span></button></td>';
     });
     const tot = e.totales, ote = otEmp(e);
     const est = estadoPeriodo(e, h);
@@ -7521,11 +7539,12 @@ function pintarHoja(){
   $('hAprobarRango').disabled = periodoAbierto(h) || perOk;   // (v320) no se aprueba un periodo con días por venir · (v322) ni uno ya aprobado
   $('hAprobarRango').title = periodoAbierto(h) ? avisoPeriodoAbierto(h) : perOk ? 'This pay period is already approved.' : 'Approve every day of this pay period for everyone shown (days with no hours are locked at 0 h)';
   $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
-  $('hAprobarNota').textContent = limpios.length ? 'Closed days with no alerts or warnings, not yet approved.' : '';
+  $('hAprobarNota').textContent = '';   // (v327) la explicación va en el title del botón: la barra cabe en una línea
+  $('hAprobarLimpios').title = 'Approves the closed days with no alerts or warnings that aren\'t approved yet.';
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown, or <b>Approve pay period</b> for the whole period</span><span>Blank cell = no hours, locked (approved at 0 h)</span><span><b>·</b> = no hours, still open</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:#C81F29">\u2717</b> = unauthorized absence</span><span>Days with only time off can be approved too (that locks them)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown, or <b>Approve pay period</b> for the whole period</span><span>Blank cell = no hours, locked (approved at 0 h)</span><span><b>·</b> = no hours, still open</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><span class="ot-dot">+</span> = overtime that day (above the agent\'s hours per day)</span><span>Hover a day to see its overtime, partial time off and auto clock out</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:#C81F29">\u2717</b> = unauthorized absence</span><span>Days with only time off can be approved too (that locks them)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
 // (v232) Aprobar una FECHA para todos los empleados visibles. (v318) Generalizado a varias fechas
@@ -8072,9 +8091,12 @@ $('hExpDetalle').addEventListener('click', () => {
   descargarCSV('timeclock_detail_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
 });
 (function(){ const box = $('hojaLeyendaBox'), tog = $('hojaLeyendaTog'); if(!box || !tog) return;
-  let ab; try{ const g = localStorage.getItem('reloj_leyenda_abierta'); ab = (g === null) ? (window.innerWidth > 1200) : (g === '1'); }catch(e){ ab = window.innerWidth > 1200; }
-  box.classList.toggle('abierta', ab); tog.setAttribute('aria-expanded', ab ? 'true' : 'false');
-  tog.addEventListener('click', () => { const a = box.classList.toggle('abierta'); tog.setAttribute('aria-expanded', a ? 'true' : 'false'); try{ localStorage.setItem('reloj_leyenda_abierta', a ? '1' : '0'); }catch(e){} });
+  // (v327) Siempre empieza cerrado: es un panel flotante que se abre con el botón y se cierra al hacer clic afuera o con Esc.
+  const poner = a => { box.classList.toggle('abierta', a); tog.setAttribute('aria-expanded', a ? 'true' : 'false'); };
+  poner(false);
+  tog.addEventListener('click', ev => { ev.stopPropagation(); poner(!box.classList.contains('abierta')); });
+  document.addEventListener('click', ev => { if(box.classList.contains('abierta') && !box.contains(ev.target)) poner(false); });
+  document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && box.classList.contains('abierta')) poner(false); });
 })();
 
 /* ══════════════════ ADMIN: EMPLEADOS ══════════════════ */
