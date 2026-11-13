@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v335-202611131600">
+<meta name="app-build" content="v336-202611131700">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -429,9 +429,17 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .aj-sel{padding:7px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13.5px;background:var(--paper);color:var(--text);max-width:260px}
 .aj-fila.aj-col{flex-direction:column;align-items:stretch}
 .ajm-lista{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.ajm-l{display:grid;grid-template-columns:minmax(0,1fr) 240px 28px;gap:8px;align-items:center;font-size:13.5px}
-.ajm-l > span{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ajm-nuevo{grid-template-columns:240px}
+.ajm-l{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,auto);gap:4px 10px;align-items:center;font-size:13.5px;padding:4px 0}
+.ajm-l + .ajm-l{border-top:1px solid #EEF3F5}
+.ajm-l .ajm-n{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ajm-ctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ajm-ctl .ajm-desde{border-color:var(--brand-500);background:#EEF7FB;font-weight:600}
+.ajm-notas{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:flex-end;font-size:12.5px}
+.ajm-hist{color:var(--text-muted)}
+.ajm-prog{color:#9A5B00;font-weight:600}
+.ajm-prog .btn-link{font-size:12.5px;padding:0;margin-left:4px}
+.ajm-def{grid-template-columns:1fr}.ajm-def .ajm-ctl{justify-content:flex-start}
+.ajm-nuevo{grid-template-columns:260px}
 .ajm-x{border:0;background:transparent;font-size:18px;color:var(--text-muted);cursor:pointer;border-radius:7px;height:28px}
 .ajm-x:hover{background:var(--sand-2);color:var(--accent-600)}
 .pr-g-dolar.pr-varias{flex-wrap:wrap;gap:12px 22px}
@@ -14566,10 +14574,21 @@ const MON_ENTERA = new Set(['COP','CLP','PYG','VND','IDR','JPY','KRW','HUF','ISK
 const monedaDePais = c => (PAIS[c] || {}).moneda || 'USD';
 const paisNombre = c => (PAIS[c] || {}).nombre || c;
 function cfgMoneda(R){ R = R || reglasPago(); const base = monedaDePais(R.pais || 'US'), intl = R.modo !== 'local';
-  return { base, intl, pagoDef:intl ? monedaDePais(R.paisPago || 'CO') : base, paisDef:intl ? (R.paisPago || 'CO') : (R.pais || 'US') }; }
-function paisPagoDe(usuario, cuenta, R){ R = R || reglasPago(); const c = cfgMoneda(R); if(!c.intl) return R.pais || 'US';
-  return (R.empPais || {})[usuario] || (R.cuentasPais || {})[cuenta] || R.paisPago || 'CO'; }
-const monedaPagoDe = (usuario, cuenta, R) => monedaDePais(paisPagoDe(usuario, cuenta, R));
+  const hd = intl && R.paisPagoH && R.paisPagoH.length ? vigente(R.paisPagoH, fechaHoy()) : null, pd = (hd && hd.pais) || R.paisPago || 'CO';
+  return { base, intl, pagoDef:intl ? monedaDePais(pd) : base, paisDef:intl ? pd : (R.pais || 'US') }; }
+// (v336) El país de pago tiene HISTORIA: cada cambio vale desde una quincena (las anteriores siguen con el país de antes).
+// paisPagoH: [{desde, pais}] · cuentasPaisH: {cuenta:[{desde, pais|null}]} · empPaisH: {usuario:[{desde, pais|null}]} (null = como la cuenta)
+const DESDE_SIEMPRE = '2000-01-01';
+function vigente(hist, f){ let r = null; (hist || []).forEach(x => { if(x.desde <= f && (!r || x.desde >= r.desde)) r = x; }); return r; }
+function histPago(R){ R = R || reglasPago();
+  const deMapa = (m, h) => { const o = {}; Object.keys(m || {}).forEach(k => { if(m[k]) o[k] = [{ desde:DESDE_SIEMPRE, pais:m[k] }]; }); Object.keys(h || {}).forEach(k => { o[k] = h[k]; }); return o; };
+  return { def:(R.paisPagoH && R.paisPagoH.length) ? R.paisPagoH : [{ desde:DESDE_SIEMPRE, pais:R.paisPago || 'CO' }],
+           cta:deMapa(R.cuentasPais, R.cuentasPaisH), emp:deMapa(R.empPais, R.empPaisH) }; }
+function paisPagoDe(usuario, cuenta, R, f){ R = R || reglasPago(); f = f || fechaHoy(); const c = cfgMoneda(R); if(!c.intl) return R.pais || 'US';
+  const H = histPago(R), e = vigente(H.emp[usuario], f); if(e && e.pais) return e.pais;
+  const a = vigente(H.cta[cuenta], f); if(a && a.pais) return a.pais;
+  const d = vigente(H.def, f); return (d && d.pais) || R.paisPago || 'CO'; }
+const monedaPagoDe = (usuario, cuenta, R, f) => monedaDePais(paisPagoDe(usuario, cuenta, R, f));
 function simboloMon(mon){ try{ return new Intl.NumberFormat('en-US', { style:'currency', currency:mon, currencyDisplay:'narrowSymbol' }).formatToParts(0).find(x => x.type === 'currency').value; }catch(e){ return mon + ' '; } }
 const redMon = (x, mon) => MON_ENTERA.has(mon) ? Math.round(x || 0) : r2(x || 0);
 function dinero(x, mon){ mon = mon || 'COP'; const ent = MON_ENTERA.has(mon), v = Number(x) || 0;
@@ -14781,7 +14800,7 @@ function armarBase(primera){
     const cong = g && !pr.refrescados.has(e.usuario);   // (v126) al reabrir se conserva lo pagado; aplicar el perfil es explícito
     const tar = cong && g.tarifa != null ? numO(g.tarifa) : tarLive;
     const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar,
-                   moneda:(cong && g.moneda) ? g.moneda : monedaPagoDe(e.usuario, e.cuenta || x.cuenta, pr.P.reglas),
+                   moneda:(cong && g.moneda) ? g.moneda : monedaPagoDe(e.usuario, e.cuenta || x.cuenta, pr.P.reglas, pr.desde),
                    horas:(cong && g.horas != null ? g.horas : x.horas), ot:(cong && g.ot != null ? g.ot : x.ot), min:x.min, minOt:x.minOt,
                    j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres, excl };
     if(!(base.min > 0 || fijo != null || aj || g)) return;
@@ -14882,6 +14901,14 @@ function pintarPago(){
     pr.hoja.empleados.forEach(e => Object.keys(e.dias).forEach(f => { if(pr.corte && f >= pr.corte) return; const d = e.dias[f]; if(!d || !d.marcas || !d.marcas.length || d.aprobado || f >= pr.hoja.hoy) return; if(d.incompleto) sinSalida++; else sinAprobar++; }));
     if(sinSalida) av += '<div class="aviso warn">' + IC.aviso + '<span><b>' + sinSalida + (sinSalida === 1 ? ' day has' : ' days have') + ' no clock-out</b> and ' + (sinSalida === 1 ? 'isn\'t' : 'aren\'t') + ' counted. Fix ' + (sinSalida === 1 ? 'it' : 'them') + ' in the Timesheet.</span></div>';
     if(sinAprobar) av += '<div class="aviso info">' + IC.info + '<span>' + sinAprobar + (sinAprobar === 1 ? ' day isn\'t' : ' days aren\'t') + ' approved yet. They\'re counted with the hours worked.</span></div>';
+    // (v336) personas que cambian de moneda respecto de la quincena anterior
+    const prevF = {}; ((pr.prev && pr.prev.datos && pr.prev.datos.filas) || []).forEach(x => { prevF[x.usuario] = x; });
+    const monPrev = (pr.prev && pr.prev.datos && pr.prev.datos.monPrincipal) || 'COP';
+    const camb = pr.filas.map(f => { const g = prevF[f.usuario], antes = g ? (g.moneda || monPrev) : monedaPagoDe(f.usuario, f.cuenta, pr.P.reglas, quinAnt(pr.desde));
+      return antes !== f.moneda ? { nom:f.nombre || (f.nom + ' ' + f.ape), antes, ahora:f.moneda } : null; }).filter(Boolean);
+    if(camb.length){ const lista = camb.slice(0, 6).map(c => esc(c.nom) + ' (' + c.antes + ' → ' + c.ahora + ')').join(', ') + (camb.length > 6 ? ' and ' + (camb.length - 6) + ' more' : '');
+      av += '<div class="aviso warn">' + IC.aviso + '<span><b>' + camb.length + (camb.length === 1 ? ' person is' : ' people are') + ' paid in a different currency than last pay period:</b> ' + lista +
+        '. Check the rate and their bank details in Users before paying. (Settings → Pay &amp; currency)</span></div>'; }
     const naj = pr.filas.filter(f => f.ajusteSug).length;
     if(naj) av += '<div class="aviso info">' + IC.info + '<span><b>' + naj + (naj === 1 ? ' adjustment' : ' adjustments') + '</b> from the days paid in advance in ' + esc(nomQuin(pr.prev.desde)) +
       (pr.prev.estado !== 'cerrada' ? ' (that pay run is still a draft)' : '') + '. Check them in the Adjustment column. <button class="btn-link" id="pyAjTodos" type="button">Apply all</button> · <button class="btn-link" id="pyAjNinguno" type="button">Apply none</button></span></div>';
@@ -15392,15 +15419,34 @@ function xlsxPayRun(runs, nombreHoja){
 
 // Ajustes → Pay run: las reglas del dólar y el Rete ICA
 function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = '';
-  AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, paisPago:R.paisPago, cuentasPais:R.cuentasPais || {}, empPais:R.empPais || {}, reglasTasa:R.reglasTasa || {} }));
+  const H = histPago(R);
+  AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, reglasTasa:R.reglasTasa || {}, h:H })); AJM.pend = {};
   pintarMonedaAj(); ejemploReglas();
   if(!S.emps) api('empleados', {}).then(r => { S.emps = r; pintarMonedaAj(); }).catch(() => {}); }
-/* ══════════ (v335) Settings → Pay & currency ══════════ */
-const AJM = { v:null };
+/* ══════════ (v335/v336) Settings → Pay & currency ══════════
+   Cambiar el país de pago (por defecto, de una cuenta o de una persona) pide DESDE QUÉ QUINCENA vale: se guarda como historia. */
+const AJM = { v:null, pend:{} };
 const opcPaises = (sel, primera) => (primera ? '<option value="">' + esc(primera) + '</option>' : '') +
   PAISES.map(([c, n, m]) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(n) + ' (' + m + ')</option>').join('');
+const ajmHist = k => { const v = AJM.v; if(k === 'def') return v.h.def; const [t, id] = [k.slice(0, 2), k.slice(2)]; return (t === 'c:' ? v.h.cta : v.h.emp)[id] || []; };
+const ajmQuins = () => { const q0 = quinDe(fechaHoy()), l = [q0]; for(let i = 0; i < 3; i++) l.push(quinSig(l[l.length - 1])); return l; };
+function ajmValor(k){ const p = AJM.pend[k]; if(p) return p.pais; const x = vigente(ajmHist(k), fechaHoy()); return x && x.pais ? x.pais : ''; }
+// Fila de un país con fecha: [país] [desde qué quincena] + lo programado / desde cuándo
+function ajmCtl(k, vacio){
+  const p = AJM.pend[k], hist = ajmHist(k), hoy = fechaHoy(), q = ajmQuins();
+  let h = '<select class="aj-sel" data-ajm-k="' + esc(k) + '">' + opcPaises(ajmValor(k), vacio) + '</select>';
+  if(p) h += '<select class="aj-sel ajm-desde" data-ajm-desde="' + esc(k) + '" aria-label="Starting with">' + q.map((d, i) => '<option value="' + d + '"' + (d === p.desde ? ' selected' : '') + '>' + (i === 0 ? 'This pay period · ' : 'From ') + esc(nomQuin(d)) + '</option>').join('') + '</select>';
+  const nombre = c => c ? paisNombre(c) : (vacio || '—');
+  const fut = hist.filter(x => x.desde > hoy), act = vigente(hist, hoy), prevA = act ? vigente(hist.filter(x => x.desde < act.desde), act.desde) : null;
+  const notas = fut.map(x => '<span class="ajm-prog">→ ' + esc(nombre(x.pais)) + ' from ' + esc(nomQuin(x.desde)) + ' <button type="button" class="btn-link" data-ajm-cancelar="' + esc(k) + '|' + x.desde + '">Cancel</button></span>');
+  if(act && act.desde > DESDE_SIEMPRE && !p) notas.unshift('<span class="ajm-hist">Since ' + esc(nomQuin(act.desde)) + (prevA ? ' · before: ' + esc(nombre(prevA.pais)) : '') + '</span>');
+  if(p) notas.push('<span class="ajm-hist">Pay periods before ' + esc(nomQuin(p.desde)) + ' keep ' + esc(nombre((vigente(hist.filter(x => x.desde < p.desde), sumarDias(p.desde, -1)) || {}).pais || '')) + '.</span>');
+  return '<div class="ajm-ctl">' + h + '</div>' + (notas.length ? '<div class="ajm-notas">' + notas.join('') + '</div>' : '');
+}
 function monedasAj(){ const v = AJM.v, base = monedaDePais(v.pais); if(v.modo === 'local') return [];
-  const s = new Set([monedaDePais(v.paisPago)]); Object.values(v.cuentasPais).forEach(c => c && s.add(monedaDePais(c))); Object.values(v.empPais).forEach(c => c && s.add(monedaDePais(c)));
+  const s = new Set(), hoy = fechaHoy(), add = c => { if(c) s.add(monedaDePais(c)); };
+  const recorrer = hist => { const a = vigente(hist, hoy); if(a) add(a.pais); hist.filter(x => x.desde > hoy).forEach(x => add(x.pais)); };
+  recorrer(v.h.def); Object.values(v.h.cta).forEach(recorrer); Object.values(v.h.emp).forEach(recorrer); Object.values(AJM.pend).forEach(p => add(p.pais));
   s.delete(base); return [...s].sort((a, b) => a === 'COP' ? -1 : b === 'COP' ? 1 : a.localeCompare(b)); }
 function pintarMonedaAj(){
   const v = AJM.v; if(!v) return; const base = monedaDePais(v.pais), intl = v.modo !== 'local', mons = monedasAj();
@@ -15409,16 +15455,16 @@ function pintarMonedaAj(){
     fila('How you pay', intl ? 'People are paid in another country&rsquo;s currency; each pay run converts with the day&rsquo;s rate.' : 'Everyone is paid in ' + esc(base) + '. No exchange rate.',
       '<div class="aj-seg" role="radiogroup"><button type="button" data-ajm-modo="local" class="' + (intl ? '' : 'on') + '" aria-pressed="' + !intl + '">Local</button><button type="button" data-ajm-modo="int" class="' + (intl ? 'on' : '') + '" aria-pressed="' + intl + '">International</button></div>');
   if(intl){
-    h += fila('Default payment country', 'Where people are paid unless their account or they themselves say otherwise.', '<select id="ajmPaisPago" class="aj-sel">' + opcPaises(v.paisPago) + '</select>');
+    const defHoy = ajmValor('def') || 'CO';
+    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>Default payment country</b><span>Where people are paid unless their account or they themselves say otherwise. A change applies from the pay period you choose.</span></label><div class="ajm-lista"><div class="ajm-l ajm-def">' + ajmCtl('def') + '</div></div></div>';
     const ctas = (listas().cuentas || []);
-    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>Accounts paid in another country</b><span>Leave &ldquo;Default&rdquo; to use ' + esc(paisNombre(v.paisPago)) + '.</span></label>' +
-      '<div class="ajm-lista">' + (ctas.length ? ctas.map(c => '<div class="ajm-l"><span>' + esc(c) + '</span><select class="aj-sel" data-ajm-cta="' + esc(c) + '">' + opcPaises(v.cuentasPais[c] || '', 'Default') + '</select></div>').join('') : '<p class="muted">No accounts yet.</p>') + '</div></div>';
-    const emps = ((S.emps && S.emps.empleados) || []).filter(e => e.activo !== false && !e.prueba).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
-    const ex = Object.keys(v.empPais);
-    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>People paid in another country</b><span>Only for exceptions (e.g. someone who moved). It wins over the account.</span></label>' +
-      '<div class="ajm-lista">' + ex.map(u => { const e = emps.find(x => x.usuario === u); return '<div class="ajm-l"><span>' + esc(e ? e.nombre : u) + '</span><select class="aj-sel" data-ajm-emp="' + esc(u) + '">' + opcPaises(v.empPais[u]) + '</select>' +
-        '<button type="button" class="ajm-x" data-ajm-quitar="' + esc(u) + '" title="Remove" aria-label="Remove">×</button></div>'; }).join('') +
-      '<div class="ajm-l ajm-nuevo"><select class="aj-sel" id="ajmNuevoEmp"><option value="">+ Add a person…</option>' + emps.filter(e => !v.empPais[e.usuario]).map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + '</option>').join('') + '</select></div></div></div>';
+    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>Accounts paid in another country</b><span>&ldquo;Default&rdquo; = ' + esc(paisNombre(defHoy)) + '. A change applies from the pay period you choose; earlier pay periods keep the old country.</span></label>' +
+      '<div class="ajm-lista">' + (ctas.length ? ctas.map(c => '<div class="ajm-l"><span class="ajm-n">' + esc(c) + '</span>' + ajmCtl('c:' + c, 'Default') + '</div>').join('') : '<p class="muted">No accounts yet.</p>') + '</div></div>';
+    const emps = ((S.emps && S.emps.empleados) || []).filter(e => !e.prueba).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+    const ex = [...new Set(Object.keys(v.h.emp).filter(u => (v.h.emp[u] || []).length).concat(Object.keys(AJM.pend).filter(k => k.startsWith('e:')).map(k => k.slice(2))))];
+    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>People paid in another country</b><span>Only for exceptions (e.g. someone who moved). It wins over the account. &ldquo;Same as account&rdquo; ends the exception.</span></label>' +
+      '<div class="ajm-lista">' + ex.map(u => { const e = emps.find(x => x.usuario === u); return '<div class="ajm-l"><span class="ajm-n">' + esc(e ? e.nombre : u) + '</span>' + ajmCtl('e:' + u, 'Same as account') + '</div>'; }).join('') +
+      '<div class="ajm-l ajm-nuevo"><select class="aj-sel" id="ajmNuevoEmp"><option value="">+ Add a person…</option>' + emps.filter(e => e.activo !== false && ex.indexOf(e.usuario) < 0).map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + '</option>').join('') + '</select></div></div></div>';
     mons.filter(m => m !== 'COP').forEach(m => { const g = v.reglasTasa[m] || {};
       h += fila(m + ' exchange rate', 'Market rate of the payment day (you can always type it in the pay run), adjusted like this:',
         '<select class="aj-sel ajm-tipo" data-ajm-rt="' + m + '" data-k="tipo"><option value="nada"' + (!g.tipo || g.tipo === 'nada' ? ' selected' : '') + '>No adjustment</option><option value="suma"' + (g.tipo === 'suma' ? ' selected' : '') + '>Add an amount</option><option value="pct"' + (g.tipo === 'pct' ? ' selected' : '') + '>Add a percent</option></select>' +
@@ -15427,22 +15473,35 @@ function pintarMonedaAj(){
     });
   }
   $('ajMonFilas').innerHTML = h;
-  // filas de Colombia (TRM + extra, tope, Rete ICA) solo si se paga en COP
   $('ajCopFilas').classList.toggle('hidden', !mons.includes('COP'));
   ejemploReglas();
 }
 $('ajMonFilas').addEventListener('change', e => { const v = AJM.v; if(!v) return; const t = e.target;
   if(t.id === 'ajmPais'){ v.pais = t.value; pintarMonedaAj(); }
-  else if(t.id === 'ajmPaisPago'){ v.paisPago = t.value; pintarMonedaAj(); }
-  else if(t.dataset.ajmCta != null){ if(t.value) v.cuentasPais[t.dataset.ajmCta] = t.value; else delete v.cuentasPais[t.dataset.ajmCta]; pintarMonedaAj(); }
-  else if(t.dataset.ajmEmp != null){ v.empPais[t.dataset.ajmEmp] = t.value; pintarMonedaAj(); }
-  else if(t.id === 'ajmNuevoEmp' && t.value){ v.empPais[t.value] = v.paisPago || 'CO'; pintarMonedaAj(); }
+  else if(t.dataset.ajmK != null){ const k = t.dataset.ajmK, p = AJM.pend[k];
+    AJM.pend[k] = { pais:t.value, desde:p ? p.desde : ajmQuins()[1] };   // por defecto: desde la próxima quincena
+    const ant = vigente(ajmHist(k), fechaHoy()); if(!p && (ant ? ant.pais || '' : '') === t.value) delete AJM.pend[k];
+    pintarMonedaAj(); }
+  else if(t.dataset.ajmDesde != null){ const k = t.dataset.ajmDesde; if(AJM.pend[k]){ AJM.pend[k].desde = t.value; pintarMonedaAj(); } }
+  else if(t.id === 'ajmNuevoEmp' && t.value){ AJM.pend['e:' + t.value] = { pais:ajmValor('def') || 'CO', desde:ajmQuins()[1] }; pintarMonedaAj(); }
   else if(t.dataset.ajmRt){ const m = t.dataset.ajmRt, g = v.reglasTasa[m] = v.reglasTasa[m] || {}; const k = t.dataset.k;
     g[k] = k === 'tipo' ? t.value : (t.value.trim() === '' ? null : Number(t.value)); if(k === 'tipo') pintarMonedaAj(); }
 });
 $('ajMonFilas').addEventListener('click', e => { const v = AJM.v; if(!v) return;
   const b = e.target.closest('[data-ajm-modo]'); if(b){ v.modo = b.dataset.ajmModo; pintarMonedaAj(); return; }
-  const q = e.target.closest('[data-ajm-quitar]'); if(q){ delete v.empPais[q.dataset.ajmQuitar]; pintarMonedaAj(); } });
+  const c = e.target.closest('[data-ajm-cancelar]'); if(c){ const [k, d] = c.dataset.ajmCancelar.split('|'); const hist = ajmHist(k), i = hist.findIndex(x => x.desde === d);
+    if(i >= 0) hist.splice(i, 1); pintarMonedaAj(); } });
+// Aplica los cambios pendientes a la historia (borra lo programado desde esa fecha en adelante)
+function ajmAplicar(){
+  const v = AJM.v;
+  Object.keys(AJM.pend).forEach(k => { const p = AJM.pend[k]; let hist = ajmHist(k).filter(x => x.desde < p.desde);
+    const antes = vigente(hist, sumarDias(p.desde, -1)), nuevo = p.pais || null;
+    if((antes ? antes.pais || null : null) !== nuevo) hist.push({ desde:p.desde, pais:nuevo });
+    hist.sort((a, b) => a.desde < b.desde ? -1 : 1);
+    if(k === 'def'){ if(!hist.length) hist = [{ desde:DESDE_SIEMPRE, pais:'CO' }]; v.h.def = hist; }
+    else { const mapa = k.startsWith('c:') ? v.h.cta : v.h.emp, id = k.slice(2); if(hist.length) mapa[id] = hist; else delete mapa[id]; } });
+  AJM.pend = {};
+}
 function ejemploReglas(){
   const R = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
   if(!(R.extra >= 0 && R.tope > 0)){ $('ajPagoEjemplo').textContent = ''; return; }
@@ -15450,16 +15509,19 @@ function ejemploReglas(){
 }
 ['ajPagoExtra','ajPagoTope','ajPagoIca'].forEach(id => $(id).addEventListener('input', ejemploReglas));
 $('ajPagoGuardar').addEventListener('click', async () => {
-  const v = Object.assign({ extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) }, JSON.parse(JSON.stringify(AJM.v || {})));
+  ajmAplicar();
+  const A = JSON.parse(JSON.stringify(AJM.v || {})), H = A.h || histPago();
+  const v = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value), pais:A.pais, modo:A.modo, reglasTasa:A.reglasTasa || {},
+              paisPagoH:H.def, cuentasPaisH:H.cta, empPaisH:H.emp, cuentasPais:{}, empPais:{} };
+  const dHoy = vigente(H.def, fechaHoy()); v.paisPago = (dHoy && dHoy.pais) || 'CO';   // el de hoy (compatibilidad)
   if(!(v.extra >= 0 && v.extra <= 5000 && v.tope > 0 && v.tope <= 20000 && v.ica >= 0 && v.ica <= 100) || [$('ajPagoExtra'), $('ajPagoTope'), $('ajPagoIca')].some(x => x.value.trim() === ''))
     return $('ajPagoEstado').textContent = 'Check the numbers.';
   // (v335) reglas de otras monedas: valores válidos y solo las que se usan
   const usa = new Set(monedasAj()); Object.keys(v.reglasTasa || {}).forEach(m => { const g = v.reglasTasa[m];
     if(!usa.has(m) || !g || (g.tipo === 'nada' && !(g.tope > 0))) { delete v.reglasTasa[m]; return; }
     if(g.valor != null && !(g.valor >= 0)) g.valor = 0; if(g.tope != null && !(g.tope > 0)) g.tope = null; });
-  if(v.modo === 'local'){ v.cuentasPais = {}; v.empPais = {}; }
   const b = $('ajPagoGuardar'); b.disabled = true;
-  try{ await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; $('ajPagoEstado').textContent = 'Saved. New pay runs use these rules.'; toast('Settings saved.'); if(S.pr && !cerradaPago()) S.pr = null; }
+  try{ await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; $('ajPagoEstado').textContent = 'Saved. New pay runs use these rules.'; toast('Settings saved.'); if(S.pr && !cerradaPago()) S.pr = null; pintarReglasPago(); }
   catch(e){ $('ajPagoEstado').textContent = e.message; }
   b.disabled = false;
 });
