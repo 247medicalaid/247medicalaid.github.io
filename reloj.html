@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v327-202611130930">
+<meta name="app-build" content="v328-202611131000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4176,7 +4176,8 @@ const DOMINIO_SB = '@usuarios.247medical-aid.com';
 const usuarioDe = ses => (ses.user.app_metadata && ses.user.app_metadata.usuario) || String(ses.user.email || '').replace(DOMINIO_SB, '');
 const EPISODIOS_AUSENCIA = { 'Inactivo': 1, 'Sin señal': 1, 'Sin internet': 1 };   // así los nombra el Monitor (datos, no texto)
 const EPISODIO_EN = { 'Inactivo':'Idle', 'Sin señal':'No signal', 'Sin internet':'No internet' };
-const MON_CLAVE = 'reloj_mon_v1';
+const MON_CLAVE = 'reloj_mon_v2';   // (v328) v1 tenía días vacíos leídos del Apps Script viejo
+try{ localStorage.removeItem('reloj_mon_v1'); }catch(e){}
 const TIEMPOS = [];
 
 function normal(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -5340,7 +5341,7 @@ async function yoSB(){
   return { ahora:ahoraMs, zona:S.zona, hoy, seg:ms,
     usuario:{ username:perfil.usuario, nombre:perfil.nombre, rol:perfil.rol }, esAdmin: perfil.rol === 'admin',
     empleado:e, reloj: rel, horario: semanaHor || null,
-    config:{ almuerzoMax:CFG.ALMUERZO_MAX_MIN, monitor:!!monCfg() } };
+    config:{ almuerzoMax:CFG.ALMUERZO_MAX_MIN, monitor:!!monFuente() } };
 }
 
 // Nombres de cuenta de Connecteam → los del Monitor (igual que reloj__cuenta_normal del paso 35).
@@ -5430,7 +5431,7 @@ async function empleadosSB(){
       monitor:monSB.agentes, cuentas:monSB.cuentas };
   }
   // La lista sale ya; los agentes y cuentas del Monitor (lento) llegan después y se agregan solos.
-  if(!MON.agentes && monCfg()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
+  if(!MON.agentes && monFuente()) monPedir([fechaHoy()]).then(() => { if(S.emps && MON.agentes){ S.emps.monitor = MON.agentes; S.emps.cuentas = MON.cuentas || []; } });
   S.pruebaListo = emps.some(e => 'prueba' in e);   // (v93)
   return { empleados:derivarMgr(emps.map(empJS)), cuentaMgr, reportaA, portal:perfiles.map(p => ({ username:p.usuario, nombre:p.nombre, activo:p.activo, rol:p.rol, invitado:p.invitado_en || null, activado:p.activado_en || null })), monitor:MON.agentes || [], cuentas:MON.cuentas || [] };
 }
@@ -5438,6 +5439,21 @@ async function empleadosSB(){
 /* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
 const MON = { hoy:null, hoyEn:0, hoyFalla:false, falla:{}, vuelo:{}, agentes:null };
 function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = localStorage.getItem('mon247_token'); return url && tok ? { url, tok } : null; }catch(e){ return null; } }
+// (v328) De dónde lee el Time Clock la actividad de los PC. El Monitor vive en Supabase (desde el 11 nov el Apps Script
+// ya no recibe latidos, y por eso todo salía "PC never reported"): se lee de la función monitor-estado con la sesión del
+// portal, igual que el panel del Monitor. Sin depender de una URL/token guardados en cada navegador (producto independiente).
+// La URL/token del navegador queda solo para instalaciones sin Supabase.
+function monFuente(){ if(!DEMO && window.sb && window.SB_URL && window.SB_KEY) return { sb:true }; return monCfg(); }
+async function monTraerDia(f, hoy, cfg){
+  if(cfg.sb){
+    const ses = (await window.sb.auth.getSession()).data.session; if(!ses) throw new Error('sin sesión');
+    const r = await fetch(window.SB_URL + '/functions/v1/monitor-estado' + (f === hoy ? '' : '?fecha=' + f),
+      { cache:'no-store', headers:{ Authorization:'Bearer ' + ses.access_token, apikey:window.SB_KEY } });
+    return await r.json();
+  }
+  const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) + (f === hoy ? '' : '&fecha=' + f);
+  return await (await fetch(u)).json();
+}
 // (v324) + copia en memoria: un día recién traído no se pierde aunque el guardado del navegador lo haya recortado.
 function monGuardados(){ let g = {}; try{ g = JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){} return Object.assign({}, MON.mem || {}, g); }
 // (v324) Último día en que el Monitor todavía no tenía NINGÚN agente: de ahí para atrás no hay nada que pedir.
@@ -5459,7 +5475,7 @@ function monActivoEn(f){
 const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
 function monDisponible(fechas){
   if(!monOn()) return {};   // (v312)
-  const cfg = monCfg(), g = monGuardados(), hoy = fechaHoy(), r = {};
+  const cfg = monFuente(), g = monGuardados(), hoy = fechaHoy(), r = {};
   fechas.forEach(f => {
     if(f > hoy) return;
     if(!monActivoEn(f)){ r[f] = MON_OFF; return; }   // (v326) el Monitor no estaba activo ese día
@@ -5471,7 +5487,7 @@ function monDisponible(fechas){
 }
 async function monPedir(fechas, alTerminar){
   if(!monOn()) return;   // (v312)
-  const cfg = monCfg(); if(!cfg) return;
+  const cfg = monFuente(); if(!cfg) return;
   const hoy = fechaHoy(), g = monGuardados();
   const faltan = fechas.filter(f => f <= hoy && monActivoEn(f) && !MON.vuelo[f] &&
     (f === hoy ? !(MON.hoy && Date.now() - MON.hoyEn < 120000) : !(g[f] && Date.now() - g[f].en < MON_VIGENCIA)));
@@ -5483,8 +5499,7 @@ async function monPedir(fechas, alTerminar){
     while(cola.length){
       const f = cola.shift();
       try{
-        const u = cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'token=' + encodeURIComponent(cfg.tok) + (f === hoy ? '' : '&fecha=' + f);
-        const j = await (await fetch(u)).json(), d = reducirMonitor(j);
+        const j = await monTraerDia(f, hoy, cfg), d = reducirMonitor(j);
         if(!d) throw new Error('sin datos');
         if(f === hoy){ MON.hoy = d; MON.hoyEn = Date.now(); MON.hoyFalla = false; MON.agentes = j.agentes.map(a => ({ agente:a.agente, cuenta:a.cuenta || '' })); if(Array.isArray(j.cuentas)) MON.cuentas = j.cuentas.map(c => c.n).filter(Boolean); }
         else {
@@ -7126,7 +7141,11 @@ function pintarTablaHoy(lista, f){
     '</colgroup><thead><tr>' + todas.map(th).join('') + '</tr></thead><tbody>' + cuerpo + '</tbody></table></div>';
   $('hoyLista').querySelectorAll('tr[data-u]').forEach(tr => tr.addEventListener('click', () => abrirDia(tr.dataset.u, f, S.hojaHoy)));
   const wrap = $('hoyLista').querySelector('.tabla-hoy-wrap'), tabla = wrap.querySelector('table');
-  if(fija) tabla.style.width = [...tabla.querySelectorAll('col')].reduce((s, c) => s + parseFloat(c.style.width), 0) + 'px';
+  if(fija){   // (v328) la última columna (General Alerts) toma el ancho que sobra: no se corta el texto contra el borde
+    const cs = [...tabla.querySelectorAll('col')], ult = cs[cs.length - 1], minUlt = parseFloat(ult.style.width) || 260;
+    const suma = cs.slice(0, -1).reduce((s, c) => s + parseFloat(c.style.width), 0);
+    ult.style.width = ''; tabla.style.width = '100%'; tabla.style.minWidth = (suma + minUlt) + 'px';
+  }
   if(scr){ wrap.scrollTop = scr[0]; wrap.scrollLeft = scr[1]; }
   // ordenar: ↑ → ↓ → orden normal
   tabla.querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => {
