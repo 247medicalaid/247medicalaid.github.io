@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v325-202611122010">
+<meta name="app-build" content="v326-202611122030">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -402,6 +402,10 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .hc-fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 8px}
 .hc-fila .dc-cuantos{margin:0}
 .hc-mon{margin-left:auto}
+.cx-tramos{font-size:13px;margin:10px 0 0;color:var(--text)}
+.cx-tramos ul{margin:4px 0 4px 18px;padding:0}
+.cx-tramos p{margin:2px 0 0;font-size:12.5px}
+.cx-tramos .cx-hoy{color:var(--brand-700);font-weight:700}
 .hc-mon-et{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--brand-700)}
 .hc-mon-et svg{width:15px;height:15px;flex:none}
 .hc-mon-et.gris{color:var(--text-muted)}
@@ -3244,6 +3248,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
                 <li>Authorizations entered in the Monitor before it was turned off become Requests here, as always.</li>
                 <li>The changes that were waiting are sent with <b>Send now</b> below.</li></ul></div>
             </div>
+            <div class="cx-tramos" id="ajMonTramos"></div>
             <div class="cx-pend hidden" id="ajMonPend"></div>
             <div class="aj-ct aj-ct2"><h2>Paid by default when it comes from the Monitor</h2></div>
             <div class="aj-filas">
@@ -4228,6 +4233,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
     f.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam' + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
   }
   if(!monOn()) return f;   // (v312) Monitor apagado: sin verificación de PC
+  if(mon === MON_OFF) return f;   // (v326) ese día el Monitor no estaba activo: no hay nada que verificar
   if(!emp.agenteMonitor){ f.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' }); return f; }
   if(mon === undefined){ f.push({ c:'MONITOR_CARGANDO', n:'info', t:'Checking against the Monitor…' }); return f; }
   if(mon === false){ f.push({ c:'SIN_MONITOR', n:'info', t:'Monitor verification isn\'t set up in this browser.' }); return f; }
@@ -5244,6 +5250,7 @@ async function api(action, p){
   }
   if(action === 'guardarMarca') return q(sb.rpc('reloj_guardar_marca', { p:p.valor }));
   if(action === 'guardarMonitorSync') return q(sb.rpc('reloj_guardar_monitor_sync', { p:p.valor }));
+  if(action === 'monitorTramos') return q(sb.rpc('reloj_monitor_tramos_leer'));   // (v326, paso 142)
   if(action === 'guardarConexiones') return q(sb.rpc('reloj_guardar_conexiones', { p:p.valor }));   // (v312, paso 133)
   if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
   if(action === 'horariosResumen') return q(sb.rpc('reloj_horarios_resumen'));   // (v314, paso 139)
@@ -5338,6 +5345,7 @@ function cuentasDelPeriodo(emps, aprob){
 }
 async function hojaSB(desde, hasta){
   const t0 = performance.now(); await sesionSB();
+  await cargarMonTramos();   // (v326)
   const hoy = fechaHoy();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(desde || '')) desde = hoy;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) hasta = desde;
@@ -5420,16 +5428,29 @@ function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = lo
 // (v324) + copia en memoria: un día recién traído no se pierde aunque el guardado del navegador lo haya recortado.
 function monGuardados(){ let g = {}; try{ g = JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){} return Object.assign({}, MON.mem || {}, g); }
 // (v324) Último día en que el Monitor todavía no tenía NINGÚN agente: de ahí para atrás no hay nada que pedir.
-function monVacioHasta(){ try{ return localStorage.getItem('mon247_vacio_hasta') || ''; }catch(e){ return ''; } }
+// (v326, paso 142) Historial de cuándo estuvo ACTIVO el Monitor (contratado y encendido), guardado en el servidor.
+// S.monTramos = [{desde, hasta|null}] · null = no se pudo leer (sin el paso 142): se decide por los datos, como antes.
+const MON_OFF = Object.freeze({ __off:true });   // día en que el Monitor no estaba activo: no se pide ni se verifica
+try{ localStorage.removeItem('mon247_vacio_hasta'); }catch(e){}   // atajo local de v324, reemplazado por los tramos
+async function cargarMonTramos(forzar){
+  if(S.monTramos !== undefined && !forzar) return S.monTramos;
+  if(DEMO){ S.monTramos = [{ desde:'2000-01-01', hasta:null }]; return S.monTramos; }
+  try{ const r = await api('monitorTramos'); S.monTramos = Array.isArray(r) ? r.map(t => ({ desde:t.desde, hasta:t.hasta || null })) : null; }
+  catch(e){ S.monTramos = null; }
+  return S.monTramos;
+}
+function monActivoEn(f){
+  if(!Array.isArray(S.monTramos)) return true;
+  return S.monTramos.some(t => t.desde <= f && (!t.hasta || f <= t.hasta));
+}
 const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
 function monDisponible(fechas){
   if(!monOn()) return {};   // (v312)
   const cfg = monCfg(), g = monGuardados(), hoy = fechaHoy(), r = {};
-  const vh = monVacioHasta();
   fechas.forEach(f => {
     if(f > hoy) return;
+    if(!monActivoEn(f)){ r[f] = MON_OFF; return; }   // (v326) el Monitor no estaba activo ese día
     if(!cfg){ r[f] = false; return; }
-    if(vh && f <= vh){ r[f] = {}; return; }   // (v324) antes de que existiera el Monitor: sin datos, sin pedir
     if(f === hoy) r[f] = (MON.hoy && Date.now() - MON.hoyEn < 120000) ? MON.hoy : (MON.hoyFalla ? null : (MON.hoy || undefined));
     else r[f] = (g[f] && Date.now() - g[f].en < MON_VIGENCIA) ? g[f].d : (MON.falla[f] ? null : (g[f] ? g[f].d : undefined));
   });
@@ -5438,8 +5459,8 @@ function monDisponible(fechas){
 async function monPedir(fechas, alTerminar){
   if(!monOn()) return;   // (v312)
   const cfg = monCfg(); if(!cfg) return;
-  const hoy = fechaHoy(), g = monGuardados(), vh = monVacioHasta();
-  const faltan = fechas.filter(f => f <= hoy && !(vh && f <= vh) && !MON.vuelo[f] &&
+  const hoy = fechaHoy(), g = monGuardados();
+  const faltan = fechas.filter(f => f <= hoy && monActivoEn(f) && !MON.vuelo[f] &&
     (f === hoy ? !(MON.hoy && Date.now() - MON.hoyEn < 120000) : !(g[f] && Date.now() - g[f].en < MON_VIGENCIA)));
   if(!faltan.length) return;
   faltan.forEach(f => { MON.vuelo[f] = true; });
@@ -5463,7 +5484,6 @@ async function monPedir(fechas, alTerminar){
           const ks = Object.keys(gg).filter(k => k !== f).sort((a, b) => (gg[a].en || 0) - (gg[b].en || 0)); while(Object.keys(gg).length > 120 && ks.length) delete gg[ks.shift()];
           try{ localStorage.setItem(MON_CLAVE, JSON.stringify(gg)); }catch(e){}
           delete MON.falla[f];
-          if(!Object.keys(d).length && f > monVacioHasta()){ try{ localStorage.setItem('mon247_vacio_hasta', f); }catch(e){} }   // (v324) el Monitor aún no tenía agentes
         }
       }catch(e){ if(f === hoy) MON.hoyFalla = true; else MON.falla[f] = true; }
       finally{ delete MON.vuelo[f]; }
@@ -7129,23 +7149,42 @@ function pintarTablaHoy(lista, f){
   tabla.querySelectorAll('[data-rz]').forEach(h => h.addEventListener('click', ev => ev.stopPropagation()));
 }
 
-// (v324) Estado del Monitor en una línea corta (a la derecha de "N people"). Si ningún día del periodo tiene
-// actividad del Monitor (periodos de antes de usarlo), lo dice; si empezó a mitad del periodo, dice desde cuándo.
+// (v324/v326) Estado del Monitor en una línea corta (a la derecha de "N people").
+// Con el paso 142 se decide por el HISTORIAL de activación (tramos del servidor), no por los datos:
+// sirve igual para un cliente que nunca lo tuvo, que lo apagó o que dejó de pagarlo.
 function estadoMonitorHoja(h){
-  if(!monOn() || DEMO) return '';
+  if(DEMO) return '';
   const et = (cls, txt, tit) => '<span class="hc-mon-et ' + cls + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' + (cls === 'warn' ? IC.aviso : IC.info) + '<span>' + txt + '</span></span>';
+  const pasadas = h.fechas.filter(f => f <= h.hoy); if(!pasadas.length) return '';
+  const tr = Array.isArray(S.monTramos) ? S.monTramos : null;
+  const act = h.fechas.filter(f => monActivoEn(f)), actPas = pasadas.filter(f => monActivoEn(f));
+  if(!monOn()) return tr && actPas.length
+    ? et('gris', 'Agent Monitor is off — PC checks unavailable', 'The Monitor was active on some of these dates, but it\'s turned off now (Settings → Connections).')
+    : et('gris', 'Monitor not active in this period');
+  if(!actPas.length) return et('gris', 'Monitor not active in this period', 'The Agent Monitor wasn\'t active on these dates, so punches aren\'t checked against the PCs.');
   if(!h.monitor) return et('info', 'Monitor not connected in this browser', 'Open the Agent Monitor here once, with its URL and token, and the Time Clock will use it.');
-  const pasadas = h.fechas.filter(f => f <= h.hoy), md = monDisponible(pasadas);
-  const conDatos = pasadas.filter(f => md[f] && Object.values(md[f]).some(a => a && a.p != null));
-  if(h.monitorCargando){
-    // Si todo lo que ya llegó viene vacío y no hay nada con datos, igual se avisa que se está revisando.
-    return et('info', 'Checking against the Monitor…', 'Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).');
-  }
+  if(h.monitorCargando) return et('info', 'Checking against the Monitor…', 'Hours are ready; PC alerts will appear in a few seconds.');
   if(h.monitorFalla) return et('warn', 'The Monitor didn\'t respond for ' + h.monitorFalla + (h.monitorFalla === 1 ? ' day' : ' days') + ' — reload in a moment', 'Those punches couldn\'t be checked against the PCs.');
-  if(!pasadas.length) return '';
-  if(!conDatos.length) return et('gris', 'No Monitor data for this period', 'The Agent Monitor has no PC activity on these dates (it wasn\'t in use yet), so punches aren\'t checked against the PCs.');
-  if(conDatos[0] > pasadas[0]) return et('gris', 'Monitor data starts ' + diaS(conDatos[0]), 'Before that date there\'s no PC activity to check the punches against.');
-  return '';
+  const md = monDisponible(actPas), conDatos = actPas.filter(f => md[f] && md[f] !== MON_OFF && Object.values(md[f]).some(a => a && a.p != null));
+  if(!tr){   // sin el paso 142: como en v324, por los datos
+    if(!conDatos.length) return et('gris', 'No Monitor data for this period');
+    if(conDatos[0] > pasadas[0]) return et('gris', 'Monitor data starts ' + diaS(conDatos[0]));
+    return '';
+  }
+  // tramos activos dentro del periodo
+  const segs = []; h.fechas.forEach(f => { if(!monActivoEn(f)) return; const u = segs[segs.length - 1];
+    if(u && sumarDias(u[1], 1) === f) u[1] = f; else segs.push([f, f]); });
+  const ini = h.fechas[0], fin = h.fechas[h.fechas.length - 1], rng = sg => diaS(sg[0]) + (sg[0] === sg[1] ? '' : ' – ' + diaS(sg[1]));
+  const titulo = 'Monitor active: ' + segs.map(rng).join(', ');
+  if(segs.length === 1 && segs[0][0] === ini && segs[0][1] === fin)
+    return conDatos.length ? '' : et('gris', 'No Monitor activity in this period', 'The Monitor was active, but no computer sent activity on these dates.');
+  if(segs.length === 1){
+    if(segs[0][1] === fin) return et('gris', 'Monitor active from ' + diaS(segs[0][0]), titulo);
+    if(segs[0][0] === ini) return et('gris', 'Monitor active until ' + diaS(segs[0][1]), titulo);
+    return et('gris', 'Monitor active ' + rng(segs[0]), titulo);
+  }
+  if(segs.length === 2 && segs[0][0] === ini && segs[1][1] === fin) return et('gris', 'Monitor off ' + rng([sumarDias(segs[0][1], 1), sumarDias(segs[1][0], -1)]), titulo);
+  return et('gris', 'Monitor active on ' + act.length + ' of ' + h.fechas.length + ' days', titulo);
 }
 function avisosMonitor(h){
   if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Checking against the Monitor… Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).</span></div>';
@@ -9129,7 +9168,16 @@ function monOn(){ return !(S.monitorSync && S.monitorSync.activo === false); }
 function conx(k){ const c = S.conexiones || {}; return c[k] !== false; }
 function aplicarConexiones(){ document.body.classList.toggle('sin-monitor', !monOn()); if(!monOn() && S.vista === 'mon') irA('hoy'); }
 function monSyncCfg(){ const c = S.monitorSync || {}; const pg = c.pago || {}; return { activo: c.activo !== false, pago:{ vacaciones: pg.vacaciones === true, enfermedad: pg.enfermedad === true, personal: pg.personal === true } }; }
-function pintarMonitorSync(){ const c = monSyncCfg();
+// (v326) Historial de activación del Monitor (Settings → Connections)
+function pintarMonTramos(){
+  const el = $('ajMonTramos'); if(!el) return;
+  const l = Array.isArray(S.monTramos) ? S.monTramos : null;
+  if(!l){ el.innerHTML = ''; return; }
+  const f = d => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(d + 'T12:00:00Z'));
+  el.innerHTML = '<b>Active periods</b>' + (l.length ? '<ul>' + l.slice().reverse().map(t => '<li>' + f(t.desde) + ' – ' + (t.hasta ? f(t.hasta) : '<span class="cx-hoy">today</span>') + '</li>').join('') + '</ul>'
+    : '<p class="muted">Never active yet.</p>') + '<p class="muted">The Timesheet only checks punches against the PCs on these dates.</p>';
+}
+function pintarMonitorSync(){ const c = monSyncCfg(); cargarMonTramos().then(pintarMonTramos);
   if($('ajMonSync')) $('ajMonSync').checked = c.activo;
   if($('ajMonPagoVac')) $('ajMonPagoVac').checked = c.pago.vacaciones;
   if($('ajMonPagoSick')) $('ajMonPagoSick').checked = c.pago.enfermedad;
@@ -9143,6 +9191,7 @@ if($('ajMonGuardar')) $('ajMonGuardar').addEventListener('click', async () => {
     if(antes && !val.activo && !(await confirmar('Turn off the Agent Monitor?', 'This is real and applies to everyone: nothing travels between the Time Clock and the Monitor until you turn it back on. The computers keep sending their activity, and nothing is deleted.', 'Turn off', true))){
       $('ajMonEstado').textContent = 'Not saved.'; return; }
     await api('guardarMonitorSync', { valor:val }); S.monitorSync = Object.assign({}, S.monitorSync || {}, val);
+    S.monTramos = undefined; cargarMonTramos(true).then(pintarMonTramos);   // (v326) el servidor abre/cierra el tramo
     $('ajMonEstado').textContent = 'Saved.';
     if(antes !== val.activo){
       S.emps = null; S.hoja = null; S.hojaHoy = null; S.cuentasMon = val.activo ? S.cuentasMon : []; S.cuentasMonEn = 0;
@@ -10302,7 +10351,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.conceptos = null; S.pagoRoles = null; S.cuentas = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -16263,6 +16312,7 @@ async function demoApi(action, p){
   }
   if(action === 'guardarMarca'){ return { ok:true }; }
   if(action === 'guardarMonitorSync'){ S.monitorSync = p.valor; return { ok:true }; }
+  if(action === 'monitorTramos') return [{ desde:'2000-01-01', hasta:null }];
   if(action.startsWith('horario')){ await new Promise(r => setTimeout(r, 120)); return demoHorarios(action, p || {}); }   // (v314)
   if(action === 'guardarConexiones'){ S.conexiones = Object.assign({ nomina_colores:true, comprobantes:true }, S.conexiones || {}, p.valor); return S.conexiones; }
   if(action === 'monPendiente'){ const e = Object.assign({ id:'d' + Date.now() + Math.random().toString(36).slice(2, 6), ts:new Date().toISOString(), por:'carloshtl75' }, p.p); S.monPend = (S.monPend || []).concat([e]); return { ok:true, id:e.id, total:S.monPend.length }; }
