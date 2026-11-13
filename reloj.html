@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v333-202611131250">
+<meta name="app-build" content="v334-202611131500">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -14671,7 +14671,11 @@ function armarBase(primera){
   pr.base = [];
   fp.forEach((x, i) => {
     const e = emps[i], g = pr.guardadas[e.usuario], aj = pr.ajustes[e.usuario];
-    const libres = asum.filter(f => !(e.dias[f] && e.dias[f].ausencia) && !(hojaE[i].dias[f] && hojaE[i].dias[f].ausencia));
+    // (v334) Un día por adelantado se deja de pagar solo si la ausencia es de TODO el día. Una ausencia parcial (p. ej. llegó
+    // 36 min tarde) no quita el día: se paga completo y el ajuste de la quincena siguiente descuenta lo que no trabajó.
+    const ausDia = f => { const a = (hojaE[i].dias[f] && hojaE[i].dias[f].ausencia) || (e.dias[f] && e.dias[f].ausencia); return a && !esParcial(a) ? a : null; };
+    const libres = asum.filter(f => !ausDia(f));
+    const excl = asum.filter(f => ausDia(f)).map(f => diaS(f) + ': ' + ausEtq(ausDia(f)) + ' (whole day)');
     const fijo = g ? numO(g.fijo) : numO(e.pagoFijoCop);
     const tarLive = numO(x.tarifa), jLive = Number(x.pago) || 0;
     pr.live[e.usuario] = { tar:tarLive, j:jLive, horas:x.horas, ot:x.ot, min:x.min, minOt:x.minOt };
@@ -14679,7 +14683,7 @@ function armarBase(primera){
     const tar = cong && g.tarifa != null ? numO(g.tarifa) : tarLive;
     const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar,
                    horas:(cong && g.horas != null ? g.horas : x.horas), ot:(cong && g.ot != null ? g.ot : x.ot), min:x.min, minOt:x.minOt,
-                   j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres };
+                   j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres, excl };
     if(!(base.min > 0 || fijo != null || aj || g)) return;
     let ed = pr.ed[e.usuario];
     if(!ed || primera){
@@ -14735,10 +14739,15 @@ function pintarDiffsPago(){
   cont.querySelectorAll('[data-ap]').forEach(btn => btn.addEventListener('click', () => aplicar([btn.dataset.ap])));
   cont.querySelectorAll('[data-keep]').forEach(btn => btn.addEventListener('click', () => dejar([btn.dataset.keep])));
 }
+// (v334) Qué días se pagan por adelantado y cuáles no (y por qué), en el title del campo Add days
+function tituloDiasAdd(f){
+  const t = (f.fechasAdd && f.fechasAdd.length ? 'Paid in advance: ' + f.fechasAdd.map(diaS).join(', ') : 'No days paid in advance');
+  return (f.excl && f.excl.length) ? t + '\nNot paid in advance — ' + f.excl.join(' · ') : t;
+}
 function recalcPago(){
   const pr = S.pr;
   pr.filas = pr.base.map(b => { const ed = pr.ed[b.usuario], f = calcFila(b, ed, pr.P);
-    f.fechasAdd = f.dias ? b.libres.slice(0, Math.ceil(f.dias)) : []; return f; });
+    f.fechasAdd = f.dias ? b.libres.slice(0, Math.ceil(f.dias)) : []; f.excl = b.excl || []; return f; });
 }
 const cerradaPago = () => !!(S.pr && S.pr.run && S.pr.run.estado === 'cerrada');
 function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || (a.nom + ' ' + a.ape).localeCompare(b.nom + ' ' + b.ape, 'en')); }
@@ -14835,7 +14844,7 @@ function pintarTablaPago(){
       '<td class="num" data-col="tarifa">' + (sinTar ? '<span class="muted" title="No pay rate in Users">—</span>' : usd(f.tarifa)) + '</td><td class="num" data-col="horas">' + esc(f.horas) + '</td><td class="num' + (f.ot ? ' pr-ot' : ' muted') + '" data-col="ot">' + (f.ot || '—') + '</td>' +
       '<td class="num" data-col="j">' + usd(f.j) + '</td>' +
       '<td data-col="dias"><input class="pr-in pr-dias" type="number" min="0" max="10" step="0.5" data-ed="dias" data-u="' + u + '" value="' + (f.dias || 0) + '" aria-label="Days paid in advance for ' + esc(f.nom) + '"' +
-        (cerr || sinTar ? ' disabled' : '') + ' title="' + esc(f.fechasAdd && f.fechasAdd.length ? f.fechasAdd.map(diaS).join(', ') : 'No days paid in advance') + '"></td>' +
+        (cerr || sinTar ? ' disabled' : '') + ' title="' + esc(tituloDiasAdd(f)) + '"></td>' +
       '<td class="num" data-col="k" data-c="k">' + c.k + '</td>' +
       '<td data-col="bono"><input class="pr-in pr-bono' + (f.bonoOk === false ? ' mal' : '') + '" data-ed="bonoTxt" data-u="' + u + '" value="' + esc(f.bonoTxt || '') + '" placeholder="0" autocomplete="off" aria-label="Bonus for ' + esc(f.nom) + '"' + dis + '></td>' +
       '<td data-col="aj">' + (f.ajusteSug ? '<label class="pr-aj" title="' + esc(f.ajusteNota || '') + '"><input type="checkbox" data-ed="ajusteSi" data-u="' + u + '"' + (f.ajusteSi ? ' checked' : '') + dis + '> <span class="num ' + (f.ajusteSug < 0 ? 'neg' : '') + '">' + usd(f.ajusteSug) + '</span></label>' : '<span class="muted">—</span>') + '</td>' +
@@ -14949,7 +14958,7 @@ function editarPago(el, final){
   const f = pr.filas.find(x => x.usuario === u), tr = el.closest('tr'), c = celdasCalc(f);
   Object.keys(c).forEach(x => { const td = tr.querySelector('[data-c="' + x + '"]'); if(td) td.textContent = c[x]; });
   if(k === 'bonoTxt') el.classList.toggle('mal', !f.bonoOk);
-  if(k === 'dias'){ el.title = f.fechasAdd.length ? f.fechasAdd.map(diaS).join(', ') : 'No days paid in advance'; }
+  if(k === 'dias'){ el.title = tituloDiasAdd(f); }
   if(k === 'ajusteSi'){ const td = tr.querySelector('[data-c="m"]'); if(td) td.textContent = c.m; }
   pintarResumenPago(); totalesTablaPago();
 }
