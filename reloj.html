@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v317-202611121845">
+<meta name="app-build" content="v318-202611121930">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -397,6 +397,18 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .marcar.alm:hover:not(:disabled){background:var(--brand-700)}
 .marcar-2{width:100%;padding:15px;font-size:16px}
 
+/* (v318) Aprobar por semana / quincena */
+.ap-opcs{display:flex;flex-direction:column;gap:8px}
+.ap-opc{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:10px 14px;font:inherit;color:var(--text);cursor:pointer}
+.ap-opc:hover:not([disabled]){border-color:var(--brand-500);background:#EEF7FB}
+.ap-opc[disabled]{opacity:.55;cursor:default}
+.ap-opc span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ap-opc small{color:var(--text-muted);font-size:12.5px}
+.ap-opc em{font-style:normal;font-size:13px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.ap-opc em.pend{color:#9A5B00}.ap-opc em.ok{color:var(--brand-600)}.ap-opc em.fut{color:var(--text-muted);font-weight:600}
+.ap-opc em svg{width:15px;height:15px}
+.celda.vacia.bloq.ok{color:var(--brand-600)}
+.celda .vac-ok svg{width:15px;height:15px;opacity:.75}
 /* (v317) Marcas editables dentro del Edit de una ausencia */
 .aa-sec{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px;background:var(--sand-2)}
 .aa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -2838,6 +2850,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
+      <button class="btn btn-ghost btn-sm" id="hAprobarRango" type="button" title="Approve a whole week or the whole pay period for everyone shown">Approve week / pay period…</button>
       <span class="nota" id="hAprobarNota"></span>
       <span class="esp"></span>
       <button class="btn btn-ink btn-sm" id="hExpNomina" title="Hours worked (the approved hours on approved days) plus paid time off, by employee">Export payroll (Excel)</button>
@@ -4553,7 +4566,8 @@ const SERVIDOR_EN = [
   [/^Escribe el usuario del portal\.$/, 'Enter the portal user.'],
   [/^Escribe el nombre\.$/, 'Enter the name.'],
   [/^El día aún no termina\.$/, 'The day isn\'t over yet.'],
-  [/^No tiene marcas\.$/, 'It has no punches.'],
+  [/^No tiene marcas\.$/, 'It has no punches (run SQL step 141 to lock days with no hours).'],
+  [/^Tiene una solicitud pendiente ese día\.$/, 'It has a pending request that day — decide the request first.'],
   [/^Falta la salida\.$/, 'Clock-out is missing.'],
   [/^Tipo de solicitud no válido\.$/, 'Invalid request type.'],
   [/^Escribe el motivo de la solicitud\.$/, 'Enter the reason for the request.'],
@@ -7223,11 +7237,17 @@ function estadoPeriodo(e, h){
 // Si se desaprueba uno, deja de estar aprobada (se recalcula en cada pintado).
 function fechaAprobada(f, h, lista){
   if(!f || f >= h.hoy) return false;
-  let cerrados = 0, aprobados = 0;
-  // v300: también cuentan los días con SOLO ausencia (se aprueban desde v299): si uno no está aprobado, la fecha no se marca.
-  lista.forEach(e => { const d = e.dias[f]; if(!d || !((d.marcas && d.marcas.length) || d.ausencia)) return; cerrados++; if(d.aprobado) aprobados++; });
-  return cerrados > 0 && aprobados === cerrados;
+  // (v318) La fecha queda ✓ cuando TODOS los días están aprobados (bloqueados), también los que no tienen horas.
+  let tot = 0, ap = 0;
+  lista.forEach(e => { const d = e.dias[f];
+    if(d && d.aprobado){ tot++; ap++; return; }
+    if(!diaConDatos(d) && !bloqueaVacio(e)) return;        // vacío de un usuario de prueba / archivado: no cuenta
+    tot++; });
+  return tot > 0 && ap === tot;
 }
+// (v318) ¿El día tiene marcas o ausencia? Un día vacío se aprueba en 0 h (queda bloqueado, paso 141).
+const diaConDatos = d => !!(d && ((d.marcas && d.marcas.length) || d.ausencia));
+const bloqueaVacio = e => !e.prueba && e.activo !== false;
 function enlazarSeleccion(){
   const vis = empsVisibles().map(e => e.usuario);
   const pintarCasillas = () => {
@@ -7254,7 +7274,7 @@ function pintarBarraSel(){
   const min = l.reduce((s, e) => s + h.fechas.reduce((x, f) => { const d = e.dias[f]; return x + (d && d.marcas.length && !d.incompleto && f < h.hoy ? d.min : 0); }, 0), 0);
   const ap = l.some(e => estadoPeriodo(e, h).aprobados > 0), pend = l.some(e => { const x = estadoPeriodo(e, h); return x.cerrados > x.aprobados; });
   $('hSelN').innerHTML = l.length + (l.length === 1 ? ' employee selected' : ' employees selected') + '<small>' + esc(diaS(h.desde) + ' – ' + diaS(h.hasta)) + ' · ' + hm(min) + ' h</small>';
-  $('hSelAprobar').disabled = !pend && !l.some(e => estadoPeriodo(e, h).cerrados);
+  $('hSelAprobar').disabled = false;   // (v318) también bloquea días sin horas
   $('hSelAprobar').textContent = pend ? 'Approve pay period' : 'Approve again';
   $('hSelQuitar').disabled = !ap;
 }
@@ -7263,7 +7283,12 @@ async function aprobarPeriodo(si){
   const items = [], sinSalida = [], conHoy = [];
   let min = 0;
   l.forEach(e => h.fechas.forEach(f => {
-    const d = e.dias[f]; if(!d || ((!d.marcas || !d.marcas.length) && !d.ausencia)) return;   // (v299) solo-ausencia también
+    const d = e.dias[f];
+    if(!diaConDatos(d)){   // (v318) día sin horas: aprobar lo bloquea en 0 h; quitar, solo si estaba aprobado
+      if(f >= h.hoy) return;
+      if(si && !(d && d.aprobado) && bloqueaVacio(e)) items.push({ usuario:e.usuario, fecha:f });
+      else if(!si && d && d.aprobado) items.push({ usuario:e.usuario, fecha:f });
+      return; }
     if(f >= h.hoy){ if(si && f === h.hoy && d.marcas && d.marcas.length) conHoy.push(e.nombre); return; }
     if(si){ if(d.incompleto && !d.aprobado){ sinSalida.push(e.nombre + ' · ' + diaS(f)); return; } items.push({ usuario:e.usuario, fecha:f }); min += d.min; }
     else if(d.aprobado){ items.push({ usuario:e.usuario, fecha:f }); min += Math.round(d.aprobado.horas * 60); }
@@ -7282,7 +7307,7 @@ async function aprobarPeriodo(si){
     const r = await api(si ? 'aprobar' : 'desaprobar', { items });
     const salt = (r && r.saltados) || [];
     toast(si ? 'Approved ' + (r.hechos != null ? r.hechos : items.length) + (items.length === 1 ? ' day' : ' days') + ' for ' + (l.length === 1 ? l[0].nombre : l.length + ' employees') + '.' +
-        (salt.length ? ' ' + salt.length + ' skipped: ' + enIngles(salt[0].por) : '')
+        resumenSaltados(r)
       : 'Approval removed for ' + (l.length === 1 ? l[0].nombre : l.length + ' employees') + '.', salt.length ? 'err' : undefined);
     S.selHoja = new Set(); S.yoEn = 0;
     await cargarHoja();
@@ -7371,6 +7396,11 @@ function pintarHoja(){
           (futuro ? 'disabled aria-label="Future day"' : 'data-u="' + esc(e.usuario) + '" data-f="' + f + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', no punches"') + '>·</button></td>';
         return;
       }
+      if(!d.marcas.length && !d.ausencia){   // (v318) sin horas, aprobado en 0 h = bloqueado
+        t += '<td><button class="celda vacia bloq' + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f + '" title="No hours' + (d.aprobado ? ' · approved at 0 h (locked)' : '') + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', no punches' + (d.aprobado ? ', approved, locked' : '') + '">' +
+          (d.aprobado ? '<span class="vac-ok">' + IC.ok + '</span>' : '·') + '</button></td>';
+        return;
+      }
       if(!d.marcas.length && d.ausencia){
         const a = d.ausencia;
         const _nx = ausNoAutorizada(a);
@@ -7411,42 +7441,77 @@ function pintarHoja(){
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
     '<span class="fl-alerta" style="display:inline-flex;gap:6px">' + IC.alerta + '<span style="color:var(--text-muted)">Alert: review before approving</span></span>' +
     '<span class="fl-aviso" style="display:inline-flex;gap:6px">' + IC.aviso + '<span style="color:var(--text-muted)">Warning</span></span>' +
-    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:#C81F29">\u2717</b> = unauthorized absence</span><span>Days with only time off can be approved too (that locks them)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
+    '<span>✎ Click a name to edit the whole period</span><span>Click a <b>date</b> to approve that day for everyone shown, or use <b>Approve week / pay period…</b></span><span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600);opacity:.75"') + ' in an empty cell = no hours, approved at 0 h (locked)</span><span>“missing” = didn\'t clock out</span><span><span class="auto-mini">AUTO</span> = clocked out automatically (check it)</span><span><b style="color:#9A5B00">+0:45</b> = overtime that day (above the agent\'s hours per day)</span><span>VAC / SICK / PERS / OFF = approved absence (blue = paid, red = unpaid)</span><span><b style="color:#C81F29">\u2717</b> = unauthorized absence</span><span>Days with only time off can be approved too (that locks them)</span><span><b style="color:var(--brand-600)">✓</b> next to a name = whole pay period approved</span>' +
     ((S.redondeo || 1) > 1 ? '<span><b>Hours rounded to the nearest ' + S.redondeo + ' min</b> (Settings)</span>' : '');
 }
-// (v232) Aprobar una FECHA para todos los empleados visibles. Incluye días con issues;
-// solo salta los que no tienen salida (incompleto / aún abierto) y los ya aprobados.
+// (v232) Aprobar una FECHA para todos los empleados visibles. (v318) Generalizado a varias fechas
+// (semana / quincena) y también bloquea los días SIN horas (0 h) para que nadie pida horas después.
 async function aprobarFecha(f){
   const h = S.hoja; if(!h) return;
   if(f > h.hoy){ toast('That day is in the future.', 'err'); return; }
-  const lista = empsVisibles(), items = [], sinSalida = [], conAlerta = [];
-  let min = 0, yaAp = 0; const nombres = [];   // (v301) se cuenta por PERSONA, no por "días"
-  lista.forEach(e => { const d = e.dias[f];
-    if(!d) return;
-    const soloAus = !d.marcas || !d.marcas.length;
-    if(soloAus && !d.ausencia) return;                          // (v299) sin marcas ni ausencia: nada que aprobar
-    if(d.aprobado){ yaAp++; return; }
-    if(!soloAus && (d.incompleto || d.enCurso)){ sinSalida.push(e.nombre); return; }   // falta la salida / aún abierto
-    items.push({ usuario:e.usuario, fecha:f }); nombres.push(e.nombre + (soloAus ? ' — time off (' + ausEtq(d.ausencia) + ')' : '')); min += d.min;
-    if(d.banderas && d.banderas.some(b => b.n === 'alerta')) conAlerta.push(e.nombre);
-  });
-  if(!items.length){ toast(yaAp ? 'Everyone shown is already approved on ' + diaS(f) + '.' : 'No closed days to approve on ' + diaS(f) + '.', yaAp ? undefined : 'err'); return; }
-  // (v302) Listas de nombres plegables (cerradas), letra chica y con scroll: la ventana queda compacta.
-  const plegable = (titulo, x) => '<details class="ap-lista"><summary>' + titulo + '</summary><div>' + x.map(esc).join('<br>') + '</div></details>';
-  const pers = n => n + (n === 1 ? ' person' : ' people');
-  const txt = '<b>' + pers(items.length) + '</b> still to approve on <b>' + esc(diaS(f)) + '</b> (' + hm(min) + ' h worked).' +
-    plegable('See who', nombres) +
+  return aprobarFechas([f], fechaL(f));
+}
+async function aprobarFechas(fechas, titulo){
+  const h = S.hoja; if(!h) return;
+  fechas = fechas.filter(f => f < h.hoy);
+  if(!fechas.length){ toast('Those days aren\'t over yet.', 'err'); return; }
+  const uno = fechas.length === 1, quien = (e, f) => uno ? e.nombre : e.nombre + ' · ' + diaS(f);
+  const items = [], sinSalida = [], conAlerta = [], vacios = [], trab = [];
+  let min = 0, yaAp = 0, nAus = 0;
+  empsVisibles().forEach(e => fechas.forEach(f => { const d = e.dias[f];
+    if(d && d.aprobado){ yaAp++; return; }
+    const conM = d && d.marcas && d.marcas.length;
+    if(conM && (d.incompleto || d.enCurso)){ sinSalida.push(quien(e, f)); return; }
+    if(conM){ items.push({ usuario:e.usuario, fecha:f }); trab.push(quien(e, f)); min += d.min; if(d.banderas && d.banderas.some(b => b.n === 'alerta')) conAlerta.push(quien(e, f)); return; }
+    if(d && d.ausencia){ items.push({ usuario:e.usuario, fecha:f }); nAus++; trab.push(quien(e, f) + ' — time off (' + ausEtq(d.ausencia) + ')'); return; }
+    if(!bloqueaVacio(e)) return;                                   // vacío de prueba / archivado: no se toca
+    items.push({ usuario:e.usuario, fecha:f }); vacios.push(quien(e, f));
+  }));
+  const u = n => uno ? n + (n === 1 ? ' person' : ' people') : n + (n === 1 ? ' day' : ' days');
+  if(!items.length){ toast(yaAp ? 'Everything shown is already approved for ' + titulo + '.' : 'Nothing to approve for ' + titulo + '.', yaAp ? undefined : 'err'); return; }
+  const plegable = (t, x) => '<details class="ap-lista"><summary>' + t + '</summary><div>' + x.map(esc).join('<br>') + '</div></details>';
+  const txt = '<b>' + u(items.length) + '</b> to approve for <b>' + esc(titulo) + '</b>.' +
+    (trab.length ? plegable(u(trab.length) + ' with hours or time off · ' + hm(min) + ' h worked', trab) : '') +
+    (vacios.length ? plegable(u(vacios.length) + ' with no hours — locked at 0 h, so no one can add hours later', vacios) : '') +
     (conAlerta.length ? plegable(conAlerta.length + (conAlerta.length === 1 ? ' has an alert' : ' have alerts') + ' — still approved', conAlerta) : '') +
     (sinSalida.length ? plegable(sinSalida.length + (sinSalida.length === 1 ? ' has no clock-out' : ' have no clock-out') + ' — stay unapproved', sinSalida) : '') +
-    (yaAp ? '<div class="ap-ya">' + pers(yaAp) + ' already approved.</div>' : '');
-  if(!(await confirmar('Approve ' + fechaL(f) + '?', txt, 'Approve ' + pers(items.length), false))) return;
+    (yaAp ? '<div class="ap-ya">' + u(yaAp) + ' already approved.</div>' : '');
+  if(!(await confirmar('Approve ' + titulo + '?', txt, 'Approve ' + u(items.length), false))) return;
   try{
     const r = await api('aprobar', { items });
-    const salt = (r && r.saltados) || [];
-    toast('Approved ' + pers(r.hechos != null ? r.hechos : items.length) + ' on ' + diaS(f) + '.' + (salt.length ? ' ' + salt.length + ' skipped: ' + enIngles(salt[0].por) : ''), salt.length ? 'err' : undefined);
+    toast('Approved ' + u(r.hechos != null ? r.hechos : items.length) + ' for ' + titulo + '.' + resumenSaltados(r), (r && r.saltados && r.saltados.length) ? 'err' : undefined);
     S.selHoja = new Set(); S.yoEn = 0;
     await cargarHoja();
   }catch(x){ toast(x.message, 'err'); }
+}
+// "3 skipped: It has a pending request…" agrupado por motivo
+function resumenSaltados(r){
+  const salt = (r && r.saltados) || []; if(!salt.length) return '';
+  const por = {}; salt.forEach(x => { const m = enIngles(x.por); por[m] = (por[m] || 0) + 1; });
+  return ' ' + salt.length + ' skipped — ' + Object.keys(por).map(m => por[m] + ': ' + m).join(' · ');
+}
+// (v318) Elegir semana o quincena para aprobar
+function elegirAprobacion(){
+  const h = S.hoja; if(!h) return;
+  const grupos = []; h.fechas.forEach(f => { const l = lunesDe(f), g = grupos[grupos.length - 1];
+    if(g && g.lunes === l) g.fechas.push(f); else grupos.push({ lunes:l, fechas:[f] }); });
+  const lista = empsVisibles();
+  const pend = fs => { let n = 0; lista.forEach(e => fs.forEach(f => { if(f >= h.hoy) return; const d = e.dias[f];
+    if(d && d.aprobado) return; if(!diaConDatos(d) && !bloqueaVacio(e)) return; n++; })); return n; };
+  const rango = fs => diaS(fs[0]) + (fs.length > 1 ? ' – ' + diaS(fs[fs.length - 1]) : '');
+  const opc = (fs, t, sub) => { const pas = fs.filter(f => f < h.hoy), n = pend(pas);
+    return '<button type="button" class="ap-opc" data-apr="' + fs.join(',') + '" data-t="' + esc(t) + '"' + (pas.length ? '' : ' disabled') + '><span><b>' + esc(t) + '</b><small>' + esc(sub) + '</small></span>' +
+      '<em class="' + (!pas.length ? 'fut' : n ? 'pend' : 'ok') + '">' + (!pas.length ? 'Not over yet' : n ? n + ' to approve' : IC.ok + ' All approved') + '</em></button>'; };
+  let html = '<div class="ap-opcs">' + opc(h.fechas, 'Whole pay period', rango(h.fechas)) +
+    grupos.map((g, i) => opc(g.fechas, 'Week ' + (i + 1), rango(g.fechas) + (g.fechas.length < 7 ? ' (part of the week in this period)' : ''))).join('') + '</div>' +
+    '<p class="nota" style="margin:10px 0 0">Approving also locks the days with no hours (0 h), so no one can send a request for them later. Today and future days are never included.</p>';
+  $('cTitulo').textContent = 'Approve by week or pay period'; $('cTexto').innerHTML = html;
+  $('cSi').style.display = 'none'; $('cNo').onclick = () => { cerrar('ovConf'); $('cSi').style.display = ''; };
+  $('cTexto').querySelectorAll('[data-apr]').forEach(b => b.addEventListener('click', () => {
+    cerrar('ovConf'); $('cSi').style.display = '';
+    const fs = b.dataset.apr.split(','); aprobarFechas(fs, b.dataset.t.indexOf('Week') === 0 ? b.dataset.t.toLowerCase() + ' (' + rango(fs.filter(f => f < h.hoy)) + ')' : 'the pay period (' + rango(fs.filter(f => f < h.hoy)) + ')');
+  }));
+  abrir('ovConf');
 }
 function diasLimpios(){
   const out = [];
@@ -7457,6 +7522,7 @@ function diasLimpios(){
   }));
   return out;
 }
+$('hAprobarRango').addEventListener('click', elegirAprobacion);
 $('hAprobarLimpios').addEventListener('click', async () => {
   const items = diasLimpios(); if(!items.length) return;
   const b = $('hAprobarLimpios'); b.disabled = true;
@@ -8314,7 +8380,7 @@ function pintarAccesoEmp(e){
 function confirmar(titulo, texto, boton, peligro){
   return new Promise(res => {
     $('cTitulo').textContent = titulo; $('cTexto').innerHTML = texto; $('cSi').textContent = boton;
-    $('cSi').className = 'btn ' + (peligro ? 'btn-peligro' : 'btn-ink');
+    $('cSi').className = 'btn ' + (peligro ? 'btn-peligro' : 'btn-ink'); $('cSi').style.display = '';
     $('cSi').onclick = () => { cerrar('ovConf'); res(true); };
     $('cNo').onclick = () => { cerrar('ovConf'); res(false); };
     abrir('ovConf');
@@ -15919,7 +15985,7 @@ async function demoApi(action, p){
         fechas.forEach(f => {
           const au = DM.sols.find(s => s.usuario === e.usuario && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
           const aus = au ? { id:au.id, fecha:au.fecha, fechaFin:au.fechaFin, horaIni:au.horaIni || null, horaFin:au.horaFin || null, clase:au.clase, pagada:!!au.pagada, horas:au.horasDia || 0, por:au.decididaPor, conceptoNombre:au.conceptoNombre || null, conceptoId:au.conceptoId || null } : null;
-          if(!DM.marcas[e.usuario + '|' + f] && !aus) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
+          if(!DM.marcas[e.usuario + '|' + f] && !aus && !DM.aprob[e.usuario + '|' + f]) return; const d = demoDia(e, f); d.ausencia = aus; dias[f] = d;
           if(aus){ tot.diasAus++; if(aus.pagada) tot.minPto += ausTapada(Math.round(aus.horas * 60), Math.round((e.horasDia || 8) * 60), d.marcas.length ? d.min : 0); }
           if(!d.marcas.length) return;
           tot.min += d.min; tot.dias++; if(d.aprobado){ tot.minAprob += Math.round(d.aprobado.horas * 60); tot.diasAprob++; }
