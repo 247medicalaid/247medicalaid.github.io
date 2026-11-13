@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v321-202611121935">
+<meta name="app-build" content="v322-202611121945">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -398,6 +398,14 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .marcar-2{width:100%;padding:15px;font-size:16px}
 
 .celda.vacia.bloq.cerrado{background:transparent}
+/* (v322) Periodo aprobado completo */
+.hoja thead tr.per-ok-fila th{position:static;background:var(--paper);padding:6px 8px;border-bottom:0}
+.hoja thead tr.per-ok-fila th.nombre{position:sticky;left:0}
+.hoja thead th.per-ok-c{background:var(--brand-600) !important;color:#fff;text-align:center;border-radius:12px 12px 0 0;font-size:13.5px;padding:7px 10px}
+.per-ok-et{display:inline-flex;align-items:center;gap:6px;font-weight:700;letter-spacing:.2px}
+.per-ok-et svg{width:16px;height:16px;color:#fff}
+.hoja thead th.per-ok-c small{font-weight:500;opacity:.85;margin-left:10px;font-size:12.5px}
+.hoja.per-ok td .celda:not(.aus){background:var(--brand-50)}
 /* (v317) Marcas editables dentro del Edit de una ausencia */
 .aa-sec{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px;background:var(--sand-2)}
 .aa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -7358,9 +7366,14 @@ function pintarHoja(){
     (o.por === por ? '<span class="fl">' + (por === 'nombre' || por === 'cuenta' ? '▲' : '▼') + '</span>' : '') + '</button>';
   if(S.selPeriodo !== h.desde + '|' + h.hasta){ S.selHoja = new Set(); S.selPeriodo = h.desde + '|' + h.hasta; }
   const lista = empsVisibles();
-  let t = '<table class="hoja"><thead><tr><th class="nombre"><label class="selq" title="Select everyone shown"><input type="checkbox" id="hSelTodos" aria-label="Select everyone shown"></label>' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
+  // (v322) Periodo terminado y TODO bloqueado → fila "Pay period approved" arriba de los días, fondo azul y sin ✓ en las celdas.
+  const perOk = !periodoAbierto(h) && h.fechas.length > 0 && h.fechas.every(f => fechaAprobada(f, h, lista));
+  let t = '<table class="hoja' + (perOk ? ' per-ok' : '') + '"><thead>' +
+    (perOk ? '<tr class="per-ok-fila"><th class="nombre"></th><th colspan="' + h.fechas.length + '" class="per-ok-c"><span class="per-ok-et">' + IC.ok + ' Pay period approved</span><small>' +
+      esc(diaS(h.desde) + ' – ' + diaS(h.hasta)) + ' · every day is locked</small></th><th class="tot" colspan="2"></th></tr>' : '') +
+    '<tr><th class="nombre"><label class="selq" title="Select everyone shown"><input type="checkbox" id="hSelTodos" aria-label="Select everyone shown"></label>' + ord('nombre', 'Employee', 'Sort by name') + '</th>' +
     h.fechas.map(f => { const fut = f > h.hoy, fok = !fut && fechaAprobada(f, h, lista);
-      const inner = esc(diaC(f)) + '<br>' + diaN(f) + (fok ? '<span class="apf-ic">' + IC.ok + '</span>' : '');
+      const inner = esc(diaC(f)) + '<br>' + diaN(f) + (fok && !perOk ? '<span class="apf-ic">' + IC.ok + '</span>' : '');
       return '<th class="' + [finde(f) ? 'fin' : '', fok ? 'fok' : ''].filter(Boolean).join(' ') + '">' + (fut ? inner : '<button type="button" class="apf' + (fok ? ' apf-ok' : '') + '" data-apf="' + f + '" title="' + (fok ? esc(fechaL(f)) + ' — everyone shown is approved. Click to review.' : 'Approve ' + esc(fechaL(f)) + ' for everyone shown') + '">' + inner + '</button>') + '</th>'; }).join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
     '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
@@ -7382,7 +7395,7 @@ function pintarHoja(){
     t += '<tr' + (S.selHoja.has(e.usuario) ? ' class="sel"' : '') + ' data-fila="' + esc(e.usuario) + '"><td class="nombre"><label class="selq"><input type="checkbox" data-sel="' + esc(e.usuario) + '"' + (S.selHoja.has(e.usuario) ? ' checked' : '') + ' aria-label="Select ' + esc(e.nombre) + '"></label>' +
       '<button class="nom-btn' + (e.activo === false ? ' inact' : '') + '" type="button" data-editar="' + esc(e.usuario) + '" title="' + esc(e.nombre) + ' — edit hours' + (e.activo === false ? ' (archived)' : '') + '"><span>' + esc(e.nombre) + '</span>' + (e.prueba ? '<span class="pill-test" title="Test user: not included in the Pay run or the payroll exports">TEST</span>' : '') +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>' +
-      (estN.todo ? '<span class="ap-ok" title="Whole pay period approved (' + estN.aprobados + ' days)" aria-label="Whole pay period approved">✓</span>' : '') + '</td>';
+      (estN.todo && !perOk ? '<span class="ap-ok" title="Whole pay period approved (' + estN.aprobados + ' days)" aria-label="Whole pay period approved">✓</span>' : '') + '</td>';
     h.fechas.forEach(f => {
       const d = e.dias[f], futuro = f > h.hoy;
       if(!d){
@@ -7400,13 +7413,13 @@ function pintarHoja(){
         const _nx = ausNoAutorizada(a);
         t += '<td><button class="celda aus' + (a.pagada ? '' : ' np') + (_nx ? ' nx' : '') + (d.aprobado ? ' ok' : '') + (f === h.hoy ? ' hoy' : '') + '" data-u="' + esc(e.usuario) + '" data-f="' + f +
           '" title="' + esc(ausEtq(a) + (esParcial(a) ? ' · ' + franjaTxt(a) : '') + ' · ' + pagoTxt(a) + (d.aprobado ? ' · approved (locked)' : '')) + '" aria-label="' + esc(e.nombre) + ', ' + fechaL(f) + ', ' +
-          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + (_nx ? '<span class="aus-x" aria-hidden="true">✗</span>' : ausCorta(a)) + (d.aprobado ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
+          esc(ausEtq(a)) + (esParcial(a) ? ' ' + franjaTxt(a) : '') + (a.pagada ? ', paid' : ', unpaid') + (d.aprobado ? ', approved' : '') + '">' + (_nx ? '<span class="aus-x" aria-hidden="true">✗</span>' : ausCorta(a)) + (d.aprobado && !perOk ? '<span class="aus-ok">' + IC.ok + '</span>' : '') + (esParcial(a) ? '<small>' + hm(ausTapada(minParcial(a), Math.round((e.horasDia || 8) * 60), 0)) + ' h</small>' : '') + '</button></td>';
         return;
       }
       const n = nivelMax(d.banderas.filter(b => b.c !== 'CORREGIDO'));
       const _ausCont = (d.ausencia && esParcial(d.ausencia)) ? ausTapada(minParcial(d.ausencia), Math.round((e.horasDia || 8) * 60), minPagoDia(d)) : 0;
       const ics = (d.ausencia ? '<span class="aus-mini' + (d.ausencia.pagada ? '' : ' np') + '" title="' + esc(ausEtq(d.ausencia) + (esParcial(d.ausencia) ? ' · ' + franjaTxt(d.ausencia) : '') + ' · ' + pagoTxt(d.ausencia)) + '">' + ausCorta(d.ausencia) + (_ausCont > 0 ? ' <small>' + hm(_ausCont) + ' h</small>' : '') + '</span>' : '') +
-        (d.aprobado ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
+        (d.aprobado && !perOk ? IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') : '') +
         (d.banderas.some(b => b.c === 'SALIDA_AUTO') ? '<span class="auto-mini">AUTO</span>' : '') +
         (n && n !== 'info' ? '<span class="fl-' + n + '" style="display:flex">' + IC[n] + '</span>' : '');
       const etiqueta = d.incompleto ? 'missing' : hm(d.min), otd = otDia(e, d);
@@ -7430,8 +7443,8 @@ function pintarHoja(){
   $('hojaTabla').querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => { const o = ordenHoja(); o.por = b.dataset.ord; o.grupo = false; guardarOrden(); pintarHoja(); }));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
-  $('hAprobarRango').disabled = periodoAbierto(h);   // (v320) no se aprueba un periodo con días por venir
-  $('hAprobarRango').title = periodoAbierto(h) ? avisoPeriodoAbierto(h) : 'Approve every day of this pay period for everyone shown (days with no hours are locked at 0 h)';
+  $('hAprobarRango').disabled = periodoAbierto(h) || perOk;   // (v320) no se aprueba un periodo con días por venir · (v322) ni uno ya aprobado
+  $('hAprobarRango').title = periodoAbierto(h) ? avisoPeriodoAbierto(h) : perOk ? 'This pay period is already approved.' : 'Approve every day of this pay period for everyone shown (days with no hours are locked at 0 h)';
   $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
   $('hAprobarNota').textContent = limpios.length ? 'Closed days with no alerts or warnings, not yet approved.' : '';
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
