@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v319-202611121915">
+<meta name="app-build" content="v320-202611121925">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -7238,6 +7238,9 @@ function fechaAprobada(f, h, lista){
 // (v318) ¿El día tiene marcas o ausencia? Un día vacío se aprueba en 0 h (queda bloqueado, paso 141).
 const diaConDatos = d => !!(d && ((d.marcas && d.marcas.length) || d.ausencia));
 const bloqueaVacio = e => !e.prueba && e.activo !== false;
+// (v320) Un periodo solo se aprueba completo cuando ya terminó (ningún día de hoy en adelante).
+const periodoAbierto = h => !!h && h.hasta >= h.hoy;
+const avisoPeriodoAbierto = h => 'This pay period isn\'t over yet (it ends ' + diaS(h.hasta) + '). Approve it after that day, or approve single days by clicking a date.';
 function enlazarSeleccion(){
   const vis = empsVisibles().map(e => e.usuario);
   const pintarCasillas = () => {
@@ -7264,12 +7267,14 @@ function pintarBarraSel(){
   const min = l.reduce((s, e) => s + h.fechas.reduce((x, f) => { const d = e.dias[f]; return x + (d && d.marcas.length && !d.incompleto && f < h.hoy ? d.min : 0); }, 0), 0);
   const ap = l.some(e => estadoPeriodo(e, h).aprobados > 0), pend = l.some(e => { const x = estadoPeriodo(e, h); return x.cerrados > x.aprobados; });
   $('hSelN').innerHTML = l.length + (l.length === 1 ? ' employee selected' : ' employees selected') + '<small>' + esc(diaS(h.desde) + ' – ' + diaS(h.hasta)) + ' · ' + hm(min) + ' h</small>';
-  $('hSelAprobar').disabled = false;   // (v318) también bloquea días sin horas
+  $('hSelAprobar').disabled = periodoAbierto(h);   // (v320) el periodo debe haber terminado
+  $('hSelAprobar').title = periodoAbierto(h) ? avisoPeriodoAbierto(h) : '';
   $('hSelAprobar').textContent = pend ? 'Approve pay period' : 'Approve again';
   $('hSelQuitar').disabled = !ap;
 }
 async function aprobarPeriodo(si){
   const h = S.hoja, l = selVisibles(); if(!l.length) return;
+  if(si && periodoAbierto(h)){ toast(avisoPeriodoAbierto(h), 'err'); return; }
   const items = [], sinSalida = [], conHoy = [];
   let min = 0;
   l.forEach(e => h.fechas.forEach(f => {
@@ -7426,6 +7431,8 @@ function pintarHoja(){
   $('hojaTabla').querySelectorAll('[data-ord]').forEach(b => b.addEventListener('click', () => { const o = ordenHoja(); o.por = b.dataset.ord; o.grupo = false; guardarOrden(); pintarHoja(); }));
   const limpios = diasLimpios();
   $('hAprobarLimpios').disabled = !limpios.length;
+  $('hAprobarRango').disabled = periodoAbierto(h);   // (v320) no se aprueba un periodo con días por venir
+  $('hAprobarRango').title = periodoAbierto(h) ? avisoPeriodoAbierto(h) : 'Approve every day of this pay period for everyone shown (days with no hours are locked at 0 h)';
   $('hAprobarLimpios').textContent = limpios.length ? 'Approve ' + limpios.length + (limpios.length === 1 ? ' day' : ' days') + ' with no issues' : 'Approve days with no issues';
   $('hAprobarNota').textContent = limpios.length ? 'Closed days with no alerts or warnings, not yet approved.' : '';
   $('hojaLeyenda').innerHTML = '<span>' + IC.ok.replace('<svg', '<svg style="color:var(--brand-600)"') + ' Approved</span>' +
@@ -7491,7 +7498,7 @@ function diasLimpios(){
 }
 $('hAprobarRango').addEventListener('click', () => {   // (v319) un solo botón: todo el periodo mostrado
   const h = S.hoja; if(!h) return; const pas = h.fechas.filter(f => f < h.hoy);
-  if(!pas.length){ toast('No day of this pay period is over yet.', 'err'); return; }
+  if(periodoAbierto(h)){ toast(avisoPeriodoAbierto(h), 'err'); return; }
   aprobarFechas(h.fechas, 'the pay period (' + diaS(pas[0]) + (pas.length > 1 ? ' – ' + diaS(pas[pas.length - 1]) : '') + ')');
 });
 $('hAprobarLimpios').addEventListener('click', async () => {
