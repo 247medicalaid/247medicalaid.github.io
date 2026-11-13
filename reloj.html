@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v337-202611131700">
+<meta name="app-build" content="v338-202611131830">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -440,6 +440,10 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .ajm-prog .btn-link{font-size:12.5px;padding:0;margin-left:4px}
 .ajm-def{grid-template-columns:1fr}.ajm-def .ajm-ctl{justify-content:flex-start}
 .ajm-nuevo{grid-template-columns:260px}
+.solo-off{display:none !important}
+.solo-aviso{position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:900;border:1px solid #E7B65C;background:#FFF6E3;color:#7A4A00;font:600 12.5px/1.2 var(--font-body);border-radius:999px;padding:7px 12px;box-shadow:0 4px 14px rgba(0,0,0,.08);cursor:pointer}
+.solo-aviso:hover{background:#FFEFC9}
+.solo-aviso.hidden{display:none}
 .ajm-ro{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline}
 .ajm-ro .btn-link{font-weight:600;padding:0;font-size:13.5px}
 .emp-pais{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-muted);margin-top:-2px}
@@ -3303,8 +3307,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <div class="aj-filas" id="ajMonFilas"></div>
             <div class="aj-filas" id="ajCopFilas">
               <div class="aj-fila"><label class="aj-fl" for="ajPagoExtra"><b>Add to the TRM</b><span>Pesos added to the day&rsquo;s exchange rate.</span></label><div class="aj-fr"><input id="ajPagoExtra" class="aj-num aj-num-l" type="number" min="0" max="5000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
-              <div class="aj-fila"><label class="aj-fl" for="ajPagoTope"><b>Maximum per dollar</b><span>The rate never goes above this.</span></label><div class="aj-fr"><input id="ajPagoTope" class="aj-num aj-num-l" type="number" min="0" max="20000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
-              <div class="aj-fila"><label class="aj-fl" for="ajPagoIca"><b>Rete ICA</b><span>Withholding per thousand.</span></label><div class="aj-fr"><input id="ajPagoIca" class="aj-num" type="number" min="0" max="100" step="0.01" inputmode="decimal"><span class="aj-uni">&permil;</span></div></div>
+              <div class="aj-fila" id="ajFilaTope"><label class="aj-fl" for="ajPagoTope"><b>Maximum per dollar</b><span>The rate never goes above this.</span></label><div class="aj-fr"><input id="ajPagoTope" class="aj-num aj-num-l" type="number" min="0" max="20000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
+              <div class="aj-fila" id="ajFilaIca"><label class="aj-fl" for="ajPagoIca"><b>Rete ICA</b><span>Withholding per thousand.</span></label><div class="aj-fr"><input id="ajPagoIca" class="aj-num" type="number" min="0" max="100" step="0.01" inputmode="decimal"><span class="aj-uni">&permil;</span></div></div>
             </div>
             <p class="ejemplo" id="ajPagoEjemplo"></p>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajPagoGuardar" type="button">Save</button><span class="nota" id="ajPagoEstado"></span></div>
@@ -3339,6 +3343,21 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
               <div class="aj-fila"><label class="aj-fl" for="ajMonPagoPers"><b>Personal</b></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMonPagoPers" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMonGuardar" type="button">Save</button><span class="nota" id="ajMonEstado"></span></div>
+          </div>
+
+        </div>
+
+        <!-- MORE · 24/7 only (v338): lo que solo usa 24/7 Medical Aid; apagado = como la app independiente -->
+        <div class="aj-pag" data-pag="solo247">
+          <div class="ajuste aj-card" id="ajSoloBox" data-guardar="ajSoloGuardar">
+            <div class="aj-ct"><h2>24/7 features</h2><span class="aj-pill" id="ajPillSolo"></span></div>
+            <p class="aj-desc">Things only 24/7 Medical Aid uses; the standalone product won&rsquo;t have them. Turn them off to test the Time Clock as the product. Nothing is deleted, and turning one back on brings it back as it was. It applies to everyone.</p>
+            <div class="aj-filas" id="ajSoloFilas"></div>
+            <div class="cx-efectos" style="grid-template-columns:1fr"><div class="cx-ef"><b>While a payroll item is off</b><ul>
+              <li>Pay runs show what the product would calculate, but they <b>can&rsquo;t be saved or closed</b>: a real pay run never goes out without them.</li>
+              <li>Closed pay runs keep showing what was paid.</li>
+              <li>The amounts stay in each person&rsquo;s settings (aportes, fixed pay, Nómina 247 / Personal) and come back when you turn it on.</li></ul></div></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajSoloGuardar" type="button">Save</button><span class="nota" id="ajSoloEstado"></span></div>
           </div>
 
           <div class="ajuste aj-card" id="ajConxBox" data-guardar="ajConxGuardar">
@@ -3455,6 +3474,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- importar de Connecteam (administrador) -->
+<button type="button" class="solo-aviso hidden" id="soloAviso" title="Settings → 24/7 only"></button>
 <div class="overlay hidden" id="ovImp" role="dialog" aria-modal="true" aria-labelledby="iTitulo">
   <div class="ventana ventana-ancha">
     <h2 id="iTitulo">Import from Connecteam</h2>
@@ -4870,6 +4890,7 @@ async function cargarConfig(){
     if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
     if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; }); }catch(e){}
   try{ aplicarConexiones(); }catch(e){}
+  try{ aplicarSolo247(); }catch(e){}
 }
 async function sesionSB(){
   if(!window.sb) throw Object.assign(new Error('Couldn\'t load the database connection. Check your internet and reload the page.'), { codigo:'SIN_LIB' });
@@ -6274,6 +6295,7 @@ function abrirWeb(){
 })();
 
 function irA(v){
+  try{ aplicarSolo247(); }catch(e){}
   if(v === 'mon' && typeof monOn === 'function' && !monOn()) v = 'hoy';   // (v312) Monitor apagado
   if(S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio &&
      !confirm('You have unsaved changes in the Pay run. Leave without saving? Your changes will be lost.')) return;
@@ -8827,9 +8849,9 @@ function verEmp(usuario){
   const pay = row('Pay rate', tienePago ? '$' + Number(e.pagoHora).toFixed(2) + '/h' : '') +
     row('Hours per day', e.horasDia != null ? e.horasDia + ' h' : '') +   // (v333) va con el pago
     (cfgMoneda().intl ? row('Payment country', paisFichaHTML(e)) : '') +   // (v337)
-    row('Paid from', e.pagoCuenta === 'personal' ? 'Personal' : 'Nómina 247') +
-    (Number(e.aportesCop) > 0 ? row('Aportes', cop(e.aportesCop)) : '') +
-    (e.pagoFijoCop != null ? row('Fixed pay', cop(e.pagoFijoCop)) : '');
+    (solo247('fuentes') ? row('Paid from', e.pagoCuenta === 'personal' ? 'Personal' : 'Nómina 247') : '') +   // (v338) de 24/7
+    (solo247('aportes') && Number(e.aportesCop) > 0 ? row('Aportes', cop(e.aportesCop)) : '') +
+    (solo247('aportes') && e.pagoFijoCop != null ? row('Fixed pay', cop(e.pagoFijoCop)) : '');
   // (v331) texto largo que se parte y botón para copiarlo
   const copiable = (v, que, aCopiar) => v ? '<span class="ve-copiable"><span class="txt">' + esc(v).replace(/@/g, '<wbr>@') + '</span><button type="button" class="ve-copiar" data-copiar="' + esc(aCopiar || v) + '" data-copiar-que="' + que + '" title="Copy ' + que + '" aria-label="Copy ' + que + '">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button></span>' : '';
@@ -9707,7 +9729,7 @@ if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
+  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -9732,6 +9754,7 @@ const AJ_IC = {
   ausencias:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M9 15l2 2 4-4"/>',
   nomina:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   integ:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  solo247:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/>',
   avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>'
 };
 const AJ_SEC = [
@@ -9743,7 +9766,8 @@ const AJ_SEC = [
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
-  { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor and your other apps.', tono:'s' }
+  { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor.', tono:'s' },
+  { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' }
 ];
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
@@ -9774,7 +9798,9 @@ function ajResumen(k){
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R);
         return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
-      case 'integ': { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length; return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')], ['Other apps', n + ' of 2 on']]; }
+      case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
+      case 'solo247': { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length, m = SOLO247.filter(x => solo247(x.k)).length;
+        return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')], ['Other apps', n + ' of 2 on']]; }
     }
   }catch(e){}
   return [];
@@ -9789,7 +9815,8 @@ function ajSub(k){
     case 'equipo': return 'GM: ' + v(0) + ' · ' + v(1) + ' managers';
     case 'tiempo': return 'Rounding ' + v(0).toLowerCase() + ' · auto clock out ' + v(2).toLowerCase();
     case 'ausencias': return v(0) + ' types · paid by ' + v(1);
-    case 'nomina': return 'TRM + ' + v(0) + ' · Rete ICA ' + v(2);
+    case 'nomina': return v(0) + ' · ' + v(1);
+    case 'solo247': return v(0) + ' · other apps ' + v(1);
     default: return v(0);
   }
 }
@@ -14629,6 +14656,49 @@ $('phCerrar').addEventListener('click', () => {
    (tarifa × horas por día × días) + bono + ajuste de los días asumidos la quincena anterior
    = total en dólares. Dólar a TRM + 400, máximo 4.000 (Ajustes → Pay run). Pesos = total × tasa,
    o el valor fijo de la persona. Nómina 247 paga Rete ICA (9,5 por mil); personal no. − aportes = neto. */
+/* (v338) Lo que solo usa 24/7 Medical Aid. Se guarda para toda la empresa en reloj_config 'pago'.solo247 = {k:false} (sin dato = encendido).
+   Apagado = como la app independiente. Mientras algo de la nómina esté apagado, las nóminas no se guardan ni se cierran. */
+const SOLO247 = [
+  { k:'tope', pago:true, t:'Maximum per dollar', d:'A ceiling on the exchange rate (Settings → Payroll). Off: the rate is never capped.' },
+  { k:'ica', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays. Off: no withholding, no Rete ICA column or total.' },
+  { k:'fuentes', pago:true, t:'Paid from Nómina 247 or Personal', d:'Two payment sources with their own totals, plus the Bank template (247) and Personal payments files. Off: everyone is paid from one place.' },
+  { k:'aportes', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours. Off: everyone is paid by hours and nothing is taken off.' },
+  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format (Paystubs reads it) and import pay periods already paid from it.' },
+  { k:'connecteam', t:'Import from Connecteam', d:'Bring documents, Forms and Payslips from the Connecteam ZIP (Documents).' }
+];
+const solo247 = k => { const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };
+const pagoComoProducto = () => SOLO247.some(x => x.pago && !solo247(x.k));
+const soloPago = k => cerradaPago() || solo247(k);   // una nómina cerrada se ve como se pagó
+function aplicarSolo247(){
+  const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !solo247(k)); };
+  t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('dcImportCT', 'connecteam'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
+  t('ajFilaTope', 'tope'); t('ajFilaIca', 'ica');
+  const off = SOLO247.filter(x => !solo247(x.k)).length, a = $('soloAviso'), adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
+  if(a){ a.classList.toggle('hidden', !(adm && off)); a.textContent = 'Product preview · ' + off + (off === 1 ? ' 24/7 feature' : ' 24/7 features') + ' off'; }
+}
+function pintarSolo247(){
+  const el = $('ajSoloFilas'); if(!el) return;
+  el.innerHTML = SOLO247.map(x => '<div class="aj-fila"><label class="aj-fl" for="ajSolo_' + x.k + '"><b>' + esc(x.t) + '</b><span>' + esc(x.d) + '</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSolo_' + x.k + '" role="switch"' + (solo247(x.k) ? ' checked' : '') + '></div></div>').join('');
+  const m = SOLO247.filter(x => solo247(x.k)).length;
+  $('ajPillSolo').textContent = m + ' of ' + SOLO247.length + ' on'; $('ajSoloEstado').textContent = '';
+}
+async function leerPagoGuardado(){
+  let base = S.reglasPago || {};
+  if(!DEMO){ try{ const d = await q(sb.from('reloj_config').select('valor').eq('clave', 'pago')); if(d && d[0] && d[0].valor && typeof d[0].valor === 'object') base = d[0].valor; }catch(e){} }
+  return Object.assign({}, REGLAS_BASE, base);
+}
+$('ajSoloGuardar').addEventListener('click', async () => {
+  const o = {}; SOLO247.forEach(x => { if(!$('ajSolo_' + x.k).checked) o[x.k] = false; });
+  const b = $('ajSoloGuardar'); b.disabled = true;
+  try{ const v = Object.assign(await leerPagoGuardado(), { solo247:o });
+    await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; if(S.pr && !cerradaPago()) S.pr = null;
+    const off = Object.keys(o).length; pintarSolo247();
+    $('ajSoloEstado').textContent = off ? 'Saved. ' + off + ' off: the Time Clock works as the product for those.' : 'Saved. Everything 24/7 uses is on.';
+    toast('Settings saved.'); aplicarSolo247(); if(AJM.v){ pintarMonedaAj(); aplicarSolo247(); } }
+  catch(e){ $('ajSoloEstado').textContent = e.message; }
+  b.disabled = false;
+});
+$('soloAviso').addEventListener('click', () => { irA('ajustes'); setTimeout(() => { try{ ajIr('solo247'); }catch(e){} }, 50); });
 // (v335) modo/pais/paisPago: sin configurar se comporta como hasta ahora (empresa en EE. UU., pago internacional a Colombia).
 const REGLAS_BASE = { extra:400, tope:4000, ica:9.5, pais:'US', modo:'int', paisPago:'CO', cuentasPais:{}, empPais:{}, reglasTasa:{} };
 const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
@@ -14673,10 +14743,12 @@ function reglaTasa(mon, R){ R = R || reglasPago();
   if(mon === 'COP') return { tipo:'suma', valor:Number(R.extra) || 0, tope:Number(R.tope) || null };
   const g = (R.reglasTasa || {})[mon] || {}; return { tipo:g.tipo || 'nada', valor:Number(g.valor) || 0, tope:numO(g.tope) }; }
 function tasaMon(mon, base, R){ base = Number(base); if(!(base > 0)) return null; const g = reglaTasa(mon, R);
-  let t = g.tipo === 'suma' ? base + g.valor : g.tipo === 'pct' ? base * (1 + g.valor / 100) : base; if(g.tope > 0) t = Math.min(t, g.tope); return r2(t); }
+  let t = g.tipo === 'suma' ? base + g.valor : g.tipo === 'pct' ? base * (1 + g.valor / 100) : base; if(g.tope > 0 && topeOn(R)) t = Math.min(t, g.tope); return r2(t); }
+// (v338) el máximo por dólar es de 24/7; una nómina cerrada conserva el suyo
+const topeOn = R => solo247('tope') || !!(S.pr && S.pr.P && R && R === S.pr.P.reglas && cerradaPago());
 function textoRegla(mon, R){ const g = reglaTasa(mon, R), nom = mon === 'COP' ? 'TRM' : 'Rate';
   const a = g.tipo === 'suma' && g.valor ? nom + ' + ' + g.valor.toLocaleString('en-US') : g.tipo === 'pct' && g.valor ? nom + ' + ' + g.valor + '%' : nom;
-  return a + (g.tope > 0 ? ', up to ' + g.tope.toLocaleString('en-US') : ''); }
+  return a + (g.tope > 0 && topeOn(R) ? ', up to ' + g.tope.toLocaleString('en-US') : ''); }
 // Tasa del día: TRM oficial para COP/USD; para las demás, una fuente pública (open.er-api.com). Siempre se puede escribir a mano.
 async function tasaOficial(mon, base, fecha){
   if(DEMO){ const ej = { COP:3328, MXN:18.6, PHP:63.8, INR:84.2, EUR:0.92, GBP:0.79 }; return { valor:ej[mon] || 1, nota:'Example rate (demo mode).' }; }
@@ -14711,7 +14783,7 @@ const numO = v => v === '' || v == null || isNaN(Number(v)) ? null : Number(v);
 
 // Una fila: base (lo de las horas) + ed (lo que se edita) + P (tasa y reglas) → todos los valores.
 function calcFila(base, ed, P){
-  const R = P.reglas || reglasPago(), tar = numO(base.tarifa), fijo = numO(ed.fijo);
+  const R = P.reglas || reglasPago(), tar = numO(base.tarifa), fijo = soloPago('aportes') ? numO(ed.fijo) : null;   // (v338)
   const dias = tar != null ? Math.max(0, Number(ed.dias) || 0) : 0;   // con pago fijo también (cambia el USD y las horas del comprobante, no los pesos)
   const k = dias ? r2(tar * (base.horasDia || 8) * dias) : 0;
   const mon = base.moneda || P.monPrincipal || 'COP', cm = cfgMoneda(R);   // (v335) moneda en que se le paga a esta persona
@@ -14720,9 +14792,9 @@ function calcFila(base, ed, P){
   const aj = ed.ajusteSi && ed.ajusteSug ? Number(ed.ajusteSug) : 0;
   const l = bonoUsd + aj, m = (Number(base.j) || 0) + k + l;
   const n = fijo != null ? fijo : (y ? redMon(m * y, mon) : 0);
-  const de = ed.de === 'personal' ? 'personal' : '247';
-  const v = de === '247' && fijo == null && mon === 'COP' ? Math.round(n * Number(R.ica) / 1000) : 0;   // Rete ICA es de Colombia
-  const w = Math.max(0, Number(ed.aportes) || 0);
+  const de = soloPago('fuentes') && ed.de === 'personal' ? 'personal' : '247';
+  const v = soloPago('ica') && de === '247' && fijo == null && mon === 'COP' ? Math.round(n * Number(R.ica) / 1000) : 0;   // Rete ICA es de Colombia
+  const w = soloPago('aportes') ? Math.max(0, Number(ed.aportes) || 0) : 0;
   return Object.assign({}, base, ed, { dias, k, y, bonoUsd, bonoCop:b.cop, bonoOk:b.ok, aj, l, m, n, de, v, w, x:redMon(n - v - w, mon), fijo, moneda:mon });
 }
 // (v335) Los totales en moneda local son de la moneda principal (la de más personas); las demás van en porMon.
@@ -15022,9 +15094,10 @@ function pintarResumenPago(){
   const pr = S.pr, t = totalesPago(pr.filas), cm = cfgMoneda(pr.P.reglas), mo = t.moneda, $m = x => dinero(x, mo);
   const c = (v, txt, cls) => '<span' + (cls ? ' class="' + cls + '"' : '') + '><b>' + v + '</b><small>' + txt + '</small></span>';
   const local = mo === cm.base, otras = Object.keys(t.porMon).filter(x => x !== mo);
+  const fu = soloPago('fuentes'), ica = soloPago('ica') && mo === 'COP', ap = soloPago('aportes');   // (v338)
   $('pyResumen').innerHTML = c(t.personas, t.personas === 1 ? 'person' : 'people') + (local ? '' : c(dinero(t.usd, cm.base), 'Total ' + cm.base)) + '<span class="rh-sep"></span>' +
-    '<div class="rh-calc">' + c($m(t.n247), 'Nómina 247') + (mo === 'COP' ? '<i>−</i>' + c($m(t.ica), 'Rete ICA') : '') + '<i>−</i>' + c($m(t.aportes247), 'Aportes') + '<i>=</i>' + c($m(t.neto247), 'Net from 247', 'rh-tot') + '</div>' +
-    '<span class="rh-sep"></span>' + c($m(t.netoPersonal), 'Personal' + (t.personal !== t.netoPersonal ? ' (net)' : '')) +
+    (fu || ica || ap ? '<div class="rh-calc">' + c($m(t.n247), fu ? 'Nómina 247' : 'Total pay') + (ica ? '<i>−</i>' + c($m(t.ica), 'Rete ICA') : '') + (ap ? '<i>−</i>' + c($m(t.aportes247), 'Aportes') : '') + '<i>=</i>' + c($m(t.neto247), fu ? 'Net from 247' : 'Net', 'rh-tot') + '</div>' : '') +
+    (fu ? '<span class="rh-sep"></span>' + c($m(t.netoPersonal), 'Personal' + (t.personal !== t.netoPersonal ? ' (net)' : '')) : '') +
     '<span class="esp"></span>' + otras.map(x => c(dinero(t.porMon[x].neto, x), 'To pay in ' + x + ' · ' + t.porMon[x].personas + (t.porMon[x].personas === 1 ? ' person' : ' people'), 'rh-otra')).join('') +
     c($m(t.neto), 'Total to pay (' + mo + ')', 'rh-pago');
   $('pyResumen').classList.toggle('hidden', !pr.filas.length);
@@ -15042,6 +15115,7 @@ function pyColsDin(){
   const una = mons.size === 1 ? [...mons][0] : null, local = una === cm.base;
   const lab = { m:'Total ' + cm.base, y:una && !local ? una + ' / ' + cm.base : 'Rate', n:'Total ' + (una || 'local'), x:'Net ' + (una || '') };
   const ocultas = new Set(); if(local){ ocultas.add('y'); ocultas.add('n'); } if(!mons.has('COP')) ocultas.add('v');
+  if(!soloPago('ica')) ocultas.add('v'); if(!soloPago('fuentes')) ocultas.add('de'); if(!soloPago('aportes')) ocultas.add('w');   // (v338)
   return { lab, ocultas };
 }
 function pintarTablaPago(){
@@ -15265,16 +15339,17 @@ async function buscarTrm(sucio, solo){
 // Datos de pago de una persona (se recuerdan al guardar): de dónde se paga, aportes, valor fijo y tasa propia.
 function abrirPagoEmp(u){
   const pr = S.pr, f = pr.filas.find(x => x.usuario === u); if(!f) return;
-  const cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
+  const cerr = cerradaPago(), dis = cerr ? ' disabled' : '', ed = pr.ed[u] || f;
+  const fu = soloPago('fuentes'), ap = soloPago('aportes'), ica = soloPago('ica');   // (v338) lo apagado se conserva en campos ocultos
   $('peTitulo').textContent = f.nombre || (f.nom + ' ' + f.ape);
   $('peCuerpo').innerHTML = '<p class="sub">' + esc(f.cuenta || SIN_CUENTA) + (f.tarifa != null ? ' · ' + usd(f.tarifa) + '/hour' : '') + ' · ' + f.horasDia + ' h per day</p>' +
     '<div class="ficha-grid">' +
-    '<label class="campo"><span>Paid from</span><select id="peDe"' + dis + '><option value="247"' + (f.de === '247' ? ' selected' : '') + '>Nómina 247 (pays Rete ICA)</option><option value="personal"' + (f.de === 'personal' ? ' selected' : '') + '>Personal (no Rete ICA)</option></select></label>' +
-    '<label class="campo"><span>Aportes planilla (COP per pay period)</span><input id="peAportes" type="number" min="0" step="1" inputmode="numeric" value="' + (f.w || '') + '" placeholder="0"' + dis + '></label>' +
-    '<label class="campo"><span>Fixed pay (' + esc(f.moneda || 'COP') + ' per pay period)</span><input id="peFijo" type="number" min="0" step="1" inputmode="numeric" value="' + (f.fijo != null ? f.fijo : '') + '" placeholder="By hours"' + dis + '><small>Leave it empty to pay by hours. Fixed pay has no Rete ICA; add days and bonus still show in USD on the paystub.</small></label>' +
+    '<label class="campo' + (fu ? '' : ' hidden') + '"><span>Paid from</span><select id="peDe"' + dis + '><option value="247"' + (ed.de !== 'personal' ? ' selected' : '') + '>Nómina 247' + (ica ? ' (pays Rete ICA)' : '') + '</option><option value="personal"' + (ed.de === 'personal' ? ' selected' : '') + '>Personal' + (ica ? ' (no Rete ICA)' : '') + '</option></select></label>' +
+    '<label class="campo' + (ap ? '' : ' hidden') + '"><span>Aportes planilla (COP per pay period)</span><input id="peAportes" type="number" min="0" step="1" inputmode="numeric" value="' + (ed.aportes || '') + '" placeholder="0"' + dis + '></label>' +
+    '<label class="campo' + (ap ? '' : ' hidden') + '"><span>Fixed pay (' + esc(f.moneda || 'COP') + ' per pay period)</span><input id="peFijo" type="number" min="0" step="1" inputmode="numeric" value="' + (numO(ed.fijo) != null ? ed.fijo : '') + '" placeholder="By hours"' + dis + '><small>Leave it empty to pay by hours.' + (ica ? ' Fixed pay has no Rete ICA;' : '') + ' add days and bonus still show in USD on the paystub.</small></label>' +
     ((f.moneda || 'COP') === cfgMoneda(pr.P.reglas).base ? '' :
     '<label class="campo"><span>Rate for this person (' + esc(f.moneda || 'COP') + ' per ' + esc(cfgMoneda(pr.P.reglas).base) + ')</span><input id="peTasa" type="number" min="0" step="0.01" inputmode="decimal" value="' + (f.tasaPropia || '') + '" placeholder="' + (f.y || '') + ' (pay run rate)"' + dis + '><small>Only for this pay period. Empty = the pay run rate.</small></label>') +
-    '</div><p class="nota">Paid from, aportes and fixed pay are remembered for the next pay periods when you save.</p>';
+    '</div>' + (fu || ap ? '<p class="nota">' + [fu ? 'Paid from' : '', ap ? 'aportes and fixed pay' : ''].filter(Boolean).join(', ').replace(/^./, x => x.toUpperCase()) + ' are remembered for the next pay periods when you save.</p>' : '');
   $('peErr').textContent = ''; $('peAplicar').classList.toggle('hidden', cerr); $('peAplicar').dataset.u = u;
   abrir('ovPagoEmp');
 }
@@ -15297,6 +15372,7 @@ function paqueteNomina(){
                    cambio:P.cambio || {}, monPrincipal:P.monPrincipal || '', monedaBase:cfgMoneda(P.reglas).base }, totales:totalesPago(pr.filas) };
 }
 async function guardarPago(cerrarla){
+  if(S.pr && !cerradaPago() && pagoComoProducto()) return toast('Pay runs can\'t be saved or closed while 24/7 payroll features are off (Settings → 24/7 only). Turn them back on to save.', 'err');   // (v338)
   if(S.pr && S.pr.imp && !cerradaPago()) return guardarPagoImp(cerrarla);
   const pr = S.pr; if(!pr || pr.cargando || cerradaPago()) return;
   const malos = pr.filas.filter(f => !f.bonoOk);
@@ -15547,7 +15623,7 @@ function pintarMonedaAj(){
       h += fila(m + ' exchange rate', 'Market rate of the payment day (you can always type it in the pay run), adjusted like this:',
         '<select class="aj-sel ajm-tipo" data-ajm-rt="' + m + '" data-k="tipo"><option value="nada"' + (!g.tipo || g.tipo === 'nada' ? ' selected' : '') + '>No adjustment</option><option value="suma"' + (g.tipo === 'suma' ? ' selected' : '') + '>Add an amount</option><option value="pct"' + (g.tipo === 'pct' ? ' selected' : '') + '>Add a percent</option></select>' +
         (g.tipo && g.tipo !== 'nada' ? '<input type="number" class="aj-num" data-ajm-rt="' + m + '" data-k="valor" min="0" step="any" value="' + (g.valor != null ? g.valor : '') + '" aria-label="Adjustment"><span class="aj-uni">' + (g.tipo === 'pct' ? '%' : esc(m)) + '</span>' : '') +
-        '<span class="aj-uni" style="margin-left:8px">max</span><input type="number" class="aj-num" data-ajm-rt="' + m + '" data-k="tope" min="0" step="any" value="' + (g.tope != null ? g.tope : '') + '" placeholder="none" aria-label="Maximum ' + m + ' per ' + base + '">');
+        (solo247('tope') ? '<span class="aj-uni" style="margin-left:8px">max</span><input type="number" class="aj-num" data-ajm-rt="' + m + '" data-k="tope" min="0" step="any" value="' + (g.tope != null ? g.tope : '') + '" placeholder="none" aria-label="Maximum ' + m + ' per ' + base + '">' : ''));
     });
   }
   $('ajMonFilas').innerHTML = h;
@@ -15583,6 +15659,7 @@ function ajmAplicar(){
 function ejemploReglas(){
   const R = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
   if(!(R.extra >= 0 && R.tope > 0)){ $('ajPagoEjemplo').textContent = ''; return; }
+  if(!solo247('tope')){ $('ajPagoEjemplo').textContent = 'Examples: ' + [3200, 3600, 4100].map(t => 'TRM ' + t.toLocaleString('en-US') + ' → ' + (t + R.extra).toLocaleString('en-US')).join(' · '); return; }
   $('ajPagoEjemplo').textContent = 'Examples: ' + [3200, 3500, 3600, 4100].map(t => 'TRM ' + t.toLocaleString('en-US') + ' → ' + tasaDe(t, R).toLocaleString('en-US')).join(' · ');
 }
 ['ajPagoExtra','ajPagoTope','ajPagoIca'].forEach(id => $(id).addEventListener('input', ejemploReglas));
@@ -15590,7 +15667,7 @@ $('ajPagoGuardar').addEventListener('click', async () => {
   ajmAplicar();
   const A = JSON.parse(JSON.stringify(AJM.v || {})), H = A.h || histPago();
   const v = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value), pais:A.pais, modo:A.modo, reglasTasa:A.reglasTasa || {},
-              paisPagoH:H.def, cuentasPaisH:H.cta, empPaisH:histPago(reglasPago()).emp, cuentasPais:{}, empPais:{} };   // (v337) personas: desde la ficha
+              paisPagoH:H.def, cuentasPaisH:H.cta, empPaisH:histPago(reglasPago()).emp, cuentasPais:{}, empPais:{}, solo247:reglasPago().solo247 || {} };   // (v337) personas: desde la ficha
   const dHoy = vigente(H.def, fechaHoy()); v.paisPago = (dHoy && dHoy.pais) || 'CO';   // el de hoy (compatibilidad)
   if(!(v.extra >= 0 && v.extra <= 5000 && v.tope > 0 && v.tope <= 20000 && v.ica >= 0 && v.ica <= 100) || [$('ajPagoExtra'), $('ajPagoTope'), $('ajPagoIca')].some(x => x.value.trim() === ''))
     return $('ajPagoEstado').textContent = 'Check the numbers.';
