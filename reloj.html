@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v324-202611122000">
+<meta name="app-build" content="v325-202611122010">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5417,7 +5417,8 @@ async function empleadosSB(){
 /* ── Monitor (sigue en Apps Script): se pide aparte y se guarda ── */
 const MON = { hoy:null, hoyEn:0, hoyFalla:false, falla:{}, vuelo:{}, agentes:null };
 function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = localStorage.getItem('mon247_token'); return url && tok ? { url, tok } : null; }catch(e){ return null; } }
-function monGuardados(){ try{ return JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){ return {}; } }
+// (v324) + copia en memoria: un día recién traído no se pierde aunque el guardado del navegador lo haya recortado.
+function monGuardados(){ let g = {}; try{ g = JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){} return Object.assign({}, MON.mem || {}, g); }
 // (v324) Último día en que el Monitor todavía no tenía NINGÚN agente: de ahí para atrás no hay nada que pedir.
 function monVacioHasta(){ try{ return localStorage.getItem('mon247_vacio_hasta') || ''; }catch(e){ return ''; } }
 const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
@@ -5453,8 +5454,13 @@ async function monPedir(fechas, alTerminar){
         if(!d) throw new Error('sin datos');
         if(f === hoy){ MON.hoy = d; MON.hoyEn = Date.now(); MON.hoyFalla = false; MON.agentes = j.agentes.map(a => ({ agente:a.agente, cuenta:a.cuenta || '' })); if(Array.isArray(j.cuentas)) MON.cuentas = j.cuentas.map(c => c.n).filter(Boolean); }
         else {
-          const gg = monGuardados(); gg[f] = { d, en:Date.now() };
-          const ks = Object.keys(gg).sort(); while(ks.length > 45) delete gg[ks.shift()];
+          (MON.mem = MON.mem || {})[f] = { d, en:Date.now() };
+          let gg = {}; try{ gg = JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){}
+          gg[f] = { d, en:Date.now() };
+          // (v324) Antes se borraban los días MÁS VIEJOS por fecha: al abrir un periodo antiguo, cada día traído se
+          // borraba enseguida y la Timesheet se quedaba en "Checking against the Monitor…". Ahora se guardan 120 y se
+          // borran los que se trajeron hace más tiempo (nunca el que acaba de llegar).
+          const ks = Object.keys(gg).filter(k => k !== f).sort((a, b) => (gg[a].en || 0) - (gg[b].en || 0)); while(Object.keys(gg).length > 120 && ks.length) delete gg[ks.shift()];
           try{ localStorage.setItem(MON_CLAVE, JSON.stringify(gg)); }catch(e){}
           delete MON.falla[f];
           if(!Object.keys(d).length && f > monVacioHasta()){ try{ localStorage.setItem('mon247_vacio_hasta', f); }catch(e){} }   // (v324) el Monitor aún no tenía agentes
