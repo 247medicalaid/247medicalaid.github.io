@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v334-202611131500">
+<meta name="app-build" content="v335-202611131600">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -421,6 +421,25 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .per-ok-et svg{width:15px;height:15px;color:#fff}
 .per-ok-et small{font-weight:500;opacity:.85;font-size:12.5px;margin-left:4px}
 .hoja.per-ok td .celda:not(.aus){background:var(--brand-50)}
+/* (v335) Pay & currency */
+.aj-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.aj-seg button{border:0;background:var(--paper);padding:7px 14px;font:inherit;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer}
+.aj-seg button + button{border-left:1px solid var(--line)}
+.aj-seg button.on{background:var(--brand-600);color:#fff}
+.aj-sel{padding:7px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13.5px;background:var(--paper);color:var(--text);max-width:260px}
+.aj-fila.aj-col{flex-direction:column;align-items:stretch}
+.ajm-lista{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.ajm-l{display:grid;grid-template-columns:minmax(0,1fr) 240px 28px;gap:8px;align-items:center;font-size:13.5px}
+.ajm-l > span{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ajm-nuevo{grid-template-columns:240px}
+.ajm-x{border:0;background:transparent;font-size:18px;color:var(--text-muted);cursor:pointer;border-radius:7px;height:28px}
+.ajm-x:hover{background:var(--sand-2);color:var(--accent-600)}
+.pr-g-dolar.pr-varias{flex-wrap:wrap;gap:12px 22px}
+.pr-cambio{display:flex;gap:18px;flex-wrap:wrap}
+.pr-mon-local{font-size:22px}
+.pr-mon{display:inline-block;font-size:10.5px;color:var(--text-muted);font-weight:700;margin-right:4px;letter-spacing:.3px}
+.rh-otra b{color:var(--text)}
+@media (max-width:560px){ .ajm-l{grid-template-columns:1fr 28px} .ajm-l select{grid-column:1} }
 /* (v317) Marcas editables dentro del Edit de una ausencia */
 .aa-sec{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px;background:var(--sand-2)}
 .aa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -3264,9 +3283,10 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <!-- MONEY · Payroll -->
         <div class="aj-pag" data-pag="nomina">
           <div class="ajuste aj-card" id="ajPago" data-guardar="ajPagoGuardar">
-            <div class="aj-ct"><h2>Pay run defaults</h2></div>
-            <p class="aj-desc">The dollar is paid at the TRM of the payment day plus an amount, up to a maximum. These are the <b>default</b> values for each new pay run &mdash; you can still change them inside a pay run. Rete ICA is withheld only from people paid from N&oacute;mina 247.</p>
-            <div class="aj-filas">
+            <div class="aj-ct"><h2>Pay &amp; currency</h2></div>
+            <p class="aj-desc">Where your company is (pay rates are in its currency) and how you pay: <b>locally</b>, in that same currency, or <b>internationally</b>, converting to the currency of the country where each person is paid. These are the <b>defaults</b> for each new pay run.</p>
+            <div class="aj-filas" id="ajMonFilas"></div>
+            <div class="aj-filas" id="ajCopFilas">
               <div class="aj-fila"><label class="aj-fl" for="ajPagoExtra"><b>Add to the TRM</b><span>Pesos added to the day&rsquo;s exchange rate.</span></label><div class="aj-fr"><input id="ajPagoExtra" class="aj-num aj-num-l" type="number" min="0" max="5000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
               <div class="aj-fila"><label class="aj-fl" for="ajPagoTope"><b>Maximum per dollar</b><span>The rate never goes above this.</span></label><div class="aj-fr"><input id="ajPagoTope" class="aj-num aj-num-l" type="number" min="0" max="20000" step="1" inputmode="numeric"><span class="aj-uni">COP</span></div></div>
               <div class="aj-fila"><label class="aj-fl" for="ajPagoIca"><b>Rete ICA</b><span>Withholding per thousand.</span></label><div class="aj-fr"><input id="ajPagoIca" class="aj-num" type="number" min="0" max="100" step="0.01" inputmode="decimal"><span class="aj-uni">&permil;</span></div></div>
@@ -9639,7 +9659,7 @@ const AJ_SEC = [
   { k:'equipo',    g:'People',  t:'Roles & managers',  d:'General Manager, managers and supervisors.', tono:'v' },
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
-  { k:'nomina',    g:'Money',   t:'Payroll',           d:'Default dollar rate and withholdings for each pay run.', tono:'a' },
+  { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
   { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor and your other apps.', tono:'s' }
 ];
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
@@ -9669,7 +9689,8 @@ function ajResumen(k){
         ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
       case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
-      case 'nomina': { const R = typeof reglasPago === 'function' ? reglasPago() : {}; return [['Add to the TRM', (R.extra != null ? R.extra : '—') + ' COP'], ['Maximum', (R.tope != null ? R.tope : '—') + ' COP'], ['Rete ICA', (R.ica != null ? R.ica : '—') + ' ‰']]; }
+      case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R);
+        return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length; return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')], ['Other apps', n + ' of 2 on']]; }
     }
   }catch(e){}
@@ -9699,7 +9720,7 @@ function ajPasos(){
     { t:'At least one account', ok: n > 0, k:'cuentas' },
     { t:'General Manager', ok: !!S.gm, k:'equipo' },
     { t:'Absence types', ok: (typeof conceptosAus === 'function' ? conceptosAus() : []).length > 0, k:'ausencias' },
-    { t:'Pay run defaults', ok: !!S.reglasPago, k:'nomina' }
+    { t:'Pay & currency', ok: !!S.reglasPago, k:'nomina' }
   ];
 }
 function ajPintarResumen(){
@@ -14525,10 +14546,58 @@ $('phCerrar').addEventListener('click', () => {
    (tarifa × horas por día × días) + bono + ajuste de los días asumidos la quincena anterior
    = total en dólares. Dólar a TRM + 400, máximo 4.000 (Ajustes → Pay run). Pesos = total × tasa,
    o el valor fijo de la persona. Nómina 247 paga Rete ICA (9,5 por mil); personal no. − aportes = neto. */
-const REGLAS_BASE = { extra:400, tope:4000, ica:9.5 };
+// (v335) modo/pais/paisPago: sin configurar se comporta como hasta ahora (empresa en EE. UU., pago internacional a Colombia).
+const REGLAS_BASE = { extra:400, tope:4000, ica:9.5, pais:'US', modo:'int', paisPago:'CO', cuentasPais:{}, empPais:{}, reglasTasa:{} };
 const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
+/* ══════════ (v335) PAÍSES Y MONEDAS ══════════
+   La empresa tiene un país (moneda de las tarifas). El pago es LOCAL (todos en esa moneda, sin conversión) o
+   INTERNACIONAL: cada persona se paga en el país de su cuenta (o el suyo propio, o el país por defecto). */
+const PAISES = [['US','United States','USD'],['CO','Colombia','COP'],['MX','Mexico','MXN'],['PH','Philippines','PHP'],['IN','India','INR'],
+  ['DO','Dominican Republic','DOP'],['GT','Guatemala','GTQ'],['HN','Honduras','HNL'],['SV','El Salvador','USD'],['NI','Nicaragua','NIO'],
+  ['CR','Costa Rica','CRC'],['PA','Panama','USD'],['PE','Peru','PEN'],['EC','Ecuador','USD'],['VE','Venezuela','VES'],['BO','Bolivia','BOB'],
+  ['CL','Chile','CLP'],['AR','Argentina','ARS'],['UY','Uruguay','UYU'],['PY','Paraguay','PYG'],['BR','Brazil','BRL'],['PR','Puerto Rico','USD'],
+  ['JM','Jamaica','JMD'],['BZ','Belize','BZD'],['CA','Canada','CAD'],['GB','United Kingdom','GBP'],['IE','Ireland','EUR'],['ES','Spain','EUR'],
+  ['PT','Portugal','EUR'],['FR','France','EUR'],['DE','Germany','EUR'],['IT','Italy','EUR'],['NL','Netherlands','EUR'],['PL','Poland','PLN'],
+  ['RO','Romania','RON'],['ZA','South Africa','ZAR'],['KE','Kenya','KES'],['NG','Nigeria','NGN'],['EG','Egypt','EGP'],['MA','Morocco','MAD'],
+  ['PK','Pakistan','PKR'],['BD','Bangladesh','BDT'],['LK','Sri Lanka','LKR'],['VN','Vietnam','VND'],['ID','Indonesia','IDR'],['MY','Malaysia','MYR'],
+  ['TH','Thailand','THB'],['AU','Australia','AUD'],['NZ','New Zealand','NZD']];
+const PAIS = Object.fromEntries(PAISES.map(x => [x[0], { nombre:x[1], moneda:x[2] }]));
+const MON_ENTERA = new Set(['COP','CLP','PYG','VND','IDR','JPY','KRW','HUF','ISK','UGX','XOF','XAF']);
+const monedaDePais = c => (PAIS[c] || {}).moneda || 'USD';
+const paisNombre = c => (PAIS[c] || {}).nombre || c;
+function cfgMoneda(R){ R = R || reglasPago(); const base = monedaDePais(R.pais || 'US'), intl = R.modo !== 'local';
+  return { base, intl, pagoDef:intl ? monedaDePais(R.paisPago || 'CO') : base, paisDef:intl ? (R.paisPago || 'CO') : (R.pais || 'US') }; }
+function paisPagoDe(usuario, cuenta, R){ R = R || reglasPago(); const c = cfgMoneda(R); if(!c.intl) return R.pais || 'US';
+  return (R.empPais || {})[usuario] || (R.cuentasPais || {})[cuenta] || R.paisPago || 'CO'; }
+const monedaPagoDe = (usuario, cuenta, R) => monedaDePais(paisPagoDe(usuario, cuenta, R));
+function simboloMon(mon){ try{ return new Intl.NumberFormat('en-US', { style:'currency', currency:mon, currencyDisplay:'narrowSymbol' }).formatToParts(0).find(x => x.type === 'currency').value; }catch(e){ return mon + ' '; } }
+const redMon = (x, mon) => MON_ENTERA.has(mon) ? Math.round(x || 0) : r2(x || 0);
+function dinero(x, mon){ mon = mon || 'COP'; const ent = MON_ENTERA.has(mon), v = Number(x) || 0;
+  return (v < (ent ? -0.4 : -0.004) ? '−' : '') + simboloMon(mon) + Math.abs(ent ? Math.round(v) : v).toLocaleString('en-US', { minimumFractionDigits:ent ? 0 : 2, maximumFractionDigits:ent ? 0 : 2 }); }
+// Regla de la tasa de una moneda: COP usa la regla de siempre (TRM + extra, tope); las demás, la de Settings.
+function reglaTasa(mon, R){ R = R || reglasPago();
+  if(mon === 'COP') return { tipo:'suma', valor:Number(R.extra) || 0, tope:Number(R.tope) || null };
+  const g = (R.reglasTasa || {})[mon] || {}; return { tipo:g.tipo || 'nada', valor:Number(g.valor) || 0, tope:numO(g.tope) }; }
+function tasaMon(mon, base, R){ base = Number(base); if(!(base > 0)) return null; const g = reglaTasa(mon, R);
+  let t = g.tipo === 'suma' ? base + g.valor : g.tipo === 'pct' ? base * (1 + g.valor / 100) : base; if(g.tope > 0) t = Math.min(t, g.tope); return r2(t); }
+function textoRegla(mon, R){ const g = reglaTasa(mon, R), nom = mon === 'COP' ? 'TRM' : 'Rate';
+  const a = g.tipo === 'suma' && g.valor ? nom + ' + ' + g.valor.toLocaleString('en-US') : g.tipo === 'pct' && g.valor ? nom + ' + ' + g.valor + '%' : nom;
+  return a + (g.tope > 0 ? ', up to ' + g.tope.toLocaleString('en-US') : ''); }
+// Tasa del día: TRM oficial para COP/USD; para las demás, una fuente pública (open.er-api.com). Siempre se puede escribir a mano.
+async function tasaOficial(mon, base, fecha){
+  if(DEMO){ const ej = { COP:3328, MXN:18.6, PHP:63.8, INR:84.2, EUR:0.92, GBP:0.79 }; return { valor:ej[mon] || 1, nota:'Example rate (demo mode).' }; }
+  if(mon === 'COP' && base === 'USD'){ const t = await trmPara(fecha);
+    return { valor:t.valor, nota:'Banco de la República, valid ' + (t.desde === t.hasta ? diaS(t.desde) : diaS(t.desde) + ' – ' + diaS(t.hasta)) +
+      (t.hasta < fecha ? '. The TRM for ' + diaS(fecha) + ' isn\'t published yet: this is the latest.' : '.') }; }
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 12000);
+  try{ const j = await (await fetch('https://open.er-api.com/v6/latest/' + base, { signal:ctl.signal })).json();
+    const v = j && j.rates && Number(j.rates[mon]); if(!(v > 0)) throw new Error('sin tasa');
+    return { valor:v, nota:'Market rate (open.er-api.com), updated ' + (j.time_last_update_utc ? fmt(Date.parse(j.time_last_update_utc), { month:'short', day:'numeric' }) : 'today') + '.' }; }
+  catch(e){ throw new Error('Couldn\'t get the ' + mon + ' rate. Type it in.'); }
+  finally{ clearTimeout(tm); }
+}
 const r2 = x => Math.round(x * 100) / 100;
-function tasaDe(trm, R){ R = R || reglasPago(); trm = Number(trm); return trm > 0 ? Math.min(r2(trm + Number(R.extra)), Number(R.tope)) : null; }
+function tasaDe(trm, R){ return tasaMon('COP', trm, R); }
 const usd = x => (x < -0.004 ? '−$' : '$') + Math.abs(x || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 const cop = x => (x < -0.4 ? '−$' : '$') + Math.abs(Math.round(x || 0)).toLocaleString('en-US');
 const esFinde = f => [0, 6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
@@ -14538,10 +14607,10 @@ const DE_TXT = { '247':'Nómina 247', personal:'Personal' };
 function leerBono(txt){
   const t = String(txt == null ? '' : txt).trim().replace(/−/g, '-');
   if(!t) return { usd:0, cop:null, ok:true };
-  const m = /^([+-]?)\s*\$?\s*([\d.,]+)\s*(cop|usd)?$/i.exec(t);
+  const m = /^([+-]?)\s*\$?\s*([\d.,]+)\s*([a-z]{3})?$/i.exec(t);
   if(!m) return { usd:0, cop:null, ok:false };
   const s = m[1] === '-' ? -1 : 1;
-  if(m[3] && m[3].toLowerCase() === 'cop'){ const n = Number(m[2].replace(/[.,]/g, '')); return isFinite(n) ? { usd:0, cop:s * n, ok:true } : { usd:0, cop:null, ok:false }; }
+  if(m[3] && m[3].toLowerCase() !== 'usd'){ const n = Number(m[2].replace(/[.,]/g, '')); return isFinite(n) ? { usd:0, cop:s * n, ok:true } : { usd:0, cop:null, ok:false }; }
   const n = Number(m[2].replace(/,/g, '')); return isFinite(n) ? { usd:s * n, cop:null, ok:true } : { usd:0, cop:null, ok:false };
 }
 const numO = v => v === '' || v == null || isNaN(Number(v)) ? null : Number(v);
@@ -14551,22 +14620,48 @@ function calcFila(base, ed, P){
   const R = P.reglas || reglasPago(), tar = numO(base.tarifa), fijo = numO(ed.fijo);
   const dias = tar != null ? Math.max(0, Number(ed.dias) || 0) : 0;   // con pago fijo también (cambia el USD y las horas del comprobante, no los pesos)
   const k = dias ? r2(tar * (base.horasDia || 8) * dias) : 0;
-  const y = numO(ed.tasaPropia) > 0 ? Number(ed.tasaPropia) : (P.tasa || 0);
+  const mon = base.moneda || P.monPrincipal || 'COP', cm = cfgMoneda(R);   // (v335) moneda en que se le paga a esta persona
+  const y = numO(ed.tasaPropia) > 0 ? Number(ed.tasaPropia) : (mon === cm.base ? 1 : tasaMon(mon, P.cambio && P.cambio[mon] ? P.cambio[mon].base : (mon === 'COP' ? P.trm : null), R) || 0);
   const b = leerBono(ed.bonoTxt), bonoUsd = b.cop != null ? (y ? b.cop / y : 0) : b.usd;
   const aj = ed.ajusteSi && ed.ajusteSug ? Number(ed.ajusteSug) : 0;
   const l = bonoUsd + aj, m = (Number(base.j) || 0) + k + l;
-  const n = fijo != null ? fijo : (y ? Math.round(m * y) : 0);
+  const n = fijo != null ? fijo : (y ? redMon(m * y, mon) : 0);
   const de = ed.de === 'personal' ? 'personal' : '247';
-  const v = de === '247' && fijo == null ? Math.round(n * Number(R.ica) / 1000) : 0;
+  const v = de === '247' && fijo == null && mon === 'COP' ? Math.round(n * Number(R.ica) / 1000) : 0;   // Rete ICA es de Colombia
   const w = Math.max(0, Number(ed.aportes) || 0);
-  return Object.assign({}, base, ed, { dias, k, y, bonoUsd, bonoCop:b.cop, bonoOk:b.ok, aj, l, m, n, de, v, w, x:n - v - w, fijo });
+  return Object.assign({}, base, ed, { dias, k, y, bonoUsd, bonoCop:b.cop, bonoOk:b.ok, aj, l, m, n, de, v, w, x:redMon(n - v - w, mon), fijo, moneda:mon });
 }
+// (v335) Los totales en moneda local son de la moneda principal (la de más personas); las demás van en porMon.
 function totalesPago(filas){
-  const t = { personas:filas.length, usd:0, cop:0, n247:0, personal:0, ica:0, aportes:0, aportes247:0, neto:0, neto247:0, netoPersonal:0, dias:0, ajustes:0 };
-  filas.forEach(f => { t.usd += f.m; t.cop += f.n; t.ica += f.v; t.aportes += f.w; t.neto += f.x; t.dias += f.dias || 0; t.ajustes += f.aj || 0;
+  const t = { personas:filas.length, usd:0, cop:0, n247:0, personal:0, ica:0, aportes:0, aportes247:0, neto:0, neto247:0, netoPersonal:0, dias:0, ajustes:0, porMon:{} };
+  const monF = f => f.moneda || (S.pr && S.pr.P && S.pr.P.monPrincipal) || 'COP';
+  const cuenta = {}; filas.forEach(f => { cuenta[monF(f)] = (cuenta[monF(f)] || 0) + 1; });
+  t.moneda = Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a])[0] || (S.pr && S.pr.P && S.pr.P.monPrincipal) || 'COP';
+  filas.forEach(f => { const mo = monF(f), pm = t.porMon[mo] || (t.porMon[mo] = { personas:0, n:0, neto:0, ica:0, aportes:0 });
+    pm.personas++; pm.n += f.n; pm.neto += f.x; pm.ica += f.v; pm.aportes += f.w;
+    t.usd += f.m; t.dias += f.dias || 0; t.ajustes += f.aj || 0;
+    if(mo !== t.moneda) return;
+    t.cop += f.n; t.ica += f.v; t.aportes += f.w; t.neto += f.x;
     if(f.de === 'personal'){ t.personal += f.n; t.netoPersonal += f.x; } else { t.n247 += f.n; t.aportes247 += f.w; t.neto247 += f.x; } });
   t.usd = r2(t.usd); t.ajustes = r2(t.ajustes);
   return t;
+}
+// Monedas extranjeras que necesita esta nómina (las de las filas; si no hay filas, la de por defecto).
+function monedasPago(){
+  const pr = S.pr, cm = cfgMoneda(pr && pr.P ? pr.P.reglas : null), set = new Set();
+  ((pr && (pr.base && pr.base.length ? pr.base : pr.filas)) || []).forEach(b => { const m = b.moneda || (pr.P && pr.P.monPrincipal) || cm.pagoDef; if(m !== cm.base) set.add(m); });
+  if(!set.size && cm.intl && cm.pagoDef !== cm.base) set.add(cm.pagoDef);
+  const l = [...set]; return l.sort((a, b) => a === 'COP' ? -1 : b === 'COP' ? 1 : a.localeCompare(b));
+}
+// Mantiene P.trm / P.tasa (lo que guarda la base y usan los Excel) con la moneda principal. Pago local: 1 y 1.
+function sincTasas(){
+  const pr = S.pr; if(!pr || !pr.P) return; const P = pr.P, cm = cfgMoneda(P.reglas), mons = monedasPago();
+  P.cambio = P.cambio || {};
+  if(!mons.length){ P.monPrincipal = cm.base; P.trm = 1; P.tasa = 1; P.trmNota = 'Local payroll (' + cm.base + ').'; return; }
+  const cnt = {}; (pr.base || []).forEach(b => { if(b.moneda) cnt[b.moneda] = (cnt[b.moneda] || 0) + 1; });
+  const pri = mons.slice().sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0))[0];
+  P.monPrincipal = pri; const c = P.cambio[pri] || {};
+  P.trm = c.base > 0 ? c.base : null; P.tasa = tasaMon(pri, P.trm, P.reglas); P.trmNota = c.nota || '';
 }
 // Un empleado de la hoja con solo los días antes de «corte» (los demás se asumen).
 function recortarEmp(e, corte){
@@ -14612,7 +14707,9 @@ async function cargarPago(desde){
       S.coloresN ? null : cargarColores().catch(() => null)]);
     if(S.pr.tok !== tok) return;
     Object.assign(S.pr, { hoja, run:run || null, prev:prev || null, cargando:false });
-    const R = run && run.datos && run.datos.reglas ? run.datos.reglas : reglasPago();
+    const R = run && run.datos && run.datos.reglas ? Object.assign({}, REGLAS_BASE, run.datos.reglas) : reglasPago();
+    // (v335) tasas por moneda; las nóminas viejas solo tenían la TRM (COP)
+    const cambioDe = r => r && r.datos && r.datos.cambio ? JSON.parse(JSON.stringify(r.datos.cambio)) : (r && r.trm != null ? { COP:{ base:Number(r.trm), nota:(r.datos && r.datos.trmNota) || '' } } : {});
     if(run && run.origen === 'importada'){
       S.pr.imp = true;
       S.pr.P = { fechaPago:run.fecha_pago, trm:run.trm == null ? null : Number(run.trm), tasa:run.tasa == null ? null : Number(run.tasa), reglas:R, asumeDesde:'', trmNota:'' };
@@ -14620,18 +14717,20 @@ async function cargarPago(desde){
       pintarPagoImp(); return;
     }
     if(run && run.estado === 'cerrada'){
-      S.pr.P = { fechaPago:run.fecha_pago, trm:Number(run.trm), tasa:Number(run.tasa), reglas:R, asumeDesde:run.datos.asumeDesde || '', trmNota:run.datos.trmNota || '' };
+      S.pr.P = { fechaPago:run.fecha_pago, trm:Number(run.trm), tasa:Number(run.tasa), reglas:R, asumeDesde:run.datos.asumeDesde || '', trmNota:run.datos.trmNota || '',
+                 cambio:cambioDe(run), monPrincipal:run.datos.monPrincipal || 'COP' };
       S.pr.filas = (run.datos.filas || []).slice();
       pintarPago(); return;
     }
     S.pr.P = { fechaPago: run && run.fecha_pago || fechaHoy(), trm: run && run.trm != null ? Number(run.trm) : null, reglas: run && run.datos && run.datos.reglas ? Object.assign({}, reglasPago(), run.datos.reglas) : reglasPago(),
-               asumeDesde: run && run.datos && 'asumeDesde' in run.datos ? run.datos.asumeDesde : asumirPorDefecto(desde, hasta), trmNota: run && run.datos ? run.datos.trmNota || '' : '' };
+               asumeDesde: run && run.datos && 'asumeDesde' in run.datos ? run.datos.asumeDesde : asumirPorDefecto(desde, hasta), trmNota: run && run.datos ? run.datos.trmNota || '' : '',
+               cambio: cambioDe(run), monPrincipal: run && run.datos && run.datos.monPrincipal || '' };
     S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas);
     S.pr.guardadas = {}; if(run && run.datos && run.datos.filas) run.datos.filas.forEach(f => { S.pr.guardadas[f.usuario] = f; });
     await ajustesPrevios(tok);
     if(S.pr.tok !== tok) return;
     armarBase(true); pintarPago();
-    if(S.pr.P.trm == null) buscarTrm(false);
+    if(monedasPago().some(m => !(S.pr.P.cambio[m] && S.pr.P.cambio[m].base > 0))) buscarTrm(false);
   }catch(e){ if(S.pr && S.pr.tok === tok) $('pyTabla').innerHTML = '<div style="padding:24px" class="err">' + esc(e.message) + '</div>'; }
 }
 // Ajuste sugerido: días que la quincena anterior se pagaron por adelantado contra lo que de verdad se trabajó.
@@ -14682,6 +14781,7 @@ function armarBase(primera){
     const cong = g && !pr.refrescados.has(e.usuario);   // (v126) al reabrir se conserva lo pagado; aplicar el perfil es explícito
     const tar = cong && g.tarifa != null ? numO(g.tarifa) : tarLive;
     const base = { usuario:e.usuario, nom:x.nom, ape:x.ape, nombre:e.nombre, cuenta:x.cuenta, job:x.job, tarifa:tar,
+                   moneda:(cong && g.moneda) ? g.moneda : monedaPagoDe(e.usuario, e.cuenta || x.cuenta, pr.P.reglas),
                    horas:(cong && g.horas != null ? g.horas : x.horas), ot:(cong && g.ot != null ? g.ot : x.ot), min:x.min, minOt:x.minOt,
                    j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres, excl };
     if(!(base.min > 0 || fijo != null || aj || g)) return;
@@ -14745,7 +14845,7 @@ function tituloDiasAdd(f){
   return (f.excl && f.excl.length) ? t + '\nNot paid in advance — ' + f.excl.join(' · ') : t;
 }
 function recalcPago(){
-  const pr = S.pr;
+  const pr = S.pr; sincTasas();
   pr.filas = pr.base.map(b => { const ed = pr.ed[b.usuario], f = calcFila(b, ed, pr.P);
     f.fechasAdd = f.dias ? b.libres.slice(0, Math.ceil(f.dias)) : []; f.excl = b.excl || []; return f; });
 }
@@ -14765,17 +14865,7 @@ function pintarPago(){
   const asum = cerr ? diasPorAsumir(P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '', pr.hasta) : pr.asumidos;
   $('pyParam').innerHTML =
     '<div class="pr-g pr-g-fecha"><label class="campo"><span>Payment date</span><input type="date" id="pyFecha" value="' + esc(P.fechaPago || '') + '"' + dis + '></label></div>' +
-    '<div class="pr-g pr-g-dolar">' +
-      '<div class="campo pr-trm"><span>TRM (COP/USD)</span><div class="pr-fila"><input type="number" id="pyTrm" min="0" step="0.01" inputmode="decimal" value="' + (P.trm != null ? P.trm : '') + '"' + dis + '>' +
-        (cerr ? '' : '<button class="btn btn-ghost btn-sm" id="pyTrmBuscar" type="button" title="Get the official TRM for the payment date">Get</button>') + '</div><small id="pyTrmNota">' + esc(P.trmNota || '') + '</small></div>' +
-      '<div class="campo pr-tasa"><span>Dollar paid at</span><b id="pyTasa">' + (P.tasa ? '$' + P.tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—') + '</b>' +
-        '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
-        ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
-        (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
-          ? '<small class="pr-regla-nota">Default: TRM + ' + Number(reglasPago().extra).toLocaleString('en-US') + ', up to ' + Number(reglasPago().tope).toLocaleString('en-US') +
-            (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
-          : '<small>Default rule (Settings → Pay run).</small>') + '</div>' +
-    '</div>' +
+    pintarCambioPago(R, dis, cerr) +
     '<div class="pr-g pr-g-dias">' +
       '<label class="campo"><span>Pay remaining days from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
         '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
@@ -14803,23 +14893,59 @@ function pintarPago(){
   btn('pyGuardar', !cerr); btn('pyCerrar', !cerr); btn('pyReabrir', cerr); btn('pyBorrar', !cerr && !!run); if($('pyDocs')) $('pyDocs').classList.toggle('hidden', !cerr);
   $('pyExportar').disabled = !pr.filas.length;
 }
+// (v335) Tarjeta de la tasa: una por cada moneda extranjera de la nómina; pago local = solo dice la moneda.
+function pintarCambioPago(R, dis, cerr){
+  const P = S.pr.P, cm = cfgMoneda(R), mons = monedasPago();
+  if(!mons.length) return '<div class="pr-g pr-g-dolar pr-local"><div class="campo"><span>Currency</span><b class="pr-mon-local">' + esc(cm.base) + '</b>' +
+    '<small>Local payroll: everyone is paid in ' + esc(cm.base) + ', no exchange rate. (Settings → Pay &amp; currency)</small></div></div>';
+  return '<div class="pr-g pr-g-dolar' + (mons.length > 1 ? ' pr-varias' : '') + '">' + mons.map(m => {
+    const c = (P.cambio || {})[m] || {}, tasa = tasaMon(m, c.base, R), esCop = m === 'COP';
+    const regla = esCop
+      ? '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
+        ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
+        (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
+          ? '<small class="pr-regla-nota">Default: ' + esc(textoRegla('COP', reglasPago())) + (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
+          : '<small>Default rule (Settings → Pay &amp; currency).</small>')
+      : '<small>' + esc(textoRegla(m, R)) + ' (Settings → Pay &amp; currency).</small>';
+    return '<div class="pr-cambio">' +
+      '<div class="campo pr-trm"><span>' + (esCop && cm.base === 'USD' ? 'TRM (COP/USD)' : 'Rate (' + esc(m) + '/' + esc(cm.base) + ')') + '</span><div class="pr-fila">' +
+        '<input type="number" class="py-cambio" data-mon="' + m + '" min="0" step="any" inputmode="decimal" value="' + (c.base != null ? c.base : '') + '"' + dis + ' aria-label="Exchange rate ' + m + '">' +
+        (cerr ? '' : '<button class="btn btn-ghost btn-sm" data-cambio-get="' + m + '" type="button" title="Get the rate for the payment date">Get</button>') + '</div>' +
+        '<small data-cambio-nota="' + m + '">' + esc(c.nota || '') + '</small></div>' +
+      '<div class="campo pr-tasa"><span>' + esc(cm.base === 'USD' ? 'Dollar' : cm.base) + ' paid at</span><b>' + (tasa ? simboloMon(m) + tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:tasa < 10 ? 4 : 2 }) : '—') + '</b>' + regla + '</div></div>';
+  }).join('') + '</div>';
+}
 function pintarResumenPago(){
   requestAnimationFrame(altoPago);
-  const pr = S.pr, t = totalesPago(pr.filas);
+  const pr = S.pr, t = totalesPago(pr.filas), cm = cfgMoneda(pr.P.reglas), mo = t.moneda, $m = x => dinero(x, mo);
   const c = (v, txt, cls) => '<span' + (cls ? ' class="' + cls + '"' : '') + '><b>' + v + '</b><small>' + txt + '</small></span>';
-  $('pyResumen').innerHTML = c(t.personas, t.personas === 1 ? 'person' : 'people') + c(usd(t.usd), 'Total USD') + '<span class="rh-sep"></span>' +
-    '<div class="rh-calc">' + c(cop(t.n247), 'Nómina 247') + '<i>−</i>' + c(cop(t.ica), 'Rete ICA') + '<i>−</i>' + c(cop(t.aportes247), 'Aportes') + '<i>=</i>' + c(cop(t.neto247), 'Net from 247', 'rh-tot') + '</div>' +
-    '<span class="rh-sep"></span>' + c(cop(t.netoPersonal), 'Personal' + (t.personal !== t.netoPersonal ? ' (net)' : '')) +
-    '<span class="esp"></span>' + c(cop(t.neto), 'Total to pay (COP)', 'rh-pago');
+  const local = mo === cm.base, otras = Object.keys(t.porMon).filter(x => x !== mo);
+  $('pyResumen').innerHTML = c(t.personas, t.personas === 1 ? 'person' : 'people') + (local ? '' : c(dinero(t.usd, cm.base), 'Total ' + cm.base)) + '<span class="rh-sep"></span>' +
+    '<div class="rh-calc">' + c($m(t.n247), 'Nómina 247') + (mo === 'COP' ? '<i>−</i>' + c($m(t.ica), 'Rete ICA') : '') + '<i>−</i>' + c($m(t.aportes247), 'Aportes') + '<i>=</i>' + c($m(t.neto247), 'Net from 247', 'rh-tot') + '</div>' +
+    '<span class="rh-sep"></span>' + c($m(t.netoPersonal), 'Personal' + (t.personal !== t.netoPersonal ? ' (net)' : '')) +
+    '<span class="esp"></span>' + otras.map(x => c(dinero(t.porMon[x].neto, x), 'To pay in ' + x + ' · ' + t.porMon[x].personas + (t.porMon[x].personas === 1 ? ' person' : ' people'), 'rh-otra')).join('') +
+    c($m(t.neto), 'Total to pay (' + mo + ')', 'rh-pago');
   $('pyResumen').classList.toggle('hidden', !pr.filas.length);
 }
 function celdasCalc(f){
-  return { k: f.k ? usd(f.k) : '—', m: usd(f.m), y: f.y ? f.y.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—', n: cop(f.n), v: f.v ? cop(f.v) : '—', w: f.w ? cop(f.w) : '—', x: cop(f.x) };
+  const mo = f.moneda || (S.pr && S.pr.P && S.pr.P.monPrincipal) || 'COP', varias = pyVariasMon();
+  const L = x => (varias ? '<small class="pr-mon">' + mo + '</small>' : '') + dinero(x, mo);
+  return { k: f.k ? usd(f.k) : '—', m: usd(f.m), y: f.y ? f.y.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:4 }) : '—', n: L(f.n), v: f.v ? dinero(f.v, mo) : '—', w: f.w ? dinero(f.w, mo) : '—', x: L(f.x) };
+}
+// (v335) ¿la nómina tiene personas pagadas en más de una moneda?
+function pyVariasMon(){ const pr = S.pr; if(!pr || !pr.filas) return false; const s = new Set(pr.filas.map(f => f.moneda || (pr.P && pr.P.monPrincipal) || 'COP')); return s.size > 1; }
+// Títulos de las columnas según la moneda (USD, COP…) y columnas que no aplican (pago local, sin Colombia).
+function pyColsDin(){
+  const pr = S.pr, cm = cfgMoneda(pr && pr.P ? pr.P.reglas : null), mons = new Set((pr && pr.filas || []).map(f => f.moneda || (pr.P && pr.P.monPrincipal) || 'COP'));
+  const una = mons.size === 1 ? [...mons][0] : null, local = una === cm.base;
+  const lab = { m:'Total ' + cm.base, y:una && !local ? una + ' / ' + cm.base : 'Rate', n:'Total ' + (una || 'local'), x:'Net ' + (una || '') };
+  const ocultas = new Set(); if(local){ ocultas.add('y'); ocultas.add('n'); } if(!mons.has('COP')) ocultas.add('v');
+  return { lab, ocultas };
 }
 function pintarTablaPago(){
   const pr = S.pr, cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
   if(!pr.filas.length){ $('pyTabla').innerHTML = ''; return; }
-  const anchosPago = leerLS(PY_ANCHOS_CLAVE, {}), fijaPago = Object.keys(anchosPago).length > 0;
+  const anchosPago = leerLS(PY_ANCHOS_CLAVE, {}), fijaPago = Object.keys(anchosPago).length > 0, din = pyColsDin();
   const PY_TH_TIT = { dias:'Days paid in advance (assumed worked)', bono:'In USD. For pesos write COP after the amount, e.g. -100000 COP', aj:'Difference from the days paid in advance last pay run' };
   const PY_TH_CLS = { nombre:'nombre', m:'tot', n:'tot', x:'tot', tarifa:'num', horas:'num', ot:'num', j:'num', k:'num', v:'num', w:'num' };
   const PY_ANCHO_DEF = { nombre:168, m:94, n:104, x:106, de:118, bono:92, dias:76, aj:96 };
@@ -14827,7 +14953,7 @@ function pintarTablaPago(){
     PY_COLS.map(([id]) => '<col data-k="' + id + '"' + (fijaPago ? ' style="width:' + (anchosPago[id] || PY_ANCHO_DEF[id] || 84) + 'px"' : '') + '>').join('') +
     '</colgroup><thead><tr>' +
     PY_COLS.map(([id, lab]) => '<th data-col="' + id + '" data-k="' + id + '"' + (PY_TH_CLS[id] ? ' class="' + PY_TH_CLS[id] + '"' : '') + (PY_TH_TIT[id] ? ' title="' + PY_TH_TIT[id] + '"' : '') +
-      '><div class="th-in"><span class="th-lb">' + esc(lab) + '</span><span class="rz" data-rz="' + id + '" title="Drag to resize"></span></div></th>').join('') +
+      '><div class="th-in"><span class="th-lb">' + esc(din.lab[id] || lab) + '</span><span class="rz" data-rz="' + id + '" title="Drag to resize"></span></div></th>').join('') +
     '</tr></thead><tbody>';
   const modoPago = pyModo(), lista = filasPago(modoPago); let g = null;
   lista.forEach(f => {
@@ -14876,7 +15002,8 @@ function pyColsOff(){
 }
 function aplicarColsPago(){
   const off = pyColsOff(), tb = $('pyTabla'), tabla = tb ? tb.querySelector('table') : null; if(!tb) return;
-  PY_COLS.forEach(([id]) => { const ocultar = id !== 'nombre' && off.has(id);
+  const forz = pyColsDin().ocultas;   // (v335) no aplican (pago local / sin Colombia)
+  PY_COLS.forEach(([id]) => { const ocultar = id !== 'nombre' && (off.has(id) || forz.has(id));
     tb.querySelectorAll('[data-col="' + id + '"]').forEach(el => { el.style.display = ocultar ? 'none' : ''; });
     const cc = tabla ? tabla.querySelector('col[data-k="' + id + '"]') : null; if(cc) cc.style.display = ocultar ? 'none' : ''; });
   if(tabla && tabla.classList.contains('fija')){
@@ -14940,11 +15067,12 @@ function pintarColsMenu(){
 function totalesTablaPago(){
   const pr = S.pr, tb = $('pyTabla'); if(!tb.querySelector('table')) return;
   tb.querySelectorAll('tr[data-g]').forEach(tr => { const del = pr.filas.filter(x => (x.cuenta || SIN_CUENTA) === tr.dataset.g);
-    tr.querySelector('[data-gc="m"]').textContent = usd(del.reduce((s, x) => s + x.m, 0)); tr.querySelector('[data-gc="n"]').textContent = cop(del.reduce((s, x) => s + x.n, 0));
-    tr.querySelector('[data-gc="x"]').textContent = cop(del.reduce((s, x) => s + x.x, 0)); });
+    const mg = new Set(del.map(x => x.moneda || pr.P.monPrincipal || 'COP')), mo = mg.size === 1 ? [...mg][0] : null;   // (v335) monedas mezcladas: no se suman
+    tr.querySelector('[data-gc="m"]').textContent = usd(del.reduce((s, x) => s + x.m, 0)); tr.querySelector('[data-gc="n"]').textContent = mo ? dinero(del.reduce((s, x) => s + x.n, 0), mo) : '—';
+    tr.querySelector('[data-gc="x"]').textContent = mo ? dinero(del.reduce((s, x) => s + x.x, 0), mo) : '—'; });
   const T = totalesPago(pr.filas), sum = k => pr.filas.reduce((s, f) => s + (Number(f[k]) || 0), 0);
   const v = { personas:'Total · ' + T.personas, j:usd(sum('j')), dias:T.dias ? String(T.dias) : '', k:usd(sum('k')), bono:usd(sum('bonoUsd')), aj:T.ajustes ? usd(T.ajustes) : '',
-              usd:usd(T.usd), cop:cop(T.cop), ica:cop(T.ica), aportes:cop(T.aportes), neto:cop(T.neto) };
+              usd:usd(T.usd), cop:dinero(T.cop, T.moneda) + (pyVariasMon() ? ' ' + T.moneda : ''), ica:dinero(T.ica, T.moneda), aportes:dinero(T.aportes, T.moneda), neto:dinero(T.neto, T.moneda) + (pyVariasMon() ? ' ' + T.moneda : '') };
   Object.keys(v).forEach(k => { const td = tb.querySelector('[data-t="' + k + '"]'); if(!td) return;
     if(k === 'dias' && v.dias) td.innerHTML = '<span class="ft-sub">Total added days</span>' + v.dias;
     else td.textContent = v[k]; });
@@ -14956,7 +15084,7 @@ function editarPago(el, final){
   ed[k] = el.type === 'checkbox' ? el.checked : k === 'dias' ? Math.max(0, Number(el.value) || 0) : el.value;
   recalcPago(); marcarSucio();
   const f = pr.filas.find(x => x.usuario === u), tr = el.closest('tr'), c = celdasCalc(f);
-  Object.keys(c).forEach(x => { const td = tr.querySelector('[data-c="' + x + '"]'); if(td) td.textContent = c[x]; });
+  Object.keys(c).forEach(x => { const td = tr.querySelector('[data-c="' + x + '"]'); if(td) td.innerHTML = c[x]; });
   if(k === 'bonoTxt') el.classList.toggle('mal', !f.bonoOk);
   if(k === 'dias'){ el.title = tituloDiasAdd(f); }
   if(k === 'ajusteSi'){ const td = tr.querySelector('[data-c="m"]'); if(td) td.textContent = c.m; }
@@ -14978,15 +15106,16 @@ $('pyParam').addEventListener('change', e => {
   if(e.target.id === 'pyExtra' || e.target.id === 'pyTope'){
     const v = Number(e.target.value), k = e.target.id === 'pyExtra' ? 'extra' : 'tope', ok = e.target.value.trim() !== '' && (k === 'extra' ? v >= 0 && v <= 5000 : v > 0 && v <= 20000);
     if(!ok){ e.target.value = pr.P.reglas[k]; return toast(k === 'extra' ? 'The amount added to the TRM must be between 0 and 5,000.' : 'The maximum must be between 1 and 20,000.', 'err'); }
-    pr.P.reglas = Object.assign({}, pr.P.reglas, { [k]:Math.round(v) }); pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); return;
+    pr.P.reglas = Object.assign({}, pr.P.reglas, { [k]:Math.round(v) }); recalcPago(); marcarSucio(); pintarPago(); return;
   }
-  if(e.target.id === 'pyTrm'){ const v = Number(e.target.value); pr.P.trm = v > 0 ? r2(v) : null; pr.P.trmNota = v > 0 ? 'Typed in.' : ''; pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
+  if(e.target.classList.contains('py-cambio')){ const m = e.target.dataset.mon, v = Number(e.target.value);   // (v335) tasa escrita a mano
+    pr.P.cambio[m] = { base:v > 0 ? v : null, nota:v > 0 ? 'Typed in.' : '' }; recalcPago(); marcarSucio(); pintarPago(); }
   if(e.target.id === 'pyAsume'){ pr.P.asumeDesde = e.target.value && e.target.value <= pr.hasta ? e.target.value : ''; marcarSucio();
     // cambian los días asumidos: se vuelven a calcular los días de cada persona (lo demás editado se queda)
     Object.keys(pr.ed).forEach(u => { pr.ed[u]._diasAuto = true; }); armarBaseDias(); pintarPago(); }
 });
 $('pyParam').addEventListener('click', e => {
-  if(e.target.id === 'pyTrmBuscar') buscarTrm(true);
+  const bg = e.target.closest && e.target.closest('[data-cambio-get]'); if(bg) buscarTrm(true, bg.dataset.cambioGet);
   if(e.target.id === 'pyDiasAplicar' && S.pr && !cerradaPago()){
     const add = Math.max(0, Math.min(10, Number($('pyDiasTodos').value) || 0));
     if(!add){ toast('Type how many days to add.'); return; }
@@ -14995,7 +15124,7 @@ $('pyParam').addEventListener('click', e => {
     toast('Added ' + add + (add === 1 ? ' day' : ' days') + ' to everyone.');
   }
   if(e.target.id === 'pyReglaDef' && S.pr && !cerradaPago()){ const d = reglasPago(); S.pr.P.reglas = Object.assign({}, S.pr.P.reglas, { extra:d.extra, tope:d.tope });
-    S.pr.P.tasa = tasaDe(S.pr.P.trm, S.pr.P.reglas); recalcPago(); marcarSucio(); pintarPago(); }
+    recalcPago(); marcarSucio(); pintarPago(); }
 });
 function armarBaseDias(){
   const pr = S.pr; armarBase(false);
@@ -15015,17 +15144,20 @@ async function trmPara(fecha){
   }catch(e){ throw new Error('Couldn\'t get the TRM from Banco de la República. Type it in.'); }
   finally{ clearTimeout(tm); }
 }
-async function buscarTrm(sucio){
+// (v335) Trae la tasa del día de cada moneda que haga falta (o solo de «solo»).
+async function buscarTrm(sucio, solo){
   const pr = S.pr, tok = pr && pr.tok; if(!pr || !pr.P.fechaPago) return;
-  const b = $('pyTrmBuscar'); if(b) b.disabled = true; $('pyTrmNota').textContent = 'Getting the TRM…';
-  try{
-    const t = await trmPara(pr.P.fechaPago); if(!S.pr || S.pr.tok !== tok) return;
-    pr.P.trm = r2(t.valor); pr.P.tasa = tasaDe(pr.P.trm, pr.P.reglas);
-    pr.P.trmNota = t.demo ? 'Example TRM (demo mode).' : 'Banco de la República, valid ' + (t.desde === t.hasta ? diaS(t.desde) : diaS(t.desde) + ' – ' + diaS(t.hasta)) +
-      (t.hasta < pr.P.fechaPago ? '. The TRM for ' + diaS(pr.P.fechaPago) + ' isn\'t published yet: this is the latest.' : '.');
-    if(sucio) pr.sucio = true;
-    recalcPago(); pintarPago();
-  }catch(e){ if(S.pr && S.pr.tok === tok){ $('pyTrmNota').textContent = e.message; if(b) b.disabled = false; } }
+  const cm = cfgMoneda(pr.P.reglas), mons = solo ? [solo] : monedasPago().filter(m => sucio || !(pr.P.cambio[m] && pr.P.cambio[m].base > 0));
+  for(const m of mons){
+    const nota = document.querySelector('[data-cambio-nota="' + m + '"]'), b = document.querySelector('[data-cambio-get="' + m + '"]');
+    if(nota) nota.textContent = 'Getting the ' + (m === 'COP' ? 'TRM' : m + ' rate') + '…'; if(b) b.disabled = true;
+    try{
+      const t = await tasaOficial(m, cm.base, pr.P.fechaPago); if(!S.pr || S.pr.tok !== tok) return;
+      pr.P.cambio[m] = { base:r2(t.valor) >= 1 ? r2(t.valor) : Math.round(t.valor * 1e6) / 1e6, nota:t.nota };
+      if(sucio) pr.sucio = true;
+    }catch(e){ if(S.pr && S.pr.tok === tok){ if(nota) nota.textContent = e.message; if(b) b.disabled = false; } return; }
+  }
+  if(S.pr && S.pr.tok === tok){ recalcPago(); pintarPago(); }
 }
 
 // Datos de pago de una persona (se recuerdan al guardar): de dónde se paga, aportes, valor fijo y tasa propia.
@@ -15037,15 +15169,16 @@ function abrirPagoEmp(u){
     '<div class="ficha-grid">' +
     '<label class="campo"><span>Paid from</span><select id="peDe"' + dis + '><option value="247"' + (f.de === '247' ? ' selected' : '') + '>Nómina 247 (pays Rete ICA)</option><option value="personal"' + (f.de === 'personal' ? ' selected' : '') + '>Personal (no Rete ICA)</option></select></label>' +
     '<label class="campo"><span>Aportes planilla (COP per pay period)</span><input id="peAportes" type="number" min="0" step="1" inputmode="numeric" value="' + (f.w || '') + '" placeholder="0"' + dis + '></label>' +
-    '<label class="campo"><span>Fixed pay (COP per pay period)</span><input id="peFijo" type="number" min="0" step="1" inputmode="numeric" value="' + (f.fijo != null ? f.fijo : '') + '" placeholder="By hours"' + dis + '><small>Leave it empty to pay by hours. Fixed pay has no Rete ICA; add days and bonus still show in USD on the paystub.</small></label>' +
-    '<label class="campo"><span>Dollar rate for this person (COP)</span><input id="peTasa" type="number" min="0" step="0.01" inputmode="decimal" value="' + (f.tasaPropia || '') + '" placeholder="' + (pr.P.tasa || '') + ' (pay run rate)"' + dis + '><small>Only for this pay period. Empty = the pay run rate.</small></label>' +
+    '<label class="campo"><span>Fixed pay (' + esc(f.moneda || 'COP') + ' per pay period)</span><input id="peFijo" type="number" min="0" step="1" inputmode="numeric" value="' + (f.fijo != null ? f.fijo : '') + '" placeholder="By hours"' + dis + '><small>Leave it empty to pay by hours. Fixed pay has no Rete ICA; add days and bonus still show in USD on the paystub.</small></label>' +
+    ((f.moneda || 'COP') === cfgMoneda(pr.P.reglas).base ? '' :
+    '<label class="campo"><span>Rate for this person (' + esc(f.moneda || 'COP') + ' per ' + esc(cfgMoneda(pr.P.reglas).base) + ')</span><input id="peTasa" type="number" min="0" step="0.01" inputmode="decimal" value="' + (f.tasaPropia || '') + '" placeholder="' + (f.y || '') + ' (pay run rate)"' + dis + '><small>Only for this pay period. Empty = the pay run rate.</small></label>') +
     '</div><p class="nota">Paid from, aportes and fixed pay are remembered for the next pay periods when you save.</p>';
   $('peErr').textContent = ''; $('peAplicar').classList.toggle('hidden', cerr); $('peAplicar').dataset.u = u;
   abrir('ovPagoEmp');
 }
 $('peAplicar').addEventListener('click', () => {
   const u = $('peAplicar').dataset.u, ed = S.pr.ed[u]; if(!ed) return;
-  const ap = $('peAportes').value.trim(), fj = $('peFijo').value.trim(), ts = $('peTasa').value.trim();
+  const ap = $('peAportes').value.trim(), fj = $('peFijo').value.trim(), ts = $('peTasa') ? $('peTasa').value.trim() : '';
   if((ap && !(Number(ap) >= 0)) || (fj && !(Number(fj) >= 0)) || (ts && !(Number(ts) > 0))) return $('peErr').textContent = 'Check the numbers: they can\'t be negative.';
   ed.de = $('peDe').value; ed.aportes = ap ? Math.round(Number(ap)) : 0; ed.fijo = fj ? Math.round(Number(fj)) : null; ed.tasaPropia = ts ? r2(Number(ts)) : null;
   recalcPago(); marcarSucio(); cerrar('ovPagoEmp'); pintarResumenPago(); pintarTablaPago();
@@ -15055,9 +15188,11 @@ $('peAplicar').addEventListener('click', () => {
 function paqueteNomina(){
   const pr = S.pr, P = pr.P;
   const filas = pr.filas.map(f => { const o = {}; ['usuario','nom','ape','nombre','cuenta','job','tarifa','horas','ot','min','minOt','horasDia','activo','j','dias','fechasAdd','k','bonoTxt','bonoUsd','bonoCop',
-    'ajusteSug','ajusteSi','ajusteNota','aj','l','m','y','tasaPropia','fijo','n','de','v','w','x'].forEach(k => { o[k] = f[k] === undefined ? null : f[k]; }); o.aportes = f.w; return o; });
+    'ajusteSug','ajusteSi','ajusteNota','aj','l','m','y','tasaPropia','fijo','n','de','v','w','x','moneda'].forEach(k => { o[k] = f[k] === undefined ? null : f[k]; }); o.aportes = f.w; return o; });
+  sincTasas();
   return { desde:pr.desde, hasta:pr.hasta, fechaPago:P.fechaPago || null, trm:P.trm, tasa:P.tasa,
-           datos:{ v:1, filas, asumeDesde:P.asumeDesde || '', asumidos:pr.asumidos || [], reglas:P.reglas, trmNota:P.trmNota || '' }, totales:totalesPago(pr.filas) };
+           datos:{ v:1, filas, asumeDesde:P.asumeDesde || '', asumidos:pr.asumidos || [], reglas:P.reglas, trmNota:P.trmNota || '',
+                   cambio:P.cambio || {}, monPrincipal:P.monPrincipal || '', monedaBase:cfgMoneda(P.reglas).base }, totales:totalesPago(pr.filas) };
 }
 async function guardarPago(cerrarla){
   if(S.pr && S.pr.imp && !cerradaPago()) return guardarPagoImp(cerrarla);
@@ -15065,10 +15200,12 @@ async function guardarPago(cerrarla){
   const malos = pr.filas.filter(f => !f.bonoOk);
   if(malos.length) return toast('Check the bonus of ' + malos.map(f => f.nombre || f.nom).join(', ') + ': use a number, or pesos like -100000 COP.', 'err');
   if(cerrarla){
-    if(!pr.P.fechaPago || !pr.P.trm) return toast('To close the pay run, set the payment date and the TRM.', 'err');
+    const faltan = monedasPago().filter(m => !(pr.P.cambio[m] && pr.P.cambio[m].base > 0));   // (v335)
+    if(!pr.P.fechaPago || faltan.length) return toast('To close the pay run, set the payment date' + (faltan.length ? ' and the exchange rate (' + faltan.join(', ') + ')' : '') + '.', 'err');
     const t = totalesPago(pr.filas);
     const pendRev = (pr.diffs || []).filter(d => !(pr.revisados && pr.revisados.has(d.usuario))).length;
-    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + cop(t.neto) + ' to pay</b> (Nómina 247 ' + cop(t.neto247) + ', personal ' + cop(t.netoPersonal) + ')' +
+    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + dinero(t.neto, t.moneda) + ' to pay</b> (Nómina 247 ' + dinero(t.neto247, t.moneda) + ', personal ' + dinero(t.netoPersonal, t.moneda) + ')' +
+      Object.keys(t.porMon).filter(x => x !== t.moneda).map(x => ' + <b>' + dinero(t.porMon[x].neto, x) + '</b>').join('') +
       (pendRev ? '.<br><br><b>' + pendRev + ' recalculated change' + (pendRev === 1 ? '' : 's') + ' not reviewed</b> — kept as paid.' : '') +
       '<br><br>Closed pay runs don\'t change when hours are edited later. You can reopen it if something has to change.', 'Close pay run'))) return;
   }
@@ -15144,7 +15281,7 @@ function descargarBlob(blob, nombre){
 }
 $('pyExportar').addEventListener('click', async () => {
   const pr = S.pr; if(!pr || !pr.filas.length) return;
-  if(!pr.P.trm && !pr.imp) return toast('Set the TRM first.', 'err');
+  if(!pr.P.trm && !pr.imp) return toast('Set the exchange rate first.', 'err');
   if(!S.coloresN) await cargarColores().catch(() => null);
   const d = new Date(pr.hasta + 'T12:00:00Z');
   descargarBlob(xlsxPayRun([{ desde:pr.desde, hasta:pr.hasta, trm:pr.P.trm, tasa:pr.P.tasa, reglas:pr.P.reglas, filas:pr.filas }], 'PAY ROLL ' + pr.hasta.slice(0, 4)),
@@ -15254,7 +15391,58 @@ function xlsxPayRun(runs, nombreHoja){
 }
 
 // Ajustes → Pay run: las reglas del dólar y el Rete ICA
-function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = ''; ejemploReglas(); }
+function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = '';
+  AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, paisPago:R.paisPago, cuentasPais:R.cuentasPais || {}, empPais:R.empPais || {}, reglasTasa:R.reglasTasa || {} }));
+  pintarMonedaAj(); ejemploReglas();
+  if(!S.emps) api('empleados', {}).then(r => { S.emps = r; pintarMonedaAj(); }).catch(() => {}); }
+/* ══════════ (v335) Settings → Pay & currency ══════════ */
+const AJM = { v:null };
+const opcPaises = (sel, primera) => (primera ? '<option value="">' + esc(primera) + '</option>' : '') +
+  PAISES.map(([c, n, m]) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(n) + ' (' + m + ')</option>').join('');
+function monedasAj(){ const v = AJM.v, base = monedaDePais(v.pais); if(v.modo === 'local') return [];
+  const s = new Set([monedaDePais(v.paisPago)]); Object.values(v.cuentasPais).forEach(c => c && s.add(monedaDePais(c))); Object.values(v.empPais).forEach(c => c && s.add(monedaDePais(c)));
+  s.delete(base); return [...s].sort((a, b) => a === 'COP' ? -1 : b === 'COP' ? 1 : a.localeCompare(b)); }
+function pintarMonedaAj(){
+  const v = AJM.v; if(!v) return; const base = monedaDePais(v.pais), intl = v.modo !== 'local', mons = monedasAj();
+  const fila = (lab, sub, ctl, id) => '<div class="aj-fila"' + (id ? ' id="' + id + '"' : '') + '><label class="aj-fl"><b>' + lab + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</label><div class="aj-fr">' + ctl + '</div></div>';
+  let h = fila('Company country', 'Pay rates and the hours pay are in its currency: <b>' + esc(base) + '</b>.', '<select id="ajmPais" class="aj-sel">' + opcPaises(v.pais) + '</select>') +
+    fila('How you pay', intl ? 'People are paid in another country&rsquo;s currency; each pay run converts with the day&rsquo;s rate.' : 'Everyone is paid in ' + esc(base) + '. No exchange rate.',
+      '<div class="aj-seg" role="radiogroup"><button type="button" data-ajm-modo="local" class="' + (intl ? '' : 'on') + '" aria-pressed="' + !intl + '">Local</button><button type="button" data-ajm-modo="int" class="' + (intl ? 'on' : '') + '" aria-pressed="' + intl + '">International</button></div>');
+  if(intl){
+    h += fila('Default payment country', 'Where people are paid unless their account or they themselves say otherwise.', '<select id="ajmPaisPago" class="aj-sel">' + opcPaises(v.paisPago) + '</select>');
+    const ctas = (listas().cuentas || []);
+    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>Accounts paid in another country</b><span>Leave &ldquo;Default&rdquo; to use ' + esc(paisNombre(v.paisPago)) + '.</span></label>' +
+      '<div class="ajm-lista">' + (ctas.length ? ctas.map(c => '<div class="ajm-l"><span>' + esc(c) + '</span><select class="aj-sel" data-ajm-cta="' + esc(c) + '">' + opcPaises(v.cuentasPais[c] || '', 'Default') + '</select></div>').join('') : '<p class="muted">No accounts yet.</p>') + '</div></div>';
+    const emps = ((S.emps && S.emps.empleados) || []).filter(e => e.activo !== false && !e.prueba).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+    const ex = Object.keys(v.empPais);
+    h += '<div class="aj-fila aj-col"><label class="aj-fl"><b>People paid in another country</b><span>Only for exceptions (e.g. someone who moved). It wins over the account.</span></label>' +
+      '<div class="ajm-lista">' + ex.map(u => { const e = emps.find(x => x.usuario === u); return '<div class="ajm-l"><span>' + esc(e ? e.nombre : u) + '</span><select class="aj-sel" data-ajm-emp="' + esc(u) + '">' + opcPaises(v.empPais[u]) + '</select>' +
+        '<button type="button" class="ajm-x" data-ajm-quitar="' + esc(u) + '" title="Remove" aria-label="Remove">×</button></div>'; }).join('') +
+      '<div class="ajm-l ajm-nuevo"><select class="aj-sel" id="ajmNuevoEmp"><option value="">+ Add a person…</option>' + emps.filter(e => !v.empPais[e.usuario]).map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + '</option>').join('') + '</select></div></div></div>';
+    mons.filter(m => m !== 'COP').forEach(m => { const g = v.reglasTasa[m] || {};
+      h += fila(m + ' exchange rate', 'Market rate of the payment day (you can always type it in the pay run), adjusted like this:',
+        '<select class="aj-sel ajm-tipo" data-ajm-rt="' + m + '" data-k="tipo"><option value="nada"' + (!g.tipo || g.tipo === 'nada' ? ' selected' : '') + '>No adjustment</option><option value="suma"' + (g.tipo === 'suma' ? ' selected' : '') + '>Add an amount</option><option value="pct"' + (g.tipo === 'pct' ? ' selected' : '') + '>Add a percent</option></select>' +
+        (g.tipo && g.tipo !== 'nada' ? '<input type="number" class="aj-num" data-ajm-rt="' + m + '" data-k="valor" min="0" step="any" value="' + (g.valor != null ? g.valor : '') + '" aria-label="Adjustment"><span class="aj-uni">' + (g.tipo === 'pct' ? '%' : esc(m)) + '</span>' : '') +
+        '<span class="aj-uni" style="margin-left:8px">max</span><input type="number" class="aj-num" data-ajm-rt="' + m + '" data-k="tope" min="0" step="any" value="' + (g.tope != null ? g.tope : '') + '" placeholder="none" aria-label="Maximum ' + m + ' per ' + base + '">');
+    });
+  }
+  $('ajMonFilas').innerHTML = h;
+  // filas de Colombia (TRM + extra, tope, Rete ICA) solo si se paga en COP
+  $('ajCopFilas').classList.toggle('hidden', !mons.includes('COP'));
+  ejemploReglas();
+}
+$('ajMonFilas').addEventListener('change', e => { const v = AJM.v; if(!v) return; const t = e.target;
+  if(t.id === 'ajmPais'){ v.pais = t.value; pintarMonedaAj(); }
+  else if(t.id === 'ajmPaisPago'){ v.paisPago = t.value; pintarMonedaAj(); }
+  else if(t.dataset.ajmCta != null){ if(t.value) v.cuentasPais[t.dataset.ajmCta] = t.value; else delete v.cuentasPais[t.dataset.ajmCta]; pintarMonedaAj(); }
+  else if(t.dataset.ajmEmp != null){ v.empPais[t.dataset.ajmEmp] = t.value; pintarMonedaAj(); }
+  else if(t.id === 'ajmNuevoEmp' && t.value){ v.empPais[t.value] = v.paisPago || 'CO'; pintarMonedaAj(); }
+  else if(t.dataset.ajmRt){ const m = t.dataset.ajmRt, g = v.reglasTasa[m] = v.reglasTasa[m] || {}; const k = t.dataset.k;
+    g[k] = k === 'tipo' ? t.value : (t.value.trim() === '' ? null : Number(t.value)); if(k === 'tipo') pintarMonedaAj(); }
+});
+$('ajMonFilas').addEventListener('click', e => { const v = AJM.v; if(!v) return;
+  const b = e.target.closest('[data-ajm-modo]'); if(b){ v.modo = b.dataset.ajmModo; pintarMonedaAj(); return; }
+  const q = e.target.closest('[data-ajm-quitar]'); if(q){ delete v.empPais[q.dataset.ajmQuitar]; pintarMonedaAj(); } });
 function ejemploReglas(){
   const R = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
   if(!(R.extra >= 0 && R.tope > 0)){ $('ajPagoEjemplo').textContent = ''; return; }
@@ -15262,11 +15450,16 @@ function ejemploReglas(){
 }
 ['ajPagoExtra','ajPagoTope','ajPagoIca'].forEach(id => $(id).addEventListener('input', ejemploReglas));
 $('ajPagoGuardar').addEventListener('click', async () => {
-  const v = { extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) };
+  const v = Object.assign({ extra:Number($('ajPagoExtra').value), tope:Number($('ajPagoTope').value), ica:Number($('ajPagoIca').value) }, JSON.parse(JSON.stringify(AJM.v || {})));
   if(!(v.extra >= 0 && v.extra <= 5000 && v.tope > 0 && v.tope <= 20000 && v.ica >= 0 && v.ica <= 100) || [$('ajPagoExtra'), $('ajPagoTope'), $('ajPagoIca')].some(x => x.value.trim() === ''))
     return $('ajPagoEstado').textContent = 'Check the numbers.';
+  // (v335) reglas de otras monedas: valores válidos y solo las que se usan
+  const usa = new Set(monedasAj()); Object.keys(v.reglasTasa || {}).forEach(m => { const g = v.reglasTasa[m];
+    if(!usa.has(m) || !g || (g.tipo === 'nada' && !(g.tope > 0))) { delete v.reglasTasa[m]; return; }
+    if(g.valor != null && !(g.valor >= 0)) g.valor = 0; if(g.tope != null && !(g.tope > 0)) g.tope = null; });
+  if(v.modo === 'local'){ v.cuentasPais = {}; v.empPais = {}; }
   const b = $('ajPagoGuardar'); b.disabled = true;
-  try{ await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; $('ajPagoEstado').textContent = 'Saved. New pay runs use these rules.'; toast('Settings saved.'); }
+  try{ await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; $('ajPagoEstado').textContent = 'Saved. New pay runs use these rules.'; toast('Settings saved.'); if(S.pr && !cerradaPago()) S.pr = null; }
   catch(e){ $('ajPagoEstado').textContent = e.message; }
   b.disabled = false;
 });
