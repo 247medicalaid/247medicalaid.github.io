@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v329-202611131010">
+<meta name="app-build" content="v330-202611131045">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6253,6 +6253,8 @@ function altoResumen(){
   raiz.style.setProperty('--abajo-h', (ancho && S.vista === 'hoja' ? Math.max(0, raiz.scrollHeight - (t.getBoundingClientRect().bottom + scrollY)) : 0) + 'px');
 }
 window.addEventListener('resize', () => { if(S.vista === 'hoja') altoResumen(); if(S.vista === 'pago') altoPago(); });
+// (v330) Daily con anchos guardados: al cambiar el tamaño de la ventana se vuelven a ajustar para que quepa
+let _hoyRzT = null; window.addEventListener('resize', () => { if(S.vista !== 'hoy' || !S.hojaHoy || S.hoyRz) return; clearTimeout(_hoyRzT); _hoyRzT = setTimeout(() => { try{ pintarHoy(); }catch(e){} }, 250); });
 // Pay run: alto del resumen y de lo que va entre la tabla y «Saved pay runs» (botones y nota).
 function altoPago(){
   const r = $('pyResumen'), t = $('pyTabla'), h = document.querySelector('#vPago .pr-hist-cab'), ancho = innerWidth >= 700, raiz = document.documentElement;
@@ -7144,10 +7146,19 @@ function pintarTablaHoy(lista, f){
     '</colgroup><thead><tr>' + todas.map(th).join('') + '</tr></thead><tbody>' + cuerpo + '</tbody></table></div>';
   $('hoyLista').querySelectorAll('tr[data-u]').forEach(tr => tr.addEventListener('click', () => abrirDia(tr.dataset.u, f, S.hojaHoy)));
   const wrap = $('hoyLista').querySelector('.tabla-hoy-wrap'), tabla = wrap.querySelector('table');
-  if(fija){   // (v328) la última columna (General Alerts) toma el ancho que sobra: no se corta el texto contra el borde
-    const cs = [...tabla.querySelectorAll('col')], ult = cs[cs.length - 1], minUlt = parseFloat(ult.style.width) || 260;
-    const suma = cs.slice(0, -1).reduce((s, c) => s + parseFloat(c.style.width), 0);
-    ult.style.width = ''; tabla.style.width = '100%'; tabla.style.minWidth = (suma + minUlt) + 'px';
+  if(fija){
+    // (v328/v330) Con anchos guardados la tabla nunca pasa del ancho de la ventana: la última columna (General Alerts)
+    // toma lo que sobra (mín. 180 px); si los anchos guardados no caben, las demás columnas se achican en proporción
+    // (mín. 60 px). Así el texto de la última columna no queda cortado contra el borde.
+    const cs = [...tabla.querySelectorAll('col')], ult = cs[cs.length - 1], MIN_ULT = 180;
+    const otras = cs.slice(0, -1), suma = otras.reduce((s, c) => s + parseFloat(c.style.width), 0);
+    const disp = wrap.clientWidth - 2;
+    if(disp > 0 && suma + MIN_ULT > disp){
+      const f = Math.max(0, (disp - MIN_ULT) / suma);
+      otras.forEach(c => { c.style.width = Math.max(60, Math.floor(parseFloat(c.style.width) * f)) + 'px'; });
+    }
+    const suma2 = otras.reduce((s, c) => s + parseFloat(c.style.width), 0);
+    ult.style.width = ''; tabla.style.width = '100%'; tabla.style.minWidth = (suma2 + MIN_ULT) + 'px';
   }
   if(scr){ wrap.scrollTop = scr[0]; wrap.scrollLeft = scr[1]; }
   // ordenar: ↑ → ↓ → orden normal
