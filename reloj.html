@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v323-202611121950">
+<meta name="app-build" content="v324-202611122000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -401,6 +401,11 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 /* (v322) Periodo aprobado completo */
 .hc-fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 8px}
 .hc-fila .dc-cuantos{margin:0}
+.hc-mon{margin-left:auto}
+.hc-mon-et{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--brand-700)}
+.hc-mon-et svg{width:15px;height:15px;flex:none}
+.hc-mon-et.gris{color:var(--text-muted)}
+.hc-mon-et.warn{color:#9A5B00}
 .per-ok-et{display:inline-flex;align-items:center;gap:6px;background:var(--brand-600);color:#fff;border-radius:999px;padding:3px 12px 3px 9px;font-size:13px;line-height:1.4}
 .per-ok-et.hidden{display:none}
 .per-ok-et svg{width:15px;height:15px;color:#fff}
@@ -2843,7 +2848,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="hSelQuitar" type="button">Remove approval</button>
       <button class="btn btn-ghost btn-sm" id="hSelLimpiar" type="button">Clear</button>
     </div>
-    <div class="hc-fila"><p class="dc-cuantos" id="hojaCuantos"></p><span class="per-ok-et hidden" id="hojaPerOk"></span></div>
+    <div class="hc-fila"><p class="dc-cuantos" id="hojaCuantos"></p><span class="per-ok-et hidden" id="hojaPerOk"></span><span class="hc-mon" id="hojaMon"></span></div>
     <div class="tabla-wrap" id="hojaTabla"></div>
     <div class="barra-acc">
       <button class="btn btn-brand btn-sm" id="hAprobarLimpios" disabled>Approve days with no issues</button>
@@ -5413,13 +5418,17 @@ async function empleadosSB(){
 const MON = { hoy:null, hoyEn:0, hoyFalla:false, falla:{}, vuelo:{}, agentes:null };
 function monCfg(){ try{ const url = localStorage.getItem('mon247_url'), tok = localStorage.getItem('mon247_token'); return url && tok ? { url, tok } : null; }catch(e){ return null; } }
 function monGuardados(){ try{ return JSON.parse(localStorage.getItem(MON_CLAVE) || '{}'); }catch(e){ return {}; } }
+// (v324) Último día en que el Monitor todavía no tenía NINGÚN agente: de ahí para atrás no hay nada que pedir.
+function monVacioHasta(){ try{ return localStorage.getItem('mon247_vacio_hasta') || ''; }catch(e){ return ''; } }
 const MON_VIGENCIA = 6 * 3600000;   // un día pasado guardado se vuelve a pedir a las 6 h (por si autorizaste algo)
 function monDisponible(fechas){
   if(!monOn()) return {};   // (v312)
   const cfg = monCfg(), g = monGuardados(), hoy = fechaHoy(), r = {};
+  const vh = monVacioHasta();
   fechas.forEach(f => {
     if(f > hoy) return;
     if(!cfg){ r[f] = false; return; }
+    if(vh && f <= vh){ r[f] = {}; return; }   // (v324) antes de que existiera el Monitor: sin datos, sin pedir
     if(f === hoy) r[f] = (MON.hoy && Date.now() - MON.hoyEn < 120000) ? MON.hoy : (MON.hoyFalla ? null : (MON.hoy || undefined));
     else r[f] = (g[f] && Date.now() - g[f].en < MON_VIGENCIA) ? g[f].d : (MON.falla[f] ? null : (g[f] ? g[f].d : undefined));
   });
@@ -5428,8 +5437,8 @@ function monDisponible(fechas){
 async function monPedir(fechas, alTerminar){
   if(!monOn()) return;   // (v312)
   const cfg = monCfg(); if(!cfg) return;
-  const hoy = fechaHoy(), g = monGuardados();
-  const faltan = fechas.filter(f => f <= hoy && !MON.vuelo[f] &&
+  const hoy = fechaHoy(), g = monGuardados(), vh = monVacioHasta();
+  const faltan = fechas.filter(f => f <= hoy && !(vh && f <= vh) && !MON.vuelo[f] &&
     (f === hoy ? !(MON.hoy && Date.now() - MON.hoyEn < 120000) : !(g[f] && Date.now() - g[f].en < MON_VIGENCIA)));
   if(!faltan.length) return;
   faltan.forEach(f => { MON.vuelo[f] = true; });
@@ -5448,6 +5457,7 @@ async function monPedir(fechas, alTerminar){
           const ks = Object.keys(gg).sort(); while(ks.length > 45) delete gg[ks.shift()];
           try{ localStorage.setItem(MON_CLAVE, JSON.stringify(gg)); }catch(e){}
           delete MON.falla[f];
+          if(!Object.keys(d).length && f > monVacioHasta()){ try{ localStorage.setItem('mon247_vacio_hasta', f); }catch(e){} }   // (v324) el Monitor aún no tenía agentes
         }
       }catch(e){ if(f === hoy) MON.hoyFalla = true; else MON.falla[f] = true; }
       finally{ delete MON.vuelo[f]; }
@@ -7113,6 +7123,24 @@ function pintarTablaHoy(lista, f){
   tabla.querySelectorAll('[data-rz]').forEach(h => h.addEventListener('click', ev => ev.stopPropagation()));
 }
 
+// (v324) Estado del Monitor en una línea corta (a la derecha de "N people"). Si ningún día del periodo tiene
+// actividad del Monitor (periodos de antes de usarlo), lo dice; si empezó a mitad del periodo, dice desde cuándo.
+function estadoMonitorHoja(h){
+  if(!monOn() || DEMO) return '';
+  const et = (cls, txt, tit) => '<span class="hc-mon-et ' + cls + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' + (cls === 'warn' ? IC.aviso : IC.info) + '<span>' + txt + '</span></span>';
+  if(!h.monitor) return et('info', 'Monitor not connected in this browser', 'Open the Agent Monitor here once, with its URL and token, and the Time Clock will use it.');
+  const pasadas = h.fechas.filter(f => f <= h.hoy), md = monDisponible(pasadas);
+  const conDatos = pasadas.filter(f => md[f] && Object.values(md[f]).some(a => a && a.p != null));
+  if(h.monitorCargando){
+    // Si todo lo que ya llegó viene vacío y no hay nada con datos, igual se avisa que se está revisando.
+    return et('info', 'Checking against the Monitor…', 'Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).');
+  }
+  if(h.monitorFalla) return et('warn', 'The Monitor didn\'t respond for ' + h.monitorFalla + (h.monitorFalla === 1 ? ' day' : ' days') + ' — reload in a moment', 'Those punches couldn\'t be checked against the PCs.');
+  if(!pasadas.length) return '';
+  if(!conDatos.length) return et('gris', 'No Monitor data for this period', 'The Agent Monitor has no PC activity on these dates (it wasn\'t in use yet), so punches aren\'t checked against the PCs.');
+  if(conDatos[0] > pasadas[0]) return et('gris', 'Monitor data starts ' + diaS(conDatos[0]), 'Before that date there\'s no PC activity to check the punches against.');
+  return '';
+}
 function avisosMonitor(h){
   if(h.monitorCargando) return '<div class="aviso info">' + IC.info + '<span>Checking against the Monitor… Hours are ready; PC alerts will appear in a few seconds (the Monitor still runs on the old system).</span></div>';
   if(!h.monitor) return '<div class="aviso info">' + IC.info + '<span>Monitor verification isn\'t set up in this browser. Open the Agent Monitor here once, with its URL and token, and the Time Clock will use it.</span></div>';
@@ -7346,7 +7374,8 @@ function resumenHoja(h){
 }
 function pintarHoja(){
   const h = S.hoja;
-  $('hojaAvisos').innerHTML = avisosMonitor(h);
+  $('hojaAvisos').innerHTML = '';   // (v324) el estado del Monitor va en la línea de "N people", a la derecha
+  $('hojaMon').innerHTML = estadoMonitorHoja(h);
   const cuentas = Array.from(new Set(h.empleados.map(e => e.cuenta || '').filter(Boolean))).sort();
   if(S.cuentaFiltro && cuentas.indexOf(S.cuentaFiltro) < 0) S.cuentaFiltro = '';
   $('hCuenta').innerHTML = '<option value="">All accounts</option>' + cuentas.map(c => '<option' + (c === S.cuentaFiltro ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
