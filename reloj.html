@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v339-202611131945">
+<meta name="app-build" content="v340-202611132045">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3052,7 +3052,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <h1>Documents</h1>
       <span class="esp"></span>
       <button class="btn btn-ghost btn-sm" id="dcRecargar" type="button">Reload</button>
-      <button class="btn btn-ghost btn-sm" id="dcImportCT" type="button">Import from Connecteam</button>
       <button class="btn btn-ink btn-sm" id="dcTipos" type="button">Manage documents</button>
     </div>
     <div class="dc-pestanas" id="dcPestanas" role="tablist" aria-label="Documents"></div>
@@ -3475,18 +3474,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
 <!-- importar de Connecteam (administrador) -->
 <button type="button" class="solo-aviso hidden" id="soloAviso" title="Settings → 24/7 only"></button>
-<div class="overlay hidden" id="ovImp" role="dialog" aria-modal="true" aria-labelledby="iTitulo">
-  <div class="ventana ventana-ancha">
-    <h2 id="iTitulo">Import from Connecteam</h2>
-    <div class="sub" id="iSub"></div>
-    <div id="iCuerpo"></div>
-    <div class="err" id="iErr"></div>
-    <div class="pie">
-      <button class="btn btn-ghost" id="iCancelar" data-cerrar>Cancel</button>
-      <button class="btn btn-ink" id="iImportar" type="button">Import</button>
-    </div>
-  </div>
-</div>
 
 <div class="overlay hidden" id="ovConf" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
   <div class="ventana" style="max-width:420px">
@@ -3867,21 +3854,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- Users: importar la lista de Connecteam (v59) -->
-<div class="overlay hidden" id="ovUImp" role="dialog" aria-modal="true" aria-labelledby="uiTitulo">
-  <div class="ventana ventana-ancha ventana-uimp">
-    <h2 id="uiTitulo">Import users from Connecteam</h2>
-    <div class="sub">In Connecteam open Users, show the columns you want to bring (email, phone, birthday, address, ID, bank…) and export the active list and the archived list. Choose both files here, check the list and confirm. Nobody is activated, and nothing that's already in the Time Clock changes: only empty data is filled in. Archived users stay inactive and marked «Archived». Connecteam doesn't export the ID type: choose it below and it's set for everyone who has an ID number and no type yet (you can import the same files again to complete it).</div>
-    <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="uiElegir" type="button">Choose files…</button>
-      <label class="ui-tipo"><span>ID type for rows without one</span><select id="uiTipoId" aria-label="ID type for rows without one"></select></label>
-      <input type="file" id="uiArchivo" multiple class="hidden" accept=".xls,.xlsx,.csv"></div>
-    <div id="uiArchivos"></div>
-    <p id="uiResumen" class="ui-resumen"></p>
-    <div class="tabla-wrap" id="uiTabla"></div>
-    <div class="err" id="uiErr" role="alert"></div>
-    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button>
-      <button class="btn btn-ink hidden" id="uiImportar" type="button">Import</button></div>
-  </div>
-</div>
 
 <!-- v82: Importar los documentos de Connecteam (paso 50) · v83: también Forms y Payslips (paso 51) · v84: sin saturar Supabase -->
 <!-- v88: «Archive» reemplaza a «Deactivate»; ya no hay «Inactive», todos los que no están activos son «Archived» (paso 53) -->
@@ -3996,22 +3968,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- v93: usuario de prueba (paso 55): Settings → Test user copia los datos de un agente; TEST fuera del Pay run y de las exportaciones -->
 <!-- v92: clock out automático (paso 54): Settings → Automatic clock out; la salida del sistema queda marcada AUTO en el Timesheet -->
 <!-- v91: menú agrupado también en la app; la web con la distribución de la app y, en ventana ancha, el chat fijo a la derecha (reemplaza v90) -->
-<div class="overlay hidden" id="ovDImp" role="dialog" aria-modal="true" aria-labelledby="diTitulo">
-  <div class="ventana ventana-ancha ventana-uimp">
-    <h2 id="diTitulo">Import documents from Connecteam</h2>
-    <div class="sub">Choose a ZIP made from Connecteam (<b>connecteam_….zip</b>): documents, Forms (Aportes and Cuentas de Cobro) or Payslips. Each file goes to that employee with its original date: documents with their status (approved, pending for you to review, or rejected), Forms to their month, and Payslips to their pay period. Former employees keep their files too. Files already imported are skipped, so you can run it again safely. Nothing that's already in Time Track changes, and a newer file uploaded here keeps counting.</div>
-    <div class="ui-barra"><button class="btn btn-ghost btn-sm" id="diElegir" type="button">Choose ZIP…</button>
-      <input type="file" id="diArchivo" class="hidden" accept=".zip,application/zip"></div>
-    <div id="diInfo"></div>
-    <div id="diTipos"></div>
-    <p id="diResumen" class="ui-resumen"></p>
-    <div class="di-prog" id="diProg" role="status"></div>
-    <div class="tabla-wrap" id="diTabla"></div>
-    <div class="err" id="diErr" role="alert"></div>
-    <div class="pie"><span class="esp"></span><button class="btn btn-ghost" type="button" data-cerrar>Close</button>
-      <button class="btn btn-ink hidden" id="diImportar" type="button">Import</button></div>
-  </div>
-</div>
 
 <!-- Updates: un comunicado (admin) -->
 <div class="overlay hidden" id="ovUpd" role="dialog" aria-modal="true" aria-labelledby="updFTitulo">
@@ -9729,7 +9685,7 @@ if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles();
-  pintarListas(); pintarImportaciones(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
+  pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -10103,11 +10059,8 @@ $('ajGuardar').addEventListener('click', async () => {
   b.disabled = false;
 });
 
-/* ══════════════════ IMPORTAR DE CONNECTEAM ══════════════════
-   Lee en el navegador el Excel «Timesheet overview» de Connecteam (sin librerías),
-   arma los días de cada persona y los manda por lotes al servidor. Del archivo
-   solo se usan nombre, cuenta, horas, tarifa, notas y tiempo libre: los datos
-   personales (documento, banco, dirección, cumpleaños) no salen del navegador. */
+/* ── Lector de ZIP (también .xlsx) en el navegador, sin librerías ──
+   (v340) La importación desde Connecteam (horas, usuarios y documentos) se quitó; esto lo usa el libro CALL CENTER PAY ROLL. */
 async function ctUnzip(buf){
   const b = new Uint8Array(buf), dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
   let fin = -1;
@@ -10142,172 +10095,14 @@ async function ctUnzip(buf){
     }
   };
 }
+// (v340) ayudas que quedaron de la importación de Connecteam y se siguen usando
 const ctEnt = s => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (x, c) => c === 'lt' ? '<' : c === 'gt' ? '>' : c === 'amp' ? '&' : c === 'quot' ? '"' : c === 'apos' ? '\''
   : String.fromCodePoint(c[1] === 'x' || c[1] === 'X' ? parseInt(c.slice(2), 16) : parseInt(c.slice(1), 10)));
 const ctTextos = x => { let t = '', m; const re = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g; while((m = re.exec(x))) t += m[1]; return ctEnt(t); };
 const ctCol = ref => { let n = 0; for(const ch of ref.replace(/\d+$/, '')) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
-// Filas de la primera hoja del libro (la de «All Employees»), como arreglos de valores.
-async function ctLeerXlsx(buf){
-  const z = await ctUnzip(buf);
-  const sst = [], ss = await z.texto('xl/sharedStrings.xml');
-  if(ss){ let m; const re = /<si>([\s\S]*?)<\/si>/g; while((m = re.exec(ss))) sst.push(ctTextos(m[1])); }
-  let hoja = 'xl/worksheets/sheet1.xml';
-  const wb = await z.texto('xl/workbook.xml'), rels = await z.texto('xl/_rels/workbook.xml.rels');
-  const id = wb && (wb.match(/<sheet\b[^>]*\br:id="([^"]+)"/) || [])[1];
-  if(id && rels){
-    const rel = (rels.match(new RegExp('<Relationship\\b[^>]*\\bId="' + id + '"[^>]*>')) || [''])[0], tg = (rel.match(/Target="([^"]+)"/) || [])[1];
-    if(tg) hoja = tg.startsWith('/') ? tg.slice(1) : 'xl/' + tg.replace(/^\.\//, '');
-  }
-  const xml = await z.texto(hoja);
-  if(!xml) throw new Error('The Excel file has no sheets.');
-  const filas = []; let m;
-  const reF = /<row\b[^>]*>([\s\S]*?)<\/row>/g, reC = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-  while((m = reF.exec(xml))){
-    const fila = []; let c; reC.lastIndex = 0;
-    while((c = reC.exec(m[1]))){
-      const at = c[1], ref = (at.match(/\br="([A-Z]+\d+)"/) || [])[1], t = (at.match(/\bt="(\w+)"/) || [])[1], cuerpo = c[2] || '';
-      if(!ref) continue;
-      const v = (cuerpo.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
-      let val = '';
-      if(t === 's') val = sst[Number(v)] ?? '';
-      else if(t === 'inlineStr') val = ctTextos(cuerpo);
-      else if(t === 'str' || t === 'b' || t === 'e') val = v == null ? '' : ctEnt(v);
-      else val = v == null ? '' : Number(v);
-      fila[ctCol(ref)] = val;
-    }
-    filas.push(fila);
-  }
-  return filas;
-}
-
 const ctNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const ctTitulo = s => String(s || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (x, a, l) => a + l.toUpperCase()).trim();
-const ctMin = s => { const m = /^(\d{1,3}):(\d{2})/.exec(String(s || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
 const ctHH = min => String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
-function ctFecha(v){
-  if(typeof v === 'number' && v > 20000) return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10);
-  const s = String(v || '').trim(); let m;
-  if((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s))) return m[1] + '-' + m[2] + '-' + m[3];
-  if((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
-  return null;
-}
-const ctMas1 = f => new Date(Date.parse(f + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
-function ctClase(texto){
-  const t = ctNorm(texto);
-  if(/\b(SICK|ENFERM\w*|MEDIC\w*|DOCTOR|CITA MEDICA|INCAPACI\w*|ILLNESS)\b/.test(t)) return 'enfermedad';
-  if(/\b(VACATIONS?|VACACION\w*|HOLY|HOLLY|SEMANA SANTA)\b/.test(t)) return 'vacaciones';
-  return 'personal';
-}
-const CT_AVISO = {
-  cruce:'Overlapping shifts (merged; Connecteam paid them twice)', sinSalida:'Shift without clock-out (day not imported)',
-  almLargo:'Lunch longer than 2 hours or left open', tarifa0:'Worked hours with a $0 rate', largo:'More than 12 paid hours',
-  almSuelto:'Lunch outside the shift (left out)'
-};
-// De las filas del Excel a personas → días → marcas del Reloj.
-function ctArmar(filas){
-  const enc = (filas[0] || []).map(x => String(x || '').trim()), col = {};
-  enc.forEach((h, i) => { if(!(h in col)) col[h] = i; });
-  const falta = ['First name', 'Last name', 'Type', 'Start Date', 'In', 'Out'].filter(h => !(h in col));
-  if(falta.length) throw new Error('This doesn\'t look like a Connecteam timesheet export (missing: ' + falta.join(', ') + ').');
-  const g = (r, h) => h in col ? (r[col[h]] ?? '') : '';
-  const personas = new Map(); let cur = null;
-  for(let i = 1; i < filas.length; i++){
-    const r = filas[i] || [];
-    const fn = String(g(r, 'First name')).trim(), ln = String(g(r, 'Last name')).trim();
-    if(fn || ln){
-      const clave = ctNorm(fn + ' ' + ln);
-      cur = personas.get(clave) || { clave, nombre:fn, apellidos:ln, filas:[] };
-      personas.set(clave, cur);
-    }
-    const tipo = String(g(r, 'Type')).trim(), f = ctFecha(g(r, 'Start Date'));
-    if(!cur || !tipo || !f) continue;
-    const ff = ctFecha(g(r, 'End Date')) || f;
-    const ini = ctMin(g(r, 'In (unrounded)')) ?? ctMin(g(r, 'In')), fin = ctMin(g(r, 'Out (unrounded)')) ?? ctMin(g(r, 'Out'));
-    const notas = [String(g(r, 'Employee notes')).trim(), String(g(r, 'Manager notes')).trim()];
-    cur.filas.push({ tipo, f, ff, ini, fin, inR:ctMin(g(r, 'In')), outR:ctMin(g(r, 'Out')),
-      clase: /time\s*off/i.test(tipo) ? 'aus' : /lunch/i.test(tipo) ? 'alm' : 'trab',
-      horas: ctMin(g(r, 'Shift hours')), tarifa: g(r, 'Hourly rate (USD)') === '' ? null : Number(g(r, 'Hourly rate (USD)')),
-      nota: notas[0] ? notas[0] : '', notaJefe: notas[1] || '' });
-  }
-  const res = [], avisos = []; let desde = null, hasta = null;
-  personas.forEach(p => {
-    if(!p.filas.length) return;
-    const porDia = new Map();
-    p.filas.forEach(x => { (porDia.get(x.f) || porDia.set(x.f, []).get(x.f)).push(x); });
-    const dias = [];
-    [...porDia.keys()].sort().forEach(f => {
-      const rs = porDia.get(f), av = new Set(), abs = (fe, min) => (fe === f ? 0 : 1440) + min;
-      const trab = rs.filter(x => x.clase === 'trab'), alm = rs.filter(x => x.clase === 'alm'), aus = rs.filter(x => x.clase === 'aus');
-      const dia = { fecha:f, marcas:[], horas:null, tarifa:null, cuenta:'', nota:'', ausencias:[], avisos:[] };
-      if(trab.some(x => x.ini == null || x.fin == null)) av.add('sinSalida');
-      else if(trab.length){
-        const tramos = trab.map(x => ({ a:abs(f, x.ini), b:abs(x.ff, x.fin) })).filter(t => t.b > t.a).sort((x, y) => x.a - y.a || x.b - y.b);
-        const unidos = [];
-        tramos.forEach(t => { const u = unidos[unidos.length - 1];
-          if(u && t.a <= u.b){ if(t.a < u.b) av.add('cruce'); u.b = Math.max(u.b, t.b); } else unidos.push({ a:t.a, b:t.b }); });
-        const ls = alm.filter(x => x.ini != null && x.fin != null).map(x => ({ a:abs(f, x.ini), b:abs(x.ff, x.fin) })).filter(l => l.b > l.a);
-        if(alm.some(x => x.fin == null) || ls.some(l => l.b - l.a > 120)) av.add('almLargo');
-        const marca = (tipo, m) => dia.marcas.push({ tipo, f: m >= 1440 ? ctMas1(f) : f, h: ctHH(m % 1440) });
-        const usados = new Set();
-        unidos.forEach((t, k) => {
-          if(k === 0) marca('entrada', t.a);
-          const sig = unidos[k + 1];
-          if(!sig){ marca('salida', t.b); return; }
-          const li = ls.findIndex((l, j) => !usados.has(j) && l.a >= t.b - 5 && l.a < sig.a && l.b <= sig.a + 5);
-          if(li >= 0){ usados.add(li); marca('almuerzo_ini', t.b); marca('almuerzo_fin', sig.a); }
-          else { marca('salida', t.b); marca('entrada', sig.a); }
-        });
-        if(ls.length > usados.size && unidos.length) av.add('almSuelto');
-        const pag = trab.reduce((s, x) => s + (x.horas || 0), 0);
-        dia.horas = Math.round(pag / 60 * 100) / 100;
-        if(dia.horas > 12) av.add('largo');
-        if(trab.some(x => x.tarifa === 0 && (x.horas || 0) > 0)) av.add('tarifa0');
-        const tar = trab.map(x => x.tarifa).filter(x => x != null && !isNaN(x));
-        dia.tarifa = tar.length ? Math.max(...tar) : null;
-        const cuentas = trab.filter(x => !/break/i.test(x.tipo)).sort((x, y) => (y.horas || 0) - (x.horas || 0));
-        dia.cuenta = cuentas.length ? cuentas[0].tipo : '';
-        if(!dia.marcas.length) dia.horas = null;
-      }
-      aus.forEach(x => {
-        const parcial = x.inR != null && x.outR != null && x.outR > x.inR, motivo = [x.nota, x.notaJefe].filter(Boolean).join(' · ');
-        dia.ausencias.push({ hi: parcial ? ctHH(x.inR) : null, hf: parcial ? ctHH(x.outR) : null, horas: x.horas != null ? Math.round(x.horas / 60 * 100) / 100 : null,
-          pagada: !/unpaid/i.test(x.tipo), clase: ctClase(motivo + ' ' + x.tipo), motivo: motivo || x.tipo });
-      });
-      const notas = []; rs.forEach(x => { if(x.clase !== 'aus'){ if(x.nota) notas.push(x.nota); if(x.notaJefe) notas.push('Manager: ' + x.notaJefe); } });
-      dia.nota = [...new Set(notas)].join(' · ');
-      dia.avisos = [...av];
-      if(!dia.marcas.length && !dia.ausencias.length && !dia.avisos.length) return;
-      dias.push(dia);
-      dia.avisos.forEach(a => avisos.push({ clave:p.clave, fecha:f, aviso:a }));
-      if(!desde || f < desde) desde = f; if(!hasta || f > hasta) hasta = f;
-    });
-    if(!dias.length) return;
-    const ult = p.filas.filter(x => x.clase === 'trab' && !/break/i.test(x.tipo)).sort((x, y) => x.f < y.f ? -1 : x.f > y.f ? 1 : 0).pop();
-    const tars = p.filas.filter(x => x.tarifa != null && !isNaN(x.tarifa) && x.tarifa > 0).sort((x, y) => x.f < y.f ? -1 : 1);
-    res.push({ clave:p.clave, nombre:ctTitulo(p.nombre), apellidos:ctTitulo(p.apellidos), cuenta: ult ? ult.tipo : '',
-      tarifa: tars.length ? tars[tars.length - 1].tarifa : null, dias, desde:dias[0].fecha, hasta:dias[dias.length - 1].fecha });
-  });
-  res.sort((x, y) => x.clave < y.clave ? -1 : 1);
-  return { personas:res, avisos, desde, hasta };
-}
-// Empareja cada persona de Connecteam con un usuario del Reloj (por nombre completo, nombre de nómina o del Monitor).
-function ctEmparejar(personas, emps){
-  const llaves = emps.map(e => ({ e, ks:[e.nombre + ' ' + (e.apellidos || ''), e.nombre, e.nombreNomina, e.agenteMonitor].map(ctNorm).filter(k => k.split(' ').length >= 2) }));
-  const usados = new Set(), out = {};
-  personas.forEach(p => {
-    let e = llaves.find(x => !usados.has(x.e.usuario) && x.ks.includes(p.clave));
-    if(!e){
-      const tp = p.clave.split(' ');
-      const cands = llaves.filter(x => !usados.has(x.e.usuario) && x.ks.some(k => { const tk = k.split(' '), [cor, lar] = tk.length <= tp.length ? [tk, tp] : [tp, tk];
-        return cor.length >= 2 && cor.every(w => lar.includes(w)); }));
-      if(cands.length === 1) e = cands[0];
-    }
-    if(e){ usados.add(e.e.usuario); out[p.clave] = e.e.usuario; }
-  });
-  return out;
-}
-// ¿Las horas del archivo son de Colombia o de Florida? Se compara la primera entrada de cada día con
-// la primera conexión del Monitor. Solo hay diferencia con horario de verano (marzo–noviembre).
 function ctZonaOffset(f, zona){
   const d = new Date(f + 'T12:00:00Z'), p = {};
   new Intl.DateTimeFormat('en-US', { timeZone:zona, hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -10315,263 +10110,7 @@ function ctZonaOffset(f, zona){
   return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - d.getTime()) / 60000;
 }
 const ctMs = (f, h, zona) => Date.parse(f + 'T' + h + ':00Z') - ctZonaOffset(f, zona) * 60000;
-function ctDetectarZona(muestras){
-  // muestras: [{fecha, h (primera entrada), latido (ms)}]
-  const dif = { 'America/Bogota':[], 'America/New_York':[] };
-  muestras.forEach(m => Object.keys(dif).forEach(z => dif[z].push(Math.abs(ctMs(m.fecha, m.h, z) - m.latido) / 60000)));
-  const med = a => { if(!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
-  const b = med(dif['America/Bogota']), n = med(dif['America/New_York']);
-  if(b == null) return { zona:null, n:0 };
-  if(Math.abs(b - n) < 20) return { zona:null, n:muestras.length, igual:true };
-  return { zona: b < n ? 'America/Bogota' : 'America/New_York', n:muestras.length, b:Math.round(b), ny:Math.round(n) };
-}
-
-// ── Pantalla de importación (Settings → Import from Connecteam) ──
 const IMP_ZONAS = { 'America/Bogota':'Colombia time', 'America/New_York':'Florida time (Eastern)' };
-const IMP_POR = {
-  'Ya estaba importado.':'Already imported', 'Ya tiene marcas en el Reloj.':'Already has punches in the Time Clock (kept as they were)',
-  'El día aún no termina.':'The day isn\'t over yet', 'Falta la salida.':'Missing clock-out', 'Las marcas no van en orden.':'Punches out of order',
-  'El orden de las marcas no es válido.':'Punches out of order', 'Ya tiene tiempo libre ese día.':'Already has time off that day',
-  'Tiempo libre con horas no válidas.':'Time off with invalid times', 'Empleado o fecha no válidos.':'Unknown employee or date',
-  'Se corrigió en el Reloj después de importar; no se actualizó.':'Edited in the Time Clock after importing (kept as it was)'
-};
-const fechaImp = f => f ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(f + 'T12:00:00Z')) : '—';
-const nImp = n => Number(n || 0).toLocaleString('en-US');
-const hmImp = min => nImp(Math.floor(min / 60)) + ':' + String(Math.round(min % 60)).padStart(2, '0');
-function rangoImp(a, b){
-  if(!a || !b) return '—';
-  if(a.slice(0, 4) !== b.slice(0, 4)) return fechaImp(a) + ' – ' + fechaImp(b);
-  const md = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
-  return md(a) + ' – ' + md(b) + ', ' + a.slice(0, 4);
-}
-S.imp = null; S.impCorriendo = false;
-
-
-async function prepararImport(file){
-  $('impEstado').textContent = 'Reading ' + file.name + '…'; $('impElegir').disabled = true;
-  try{
-    if(typeof DecompressionStream === 'undefined') throw new Error('This browser can\'t read Excel files. Use an up-to-date Chrome or Edge.');
-    if(!/\.xlsx$/i.test(file.name)) throw new Error('Choose the Excel (.xlsx) file exported from Connecteam.');
-    const [filas, emps] = await Promise.all([file.arrayBuffer().then(ctLeerXlsx), api('empleados')]);
-    S.emps = emps;
-    const datos = ctArmar(filas);
-    if(!datos.personas.length) throw new Error('The file has no shifts to import.');
-    const lista = (emps.empleados || []).slice().sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre, 'en'));
-    const par = ctEmparejar(datos.personas, lista), sel = {};
-    datos.personas.forEach(p => { sel[p.clave] = par[p.clave] || '+'; });
-    // lo que ya está importado en esas fechas, para ver qué días cambiaron en Connecteam
-    // (por meses: un año entero de una vez pasa el tiempo límite del servidor)
-    let exist = null, existFalla = false;
-    try{
-      exist = {};
-      const mesSig = f => { const y = Number(f.slice(0, 4)), m = Number(f.slice(5, 7)); return m === 12 ? (y + 1) + '-01-01' : y + '-' + String(m + 1).padStart(2, '0') + '-01'; };
-      const tramos = []; for(let a = datos.desde; a <= datos.hasta; a = mesSig(a)){ const fin = sumarDias(mesSig(a), -1); tramos.push([a, fin < datos.hasta ? fin : datos.hasta]); }
-      for(let i = 0; i < tramos.length; i++){
-        $('impEstado').textContent = 'Comparing with what\'s already imported… ' + (i + 1) + ' of ' + tramos.length;
-        let ex; try{ ex = await api('impExistentes', { desde:tramos[i][0], hasta:tramos[i][1] }); }
-        catch(e){ ex = await api('impExistentes', { desde:tramos[i][0], hasta:tramos[i][1] }); }
-        (ex || []).forEach(x => { exist[x.u + '|' + x.f] = { m:(x.m || []).map(y => [y[0], Date.parse(y[1])]), h: x.h == null ? null : Number(x.h), prot:!!x.prot, aus:x.aus || [] }; });
-      }
-    }catch(e){ exist = null; existFalla = true; }
-    // v101: la quincena en curso entra sin aprobar (para revisarla antes de pagar); lo anterior, aprobado como siempre
-    const aprobarDef = !(datos.hasta >= rangoPreset('q0').desde);
-    S.imp = { archivo:file.name, datos, sel, emps:lista, zona:'America/Bogota', det:null, aprobar:aprobarDef, exist, existFalla, actualizar:true };
-    pintarImport(); $('iErr').textContent = ''; abrir('ovImp'); $('impEstado').textContent = '';
-    detectarZonaImp();
-  }catch(e){ $('impEstado').textContent = e.message; }
-  $('impElegir').disabled = false;
-}
-
-function totalesImp(){
-  const I = S.imp; let dias = 0, aus = 0, min = 0, gente = 0, nuevos = 0;
-  I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u) return; gente++;
-    p.dias.forEach(d => { if(d.marcas.length){ dias++; min += Math.round((d.horas || 0) * 60); if(!(I.exist && I.exist[u + '|' + d.fecha])) nuevos++; } aus += d.ausencias.length; }); });
-  return { dias, aus, min, gente, nuevos };
-}
-// Días ya importados que en este archivo vienen diferentes (marcas, horas pagadas o tiempo libre).
-const horaImp = ms => fmt(ms, { hour:'numeric', minute:'2-digit' });
-function cambiosImp(){
-  const I = S.imp, out = { cambiados:[], protegidos:[], set:new Set() }; if(!I.exist) return out;
-  const nyHH = (f, h) => fmt(ctMs(f, h, I.zona), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
-  const ausK = l => l.map(a => [a.hi || '', a.hf || '', a.clase, !!a.pagada].join('|')).sort().join(',');
-  const rango = l => l.length ? horaImp(l[0][1]) + '–' + horaImp(l[l.length - 1][1]) : 'no punches';
-  I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u || u === '+') return;
-    p.dias.forEach(d => { const e = I.exist[u + '|' + d.fecha]; if(!e || (!d.marcas.length && !d.ausencias.length)) return;
-      const fm = d.marcas.map(m => [m.tipo, ctMs(m.f || d.fecha, m.h, I.zona)]);
-      const difM = fm.length !== e.m.length || fm.some((m, i) => m[0] !== e.m[i][0] || Math.abs(m[1] - e.m[i][1]) >= 60000);
-      const hd = e.h != null && d.horas != null && Math.abs(e.h - d.horas) > 0.005, difH = I.aprobar && hd;
-      const difA = ausK(d.ausencias.map(a => ({ hi: a.hi ? nyHH(d.fecha, a.hi) : null, hf: a.hf ? nyHH(d.fecha, a.hf) : null, clase:a.clase, pagada:a.pagada }))) !== ausK(e.aus);
-      if(!difM && !difH && !difA) return;
-      const txt = [];
-      if(difM) txt.push('punches ' + rango(e.m) + ' → ' + rango(fm));
-      if(hd) txt.push('paid ' + hm(Math.round(e.h * 60)) + ' h → ' + hm(Math.round(d.horas * 60)) + ' h');
-      if(difA) txt.push('time off changed');
-      (e.prot ? out.protegidos : out.cambiados).push({ nombre:p.nombre + ' ' + p.apellidos, fecha:d.fecha, txt:txt.join(' · ') });
-      out.set.add(u + '|' + d.fecha);
-    }); });
-  return out;
-}
-
-function pintarImport(){
-  const I = S.imp, D = I.datos, t = totalesImp(), C = cambiosImp(); I.cambios = C;
-  const listaC = l => '<ul>' + l.slice(0, 60).map(x => '<li>' + esc(x.nombre) + ' — ' + esc(fechaImp(x.fecha)) + ': ' + esc(x.txt) + '</li>').join('') +
-    (l.length > 60 ? '<li>…and ' + (l.length - 60) + ' more</li>' : '') + '</ul>';
-  const bloqueC = (C.cambiados.length || C.protegidos.length) ? '<div class="imp-cambios">' +
-    (C.cambiados.length ? '<label class="chk-linea"><input type="checkbox" id="iActualizar"' + (I.actualizar ? ' checked' : '') + '> Update the <b>' + C.cambiados.length +
-      (C.cambiados.length === 1 ? ' day</b> already imported that is' : ' days</b> already imported that are') + ' different in this file</label>' +
-      '<details class="imp-avisos"><summary>See what changed</summary>' + listaC(C.cambiados) + '</details>' : '') +
-    (C.protegidos.length ? '<details class="imp-avisos"><summary>' + C.protegidos.length + (C.protegidos.length === 1 ? ' changed day was' : ' changed days were') +
-      ' edited in the Time Clock after importing, so ' + (C.protegidos.length === 1 ? 'it\'s' : 'they\'re') + ' kept as ' + (C.protegidos.length === 1 ? 'it is' : 'they are') + '</summary>' + listaC(C.protegidos) + '</details>' : '') +
-    '</div>' : '';
-  $('iSub').textContent = rangoImp(D.desde, D.hasta) + ' · ' + I.archivo;
-  const opc = sel => '<option value=""' + (sel === '' ? ' selected' : '') + '>Don\'t import</option>' +
-    '<option value="+"' + (sel === '+' ? ' selected' : '') + '>+ New former employee (archived)</option>' +
-    I.emps.map(e => '<option value="' + esc(e.usuario) + '"' + (sel === e.usuario ? ' selected' : '') + '>' + esc(e.nombre) + (e.activo ? '' : ' · archived') + '</option>').join('');
-  const filas = D.personas.map(p => {
-    const dm = p.dias.filter(d => d.marcas.length), min = dm.reduce((s, d) => s + Math.round((d.horas || 0) * 60), 0), na = p.dias.reduce((s, d) => s + d.avisos.length, 0);
-    return '<tr' + (I.sel[p.clave] ? '' : ' class="no"') + '><td><b>' + esc(p.nombre + ' ' + p.apellidos) + '</b><small>' + esc(p.cuenta || '') + (p.tarifa != null ? ' · $' + p.tarifa + '/h' : '') + '</small></td>' +
-      '<td class="num">' + dm.length + '</td><td class="num">' + hmImp(min) + '</td><td class="fechas">' + esc(rangoImp(p.desde, p.hasta)) + '</td>' +
-      '<td><select data-imp="' + esc(p.clave) + '" aria-label="Time Clock user for ' + esc(p.nombre) + '">' + opc(I.sel[p.clave]) + '</select></td>' +
-      '<td class="num">' + (na ? '<span class="imp-av" title="Things to review">' + na + '</span>' : '') + '</td></tr>';
-  }).join('');
-  const grupos = {};
-  D.avisos.forEach(a => { (grupos[a.aviso] = grupos[a.aviso] || []).push(a); });
-  const nombreDe = c => { const p = D.personas.find(x => x.clave === c); return p ? p.nombre + ' ' + p.apellidos : c; };
-  const avisos = Object.keys(grupos).sort((a, b) => (a === 'almSuelto') - (b === 'almSuelto')).map(k => '<li><b>' + esc(CT_AVISO[k] || k) + '</b> (' + grupos[k].length + ')<ul>' +
-    grupos[k].slice(0, 40).map(a => '<li>' + esc(nombreDe(a.clave)) + ' — ' + esc(fechaImp(a.fecha)) + '</li>').join('') + (grupos[k].length > 40 ? '<li>…and ' + (grupos[k].length - 40) + ' more</li>' : '') + '</ul></li>').join('');
-  $('iCuerpo').innerHTML =
-    '<div class="imp-res"><span><b>' + t.gente + '</b>people</span><span><b>' + nImp(t.dias) + '</b>days with shifts</span><span><b>' + hmImp(t.min) + '</b>paid hours</span><span><b>' + t.aus + '</b>time off</span></div>' +
-    '<div class="imp-zona"><b>The times in the file are in:</b><div class="opciones">' +
-      Object.keys(IMP_ZONAS).map(z => '<label><input type="radio" name="impZona" value="' + z + '"' + (I.zona === z ? ' checked' : '') + '> ' + IMP_ZONAS[z] + '</label>').join('') +
-      '</div><div class="nota" id="iZonaNota">' + zonaNotaImp() + '</div></div>' +
-    '<div class="imp-zona imp-aprob"><b>How should the days come in?</b><div class="opciones">' +
-      '<label><input type="radio" name="impAprob" value="si"' + (I.aprobar ? ' checked' : '') + '> Approved, with the hours Connecteam paid (locked)</label>' +
-      '<label><input type="radio" name="impAprob" value="no"' + (I.aprobar ? '' : ' checked') + '> Not approved — I\'ll review them before paying</label></div>' +
-      '<p class="nota imp-cand" style="margin:6px 0 0">' + (I.aprobar
-        ? IC_CANDADO + '<span>Each imported day is <b>approved</b> with the hours Connecteam paid, so it\'s locked. To change one later, remove its approval first. Use this for pay periods already paid.</span>'
-        : IC.info + '<span>The days come in <b>unapproved</b>: hours are counted from the punches, you can edit them, and you approve them in the Timesheet when you\'re done reviewing.</span>') + '</p></div>' +
-    bloqueC +
-    '<div class="imp-scroll"><table class="imp-tab"><thead><tr><th>In Connecteam</th><th class="num">Days</th><th class="num">Hours</th><th>Dates</th><th>Time Clock user</th><th class="num" title="Things to review">⚠</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
-    (avisos ? '<details class="imp-avisos"><summary>' + D.avisos.length + ' things to review (they\'re imported anyway)</summary><ul>' + avisos + '</ul></details>' : '') +
-    '<p class="nota" style="margin-top:12px">Days that already have punches in the Time Clock are skipped. Personal data in the file (ID, bank, address, birthday) is not imported. You can undo the whole import later from Settings.</p>';
-  const nAct = I.actualizar ? C.cambiados.length : 0;
-  $('iImportar').textContent = !t.nuevos && nAct ? 'Update ' + nAct + (nAct === 1 ? ' day' : ' days')
-    : 'Import ' + nImp(t.nuevos) + (t.nuevos === 1 ? ' day' : ' days') + (nAct ? ' and update ' + nAct : '');
-  $('iImportar').disabled = (!t.dias && !t.aus) || !!I.existFalla; $('iImportar').classList.remove('hidden');
-  if(I.existFalla) $('iCuerpo').insertAdjacentHTML('afterbegin', '<p class="err" style="display:block">Couldn\'t compare this file with the days already imported (the server took too long). Close this window and choose the file again.</p>');
-  $('iCancelar').textContent = 'Cancel';
-  $('iCuerpo').querySelectorAll('select[data-imp]').forEach(s => s.addEventListener('change', () => { I.sel[s.dataset.imp] = s.value; pintarImport(); }));
-  $('iCuerpo').querySelectorAll('input[name=impZona]').forEach(r => r.addEventListener('change', () => { I.zona = r.value; pintarImport(); }));
-  $('iCuerpo').querySelectorAll('input[name=impAprob]').forEach(r => r.addEventListener('change', () => { I.aprobar = r.value === 'si'; pintarImport(); }));
-  if($('iActualizar')) $('iActualizar').addEventListener('change', ev => { I.actualizar = ev.target.checked; pintarImport(); });
-}
-
-function zonaNotaImp(){
-  const d = S.imp && S.imp.det;
-  if(!d) return 'Checking against the Monitor…';
-  if(d.error) return 'Couldn\'t check against the Monitor. Connecteam usually shows Colombia time; check one known day after importing.';
-  if(d.igual) return 'These dates fall in winter, when Colombia and Florida have the same time, so either choice gives the same result.';
-  if(!d.n) return 'The Monitor has no connections for these dates, so it can\'t be checked. Connecteam usually shows Colombia time.';
-  return 'Checked against the Monitor on ' + d.n + ' days: the clock-ins match <b>' + IMP_ZONAS[d.zona] + '</b> (first PC connection about ' + Math.min(d.b, d.ny) + ' min apart, vs ' + Math.max(d.b, d.ny) + ' min with the other).';
-}
-
-async function detectarZonaImp(){
-  const I = S.imp; if(!I) return;
-  try{
-    const monDe = {}; I.emps.forEach(e => { if(e.agenteMonitor) monDe[e.usuario] = e.agenteMonitor.trim().toLowerCase(); });
-    const cand = [];
-    I.datos.personas.forEach(p => { const u = I.sel[p.clave]; if(!u || !monDe[u]) return;
-      p.dias.forEach(d => { if(d.marcas.length && ctZonaOffset(d.fecha, 'America/New_York') !== ctZonaOffset(d.fecha, 'America/Bogota')) cand.push({ ag:monDe[u], fecha:d.fecha, h:d.marcas[0].h }); }); });
-    if(!cand.length){
-      const verano = I.datos.personas.some(p => p.dias.some(d => ctZonaOffset(d.fecha, 'America/New_York') !== ctZonaOffset(d.fecha, 'America/Bogota')));
-      I.det = verano ? { n:0 } : { igual:true };
-    } else {
-      const fechas = [...new Set(cand.map(c => c.fecha))].sort(), paso = Math.max(1, Math.ceil(fechas.length / 40)), dias = fechas.filter((f, i) => i % paso === 0).slice(0, 40);
-      const lat = await api('primerLatido', { dias }), k = {};
-      (lat || []).forEach(x => { k[x.agente + '|' + x.dia] = Date.parse(x.ts); });
-      const muestras = cand.filter(c => k[c.ag + '|' + c.fecha]).map(c => ({ fecha:c.fecha, h:c.h, latido:k[c.ag + '|' + c.fecha] }));
-      I.det = ctDetectarZona(muestras);
-      if(I.det.zona) I.zona = I.det.zona;
-    }
-  }catch(e){ I.det = { error:true }; }
-  if(S.imp !== I || S.impCorriendo || !$('iZonaNota')) return;
-  pintarImport();
-}
-
-$('iImportar').addEventListener('click', async () => {
-  const I = S.imp; if(!I || S.impCorriendo) return;
-  const usados = {};
-  for(const p of I.datos.personas){ const u = I.sel[p.clave]; if(!u || u === '+') continue;
-    if(usados[u]){ $('iErr').textContent = p.nombre + ' ' + p.apellidos + ' and ' + usados[u] + ' are matched to the same Time Clock user. Choose a different one for one of them.'; return; }
-    usados[u] = p.nombre + ' ' + p.apellidos; }
-  $('iErr').textContent = ''; S.impCorriendo = true; $('iImportar').disabled = true; $('iCancelar').disabled = true;
-  const t = totalesImp(), bar = '<div class="imp-barra"><i id="iBarra"></i></div><p class="nota" id="iProg">Starting…</p>';
-  $('iCuerpo').innerHTML = '<p>Importing <b>' + nImp(t.dias) + ' days</b> and <b>' + t.aus + ' time off</b> (' + esc(IMP_ZONAS[I.zona]) + '). Keep this window open.</p>' + bar;
-  const res = { hechos:0, aprobados:0, ausencias:0, actualizados:0, saltados:[] };
-  try{
-    const nuevos = I.datos.personas.filter(p => I.sel[p.clave] === '+').map(p => ({ clave:p.clave, nombre:p.nombre, apellidos:p.apellidos, cuenta:p.cuenta, pagoHora:p.tarifa }));
-    const ini = await api('impInicio', { datos:{ archivo:I.archivo, zona:I.zona, desde:I.datos.desde, hasta:I.datos.hasta, nuevos } });
-    const mapa = Object.assign({}, I.sel, ini.usuarios || {}), quien = {};
-    const dias = [];
-    I.datos.personas.forEach(p => { const u = mapa[p.clave]; if(!u || u === '+') return; quien[u] = p.nombre + ' ' + p.apellidos;
-      p.dias.forEach(d => { if(!d.marcas.length && !d.ausencias.length) return;
-        const act = !!(I.actualizar && I.cambios && I.cambios.set.has(u + '|' + d.fecha));
-        // un día ya importado que no se actualiza conserva su tiempo libre (no se manda otra vez, para no duplicarlo)
-        const ya = !!(I.exist && I.exist[u + '|' + d.fecha]);
-        dias.push({ usuario:u, fecha:d.fecha, marcas:d.marcas, horas: I.aprobar ? d.horas : null, tarifa:d.tarifa, cuenta:d.cuenta, nota:d.nota,
-          ausencias: ya && !act ? [] : d.ausencias, actualizar: act }); }); });
-    const L = 150;
-    for(let i = 0; i < dias.length; i += L){
-      const r = await api('impLote', { id:ini.id, dias:dias.slice(i, i + L) });
-      res.hechos += r.hechos; res.aprobados += r.aprobados; res.ausencias += r.ausencias; res.actualizados += r.actualizados || 0;
-      (r.saltados || []).forEach(s => res.saltados.push(Object.assign({ nombre:quien[s.usuario] || s.usuario }, s)));
-      const hechos = Math.min(dias.length, i + L);
-      $('iBarra').style.width = Math.round(hechos / dias.length * 100) + '%';
-      $('iProg').textContent = nImp(hechos) + ' of ' + nImp(dias.length) + ' days…';
-    }
-    await api('impFin', { id:ini.id, resumen:{ personas:Object.keys(quien).length, nuevos:nuevos.length, avisos:I.datos.avisos.length, aprobar:I.aprobar } });
-    pintarFinImport(res, nuevos.length, null);
-  }catch(e){ pintarFinImport(res, null, e.message); }
-  S.impCorriendo = false; $('iCancelar').disabled = false; S.hoja = null; S.hojaHoy = null; S.emps = null;
-  pintarImportaciones();
-});
-
-function pintarFinImport(res, nuevos, error){
-  const grupos = {};
-  res.saltados.forEach(s => { const k = IMP_POR[s.por] || enIngles(s.por); (grupos[k] = grupos[k] || []).push(s); });
-  const salt = Object.keys(grupos).map(k => '<li><b>' + esc(k) + '</b> (' + grupos[k].length + ')<ul>' +
-    grupos[k].slice(0, 40).map(s => '<li>' + esc(s.nombre) + ' — ' + esc(fechaImp(s.fecha)) + '</li>').join('') + (grupos[k].length > 40 ? '<li>…and ' + (grupos[k].length - 40) + ' more</li>' : '') + '</ul></li>').join('');
-  $('iCuerpo').innerHTML = (error ? '<p class="err" style="display:block">' + esc(error) + '</p><p class="nota">What was saved before the error stays. You can import the same file again: the days already imported are skipped.</p>' : '<p><b>Import finished.</b></p>') +
-    '<div class="imp-res"><span><b>' + nImp(res.hechos) + '</b>days imported</span>' + (res.actualizados ? '<span><b>' + nImp(res.actualizados) + '</b>updated</span>' : '') + '<span><b>' + nImp(res.aprobados) + '</b>approved</span><span><b>' + res.ausencias + '</b>time off</span>' +
-    (nuevos ? '<span><b>' + nuevos + '</b>former employees added</span>' : '') + '<span><b>' + res.saltados.length + '</b>skipped</span></div>' +
-    (salt ? '<details class="imp-avisos"' + (res.saltados.length <= 20 ? ' open' : '') + '><summary>Skipped</summary><ul>' + salt + '</ul></details>' : '') +
-    (nuevos ? '<p class="nota" style="margin-top:10px">Former employees are added as <b>archived</b> and can\'t sign in. They show in the Timesheet only for periods where they have hours.</p>' : '');
-  $('iImportar').classList.add('hidden'); $('iCancelar').textContent = 'Close';
-}
-
-async function pintarImportaciones(){
-  const el = $('impLista'); if(!el) return;
-  try{
-    const l = await api('impLista');
-    if(!l || !l.length){ el.innerHTML = ''; return; }
-    el.innerHTML = '<h3 class="imp-h">Past imports</h3><div class="imp-scroll"><table class="imp-tab"><thead><tr><th>Imported</th><th>File</th><th>Dates</th><th class="num">Days</th><th class="num">Time off</th><th></th></tr></thead><tbody>' +
-      l.map(x => { const r = x.resumen || {};
-        return '<tr' + (x.deshecha_en ? ' class="no"' : '') + '><td>' + esc(fmt(Date.parse(x.creado_en), { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })) + '<small>' + esc(x.creado_por || '') + ' · ' + esc(IMP_ZONAS[x.zona] || x.zona) + '</small></td>' +
-          '<td class="arch">' + esc(x.archivo || '') + '</td><td class="fechas">' + esc(rangoImp(x.desde, x.hasta)) + '</td><td class="num">' + nImp(r.dias) + (r.actualizados ? '<small>' + nImp(r.actualizados) + ' updated</small>' : '') + '</td><td class="num">' + nImp(r.ausencias) + '</td>' +
-          '<td>' + (x.deshecha_en ? '<span class="pill">Undone</span>' : '<button class="btn btn-ghost btn-sm" type="button" data-deshacer="' + x.id + '">Undo</button>') + '</td></tr>'; }).join('') +
-      '</tbody></table></div>';
-    el.querySelectorAll('[data-deshacer]').forEach(b => b.addEventListener('click', async () => {
-      const x = l.find(y => String(y.id) === b.dataset.deshacer), r = (x && x.resumen) || {};
-      const si = await confirmar('Undo this import?', 'This removes the <b>' + nImp(r.dias) + ' days</b> and <b>' + nImp(r.ausencias) + ' time off</b> that came from <b>' + esc(x.archivo || 'this file') + '</b>, and the former employees it added (if they have nothing else). Days that were edited after the import keep their changes, and days this import had updated go back to how they were.', 'Undo import', true);
-      if(!si) return;
-      b.disabled = true;
-      try{ const z = await api('impDeshacer', { id:x.id }); S.hoja = null; S.hojaHoy = null; S.emps = null;
-        toast('Import undone: ' + nImp(z.marcas) + ' punches, ' + nImp(z.aprobaciones) + ' approvals and ' + nImp(z.ausencias) + ' time off removed' +
-          (z.restauradas ? '; the days it had updated are back as they were' : '') + '.'); pintarImportaciones(); }
-      catch(e){ toast(e.message, 'err'); b.disabled = false; }
-    }));
-  }catch(e){ el.innerHTML = '<p class="nota">' + esc(e.message) + '</p>'; }
-}
 
 // ── Testing tools: borrar todo el Reloj ──
 S.borrando = false;
@@ -11621,167 +11160,8 @@ $('odArchivo').addEventListener('change', async () => {
 /* Manage documents: la lista de documentos que se piden y sus reglas */
 $('dcTipos').addEventListener('click', () => { S.dtEdit = null; pintarTipos(); abrir('ovDocTipos'); });
 
-/* ── v82: Import from Connecteam (documentos) ──
-   El ZIP lo arma Claude desde la pestaña de Connecteam: «<Persona>/<Documento>/<entrada>-<parte>-<archivo>» y
-   manifiesto.json (personas con correo y teléfono para emparejar, y cada archivo con su documento, estado y fecha).
-   Nada sale del navegador salvo los archivos, que van a la carpeta de cada empleado en Storage. */
+// nombre de archivo seguro para Storage (lo usan las subidas de documentos y paystubs)
 const dimpLimpio = n => String(n || 'file').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._ -]+/g, '').replace(/\s+/g, '_').replace(/^[._-]+/, '').slice(-90) || 'file';
-const DIMP_ESTADO = { approved:'aprobado', pending:'pendiente', rejected:'rechazado', expired:'aprobado' };
-const DIMP_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-const dimpTitulo = s => String(s || '').toLowerCase().replace(/(^|[\s'-])\p{L}/gu, m => m.toUpperCase());
-// (v83) clase de cada documento del ZIP: 'doc' (de una vez), 'mes' (Forms: cada archivo con su mes) o 'pay' (Payslips)
-const dimpClaseDe = a => a.clase === 'paystub' ? 'pay' : a.periodo ? 'mes' : 'doc';
-function dimpTiposDestino(mensual){ return S.dc.tipos.filter(t => t.activo && !!t.mensual === !!mensual); }
-// el documento de Time Track que corresponde a uno de Connecteam (Contracto 2026 → Contrato 2026)
-function dimpTipoPara(nombre, mensual){
-  const base = x => normal(x).replace(/[0-9]/g, '').replace(/\s+/g, ' ').trim(), b = base(nombre), ts = dimpTiposDestino(mensual);
-  const t = ts.find(x => normal(x.nombre) === normal(nombre)) || ts.find(x => base(x.nombre) === b) || ts.find(x => base(x.nombre).slice(0, 5) === b.slice(0, 5) && b.length >= 4);
-  return t ? String(t.id) : '';
-}
-// el empleado de Time Track: por correo, por nombre, por teléfono y, si no, por todas las palabras del nombre
-function dimpEmparejar(x){
-  const emps = S.dc.emps, dig = v => String(v || '').replace(/\D/g, '').slice(-10), nom = normal(x.nombre + ' ' + x.apellido);
-  let c = x.email ? emps.filter(e => e.email && normal(e.email) === normal(x.email)) : [];
-  if(c.length !== 1) c = emps.filter(e => normal(e.nombre) === nom || normal((e.nombre || '') + ' ' + (e.apellidos || '')) === nom);
-  if(c.length !== 1 && dig(x.telefono).length >= 7) c = emps.filter(e => dig(e.telefono) === dig(x.telefono));
-  if(c.length !== 1){
-    const pal = v => normal(v).split(' ').filter(w => w.length > 1), a = pal(nom);
-    c = emps.filter(e => { const b = pal(e.nombre); const [p, q2] = a.length <= b.length ? [a, b] : [b, a]; return p.length >= 2 && p.every(w => q2.includes(w)); });
-  }
-  return c.length === 1 ? c[0].usuario : '';
-}
-async function abrirDImp(){
-  S.dimp = null; $('diArchivo').value = ''; $('diErr').textContent = ''; $('diProg').textContent = '';
-  if(!S.dc) await cargarDocs(true);
-  pintarDImp(); abrir('ovDImp');
-}
-$('dcImportCT').addEventListener('click', abrirDImp);
-$('diElegir').addEventListener('click', () => { $('diArchivo').value = ''; $('diArchivo').click(); });
-$('diArchivo').addEventListener('change', async () => {
-  const f = $('diArchivo').files[0]; if(!f) return;
-  $('diErr').textContent = ''; $('diProg').textContent = '';
-  try{
-    if(typeof DecompressionStream === 'undefined') throw new Error('This browser can\'t read ZIP files. Use an up-to-date Chrome or Edge.');
-    let z; try{ z = await ctUnzip(await f.arrayBuffer()); }catch(e){ throw new Error(f.name + ' is not the ZIP made from Connecteam.'); }
-    const txt = await z.texto('manifiesto.json'); if(!txt) throw new Error(f.name + ' is not the ZIP made from Connecteam (no manifiesto.json).');
-    const man = JSON.parse(txt); if(man.origen !== 'connecteam' || !Array.isArray(man.archivos)) throw new Error(f.name + ' is not the ZIP made from Connecteam.');
-    const clase = {}; man.archivos.forEach(a => { if(!(a.documento in clase)) clase[a.documento] = dimpClaseDe(a); });
-    (man.documentos || []).forEach(d => { if(!(d.nombre in clase)) clase[d.nombre] = d.clase === 'paystub' ? 'pay' : d.mensual ? 'mes' : 'doc'; });
-    const tipos = {}; Object.keys(clase).forEach(n => { tipos[n] = clase[n] === 'pay' ? 'pay' : dimpTipoPara(n, clase[n] === 'mes'); });
-    const filas = (man.personas || []).map(x => {
-      const usuario = dimpEmparejar(x), arch = man.archivos.filter(a => String(a.ctUserId) === String(x.ctId));
-      return { x, nombre:dimpTitulo((x.nombre + ' ' + x.apellido).trim()), usuario, incluir:!!usuario && arch.length > 0, arch,
-        nota:usuario ? '' : 'Not found in Time Track: choose the employee' };
-    }).filter(r => r.arch.length).sort((a, b) => (a.x.suspendido - b.x.suspendido) || a.nombre.localeCompare(b.nombre, 'en'));
-    S.dimp = { z, man, archivo:f.name, tipos, clase, filas, hecho:null };
-  }catch(e){ S.dimp = null; $('diErr').textContent = e.message; }
-  $('diArchivo').value = ''; pintarDImp();
-});
-const dimpEstado = a => DIMP_ESTADO[normal(a.estado)] || 'aprobado';
-// (v83) los archivos de una persona en la tabla: documentos uno por uno, Forms con su mes, paystubs en un solo recuadro por documento
-function dimpChips(arch, d){
-  const pays = {}, out = [];
-  arch.forEach(a => {
-    const cl = d.clase[a.documento] || dimpClaseDe(a), no = !d.tipos[a.documento];
-    if(cl === 'pay'){ (pays[a.documento] = pays[a.documento] || []).push(a); return; }
-    const es = cl === 'mes' ? 'aprobado' : dimpEstado(a);
-    out.push('<span class="ui-chip' + (no ? ' di-chip-no' : es === 'pendiente' ? ' di-chip-pend' : '') + '" title="' + esc(a.nombreArchivo + ' · uploaded ' + (a.subido ? fechaUS(new Date(a.subido * 1000).toISOString().slice(0, 10)) : '?')) + '">' +
-      esc(a.documento + (cl === 'mes' && a.periodo ? ' · ' + mesTxt(a.periodo, true) : '') + (a.partes > 1 ? ' ' + a.parte + '/' + a.partes : '') + (es === 'pendiente' ? ' · pending' : es === 'rechazado' ? ' · rejected' : '')) + '</span>');
-  });
-  Object.keys(pays).forEach(n => { const l = pays[n].map(a => a.periodoFin).filter(Boolean).sort(), no = !d.tipos[n];
-    out.push('<span class="ui-chip' + (no ? ' di-chip-no' : '') + '" title="' + esc(l.length ? 'Pay periods ' + fechaUS(l[0]) + ' – ' + fechaUS(l[l.length - 1]) : '') + '">' +
-      esc(n + ' ×' + pays[n].length + (l.length ? ' · ' + mesTxt(l[0].slice(0, 7), true) + (l[l.length - 1].slice(0, 7) !== l[0].slice(0, 7) ? ' – ' + mesTxt(l[l.length - 1].slice(0, 7), true) : '') : '')) + '</span>'); });
-  return out.join('');
-}
-function dimpPendientes(){
-  const d = S.dimp; if(!d) return [];
-  return d.filas.filter(r => r.incluir && r.usuario).flatMap(r => r.arch.filter(a => d.tipos[a.documento]).map(a => ({ r, a })));
-}
-function pintarDImp(){
-  const d = S.dimp;
-  if(!d){ $('diInfo').innerHTML = '<p class="nota">In Connecteam the files were packed in a ZIP (in your Downloads folder). Choose it here.</p>';
-    ['diTipos', 'diTabla'].forEach(id => { $(id).innerHTML = ''; }); $('diResumen').textContent = ''; $('diImportar').classList.add('hidden'); return; }
-  const m = d.man, emps = S.dc.emps.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
-  $('diInfo').innerHTML = '<div class="ui-arch"><b>' + esc(d.archivo) + '</b> · ' + m.archivos.length + ' files · ' + d.filas.length + ' people' +
-    (m.generado ? ' · made ' + esc(fechaUS(String(m.generado).slice(0, 10))) : '') + '</div>';
-  const docsCT = Object.keys(d.tipos).sort((a, b) => a.localeCompare(b, 'en'));
-  $('diTipos').innerHTML = '<div class="di-tipos"><b>Where each Connecteam document goes</b>' + docsCT.map((n, i) => {
-    const k = m.archivos.filter(a => a.documento === n).length, cl = d.clase[n] || 'doc';
-    const ops = cl === 'pay' ? [{ v:'pay', n:'Paystubs' }] : dimpTiposDestino(cl === 'mes').map(t => ({ v:String(t.id), n:t.nombre + (cl === 'mes' ? ' (monthly)' : '') }));
-    return '<label class="di-tipo"><span class="di-ct">' + esc(n) + ' <span class="muted">(' + k + ' file' + (k === 1 ? '' : 's') + (cl === 'mes' ? ', each to its month' : cl === 'pay' ? ', each to its pay period' : '') + ')</span></span><span aria-hidden="true">→</span>' +
-      '<select data-di-tipo="' + i + '" aria-label="Time Track document for ' + esc(n) + '"><option value="">— Don\'t import</option>' +
-      ops.map(o => '<option value="' + o.v + '"' + (o.v === d.tipos[n] ? ' selected' : '') + '>' + esc(o.n) + '</option>').join('') + '</select></label>'; }).join('') + '</div>';
-  d.docsCT = docsCT;
-  const lista = dimpPendientes(), pend = lista.filter(x => dimpEstado(x.a) === 'pendiente').length, rech = lista.filter(x => dimpEstado(x.a) === 'rechazado').length;
-  const gente = new Set(lista.map(x => x.r.usuario)).size, sinEmp = d.filas.filter(r => !r.usuario).length, ex = d.filas.filter(r => r.incluir && r.x.suspendido).length;
-  const nPay = lista.filter(x => d.clase[x.a.documento] === 'pay').length, nMes = lista.filter(x => d.clase[x.a.documento] === 'mes').length;
-  $('diResumen').innerHTML = '<b>' + lista.length + '</b> files to import for <b>' + gente + '</b> people' + (ex ? ' (' + ex + ' former employees)' : '') + '. ' +
-    (nMes || nPay ? [nMes ? nMes + ' from Forms, each to its month' : '', nPay ? nPay + ' paystubs' : ''].filter(Boolean).join(' · ') + '. ' : '') +
-    (pend ? pend + ' arrive <b>pending</b> for you to review. ' : '') + (rech ? rech + ' arrive rejected. ' : '') +
-    (sinEmp ? '<b class="ui-falta">' + sinEmp + ' not found in Time Track: choose the employee or leave them unchecked.</b> ' : '') +
-    '<span class="nota">Files already imported are skipped.</span>';
-  $('diTabla').innerHTML = '<table class="emps ui-t"><thead><tr><th></th><th>Connecteam</th><th>Time Track employee</th><th>Files</th></tr></thead><tbody>' + d.filas.map((r, i) =>
-    '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-di-i="' + i + '"' + (r.incluir ? ' checked' : '') + (r.usuario ? '' : ' disabled') + ' aria-label="Import ' + esc(r.nombre) + '"></td>' +
-    '<td><b>' + esc(r.nombre) + '</b>' + (r.x.suspendido ? ' <span class="pill pill-arch">Former</span>' : '') + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
-    '<td><select data-di-u="' + i + '" aria-label="Time Track employee for ' + esc(r.nombre) + '"><option value="">— Choose…</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
-      esc(x.nombre + (x.activo ? '' : ' (archived)')) + '</option>').join('') + '</select></td>' +
-    '<td>' + dimpChips(r.arch, d) + '</td></tr>').join('') + '</tbody></table>';
-  const b = $('diImportar'); b.classList.toggle('hidden', !!d.hecho); b.disabled = !lista.length; b.textContent = 'Import ' + lista.length + (lista.length === 1 ? ' file' : ' files');
-}
-$('diTipos').addEventListener('change', ev => { const s2 = ev.target.closest('[data-di-tipo]'); if(!s2 || !S.dimp) return; S.dimp.tipos[S.dimp.docsCT[Number(s2.dataset.diTipo)]] = s2.value; pintarDImp(); });
-$('diTabla').addEventListener('change', ev => {
-  const c = ev.target.closest('[data-di-i]'), s2 = ev.target.closest('[data-di-u]'); if(!S.dimp) return;
-  if(c) S.dimp.filas[Number(c.dataset.diI)].incluir = c.checked;
-  if(s2){ const r = S.dimp.filas[Number(s2.dataset.diU)]; r.usuario = s2.value; r.incluir = !!s2.value; r.nota = s2.value ? '' : 'Not found in Time Track: choose the employee'; }
-  pintarDImp();
-});
-$('diImportar').addEventListener('click', async () => {
-  const d = S.dimp, lista = dimpPendientes(); if(!d || !lista.length) return;
-  const b = $('diImportar'); b.disabled = true; $('diErr').textContent = '';
-  let nuevos = 0, ya = 0, sig = 0, listos = 0, parar = false; const errores = [];
-  // (v84) lo que ya está en Time Track se salta sin llamar a Supabase
-  $('diProg').innerHTML = '<span class="spin dark"></span> Checking what is already in Time Track…';
-  try{ S.dc = await api('docsAdmin'); }catch(e){}
-  const yaEsta = new Set();
-  (S.dc.docs || []).concat(S.dc.paystubs || []).forEach(x => { const m = String(x.archivo || '').match(/^([^/]+)\/([^/]+)\/(ct\d+-\d+|cf[0-9a-f]+-\d+|ctp\d+)-/); if(m) yaEsta.add(m[1] + '/' + m[2] + '/' + m[3]); });
-  const claveDe = ({ r, a }) => d.clase[a.documento] === 'pay' ? r.usuario + '/paystubs/' + (a.clave || ('ctp' + a.ctId))
-    : r.usuario + '/' + Number(d.tipos[a.documento]) + '/' + (a.clave || ('ct' + a.entrada + '-' + (a.parte || 1)));
-  // (v84) Supabase ocupado (demasiadas conexiones, error 5xx, red): esperar y reintentar
-  const pasajero = e => /too many connections|internal server error|bad gateway|service unavailable|gateway time|timeout|timed out|failed to fetch|network|load failed|rate limit|\b(429|500|502|503|504)\b/i.test(String(e && e.message || e));
-  const conReintentos = async it => {
-    for(let i = 0; ; i++){
-      try{ return await uno(it); }
-      catch(e){ if(i >= 4 || !pasajero(e)) throw e; await new Promise(r => setTimeout(r, [1500, 4000, 8000, 15000][i])); }
-    }
-  };
-  const uno = async ({ r, a }) => {
-    const datos = await d.z.bytes(a.ruta); if(!datos) throw new Error('the file is not in the ZIP');
-    const ext = String(a.nombreArchivo || '').split('.').pop(), mime = DIMP_MIMES.includes(a.mime) ? a.mime : docMime(a.nombreArchivo);
-    if(d.clase[a.documento] === 'pay')
-      return api('docPayImportar', { usuario:r.usuario, clave:a.clave || ('ctp' + a.ctId), nombre:a.nombreArchivo || ('paystub.' + ext), mime, datos,
-        periodoFin:a.periodoFin, enviado:a.subido || null });
-    return api('docImportar', { usuario:r.usuario, tipoId:Number(d.tipos[a.documento]), clave:a.clave || ('ct' + a.entrada + '-' + (a.parte || 1)), periodo:a.periodo || null,
-      nombre:a.nombreArchivo || ('documento.' + ext), mime, datos, estado:dimpEstado(a), subido:a.subido || null, revisado:a.revisado || null });
-  };
-  // de a 2 a la vez (de a 4 saturaba las conexiones de Supabase)
-  const trabajador = async () => {
-    while(!parar && sig < lista.length){
-      const it = lista[sig++];
-      if(yaEsta.has(claveDe(it))){ ya++; listos++; continue; }
-      try{ const x = await conReintentos(it); if(x && x.ya) ya++; else nuevos++; }
-      catch(e){ errores.push(it.r.nombre + ' · ' + it.a.documento + (it.a.periodo ? ' ' + it.a.periodo : it.a.periodoFin ? ' ' + it.a.periodoFin : '') + ': ' + e.message); if(/SQL step 5[01]/.test(e.message)) parar = true; }
-      listos++;
-      $('diProg').innerHTML = '<span class="spin dark"></span> Importing ' + listos + ' of ' + lista.length + '… ' + esc(it.r.nombre + ' · ' + it.a.documento);
-    }
-  };
-  await Promise.all([1, 2].map(trabajador));
-  d.hecho = { nuevos, ya, errores };
-  $('diProg').innerHTML = '<b>Done.</b> ' + nuevos + ' file' + (nuevos === 1 ? '' : 's') + ' imported' + (ya ? ', ' + ya + ' were already in Time Track' : '') +
-    (errores.length ? ', <b class="ui-falta">' + errores.length + ' with problems</b>' : '') + '.';
-  if(errores.length) $('diErr').innerHTML = errores.map(esc).join('<br>');
-  b.disabled = false; pintarDImp(); cargarDocs(true);
-  toast(nuevos + ' files imported from Connecteam.');
-});
 function pintarTipos(){
   const dc = S.dc; if(!dc) return;
   if(S.dtEdit !== null && S.dtEdit !== undefined) return pintarTipoForm();
@@ -12398,178 +11778,6 @@ async function invAccion(f, b){
   try{ await f(); await cargarInv(true); pintarInvFicha(); }
   catch(e){ $('ivErr').textContent = e.message; if(b) b.disabled = false; }
 }
-
-/* ── Users → Import from Connecteam (v59): la lista de usuarios activos y archivados ──
-   El administrador sube los archivos que exporta Connecteam (Users → Export; .xls o .xlsx). Se leen en el navegador,
-   se muestran para revisar (a quién encontró, a quién crea, qué datos llena) y solo al confirmar se guardan (paso 40).
-   Nunca cambia lo que ya hay en el Time Clock: solo llena lo vacío. Los datos sensibles no se muestran (solo el nombre del campo). */
-const UIMP_CAMPOS = {   // encabezado de Connecteam (en minúsculas, sin tildes) → campo
-  'first name':'nombre', 'last name':'apellidos',
-  'email':'email', 'e-mail':'email', 'email address':'email', 'correo':'email', 'correo electronico':'email',
-  'mobile phone':'telefono', 'phone':'telefono', 'phone number':'telefono', 'mobile':'telefono', 'cell phone':'telefono', 'telefono':'telefono', 'celular':'telefono',
-  'birthday':'cumpleanos', 'date of birth':'cumpleanos', 'birth date':'cumpleanos', 'birthdate':'cumpleanos', 'fecha de nacimiento':'cumpleanos', 'cumpleanos':'cumpleanos',
-  'address':'direccion', 'home address':'direccion', 'street address':'direccion', 'direccion':'direccion',
-  'city':'ciudad', 'ciudad':'ciudad',
-  'id type':'tipoId', 'document type':'tipoId', 'tipo de documento':'tipoId', 'tipo id':'tipoId', 'type of id':'tipoId', 'id_type':'tipoId',
-  'identification type':'tipoId', 'type of identification':'tipoId', 'id document type':'tipoId', 'tipo de identificacion':'tipoId', 'tipo de id':'tipoId',
-  'id number':'numId', 'document number':'numId', 'national id':'numId', 'identification number':'numId', 'cedula':'numId', 'numero de documento':'numId', 'documento':'numId', 'id':'numId',
-  'bank':'banco', 'bank name':'banco', 'banco':'banco', 'nombre del banco':'banco',
-  'account number':'cuentaBanco', 'account_number':'cuentaBanco', 'bank_account':'cuentaBanco', 'bank account':'cuentaBanco', 'bank account number':'cuentaBanco', 'numero de cuenta':'cuentaBanco', 'cuenta bancaria':'cuentaBanco', 'numero de cuenta bancaria':'cuentaBanco',
-  'country code':'codPais', 'branch':'branch', 'direct manager':'jefe', 'manager':'jefe', 'jefe directo':'jefe',
-  'default rate':'pagoHora', 'pay rate':'pagoHora', 'hourly rate':'pagoHora', 'pay rate type':'tipoPago',
-  'employment start date':'fechaIngreso', 'start date':'fechaIngreso', 'hire date':'fechaIngreso',
-  'department':'departamento', 'title':'titulo', 'archived at':'archivadoEn'
-};
-const UIMP_IGNORAR = ['kiosk code', 'last login', 'date added', 'added by', 'archived by'];
-const UIMP_NOMBRE = { apellidos:'Last name', email:'Email', telefono:'Phone', cumpleanos:'Birthday', direccion:'Address', ciudad:'City', tipoId:'ID type', numId:'ID number',
-  banco:'Bank', cuentaBanco:'Account number', fechaIngreso:'Start date', departamento:'Department', cuenta:'Account', jefe:'Direct manager', pagoHora:'Pay rate', titulo:'Title' };
-const UIMP_CUENTA = { 'total sleep':'Total Sleep', 'gastro':'Gastroenterology', 'cardio':'Cardiovascular', 'mab pulmonary':'Pulmonary', 'pulmonary':'Pulmonary',
-  'white':'White Wilson', 'white wilson':'White Wilson', '24/7 medical':'24/7 Call Center', 'access':'Access Medical', 'access medical':'Access Medical',
-  'access campaign':'Access Medical', 'cardiovascular':'Cardiovascular', 'gastroenterology':'Gastroenterology' };
-const uimpTitulo = s => /[a-z]/.test(s) ? s : s.toLowerCase().replace(/(^|[\s'-])([a-zñáéíóú])/g, (m, a, b) => a + b.toUpperCase());
-// fecha de Connecteam: «08/20/2026», número de Excel o «2026-08-20» → AAAA-MM-DD
-function uimpFecha(v){
-  if(v === '' || v == null) return '';
-  if(typeof v === 'number' && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000).toISOString().slice(0, 10);
-  const s = String(v).trim(); let m;
-  if((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
-  if((m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s))) return m[0];
-  return '';
-}
-// la cuenta oficial (lista del Monitor) a partir del «Title» de Connecteam
-function uimpCuenta(t){
-  const n = normal(t); if(!n) return '';
-  const lista = (listas().cuentas || []), por = x => lista.find(c => normal(c) === normal(x));
-  return por(t) || (UIMP_CUENTA[n] && por(UIMP_CUENTA[n])) || lista.find(c => normal(c).startsWith(n + ' ') || normal(c).startsWith(n)) || '';
-}
-// leer un archivo: el .xls de Connecteam es una tabla HTML; también acepta .xlsx y .csv
-async function uimpLeer(file){
-  const buf = await file.arrayBuffer(), ini = new TextDecoder('utf-8').decode(buf.slice(0, 600)).replace(/^﻿/, '').trim().toLowerCase();
-  let filas;
-  if(ini.startsWith('<')){
-    const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), 'text/html');
-    const t = doc.querySelector('table'); if(!t) throw new Error(file.name + ': no table found in the file.');
-    filas = [...t.rows].map(r => [...r.cells].map(c => c.textContent.replace(/\s+/g, ' ').trim()));
-  } else if(/\.xlsx$/i.test(file.name)) filas = (await ctLeerXlsx(buf)).map(f => Array.from(f || [], v => v == null ? '' : v));
-  else if(/\.csv$/i.test(file.name)){
-    filas = new TextDecoder('utf-8').decode(buf).replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).map(l => { const out = []; let c = '', q = false;
-      for(let i = 0; i < l.length; i++){ const ch = l[i]; if(q){ if(ch === '"' && l[i + 1] === '"'){ c += '"'; i++; } else if(ch === '"') q = false; else c += ch; }
-        else if(ch === '"') q = true; else if(ch === ','){ out.push(c); c = ''; } else c += ch; } out.push(c); return out; });
-  } else throw new Error(file.name + ': use the .xls / .xlsx file exported from Connecteam.');
-  const h = filas.findIndex(f => f.some(c => normal(String(c)) === 'first name'));
-  if(h < 0) throw new Error(file.name + ': it doesn\'t look like the Connecteam users list (no «First name» column).');
-  const cab = filas[h].map(c => normal(String(c))), mapa = {}, otras = [];
-  cab.forEach((c, i) => { if(!c) return; if(UIMP_CAMPOS[c]) mapa[UIMP_CAMPOS[c]] = i; else if(!UIMP_IGNORAR.includes(c)) otras.push(String(filas[h][i])); });
-  const val = (f, k) => mapa[k] == null ? '' : (f[mapa[k]] == null ? '' : f[mapa[k]]);
-  const gente = filas.slice(h + 1).filter(f => String(val(f, 'nombre')).trim()).map(f => {
-    const nom = uimpTitulo(String(val(f, 'nombre')).trim()), ape = uimpTitulo(String(val(f, 'apellidos')).trim()), tit = String(val(f, 'titulo')).trim(), br = String(val(f, 'branch')).trim();
-    // la cuenta: primero «Branch» (Connecteam la tiene con el nombre completo), si no «Title»
-    const x = { nombre:(nom + ' ' + ape).trim(), apellidos:ape, archivadoEn:uimpFecha(val(f, 'archivadoEn')), titulo:tit, branch:br, cuenta:uimpCuenta(br) || uimpCuenta(tit) };
-    ['email', 'telefono', 'direccion', 'ciudad', 'tipoId', 'numId', 'banco', 'cuentaBanco', 'departamento'].forEach(k => { x[k] = String(val(f, k)).trim(); });
-    const cp = String(val(f, 'codPais')).replace(/\D/g, '');   // «57» + «3001234567» → «+57 3001234567»
-    if(cp && x.telefono && !/^\+/.test(x.telefono)) x.telefono = '+' + cp + ' ' + x.telefono;
-    x.jefe = uimpTitulo(String(val(f, 'jefe')).trim());
-    const tp = normal(String(val(f, 'tipoPago'))), pr = Number(String(val(f, 'pagoHora')).replace(/[^0-9.]/g, ''));   // «$9.5», solo si es por hora
-    x.pagoHora = (!tp || /hour/.test(tp)) && String(val(f, 'pagoHora')).trim() && pr > 0 && pr < 1000 ? String(pr) : '';
-    x.cumpleanos = uimpFecha(val(f, 'cumpleanos')); x.fechaIngreso = uimpFecha(val(f, 'fechaIngreso'));
-    x.tipoId = uimpTipo(x.tipoId);
-    return x; });
-  return { archivo:file.name, archivados:mapa.archivadoEn != null, gente, otras, campos:Object.keys(mapa).filter(k => UIMP_NOMBRE[k] || k === 'telefono') };
-}
-// tipo de documento → el nombre de la lista (Settings → ID type)
-const UIMP_TIPO = { 'cc':'CC', 'cedula':'CC', 'cedula de ciudadania':'CC', 'c.c.':'CC', 'citizenship card':'CC', 'national id':'CC',
-  'ce':'CE', 'cedula de extranjeria':'CE', 'c.e.':'CE', 'foreign id':'CE', 'pasaporte':'Passport', 'passport':'Passport', 'pp':'Passport',
-  'ssn':'SSN', 'social security':'SSN', 'social security number':'SSN', 'ppt':'PPT', 'permiso por proteccion temporal':'PPT', 'pep':'PEP', 'ti':'TI', 'tarjeta de identidad':'TI' };
-function uimpTipo(t){
-  const n = normal(t); if(!n) return '';
-  const lista = listas().tiposId || [], por = x => lista.find(c => normal(c) === normal(x));
-  return por(t) || (UIMP_TIPO[n] && (por(UIMP_TIPO[n]) || UIMP_TIPO[n])) || String(t).trim();
-}
-// la fila como se manda: con el tipo por omisión si trae número y no trae tipo
-function uimpDatos(r){
-  const def = $('uiTipoId') ? $('uiTipoId').value : '';
-  return Object.assign({}, r.x, { tipoId:r.x.tipoId || (r.x.numId && def) || '' });
-}
-const uimpNoPersona = n => /^zz\b/i.test(n) || /\bconsults?\b/i.test(n);
-// qué datos llenaría en un empleado (solo lo vacío)
-function uimpCampos(x, e){
-  const vacio = v => v == null || String(v).trim() === '';
-  return Object.keys(UIMP_NOMBRE).filter(k => !vacio(x[k]) && (!e || vacio(e[k])));
-}
-function abrirUImp(){ S.uimp = { archivos:[], filas:[] };
-  const tv = $('uiTipoId').value; llenarSelect('uiTipoId', listas().tiposId || [], ''); $('uiTipoId').value = tv && (listas().tiposId || []).includes(tv) ? tv : '';
-  $('uiTipoId').options[0].textContent = '— (leave empty)'; $('uiArchivo').value = ''; $('uiErr').textContent = ''; pintarUImp(); abrir('ovUImp'); }
-/* v212: Import from Connecteam quitado */
-$('uiElegir').addEventListener('click', () => { $('uiArchivo').value = ''; $('uiArchivo').click(); });
-$('uiArchivo').addEventListener('change', async () => {
-  const fs = [...$('uiArchivo').files]; if(!fs.length) return;
-  $('uiErr').textContent = '';
-  for(const f of fs){
-    try{ const a = await uimpLeer(f); S.uimp.archivos = S.uimp.archivos.filter(x => x.archivo !== a.archivo).concat([a]); }
-    catch(e){ $('uiErr').textContent = e.message; }
-  }
-  $('uiArchivo').value = '';   // para poder elegir otra vez los mismos archivos
-  uimpArmar(); pintarUImp();
-});
-// junta los archivos y empareja con los empleados del Time Clock (por nombre o por correo)
-function uimpArmar(){
-  const emps = S.emps.empleados, filas = [], vistos = {};
-  // primero los activos: si alguien sale en los dos archivos, cuenta como activo
-  S.uimp.archivos.slice().sort((a, b) => a.archivados - b.archivados).forEach(a => a.gente.forEach(x => {
-    const k = normal(x.nombre);
-    if(vistos[k]){ vistos[k].nota = 'Also in ' + a.archivo + ' (uses the active one)'; return; }
-    const cands = emps.filter(e => normal(e.nombre) === k || (x.email && normal(e.email) === normal(x.email)));
-    const r = { x, archivo:a.archivo, archivado:!!(a.archivados && x.archivadoEn), usuario:cands.length === 1 ? cands[0].usuario : '', incluir:!uimpNoPersona(x.nombre),
-      nota:uimpNoPersona(x.nombre) ? 'Doesn\'t look like a person' : cands.length > 1 ? 'Several employees with this name: choose one' : '' };
-    vistos[k] = r; filas.push(r); }));
-  S.uimp.filas = filas.sort((a, b) => (a.archivado - b.archivado) || a.x.nombre.localeCompare(b.x.nombre));
-}
-function pintarUImp(){
-  const u = S.uimp, emps = S.emps.empleados.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
-  $('uiArchivos').innerHTML = u.archivos.length ? u.archivos.map(a => '<div class="ui-arch"><b>' + esc(a.archivo) + '</b> · ' + a.gente.length + ' users · ' +
-      (a.archivados ? '<span class="pill pill-arch">Archived list</span>' : '<span class="pill">Active list</span>') +
-      (a.campos.length ? '<small>Data in the file: ' + esc(a.campos.map(k => UIMP_NOMBRE[k]).filter(Boolean).join(', ')) + '</small>' : '') +
-      (a.otras.length ? '<small>Not imported: ' + esc(a.otras.join(', ')) + '</small>' : '') + '</div>').join('')
-    : '<p class="nota">Choose the Users files exported from Connecteam (active and archived). You can choose both at once.</p>';
-  if(!u.filas.length){ $('uiTabla').innerHTML = ''; $('uiImportar').classList.add('hidden'); $('uiResumen').textContent = ''; return; }
-  const n = u.filas.filter(r => r.incluir), nuevos = n.filter(r => !r.usuario).length, arch = n.filter(r => r.archivado).length;
-  $('uiResumen').innerHTML = '<b>' + n.length + '</b> to import · ' + (n.length - nuevos) + ' already in the Time Clock · ' + nuevos + ' new · ' + arch + ' archived. ' +
-    (function(){ const t = n.filter(r => { const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario); return uimpCampos(uimpDatos(r), e).includes('tipoId'); }).length,
-        sin = n.filter(r => r.x.numId && !uimpDatos(r).tipoId).length;
-      return (t ? t + ' get an ID type. ' : '') + (sin ? '<b class="ui-falta">' + sin + ' with an ID number and no ID type: choose one above.</b> ' : ''); })() +
-    '<span class="nota">Nobody is activated. Only empty data is filled in; nothing that\'s already in the Time Clock changes.</span>';
-  $('uiTabla').innerHTML = '<table class="emps ui-t"><thead><tr><th></th><th>Connecteam</th><th>In the Time Clock</th><th>Data to fill in</th></tr></thead><tbody>' + u.filas.map((r, i) => {
-    const e = r.usuario && S.emps.empleados.find(x => x.usuario === r.usuario), cs = uimpCampos(uimpDatos(r), e);
-    return '<tr class="' + (r.incluir ? '' : 'inact') + '"><td><input type="checkbox" data-ui-i="' + i + '"' + (r.incluir ? ' checked' : '') + ' aria-label="Import ' + esc(r.x.nombre) + '"></td>' +
-      '<td><b>' + esc(r.x.nombre) + '</b>' + (r.archivado ? ' <span class="pill pill-arch">Archived ' + esc(fechaUS(r.x.archivadoEn)) + '</span>' : '') +
-        '<small>' + esc([r.x.branch || r.x.titulo, r.x.departamento].filter(Boolean).join(' · ')) + '</small>' + (r.nota ? '<small class="ui-nota">' + esc(r.nota) + '</small>' : '') + '</td>' +
-      '<td><select data-ui-u="' + i + '"><option value="">+ Create new (archived until you activate them)</option>' + emps.map(x => '<option value="' + esc(x.usuario) + '"' + (x.usuario === r.usuario ? ' selected' : '') + '>' +
-        esc(x.nombre + (x.activo ? ' (active)' : ' (archived)')) + '</option>').join('') + '</select></td>' +
-      '<td>' + (cs.length ? cs.map(k => '<span class="ui-chip">' + esc(UIMP_NOMBRE[k]) + '</span>').join('') : '<span class="muted">Nothing new</span>') + '</td></tr>'; }).join('') + '</tbody></table>';
-  $('uiImportar').classList.remove('hidden'); $('uiImportar').disabled = !n.length; $('uiImportar').textContent = 'Import ' + n.length + (n.length === 1 ? ' user' : ' users');
-}
-$('uiTipoId').addEventListener('change', () => { if(S.uimp && S.uimp.filas.length) pintarUImp(); });
-$('uiTabla').addEventListener('change', ev => {
-  const c = ev.target.closest('[data-ui-i]'), s = ev.target.closest('[data-ui-u]');
-  if(c) S.uimp.filas[Number(c.dataset.uiI)].incluir = c.checked;
-  if(s){ const r = S.uimp.filas[Number(s.dataset.uiU)]; r.usuario = s.value; if(/choose one/.test(r.nota)) r.nota = ''; }
-  pintarUImp();
-});
-$('uiImportar').addEventListener('click', async () => {
-  const rs = S.uimp.filas.filter(r => r.incluir), b = $('uiImportar');
-  const dup = {}; for(const r of rs){ if(r.usuario){ if(dup[r.usuario]) return $('uiErr').textContent = 'Two rows point to the same employee (' + ((S.emps.empleados.find(e => e.usuario === r.usuario) || {}).nombre || r.usuario) + '). Choose another one or uncheck one.'; dup[r.usuario] = 1; } }
-  b.disabled = true; b.innerHTML = '<span class="spin"></span> Importing…'; $('uiErr').textContent = '';
-  try{
-    let tot = { creados:0, actualizados:0, archivados:0, avisos:[] };
-    for(let i = 0; i < rs.length; i += 100){
-      const r = await api('importarUsuarios', { archivo:S.uimp.archivos.map(a => a.archivo).join(', '), filas:rs.slice(i, i + 100).map(r => Object.assign(uimpDatos(r), { usuario:r.usuario || null,
-        archivadoEn:r.archivado ? r.x.archivadoEn : '' })) });
-      tot.creados += r.creados; tot.actualizados += r.actualizados; tot.archivados += r.archivados; tot.avisos = tot.avisos.concat(r.avisos || []);
-    }
-    S.emps = await api('empleados'); pintarEmps(); cerrar('ovUImp');
-    toast('Imported: ' + tot.creados + ' new, ' + tot.actualizados + ' updated, ' + tot.archivados + ' archived.' + (tot.avisos.length ? ' ' + tot.avisos.length + ' email(s) were already used by someone else and were skipped.' : ''));
-  }catch(e){ $('uiErr').textContent = e.message; b.disabled = false; b.textContent = 'Import'; }
-});
 
 /* ── Updates (v62): comunicados para los agentes ──
    El administrador escribe un comunicado (texto, fotos y archivos) para todos o para grupos (cuenta, título, ciudad)
@@ -14663,15 +13871,14 @@ const SOLO247 = [
   { k:'ica', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays. Off: no withholding, no Rete ICA column or total.' },
   { k:'fuentes', pago:true, t:'Paid from Nómina 247 or Personal', d:'Two payment sources with their own totals, plus the Bank template (247) and Personal payments files. Off: everyone is paid from one place.' },
   { k:'aportes', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours. Off: everyone is paid by hours and nothing is taken off.' },
-  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format (Paystubs reads it) and import pay periods already paid from it.' },
-  { k:'connecteam', t:'Import from Connecteam', d:'Bring documents, Forms and Payslips from the Connecteam ZIP (Documents).' }
+  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format (Paystubs reads it) and import pay periods already paid from it.' }
 ];
 const solo247 = k => { const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };
 const pagoComoProducto = () => SOLO247.some(x => x.pago && !solo247(x.k));
 const soloPago = k => cerradaPago() || solo247(k);   // una nómina cerrada se ve como se pagó
 function aplicarSolo247(){
   const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !solo247(k)); };
-  t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('dcImportCT', 'connecteam'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
+  t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
   t('ajFilaTope', 'tope'); t('ajFilaIca', 'ica');
   const off = SOLO247.filter(x => !solo247(x.k)).length, a = $('soloAviso'), adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
   if(a){ a.classList.toggle('hidden', !(adm && off)); a.textContent = 'Product preview · ' + off + (off === 1 ? ' 24/7 feature' : ' 24/7 features') + ' off'; }
