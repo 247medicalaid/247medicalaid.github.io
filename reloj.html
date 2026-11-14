@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v343-202611132240">
+<meta name="app-build" content="v344-202611132250">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -458,7 +458,13 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .pr-param .pr-num{flex:0 0 128px}
 .pr-param .pr-num > span{white-space:nowrap}
 .pr-g-dolar.pr-cop{flex-basis:640px}
-.pr-param .pr-cop .pr-tasa{flex:1 1 150px}
+.pr-param .pr-cop .pr-cambio{flex-wrap:nowrap}
+.pr-param .pr-cop .pr-trm{flex:0 1 164px;min-width:140px}
+.pr-param .pr-cop .pr-num{flex:0 1 128px;min-width:100px}
+.pr-param .pr-cop .pr-tasa{flex:1 0 auto;margin-left:auto;text-align:right}
+.pr-param .pr-cop .pr-tasa > span{white-space:nowrap}
+.pr-param .pr-cop .pr-tasa .pr-regla-nota{max-width:230px;margin-left:auto;line-height:1.35}
+@media (max-width:700px){ .pr-param .pr-cop .pr-cambio{flex-wrap:wrap} .pr-param .pr-cop .pr-tasa{margin-left:0;text-align:left} }
 .pr-param .pr-num input{text-align:right}
 .pr-param .pr-num input:disabled,.pr-param .pr-trm input:disabled{background:transparent;border-color:transparent;color:var(--text);padding-left:0}
 .pr-nota-fila{flex:1 0 100%;margin-top:-4px}
@@ -14264,7 +14270,7 @@ function pintarCambioPago(R, dis, cerr){
         (cerr ? '' : '<button class="btn btn-ghost btn-sm" data-cambio-get="' + m + '" type="button" title="Get the rate for the payment date">Get</button>') + '</div>' +
         '<small class="hidden" data-cambio-nota="' + m + '">' + esc(c.nota || '') + '</small></div>' + camposCop +
       '<div class="campo pr-tasa"><span>' + esc(cm.base === 'USD' ? 'Dollar' : cm.base) + ' paid at' + infoI(esCop ? (propia ? 'This pay period uses its own compensation or maximum.' : 'Default rule: ' + textoRegla('COP', R) + ' (Settings → Pay & currency).') : textoRegla(m, R) + ' (Settings → Pay & currency).') + '</span>' +
-        '<b>' + (tasa ? simboloMon(m) + tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:tasa < 10 ? 4 : 2 }) : '—') + '</b></div>' + (notaRegla ? '<div class="pr-nota-fila">' + notaRegla + '</div>' : '') + '</div>';
+        '<b>' + (tasa ? simboloMon(m) + tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:tasa < 10 ? 4 : 2 }) : '—') + '</b>' + notaRegla + '</div></div>';   // (v344) la nota va debajo del valor
   }).join('') + '</div>';
 }
 function pintarResumenPago(){
