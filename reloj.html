@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v338-202611131830">
+<meta name="app-build" content="v339-202611131945">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -15076,8 +15076,10 @@ function pintarCambioPago(R, dis, cerr){
     const c = (P.cambio || {})[m] || {}, tasa = tasaMon(m, c.base, R), esCop = m === 'COP';
     const regla = esCop
       ? '<div class="pr-regla">TRM + <input type="number" id="pyExtra" min="0" max="5000" step="1" inputmode="numeric" value="' + Number(R.extra) + '" aria-label="Amount added to the TRM"' + dis + '>' +
-        ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '></div>' +
-        (Number(R.extra) !== Number(reglasPago().extra) || Number(R.tope) !== Number(reglasPago().tope)
+        (topeOn(R) ? ' up to <input type="number" id="pyTope" min="0" max="20000" step="1" inputmode="numeric" value="' + Number(R.tope) + '" aria-label="Maximum pesos per dollar"' + dis + '>'
+          : '<input type="hidden" id="pyTope" value="' + Number(R.tope) + '">') + '</div>' +   // (v339) sin tope (24/7 only): no se muestra
+
+        (Number(R.extra) !== Number(reglasPago().extra) || (topeOn(R) && Number(R.tope) !== Number(reglasPago().tope))
           ? '<small class="pr-regla-nota">Default: ' + esc(textoRegla('COP', reglasPago())) + (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
           : '<small>Default rule (Settings → Pay &amp; currency).</small>')
       : '<small>' + esc(textoRegla(m, R)) + ' (Settings → Pay &amp; currency).</small>';
