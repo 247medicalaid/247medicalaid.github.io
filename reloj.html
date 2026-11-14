@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v350-202611140010">
+<meta name="app-build" content="v351-202611140130">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -456,6 +456,17 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .ajm-x{border:0;background:transparent;font-size:18px;color:var(--text-muted);cursor:pointer;border-radius:7px;height:28px}
 .ajm-x:hover{background:var(--sand-2);color:var(--accent-600)}
 .pr-g-dolar.pr-varias{flex-wrap:wrap;gap:12px 22px}
+.ht-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0 12px}
+.ht-lista{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.ht-lista h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.ht-it{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.ht-it:last-child{border-bottom:0}
+.ht-it .f{font-weight:700;white-space:nowrap}
+.ht-it .t{flex:1;color:var(--text-muted)}
+.ht-it .btn-link{font-size:13px;padding:0}
+.cd-s.prog.tmp{background:#FFF1D6;box-shadow:inset 0 0 0 1px #E0A93A}
+.cd-val .tmp{color:#9A5B00;font-weight:700}
+.ht-rep{color:var(--text-muted);font-style:normal}
 .ex-modos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
 .ex-modos .ex-l{font-weight:700;margin-right:4px}
 .ex-modo{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13.5px;background:var(--paper)}
@@ -529,7 +540,7 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .cd-eje span.ini{transform:none}
 .cd-eje span.fin{transform:translateX(-100%)}
 .cd .leyenda{margin-left:84px}
-@media (max-width:560px){ .cd-fila{grid-template-columns:52px minmax(0,1fr);gap:4px 6px} .cd-rot{font-size:10px;grid-row:span 2;align-self:start;padding-top:4px} .cd-val{grid-column:2;font-size:12px} .cd-val small{display:inline;margin-left:6px} .cd-fila.cd-ejef .cd-val{display:none} .cd .leyenda{margin-left:58px} }
+@media (max-width:560px){ .cd-fila{grid-template-columns:52px minmax(0,1fr);gap:4px 6px} .cd-rot{font-size:10px;grid-row:span 2;align-self:start;padding-top:4px} .cd-val{grid-column:2;font-size:12px} .cd-val small{display:inline;margin-left:6px} .cd-val small.tmp{display:block;margin-left:0} .cd-fila.cd-ejef .cd-val{display:none} .cd .leyenda{margin-left:58px} }
 .cinta-box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 12px;margin-top:14px}
 .cinta-box h2{font-size:16px;margin-bottom:12px}
 .cinta{position:relative;height:30px;background:var(--sand-2);border-radius:8px;overflow:hidden}
@@ -3810,6 +3821,37 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
 <!-- v234: anotar time off en su propio diálogo (antes era inline dentro de la tabla con scroll) -->
 <!-- v240: elegir las cuentas que maneja una persona, en su propio dialogo -->
+<!-- (v351) Cambio de horario temporal (uno o varios días) e intercambio de turnos -->
+<div class="overlay hidden" id="ovHtmp" role="dialog" aria-modal="true" aria-labelledby="htTitulo">
+  <div class="ventana" style="max-width:580px">
+    <h2 id="htTitulo">Change schedule</h2>
+    <p class="nota" id="htSub" style="margin:2px 0 14px"></p>
+    <div class="ex-modos" id="htModos">
+      <label class="ex-modo"><input type="radio" name="htModo" value="horas" checked>Different hours</label>
+      <label class="ex-modo"><input type="radio" name="htModo" value="libre">Day off</label>
+      <label class="ex-modo"><input type="radio" name="htModo" value="swap">Swap shifts</label>
+    </div>
+    <div class="ht-g">
+      <label class="campo"><span>From</span><input type="date" id="htDesde"></label>
+      <label class="campo"><span>To</span><input type="date" id="htHasta"></label>
+    </div>
+    <div class="ht-g" id="htHoras">
+      <label class="campo"><span>Start</span><input type="time" id="htIni" step="300"></label>
+      <label class="campo"><span>End</span><input type="time" id="htFin" step="300"></label>
+      <label class="campo"><span>Lunch from</span><input type="time" id="htAi" step="300"></label>
+      <label class="campo"><span>Lunch to</span><input type="time" id="htAf" step="300"></label>
+    </div>
+    <div class="hidden" id="htSwap">
+      <label class="campo"><span>Swap with</span><select id="htCon"></select></label>
+      <p class="nota" id="htSwapNota" style="margin:-4px 0 12px">On each of those days, each person takes the other&rsquo;s schedule.</p>
+    </div>
+    <label class="campo"><span>Reason</span><input id="htMotivo" maxlength="200" placeholder="e.g. Doctor appointment, covering for a coworker"></label>
+    <p class="nota" style="margin:-4px 0 0">Only for these days: the usual schedule stays the same. The person sees it in Your schedule, and the Monitor and absence checks use it.</p>
+    <div class="err" id="htErr"></div>
+    <div id="htLista"></div>
+    <div class="pie"><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><span class="esp"></span><button class="btn btn-ink" type="button" id="htGuardar">Save change</button></div>
+  </div>
+</div>
 <!-- (v349) Exportar a Excel eligiendo los campos -->
 <div class="overlay hidden" id="ovExp" role="dialog" aria-modal="true" aria-labelledby="exTitulo">
   <div class="ventana" style="max-width:620px">
@@ -4687,6 +4729,7 @@ const SERVIDOR_EN = [
   [/^Confirma el cambio de tu información bancaria\.$/, 'Confirm the change to your bank information.'],
   [/^Tus datos bancarios cambiaron mientras tenías abierto tu perfil.*/, 'Your bank information was changed while your profile was open. We reloaded it: check it and save again.'],
   [/^Los dos números de cuenta no coinciden\.$/, 'The two account numbers don\'t match.'],
+  [/reloj_horario_temporal/, 'Temporary schedule changes need SQL step 143 in Supabase.'],
   [/^Solo un administrador puede revisar este historial\.$/, 'Only an administrator can review this history.'],
   [/^Este documento es parte del perfil: no se puede quitar\.$/, 'This document is part of My profile: it can\'t be removed.'],
   [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, 'The bank history needs SQL step 37 in Supabase.'],
@@ -5341,6 +5384,9 @@ async function api(action, p){
   if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
   if(action === 'horariosResumen') return q(sb.rpc('reloj_horarios_resumen'));   // (v314, paso 139)
   if(action === 'horarioDe') return q(sb.rpc('reloj_horario_de', { p_usuario:p.usuario, p_fecha:p.fecha }));   // (v316, paso 140)
+  if(action === 'horarioTemporal') return q(sb.rpc('reloj_horario_temporal', { p:p.p }));   // (v351, paso 143)
+  if(action === 'horarioTemporalQuitar') return q(sb.rpc('reloj_horario_temporal_quitar', { p_id:p.id }));
+  if(action === 'horarioTemporales') return q(sb.rpc('reloj_horario_temporales', { p_usuario:p.usuario || null }));
   if(action === 'horarioVer') return q(sb.rpc('reloj_horario_ver', { p_usuario:p.usuario }));
   if(action === 'horarioGuardar') return q(sb.rpc('reloj_horario_guardar', { p_usuario:p.usuario, p_semana:p.semana, p_desde:p.desde || null, p_motivo:p.motivo || null }));
   if(action === 'horarioBorrar') return q(sb.rpc('reloj_horario_borrar', { p_id:p.id }));
@@ -6910,15 +6956,16 @@ function cintaDia(fecha, d, marcas, e){
   const rejilla = marcasEje.filter(m => m > ini && m < fin).map(m => '<i class="cd-g" style="left:' + pct(m) + '%"></i>').join('');   // (v350) las líneas caen en las horas del eje
   const ahoraH = esHoy && t > ini && t < fin ? '<i class="cd-ahora" style="left:' + pct(t) + '%" title="Now ' + esc(hora(t)) + '"></i>' : '';
   const ley = new Set();
-  // SCHEDULE
+  // SCHEDULE (v351: el cambio temporal en ámbar)
   let hProg = '', vProg = '', vMar = '', vPc = '';
   if(progOk){
     ley.add('prog');
     const aI = pr.almIni ? wall(fecha, pr.almIni) : null, aF = pr.almFin ? wall(fecha, pr.almFin) : null;
-    hProg = seg('prog', pIni, pFin, 'Scheduled ' + hora(pIni) + ' – ' + hora(pFin) + (aI ? ' · lunch ' + hora(aI) + ' – ' + hora(aF) : ''));
+    hProg = seg('prog' + (pr.cambio ? ' tmp' : ''), pIni, pFin, (pr.cambio ? 'Temporary change: ' + (pr.cambio.motivo || '') + ' · ' : 'Scheduled ') + hora(pIni) + ' – ' + hora(pFin) + (aI ? ' · lunch ' + hora(aI) + ' – ' + hora(aF) : ''));
+    if(pr.cambio) ley.add('tmp');
     if(aI && aF){ hProg += seg('progalm', aI, aF, 'Scheduled lunch ' + hora(aI) + ' – ' + hora(aF)); ley.add('progalm'); }
-    vProg = hora(pIni) + ' – ' + hora(pFin) + '<small>' + (aI ? 'Lunch ' + corta(aI) + ' – ' + corta(aF) : 'No lunch set') + (pr.cambio ? ' · changed' : '') + '</small>';
-  } else if(pr && pr.hay && pr.libre){ hProg = ''; vProg = 'Day off<small>' + (pr.cambio ? 'Changed for this day' : 'On the schedule') + '</small>'; }
+    vProg = hora(pIni) + ' – ' + hora(pFin) + '<small>' + (aI ? 'Lunch ' + corta(aI) + ' – ' + corta(aF) : 'No lunch set') + '</small>' + (pr.cambio ? '<small class="tmp" title="' + esc(pr.cambio.motivo || '') + '">Temporary change</small>' : '');
+  } else if(pr && pr.hay && pr.libre){ hProg = ''; vProg = 'Day off<small>' + (pr.cambio ? '<span class="tmp" title="' + esc(pr.cambio.motivo || '') + '">Temporary change</span>' : 'On the schedule') + '</small>'; }
   else if(pr === null || pr === undefined){ hProg = ''; vProg = '<small>Loading…</small>'; }
   else { hProg = ''; vProg = 'No schedule<small>Set it in Users</small>'; }
   // PUNCHES
@@ -6953,7 +7000,8 @@ function cintaDia(fecha, d, marcas, e){
   const LEY = { prog:['<i style="background:#DCEAF4;box-shadow:inset 0 0 0 1px #8FB2CB"></i>', 'Scheduled'], progalm:['<i style="background:repeating-linear-gradient(135deg,#C9D3DA 0 3px,#EEF2F5 3px 7px)"></i>', 'Lunch'],
     trab:['<i style="background:var(--st-trab)"></i>', 'Worked'], alm:['<i style="background:repeating-linear-gradient(135deg,#C9D3DA 0 3px,#DFE6EB 3px 7px)"></i>', 'Lunch'],
     aus:['<i style="background:repeating-linear-gradient(135deg,#7A5BC7 0 4px,#9A80D9 4px 8px)"></i>', 'Approved time off'],
-    pcon:['<i style="background:#AAB9C3"></i>', 'PC on'], pc:['<i style="background:var(--accent-500)"></i>', 'PC inactive'] };
+    pcon:['<i style="background:#AAB9C3"></i>', 'PC on'], pc:['<i style="background:var(--accent-500)"></i>', 'PC inactive'],
+    tmp:['<i style="background:#FFF1D6;box-shadow:inset 0 0 0 1px #E0A93A"></i>', 'Temporary schedule'] };
   if(ley.has('progalm') && ley.has('alm')) ley.delete('progalm');   // el mismo rayado: una sola entrada «Lunch»
   el.innerHTML = fila('Schedule', 'fina', hProg, vProg) + fila('Punches', '', hMar, vMar || 'No punches') +
     (hPc ? fila('PC', 'pc', hPc, vPc) : '') +
@@ -7773,6 +7821,7 @@ function vistaDia(){
   const pie = [];
   if(!d.aprobado) pie.push('<button class="btn btn-ghost" id="dCorregir">' + (d.marcas.length ? 'Correct punches' : 'Add punches') + '</button>');
   else pie.push('<span class="nota" style="align-self:center">Approved days are locked. Remove the approval to change it.</span>');
+  if(S.yo && S.yo.esAdmin) pie.push('<button class="btn btn-ghost" type="button" data-ht-u="' + esc(e.usuario) + '" data-ht-f="' + fecha + '" title="Change the schedule for this day or a few days (or swap shifts)">Change schedule…</button>');   // (v351)
   pie.push('<span class="esp"></span>');
   if(d.aprobado) pie.push('<button class="btn btn-ghost" id="dQuitar">Remove approval</button>');
   else if(fecha <= hoy && d.marcas.length && !d.incompleto && !d.enCurso) pie.push('<button class="btn btn-brand" id="dAprobar">Approve ' + dur(d.min) + '</button>');
@@ -8967,7 +9016,8 @@ function horLinkHTML(u){
 // (v331) Horario en la ficha del usuario: tabla clara (días · horario · almuerzo · horas) + total semanal y desde cuándo.
 function horFichaHTML(u){
   const h = S.horarios && S.horarios[u];
-  const cab = '<div class="ve-hor-cab"><span class="ve-k">Schedule</span><button type="button" class="btn-link ve-hor-ed" data-hor-abrir="' + esc(u) + '">' + (h && h.semana ? 'Edit' : 'Add schedule') + '</button></div>';
+  const cab = '<div class="ve-hor-cab"><span class="ve-k">Schedule</span>' + (h && h.semana ? '<button type="button" class="btn-link ve-hor-ed" data-ht-u="' + esc(u) + '" title="Change it for one or a few days, or swap shifts">Change some days</button><span class="muted" style="margin:0 6px">·</span>' : '') +
+    '<button type="button" class="btn-link ve-hor-ed" data-hor-abrir="' + esc(u) + '">' + (h && h.semana ? 'Edit' : 'Add schedule') + '</button></div>';
   if(!h || !h.semana) return '<div class="ve-hor">' + cab + '<p class="ve-hor-nada">No schedule yet.</p></div>';
   const gs = hoGrupos(h.semana);
   const sem = HO_DIAS.reduce((s, [k]) => s + (hoMinDia(h.semana[k]) || 0), 0);
@@ -9011,6 +9061,68 @@ function pintarHorFila(e){
 }
 
 const HO = { u:null, sem:null, vers:[] };
+/* (v351) Cambio de horario temporal (como «Cambio de turno» del Monitor) e intercambio de turnos.
+   Se guarda ya aprobado (reloj_horario_temporal, paso 143) y todo lo demás lo toma solo. */
+const HT = { u:null, fecha:null, base:null };
+const htEmps = () => ((S.emps && S.emps.empleados) || (S.hoja && S.hoja.empleados) || []).filter(e => e.activo !== false && !e.prueba);
+function htNombre(u){ const e = htEmps().find(x => x.usuario === u) || ((S.emps && S.emps.empleados) || []).find(x => x.usuario === u); return e ? e.nombre : u; }
+function htModo(){ const r = document.querySelector('input[name="htModo"]:checked'); return r ? r.value : 'horas'; }
+function htPintarModo(){ const m = htModo(); $('htHoras').classList.toggle('hidden', m !== 'horas'); $('htSwap').classList.toggle('hidden', m !== 'swap'); }
+const htTxt = x => x.clase === 'libre' ? 'Day off' : h12(x.horaIni) + ' – ' + h12(x.horaFin) + (x.almIni ? ' · lunch ' + h12(x.almIni) + ' – ' + h12(x.almFin) : '');
+const htFechas = x => x.desde === x.hasta ? diaS(x.desde) : diaS(x.desde) + ' – ' + diaS(x.hasta);
+async function htCargarLista(){
+  const el = $('htLista');
+  try{ const l = (await api('horarioTemporales', { usuario:HT.u })) || [], hoy = fechaHoy(), vig = l.filter(x => x.hasta >= hoy);
+    if(!vig.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="ht-lista"><h4>Current and upcoming changes</h4>' + vig.map(x => '<div class="ht-it"><span class="f">' + esc(htFechas(x)) + '</span><span class="t">' + esc(htTxt(x)) +
+      (x.motivo ? ' · ' + esc(x.motivo) : '') + (vig.some(y => y.id > x.id && y.desde <= x.desde && y.hasta >= x.hasta) ? ' <em class="ht-rep">· replaced by a newer change</em>' : '') + '</span><button type="button" class="btn-link" data-ht-quitar="' + x.id + '">Remove</button></div>').join('') + '</div>';
+  }catch(e){ el.innerHTML = '<p class="nota">' + esc(e.message) + '</p>'; }
+}
+async function abrirCambioHorario(u, fecha){
+  HT.u = u; HT.fecha = fecha || fechaHoy(); HT.base = null;
+  if(!htEmps().length){ try{ S.emps = await api('empleados'); }catch(e){} }
+  $('htTitulo').textContent = 'Change schedule · ' + htNombre(u);
+  $('htSub').textContent = 'Loading the usual schedule…'; $('htErr').textContent = ''; $('htMotivo').value = '';
+  document.querySelector('input[name="htModo"][value="horas"]').checked = true; htPintarModo();
+  $('htDesde').value = HT.fecha; $('htHasta').value = HT.fecha; ['htIni','htFin','htAi','htAf'].forEach(id => { $(id).value = ''; });
+  $('htCon').innerHTML = '<option value="">Choose a person…</option>' + htEmps().filter(e => e.usuario !== u).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'))
+    .map(e => '<option value="' + esc(e.usuario) + '">' + esc(e.nombre) + (e.cuenta ? ' · ' + esc(e.cuenta) : '') + '</option>').join('');
+  $('htGuardar').disabled = false; abrir('ovHtmp'); htCargarLista();
+  try{ const r = await api('horarioDe', { usuario:u, fecha:HT.fecha }); HT.base = r;
+    if(r && r.hay && !r.libre && r.inicio){ $('htIni').value = r.inicio; $('htFin').value = r.fin; $('htAi').value = r.almIni || ''; $('htAf').value = r.almFin || ''; }
+    $('htSub').textContent = r && r.hay ? diaS(HT.fecha) + ': ' + (r.libre ? 'day off' : h12(r.inicio) + ' – ' + h12(r.fin) + (r.almIni ? ', lunch ' + h12(r.almIni) + ' – ' + h12(r.almFin) : '')) + (r.cambio ? ' (already changed: ' + (r.cambio.motivo || '') + ')' : '') + '.'
+      : 'No schedule set for this person. Add one in Users first.';
+  }catch(e){ $('htSub').textContent = e.message; }
+}
+$('htModos').addEventListener('change', htPintarModo);
+$('htDesde').addEventListener('change', () => { if(!$('htHasta').value || $('htHasta').value < $('htDesde').value) $('htHasta').value = $('htDesde').value; });
+$('htLista').addEventListener('click', async e => { const b = e.target.closest('[data-ht-quitar]'); if(!b) return;
+  if(!(await confirmar('Remove this change?', 'Those days go back to the usual schedule.', 'Remove'))) return;
+  b.disabled = true; try{ await api('horarioTemporalQuitar', { id:Number(b.dataset.htQuitar) }); htDespues([HT.u]); toast('Change removed.'); }catch(x){ $('htErr').textContent = x.message; b.disabled = false; } });
+function htDespues(us){
+  Object.keys(S.horDia || {}).forEach(k => { if(us.some(u => u && k.startsWith(u + '|'))) delete S.horDia[k]; });
+  if(S.dia && $('dCinta') && $('ovDia') && !$('ovDia').classList.contains('hidden')) cintaDia(S.dia.fecha, S.dia.d, S.dia.d.marcas, S.dia.e);
+  htCargarLista();
+}
+$('htGuardar').addEventListener('click', async () => {
+  const m = htModo(), q = { tipo:m === 'swap' ? 'intercambio' : 'cambio', usuario:HT.u, desde:$('htDesde').value, hasta:$('htHasta').value || $('htDesde').value, motivo:$('htMotivo').value.trim() };
+  if(m === 'horas') Object.assign(q, { clase:'cambio', horaIni:$('htIni').value, horaFin:$('htFin').value, almIni:$('htAi').value, almFin:$('htAf').value });
+  if(m === 'libre') q.clase = 'libre';
+  if(m === 'swap') q.con = $('htCon').value;
+  $('htErr').textContent = '';
+  if(!q.desde) return $('htErr').textContent = 'Choose the date.';
+  if(m === 'swap' && !q.con) return $('htErr').textContent = 'Choose who they swap with.';
+  if(q.motivo.length < 3) return $('htErr').textContent = 'Write the reason.';
+  const b = $('htGuardar'); b.disabled = true;
+  try{ const r = await api('horarioTemporal', { p:q });
+    toast(m === 'swap' ? 'Shifts swapped (' + (r && r.n || 0) + (r && r.n === 1 ? ' day change).' : ' day changes).') : 'Schedule changed for ' + (q.desde === q.hasta ? diaS(q.desde) : diaS(q.desde) + ' – ' + diaS(q.hasta)) + '.');
+    $('htMotivo').value = ''; htDespues([HT.u, q.con]);
+    if(S.dia && S.dia.e && S.dia.e.usuario === HT.u) cerrar('ovHtmp');
+  }catch(e){ $('htErr').textContent = e.message; }
+  b.disabled = false;
+});
+document.addEventListener('click', ev => { const el = ev.target.closest && ev.target.closest('[data-ht-u]'); if(!el) return;
+  ev.preventDefault(); if($('horTip')) $('horTip').classList.add('hidden'); abrirCambioHorario(el.dataset.htU, el.dataset.htF || ''); });
 async function abrirHorario(u){
   const e = S.emps && S.emps.empleados.find(x => x.usuario === u); if(!e) return;
   HO.u = u; $('hoNombre').textContent = e.nombre || u;
@@ -15854,8 +15966,26 @@ function demoHorarios(action, p){
     Object.keys(base).forEach(u => DM.horarios.push({ id:id++, usuario:u, desde:'2000-01-01', semana:base[u], origen:'monitor', creado:new Date().toISOString(), por:'paso139' })); }
   const hoy = fechaHoy(), vig = u => DM.horarios.filter(x => x.usuario === u && x.desde <= hoy).sort((a, c) => c.desde.localeCompare(a.desde) || c.id - a.id)[0];
   const txt = s => HO_DIAS.map(([k]) => k + '=' + (s[k] ? s[k].i + '-' + s[k].f + (s[k].aa ? '/' + s[k].aa + '-' + s[k].ab : '') : 'libre')).join(';');
-  if(action === 'horarioDe'){ const v = vig(p.usuario), k = HO_DIAS[(new Date(p.fecha + 'T12:00:00Z').getUTCDay() + 6) % 7][0], x = v && v.semana[k];
-    return v ? { hay:true, libre:!x, inicio:x ? x.i : null, fin:x ? x.f : null, almIni:x && x.aa || null, almFin:x && x.ab || null } : { hay:false }; }
+  DM.horTmp = DM.horTmp || [];
+  const baseDia = (u, f) => { const v = vig(u), k = HO_DIAS[(new Date(f + 'T12:00:00Z').getUTCDay() + 6) % 7][0], x = v && v.semana[k];
+    return v ? { hay:true, libre:!x, inicio:x ? x.i : null, fin:x ? x.f : null, almIni:x && x.aa || null, almFin:x && x.ab || null } : { hay:false }; };
+  const efDia = (u, f) => { const b = baseDia(u, f); if(!b.hay) return b; const c = DM.horTmp.filter(x => x.usuario === u && x.estado === 'aprobada' && x.desde <= f && x.hasta >= f).pop();
+    if(!c) return b; return c.clase === 'libre' ? { hay:true, libre:true, cambio:{ id:c.id, motivo:c.motivo } } : { hay:true, libre:false, inicio:c.horaIni, fin:c.horaFin, almIni:c.almIni, almFin:c.almFin, cambio:{ id:c.id, motivo:c.motivo } }; };
+  if(action === 'horarioDe') return efDia(p.usuario, p.fecha);
+  if(action === 'horarioTemporales') return DM.horTmp.filter(x => x.estado === 'aprobada' && (!p.usuario || x.usuario === p.usuario)).map(x => Object.assign({ nombre:x.usuario }, x));
+  if(action === 'horarioTemporalQuitar'){ const x = DM.horTmp.find(z => z.id === p.id); if(!x || x.estado !== 'aprobada') throw new Error('That change was already removed.'); x.estado = 'cancelada'; return { ok:true }; }
+  if(action === 'horarioTemporal'){ const q = p.p || {}, nid = () => (DM.horTmp.length ? Math.max(...DM.horTmp.map(x => x.id)) : 0) + 1;
+    if(!q.motivo || q.motivo.trim().length < 3) throw new Error('Write the reason.');
+    if(!q.desde) throw new Error('Choose the date.'); const hasta = q.hasta || q.desde; if(hasta < q.desde) throw new Error('The end date can\'t be before the start date.');
+    if(q.tipo === 'intercambio'){ if(!q.con || q.con === q.usuario) throw new Error('Choose who they swap with.');
+      const dias = []; for(let f = q.desde; f <= hasta; f = sumarDias(f, 1)) dias.push([f, efDia(q.usuario, f), efDia(q.con, f)]);
+      if(dias.some(([, a, b]) => !a.hay || !b.hay)) throw new Error('Both people need a schedule to swap (set it in Users first).');
+      let n = 0; dias.forEach(([f, a, b]) => { const igual = JSON.stringify([a.libre, a.inicio, a.fin, a.almIni, a.almFin]) === JSON.stringify([b.libre, b.inicio, b.fin, b.almIni, b.almFin]); if(igual) return;
+        [[q.usuario, b, q.con], [q.con, a, q.usuario]].forEach(([u, x, otro]) => { DM.horTmp.push({ id:nid(), usuario:u, desde:f, hasta:f, clase:x.libre ? 'libre' : 'cambio', horaIni:x.inicio, horaFin:x.fin, almIni:x.almIni, almFin:x.almFin, motivo:q.motivo + ' · swap with ' + htNombre(otro), origen:'admin', estado:'aprobada' }); n++; }); });
+      if(!n) throw new Error('They already have the same schedule on those days: nothing to swap.'); return { ok:true, n }; }
+    if(q.clase !== 'libre'){ if(!q.horaIni || !q.horaFin) throw new Error('Fill the start and end times.'); if(q.horaFin <= q.horaIni) throw new Error('The end time must be after the start time.'); }
+    DM.horTmp.push({ id:nid(), usuario:q.usuario, desde:q.desde, hasta, clase:q.clase || 'cambio', horaIni:q.horaIni || null, horaFin:q.horaFin || null, almIni:q.almIni || null, almFin:q.almFin || null, motivo:q.motivo, origen:'admin', estado:'aprobada' });
+    return { ok:true, n:1 }; }
   if(action === 'horariosResumen'){ const r = {}; [...new Set(DM.horarios.map(x => x.usuario))].forEach(u => { const v = vig(u); r[u] = { semana:v ? v.semana : null, desde:v ? v.desde : null, n:DM.horarios.filter(x => x.usuario === u).length }; }); return r; }
   if(action === 'horarioVer'){ const v = vig(p.usuario); return { semana:v ? v.semana : null, desde:v ? v.desde : null, versiones:DM.horarios.filter(x => x.usuario === p.usuario).sort((a, c) => c.desde.localeCompare(a.desde)) }; }
   if(action === 'horarioGuardar'){ const err = hoValidar(p.semana); if(err) throw new Error(err);
