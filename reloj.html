@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v348-202611132310">
+<meta name="app-build" content="v349-202611132345">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -456,6 +456,17 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .ajm-x{border:0;background:transparent;font-size:18px;color:var(--text-muted);cursor:pointer;border-radius:7px;height:28px}
 .ajm-x:hover{background:var(--sand-2);color:var(--accent-600)}
 .pr-g-dolar.pr-varias{flex-wrap:wrap;gap:12px 22px}
+.ex-modos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.ex-modos .ex-l{font-weight:700;margin-right:4px}
+.ex-modo{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13.5px;background:var(--paper)}
+.ex-modo:has(input:checked){border-color:var(--brand-500);background:var(--brand-50);color:var(--brand-700);font-weight:600}
+.ex-modo input{accent-color:var(--brand-600);margin:0}
+.ex-acc{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px}
+.ex-acc .esp{flex:1}
+.ex-acc .btn-link{padding:0;font-size:13px}
+.ex-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px;max-height:46vh;overflow:auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sand)}
+.ex-campo{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:4px 2px;cursor:pointer}
+.ex-campo input{width:16px;height:16px;accent-color:var(--brand-600);margin:0;flex:0 0 auto}
 .py-ley{margin:10px 0 0;padding-left:18px;max-width:110ch;display:grid;gap:3px}
 .py-ley li{line-height:1.45}
 .py-ley li::marker{color:var(--text-muted)}
@@ -2973,9 +2984,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ghost btn-sm" id="hAprobarRango" type="button" title="Approve every closed day of this pay period for everyone shown (days with no hours are locked at 0 h)">Approve pay period</button>
       <span class="nota" id="hAprobarNota"></span>
       <span class="esp"></span>
-      <button class="btn btn-ink btn-sm" id="hExpNomina" title="Hours worked (the approved hours on approved days) plus paid time off, by employee">Export payroll (Excel)</button>
-      <button class="btn btn-ghost btn-sm" id="hExpResumen">Export summary for Payroll</button>
-      <button class="btn btn-ghost btn-sm" id="hExpDetalle">Export daily detail</button>
+      <button class="btn btn-ghost btn-sm" id="hExpNomina" title="Hours worked (the approved hours on approved days) plus paid time off, by employee, in the Nómina format">Export payroll (Excel)</button>
+      <button class="btn btn-ink btn-sm" id="hExportar" type="button" title="Choose one row per person or per day, and the fields">Export (Excel)…</button>
     </div>
   </section>
 
@@ -3009,7 +3019,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm hidden" id="pyReabrir" type="button">Reopen</button>
       <button class="btn btn-ghost btn-sm hidden" id="pyBorrar" type="button">Delete draft</button>
       <span class="esp"></span>
-      <button class="btn btn-ink btn-sm" id="pyExportar" type="button" title="Same format as the CALL CENTER PAY ROLL workbook (Paystubs reads it)">Export pay run (Excel)</button>
+      <button class="btn btn-ghost btn-sm" id="pyExportar" type="button" title="Same format as the CALL CENTER PAY ROLL workbook">Export CALL CENTER PAY ROLL</button>
+      <button class="btn btn-ink btn-sm" id="pyExpCampos" type="button" title="Choose the fields to export">Export (Excel)…</button>
     </div>
     <div class="py-docs hidden" id="pyDocs">
       <span class="py-docs-tit">Payroll documents</span>
@@ -3797,6 +3808,18 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
 <!-- v234: anotar time off en su propio diálogo (antes era inline dentro de la tabla con scroll) -->
 <!-- v240: elegir las cuentas que maneja una persona, en su propio dialogo -->
+<!-- (v349) Exportar a Excel eligiendo los campos -->
+<div class="overlay hidden" id="ovExp" role="dialog" aria-modal="true" aria-labelledby="exTitulo">
+  <div class="ventana" style="max-width:620px">
+    <h2 id="exTitulo">Export to Excel</h2>
+    <p class="nota" id="exSub" style="margin:2px 0 12px"></p>
+    <div class="ex-modos" id="exModos"></div>
+    <div class="ex-acc"><b>Fields</b><span class="esp"></span><button type="button" class="btn-link" id="exTodos">Select all</button><span class="muted">·</span><button type="button" class="btn-link" id="exNinguno">Clear</button><span class="muted">·</span><button type="button" class="btn-link" id="exDef">Default</button></div>
+    <div class="ex-campos" id="exCampos"></div>
+    <div class="err" id="exErr"></div>
+    <div class="pie"><button class="btn btn-ghost" type="button" data-cerrar>Cancel</button><span class="esp"></span><button class="btn btn-ink" type="button" id="exBajar">Download</button></div>
+  </div>
+</div>
 <div class="overlay hidden" id="ovMgr" role="dialog" aria-modal="true" aria-labelledby="eMgrTit">
   <div class="ventana" style="max-width:580px">
     <h2 id="eMgrTit">Manager role</h2>
@@ -8128,6 +8151,85 @@ function xlsxPayroll(filas, desde, hasta){
     ['xl/styles.xml', estilos],
     ['xl/worksheets/sheet1.xml', hoja]]);
 }
+/* ══ (v349) Exportar a Excel eligiendo los campos (Timesheet y Pay run) ══
+   cfg = { titulo, sub, clave, archivo(modo), modos:[{ k, t, hoja, campos:[{ k, t, def, w, suma }], filas() → [{ k:valor }] }] }
+   Lo elegido se recuerda en este navegador por vista y por modo. */
+const EXP = { cfg:null, modo:'' };
+const expLS = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+function abrirExport(cfg){
+  EXP.cfg = cfg; EXP.modo = leerLS('reloj_exp_modo_' + cfg.clave, cfg.modos[0].k);
+  if(!cfg.modos.some(m => m.k === EXP.modo)) EXP.modo = cfg.modos[0].k;
+  $('exErr').textContent = ''; pintarExport(); abrir('ovExp');
+}
+const expModo = () => EXP.cfg.modos.find(m => m.k === EXP.modo) || EXP.cfg.modos[0];
+const expClave = m => 'reloj_exp_' + EXP.cfg.clave + '_' + m.k;
+function expSel(m){ const g = leerLS(expClave(m), null), ks = m.campos.map(c => c.k);
+  return Array.isArray(g) ? g.filter(k => ks.includes(k)) : m.campos.filter(c => c.def).map(c => c.k); }
+function pintarExport(){
+  const cfg = EXP.cfg, m = expModo(), sel = new Set(expSel(m));
+  $('exTitulo').textContent = cfg.titulo; $('exSub').textContent = cfg.sub || '';
+  $('exModos').innerHTML = cfg.modos.length > 1 ? '<span class="ex-l">Rows</span>' + cfg.modos.map(x => '<label class="ex-modo"><input type="radio" name="exModo" value="' + x.k + '"' + (x.k === m.k ? ' checked' : '') + '>' + esc(x.t) + '</label>').join('') : '';
+  $('exCampos').innerHTML = m.campos.map(c => '<label class="ex-campo"><input type="checkbox" data-exk="' + c.k + '"' + (sel.has(c.k) ? ' checked' : '') + '><span>' + esc(c.t) + '</span></label>').join('');
+  contarExport();
+}
+function contarExport(){
+  const n = $('exCampos').querySelectorAll('input:checked').length, b = $('exBajar');
+  b.disabled = !n; b.textContent = n ? 'Download · ' + n + (n === 1 ? ' field' : ' fields') : 'Choose at least one field';
+}
+function guardarSelExport(){ expLS(expClave(expModo()), [...$('exCampos').querySelectorAll('input:checked')].map(i => i.dataset.exk)); contarExport(); }
+$('exModos').addEventListener('change', e => { if(e.target.name !== 'exModo') return; EXP.modo = e.target.value; expLS('reloj_exp_modo_' + EXP.cfg.clave, EXP.modo); pintarExport(); });
+$('exCampos').addEventListener('change', guardarSelExport);
+$('exTodos').addEventListener('click', () => { $('exCampos').querySelectorAll('input').forEach(i => { i.checked = true; }); guardarSelExport(); });
+$('exNinguno').addEventListener('click', () => { $('exCampos').querySelectorAll('input').forEach(i => { i.checked = false; }); guardarSelExport(); });
+$('exDef').addEventListener('click', () => { const m = expModo(), d = new Set(m.campos.filter(c => c.def).map(c => c.k)); $('exCampos').querySelectorAll('input').forEach(i => { i.checked = d.has(i.dataset.exk); }); guardarSelExport(); });
+$('exBajar').addEventListener('click', () => {
+  const cfg = EXP.cfg, m = expModo(), ks = new Set([...$('exCampos').querySelectorAll('input:checked')].map(i => i.dataset.exk));
+  const campos = m.campos.filter(c => ks.has(c.k)); if(!campos.length) return;
+  let datos; try{ datos = m.filas(); }catch(e){ $('exErr').textContent = e.message; return; }
+  if(!datos.length){ $('exErr').textContent = 'There is nothing to export.'; return; }
+  const vacio = v => v === null || v === undefined || v === '';
+  const filas = datos.map(r => campos.map(c => vacio(r[c.k]) ? '' : r[c.k]));
+  if(campos.some(c => c.suma)){   // fila de totales
+    const t = campos.map((c, i) => c.suma ? Math.round(datos.reduce((s, r) => s + (Number(r[c.k]) || 0), 0) * 100) / 100 : (i === 0 ? 'Total' : ''));
+    if(!campos[0].suma) t[0] = 'Total'; t.negrita = true; filas.push(t);
+  }
+  const anchos = campos.map(c => c.w || Math.max(10, Math.min(36, c.t.length + 3)));
+  const blob = xlsxTablas([{ nombre:m.hoja || 'Export', titulo:cfg.tituloHoja ? [cfg.tituloHoja] : [], cab:campos.map(c => c.t), filas, anchos }]);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = cfg.archivo(m) + '.xlsx';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  cerrar('ovExp'); toast('Exported ' + datos.length + (datos.length === 1 ? ' row' : ' rows') + ' with ' + campos.length + (campos.length === 1 ? ' field.' : ' fields.'));
+});
+const expHd = min => Math.round((Number(min) || 0) / 60 * 100) / 100;
+const expArch = s => String(s || '').replace(/[^\w.-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+// Timesheet: una fila por persona o por día
+function cfgExportHoja(){
+  const h = S.hoja, cta = S.cuentaFiltro || '';
+  const persona = { k:'persona', t:'One per person', hoja:'Summary', campos:[
+      { k:'nombre', t:'Employee', def:1, w:26 }, { k:'nom', t:'First name' }, { k:'ape', t:'Last name' }, { k:'cuenta', t:'Account', def:1, w:22 }, { k:'usuario', t:'User' },
+      { k:'hd', t:'Hours per day', def:1 }, { k:'dias', t:'Days with punches', suma:1 }, { k:'trab', t:'Clocked hours', suma:1 }, { k:'ot', t:'Overtime hours', def:1, suma:1 },
+      { k:'aprob', t:'Approved hours', def:1, suma:1 }, { k:'diasAprob', t:'Approved days', suma:1 }, { k:'pto', t:'Paid time off (hours)', def:1, suma:1 },
+      { k:'pagadas', t:'Paid hours (approved + time off)', def:1, suma:1 }, { k:'aus', t:'Absence days', suma:1 }, { k:'eq', t:'Equivalent days', suma:1 },
+      { k:'alertas', t:'Days with alerts', suma:1 }, { k:'pend', t:'Days not approved', def:1, suma:1 }],
+    filas:() => empsNomina().map(e => { const t = e.totales, [nom, ape] = partirNombre(e), pto = t.minPto || 0;
+      return { nombre:e.nombre, nom, ape, cuenta:e.cuenta || '', usuario:e.usuario, hd:Number(e.horasDia) || 8, dias:t.dias, trab:expHd(t.min), ot:expHd(otEmp(e)),
+        aprob:expHd(t.minAprob), diasAprob:t.diasAprob, pto:expHd(pto), pagadas:expHd(t.minAprob + pto), aus:t.diasAus || 0,
+        eq:Math.round((t.minAprob + pto) / 60 / (e.horasDia || 8) * 100) / 100, alertas:t.alertas, pend:t.dias - t.diasAprob }; }) };
+  const dia = { k:'dia', t:'One per day', hoja:'Daily detail', campos:[
+      { k:'nombre', t:'Employee', def:1, w:26 }, { k:'nom', t:'First name' }, { k:'ape', t:'Last name' }, { k:'cuenta', t:'Account', def:1, w:22 }, { k:'fecha', t:'Date', def:1, w:12 },
+      { k:'ent', t:'Clock in', def:1 }, { k:'ai', t:'Lunch start', def:1 }, { k:'af', t:'Lunch end', def:1 }, { k:'sal', t:'Clock out', def:1 },
+      { k:'horas', t:'Hours worked', def:1, suma:1 }, { k:'ot', t:'Overtime hours', suma:1 }, { k:'alm', t:'Lunch minutes' }, { k:'apr', t:'Approved', def:1 },
+      { k:'horasAp', t:'Approved hours', def:1, suma:1 }, { k:'aus', t:'Time off', def:1, w:24 }, { k:'alertas', t:'Issues', w:40 }],
+    filas:() => { const out = []; empsNomina().forEach(e => { const [nom, ape] = partirNombre(e); h.fechas.forEach(f => {
+      const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
+      const pri = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; }, ult = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
+      out.push({ nombre:e.nombre, nom, ape, cuenta:e.cuenta || '', fecha:{ fecha:f }, ent:pri('entrada'), ai:pri('almuerzo_ini'), af:pri('almuerzo_fin'), sal:ult('salida'),
+        horas:d.incompleto ? '' : expHd(d.min), ot:d.incompleto ? '' : expHd(otDia(e, d)), alm:d.alm || '', apr:d.aprobado ? 'Yes' : 'No', horasAp:d.aprobado ? Number(d.aprobado.horas) : '',
+        aus:d.ausencia ? ausEtq(d.ausencia) + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '', alertas:d.banderas.map(b => b.t).join(' | ') }); }); }); return out; } };
+  return { titulo:'Export Timesheet', clave:'hoja', sub:diaS(h.desde) + ' – ' + diaS(h.hasta) + (cta ? ' · ' + cta : '') + ' · ' + empsNomina().length + ' people (as shown)',
+    tituloHoja:'Timesheet ' + diaS(h.desde) + ' – ' + diaS(h.hasta) + ', ' + h.hasta.slice(0, 4) + (cta ? ' · ' + cta : ''),
+    archivo:m => 'Timesheet_' + (cta ? expArch(cta) + '_' : '') + h.desde + '_' + h.hasta + (m.k === 'dia' ? '_daily' : ''), modos:[persona, dia] };
+}
+$('hExportar').addEventListener('click', () => { if(!S.hoja) return; if(!empsNomina().length) return toast('No one to export.', 'err'); abrirExport(cfgExportHoja()); });
 $('hExpNomina').addEventListener('click', async () => {
   const h = S.hoja; if(!h) return;
   // Solo los días sin salida (pasados y sin aprobar) no se pueden contar: se avisa con los nombres.
@@ -8144,30 +8246,7 @@ $('hExpNomina').addEventListener('click', async () => {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('Payroll exported: ' + filas.length + ' employees.');
 });
-$('hExpResumen').addEventListener('click', () => {
-  const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','First name','Last name','User','Hours per day','Days with punches','Clocked hours','Overtime hours','Approved hours','Approved days','PTO hours','Absence days','Equivalent days','Days with alerts','Days not approved']];
-  empsNomina().forEach(e => {
-    const t = e.totales;
-    filas.push([e.nombre, e.cuenta || ''].concat(partirNombre(e)).concat([e.usuario, e.horasDia, t.dias, horasDec(t.min), horasDec(otEmp(e)), horasDec(t.minAprob), t.diasAprob,
-      horasDec(t.minPto || 0), t.diasAus || 0, ((t.minAprob + (t.minPto || 0)) / 60 / (e.horasDia || 8)).toFixed(2), t.alertas, t.dias - t.diasAprob]));
-  });
-  descargarCSV('timeclock_summary_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
-});
-$('hExpDetalle').addEventListener('click', () => {
-  const h = S.hoja; if(!h) return;
-  const filas = [['Employee','Account','First name','Last name','Date','Clock in','Lunch start','Lunch end','Clock out','Hours worked','Overtime hours','Lunch minutes','Approved','Approved hours','Issues','Absence']];
-  empsNomina().forEach(e => h.fechas.forEach(f => {
-    const d = e.dias[f]; if(!d || (!d.marcas.length && !d.ausencia)) return;
-    const primera = t => { const m = d.marcas.find(x => x.tipo === t); return m ? hora(m.ms) : ''; };
-    const ultima = t => { const m = d.marcas.filter(x => x.tipo === t).pop(); return m ? hora(m.ms) : ''; };
-    filas.push([e.nombre, e.cuenta || ''].concat(partirNombre(e)).concat([f, primera('entrada'), primera('almuerzo_ini'), primera('almuerzo_fin'), ultima('salida'),
-      d.incompleto ? '' : horasDec(d.min), d.incompleto ? '' : horasDec(otDia(e, d)), d.alm, d.aprobado ? 'Yes' : 'No', d.aprobado ? d.aprobado.horas : '',
-      d.banderas.map(b => b.t).join(' | '),
-      d.ausencia ? ausEtq(d.ausencia) + (d.ausencia.pagada ? ' (paid ' + d.ausencia.horas + ' h)' : ' (unpaid)') : '']));
-  }));
-  descargarCSV('timeclock_detail_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/\W+/g, '-') + '_' : '') + h.desde + '_to_' + h.hasta + '.csv', filas);
-});
+// (v349) «Export summary for Payroll» y «Export daily detail» (CSV) pasaron a «Export (Excel)…» con campos a elegir
 (function(){ const box = $('hojaLeyendaBox'), tog = $('hojaLeyendaTog'); if(!box || !tog) return;
   // (v327) Siempre empieza cerrado: es un panel flotante que se abre con el botón y se cierra al hacer clic afuera o con Esc.
   const poner = a => { box.classList.toggle('abierta', a); tog.setAttribute('aria-expanded', a ? 'true' : 'false'); };
@@ -14263,7 +14342,7 @@ function pintarPago(){
   pintarTablaPago();
   const btn = (id, on) => $(id).classList.toggle('hidden', !on);
   btn('pyGuardar', !cerr); btn('pyCerrar', !cerr); btn('pyReabrir', cerr); btn('pyBorrar', !cerr && !!run); if($('pyDocs')) $('pyDocs').classList.toggle('hidden', !cerr);
-  $('pyExportar').disabled = !pr.filas.length;
+  $('pyExportar').disabled = !pr.filas.length; $('pyExpCampos').disabled = !pr.filas.length; $('pyExpCampos').classList.toggle('hidden', !!pr.imp);
 }
 // (v335) Tarjeta de la tasa: una por cada moneda extranjera de la nómina; pago local = solo dice la moneda.
 function pintarCambioPago(R, dis, cerr){
@@ -14321,7 +14400,7 @@ function pintarTablaPago(){
   const pr = S.pr, cerr = cerradaPago(), dis = cerr ? ' disabled' : '';
   if(!pr.filas.length){ $('pyTabla').innerHTML = ''; return; }
   const anchosPago = leerLS(PY_ANCHOS_CLAVE, {}), fijaPago = Object.keys(anchosPago).length > 0, din = pyColsDin();
-  const PY_TH_TIT = { dias:'Days paid in advance (assumed worked)', bono:'In USD. For pesos write COP after the amount, e.g. -100000 COP', aj:'Difference from the days paid in advance last pay run' };
+  const PY_TH_TIT = { dias:'Days paid in advance (assumed worked)', bono:'In ' + cfgMoneda(pr.P.reglas).base + '. Use a minus sign to take money off', aj:'Difference from the days paid in advance last pay run' };
   const PY_TH_CLS = { nombre:'nombre', m:'tot', n:'tot', x:'tot', tarifa:'num', horas:'num', ot:'num', j:'num', k:'num', v:'num', w:'num' };
   const PY_ANCHO_DEF = { nombre:168, m:94, n:104, x:106, de:118, bono:92, dias:76, aj:96 };
   let t = '<table class="hoja pago' + (fijaPago ? ' fija' : '') + '"><colgroup>' +
@@ -14656,6 +14735,29 @@ function descargarBlob(blob, nombre){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
+// (v349) Pay run: una fila por persona, con los campos que apliquen a esta empresa
+function cfgExportPago(){
+  const pr = S.pr, din = pyColsDin(), cm = cfgMoneda(pr.P.reglas), oc = din.ocultas, L = din.lab, mons = new Set(pr.filas.map(f => f.moneda || cm.base)), una = mons.size === 1;
+  const c = (k, t, o) => Object.assign({ k, t }, o || {});
+  const campos = [c('nombre', 'Employee', { def:1, w:26 }), c('nom', 'First name'), c('ape', 'Last name'), c('cuenta', 'Account', { def:1, w:22 }),
+    mons.size > 1 || [...mons][0] !== cm.base ? c('moneda', 'Paid in') : null,
+    c('tarifa', 'Rate (' + cm.base + '/hour)', { def:1 }), c('horas', 'Hours', { def:1, suma:1 }), c('ot', 'Overtime hours', { def:1, suma:1 }), c('j', 'Hours pay', { def:1, suma:1 }),
+    c('dias', 'Add days', { def:1, suma:1 }), c('k', 'Add pay', { def:1, suma:1 }), c('bono', 'Bonus', { def:1, suma:1 }), c('aj', 'Adjustment', { def:1, suma:1 }),
+    soloPago('aportes') ? c('fijo', 'Fixed pay') : null,
+    c('m', L.m, { def:1, suma:1 }), oc.has('y') ? null : c('y', L.y, { def:1 }), oc.has('n') ? null : c('n', L.n, { def:1, suma:una }),
+    oc.has('de') ? null : c('de', 'Paid from', { def:1 }), oc.has('v') ? null : c('v', 'Rete ICA', { def:1, suma:una }), oc.has('w') ? null : c('w', 'Aportes', { def:1, suma:una }),
+    c('x', L.x.trim() === 'Net' ? 'Net' : L.x, { def:1, suma:una, w:14 })].filter(Boolean);
+  const num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? '' : Math.round(Number(v) * 100) / 100;
+  const modo = { k:'persona', t:'One per person', hoja:'Pay run', campos,
+    filas:() => filasPago(pyModo()).map(f => ({ nombre:f.nombre || ctTitulo(f.nom + ' ' + f.ape), nom:ctTitulo(f.nom), ape:ctTitulo(f.ape), cuenta:f.cuenta || '', moneda:f.moneda || cm.base,
+      tarifa:num(f.tarifa), horas:expHd(f.min), ot:expHd(f.minOt), j:num(f.j), dias:num(f.dias), k:num(f.k), bono:num(f.bonoUsd), aj:num(f.aj), fijo:num(f.fijo),
+      m:num(f.m), y:num(f.y), n:num(f.n), de:f.de === 'personal' ? 'Personal' : 'Nómina 247', v:num(f.v), w:num(f.w), x:num(f.x) })) };
+  const est = cerradaPago() ? 'closed' : pr.run ? 'draft' : 'not saved';
+  return { titulo:'Export pay run', clave:'pago', sub:diaS(pr.desde) + ' – ' + diaS(pr.hasta) + ' · ' + pr.filas.length + ' people · ' + est,
+    tituloHoja:'Pay run ' + diaS(pr.desde) + ' – ' + diaS(pr.hasta) + ', ' + pr.hasta.slice(0, 4) + ' (' + est + ')',
+    archivo:() => 'PayRun_' + pr.desde + '_' + pr.hasta, modos:[modo] };
+}
+$('pyExpCampos').addEventListener('click', () => { if(!S.pr || !S.pr.filas.length || S.pr.imp) return; abrirExport(cfgExportPago()); });
 $('pyExportar').addEventListener('click', async () => {
   const pr = S.pr; if(!pr || !pr.filas.length) return;
   if(!pr.P.trm && !pr.imp) return toast('Set the exchange rate first.', 'err');
@@ -15089,7 +15191,7 @@ function pintarPagoImp(){
   const btn = (id, on) => $(id).classList.toggle('hidden', !on);
   btn('pyGuardar', !cerr); btn('pyCerrar', !cerr); btn('pyReabrir', cerr); btn('pyBorrar', !cerr); if($('pyDocs')) $('pyDocs').classList.toggle('hidden', !cerr);
   $('pyReabrir').textContent = 'Unlock to edit'; $('pyCerrar').textContent = 'Lock again'; $('pyLeyenda').classList.add('hidden');
-  $('pyExportar').disabled = !pr.filas.length;
+  $('pyExportar').disabled = !pr.filas.length; $('pyExpCampos').disabled = !pr.filas.length; $('pyExpCampos').classList.toggle('hidden', !!pr.imp);
 }
 const nmVal = (x, f) => x == null ? '<span class="muted">—</span>' : f(x);
 function pintarTablaImp(){
