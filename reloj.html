@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v346-202611132255">
+<meta name="app-build" content="v347-202611132310">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -456,6 +456,9 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .ajm-x{border:0;background:transparent;font-size:18px;color:var(--text-muted);cursor:pointer;border-radius:7px;height:28px}
 .ajm-x:hover{background:var(--sand-2);color:var(--accent-600)}
 .pr-g-dolar.pr-varias{flex-wrap:wrap;gap:12px 22px}
+.py-ley{margin:10px 0 0;padding-left:18px;max-width:110ch;display:grid;gap:3px}
+.py-ley li{line-height:1.45}
+.py-ley li::marker{color:var(--text-muted)}
 .pr-cambio{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:flex-start;flex:1 1 auto}
 .pr-param .pr-num{flex:0 0 auto}
 .pr-param .pr-num input{width:100px}
@@ -3037,7 +3040,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         </div>
       </div>
     </div>
-    <p class="nota" id="pyLeyenda" style="margin-top:10px;max-width:110ch">Hours pay comes from the Timesheet (approved hours on approved days, plus paid time off) up to the day before <b>Assume worked from</b>; the days from then to the end of the pay period are paid in advance at each person's hours per day. Next pay run suggests an adjustment if those days weren't worked. Bonus is in USD; for pesos write COP after the amount (for example <b>-100000 COP</b>). Click a name to change where they're paid from, their aportes, a fixed pay in pesos or their dollar rate.</p>
+    <ul class="nota py-ley" id="pyLeyenda"></ul>
     <div class="pr-hist-cab"><h2>Saved pay runs</h2><span id="pyAnios"></span>
       <input type="file" id="pyImpArchivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
       <button class="btn btn-ghost btn-sm" id="pyImpElegir" type="button" title="Bring the pay periods already paid from the CALL CENTER PAY ROLL workbook">Import past pay runs…</button>
@@ -14205,9 +14208,18 @@ function recalcPago(){
 const cerradaPago = () => !!(S.pr && S.pr.run && S.pr.run.estado === 'cerrada');
 function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || (a.nom + ' ' + a.ape).localeCompare(b.nom + ' ' + b.ape, 'en')); }
 
+// (v347) Cómo se calcula, en pocas líneas y según lo que esta empresa usa (moneda, 24/7 only)
+function leyendaPago(){
+  const cm = cfgMoneda(S.pr.P.reglas), ext = monedasPago(), ej = ext[0];
+  const cambiar = [ext.length ? 'exchange rate' : '', solo247('fuentes') ? 'payment source' : '', solo247('aportes') ? 'aportes' : '', solo247('aportes') ? 'fixed pay' : ''].filter(Boolean);
+  return ['<li><b>Hours:</b> approved hours and paid time off from the Timesheet, up to the day before <b>Pay remaining days from</b>.</li>',
+    '<li><b>Days paid in advance:</b> the rest of the pay period is paid at each person&rsquo;s hours per day. If those days aren&rsquo;t worked, the next pay run suggests an adjustment.</li>',
+    '<li><b>Bonus:</b> in ' + esc(cm.base) + (ej ? '. To enter it in the currency the person is paid in, add the code after the amount (e.g. <b>-100000 ' + esc(ej) + '</b>)' : '') + '. Use a minus sign to take money off.</li>',
+    cambiar.length ? '<li><b>One person:</b> click a name to change their ' + (cambiar.length > 1 ? cambiar.slice(0, -1).join(', ') + ' or ' + cambiar[cambiar.length - 1] : cambiar[0]) + '.</li>' : ''].join('');
+}
 function pintarPago(){
   if(S.pr && S.pr.imp) return pintarPagoImp();
-  $('pyLeyenda').classList.remove('hidden');
+  $('pyLeyenda').classList.remove('hidden'); $('pyLeyenda').innerHTML = leyendaPago();
   $('pyReabrir').textContent = 'Reopen'; $('pyCerrar').textContent = 'Close pay run';
   const pr = S.pr, P = pr.P, cerr = cerradaPago(), run = pr.run;
   $('pyEstado').innerHTML = '<span class="pill ' + (cerr ? 'pr-cerr' : run ? 'pr-borr' : '') + '">' + (cerr ? 'Closed' : run ? 'Draft' : 'Not saved') + '</span>' +
