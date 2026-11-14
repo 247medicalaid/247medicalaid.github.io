@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v347-202611132310">
+<meta name="app-build" content="v348-202611132310">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -14210,11 +14210,11 @@ function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~')
 
 // (v347) Cómo se calcula, en pocas líneas y según lo que esta empresa usa (moneda, 24/7 only)
 function leyendaPago(){
-  const cm = cfgMoneda(S.pr.P.reglas), ext = monedasPago(), ej = ext[0];
+  const cm = cfgMoneda(S.pr.P.reglas), ext = monedasPago();
   const cambiar = [ext.length ? 'exchange rate' : '', solo247('fuentes') ? 'payment source' : '', solo247('aportes') ? 'aportes' : '', solo247('aportes') ? 'fixed pay' : ''].filter(Boolean);
   return ['<li><b>Hours:</b> approved hours and paid time off from the Timesheet, up to the day before <b>Pay remaining days from</b>.</li>',
     '<li><b>Days paid in advance:</b> the rest of the pay period is paid at each person&rsquo;s hours per day. If those days aren&rsquo;t worked, the next pay run suggests an adjustment.</li>',
-    '<li><b>Bonus:</b> in ' + esc(cm.base) + (ej ? '. To enter it in the currency the person is paid in, add the code after the amount (e.g. <b>-100000 ' + esc(ej) + '</b>)' : '') + '. Use a minus sign to take money off.</li>',
+    '<li><b>Bonus:</b> in ' + esc(cm.base) + '. Use a minus sign to take money off.</li>',   // (v348) sin la opción de otra moneda en el texto (se sigue leyendo en lo ya guardado)
     cambiar.length ? '<li><b>One person:</b> click a name to change their ' + (cambiar.length > 1 ? cambiar.slice(0, -1).join(', ') + ' or ' + cambiar[cambiar.length - 1] : cambiar[0]) + '.</li>' : ''].join('');
 }
 function pintarPago(){
