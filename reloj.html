@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v352-202611141610">
+<meta name="app-build" content="v353-202611141900">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -89,7 +89,33 @@
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
+<!-- ═════════ INSTALACION:INICIO (v353) ═════════
+     Todo lo que cambia entre instalaciones (24/7 Medical Aid y el producto independiente) vive aquí.
+     Para publicar el producto, un script reemplaza este bloque completo (de INICIO a FIN) por el de su
+     instalación; el resto del archivo es idéntico. Valores de esta copia: los de 24/7. -->
+<script>
+window.INSTALACION = {
+  id: '247',
+  hosts: ['247medicalaid.github.io', 'timeclock.247medical-aid.com', 'chat.247medical-aid.com'],   // fuera de estos: modo demo
+  sbUrl: 'https://tftyyzoowctuhggwlgyt.supabase.co',
+  sbKey: 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1',
+  sbStorage: 'portal247.sb', agenteStorage: 'reloj247.agente', sesionClave: 'portal247.sesion',
+  libRespaldo: 'https://247medicalaid.github.io/supabase-js-2.119.0.js',
+  base: 'https://247medicalaid.github.io/',            // de aquí se lee version.txt para avisar de versiones nuevas
+  portal: 'https://247medicalaid.github.io/',          // null = sin portal (el producto)
+  web: 'https://timeclock.247medical-aid.com/',        // el logo de la app de Windows abre esta dirección
+  monitorUrl: 'https://247medicalaid.github.io/monitor.html',
+  chatHost: 'chat.247medical-aid.com', chatUrl: 'https://chat.247medical-aid.com', chatNombre: '24/7 Chat',
+  dominioInterno: '@usuarios.247medical-aid.com',      // correos internos de las cuentas del portal ('' = no hay)
+  solo247: true,                                       // false = sin la sección «24/7 only» ni lo que controla
+  cuentaClaves: ['WHITE WILSON', 'ACCESS', 'ADVANTAGE', 'TOTAL SLEEP', 'MAB', 'ALONSO'],   // agrupan nombres de cuenta para los colores
+  reglasPago: { extra:400, tope:4000, ica:9.5, pais:'US', modo:'int', paisPago:'CO' },     // reglas de pago sin configurar
+  marca: { nombre:'24/7 Medical Aid', appName:'Time Clock', logoUrl:'https://247medical-aid.com/logo-247-dark.svg',
+           zona:'America/New_York', zonaLabel:'Orlando time' }
+};
+</script>
 <script src="https://247medicalaid.github.io/sb.js?v=3"></script>
+<!-- ═════════ INSTALACION:FIN ═════════ -->
 <!-- (v297) Respaldo de conexión a Supabase. Si sb.js NO alcanzó a cargar o ejecutar
      (caché viejo del WebView2 de la app de escritorio, bloqueo de red, CDN caído…),
      aquí definimos SB_URL / SB_KEY / window.sb con los MISMOS valores públicos, para
@@ -99,11 +125,12 @@
 <script>
 (function(){
   try{
-    if(!window.SB_URL) window.SB_URL = 'https://tftyyzoowctuhggwlgyt.supabase.co';
-    if(!window.SB_KEY) window.SB_KEY = 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1';
-    if(!window.sb && window.supabase && window.supabase.createClient){
+    var I = window.INSTALACION || {};
+    if(!window.SB_URL) window.SB_URL = I.sbUrl;
+    if(!window.SB_KEY) window.SB_KEY = I.sbKey;
+    if(!window.sb && window.SB_URL && window.supabase && window.supabase.createClient){
       window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, {
-        auth:{ persistSession:true, autoRefreshToken:true, storageKey:'portal247.sb' }
+        auth:{ persistSession:true, autoRefreshToken:true, storageKey:I.sbStorage || 'tc.sb' }
       });
     }
   }catch(e){ /* nunca frenar el arranque por el respaldo */ }
@@ -2795,8 +2822,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <button class="btn-menu" id="btnMenu" type="button" aria-label="Open the menu" aria-controls="tabs" aria-expanded="false">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
-  <div class="marca" id="marcaWeb" role="link" tabindex="0" title="Volver al portal" style="cursor:pointer">
-    <img src="https://247medical-aid.com/logo-247-dark.svg" alt="24/7 Medical Aid" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'txt',textContent:'24/7 Medical Aid'}))">
+  <div class="marca" id="marcaWeb" role="link" tabindex="0" title="Back to the portal" style="cursor:pointer">
+    <img alt="">
     <span class="txt app">Time Clock<span id="appVer" style="font-size:10px;font-weight:600;opacity:.5;margin-left:5px;vertical-align:baseline;letter-spacing:0" title="Time Clock version"></span></span>
   </div>
   <span class="demo-tag hidden" id="demoTag">Demo mode</span>
@@ -2822,7 +2849,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <div class="notif-cuerpo hidden" id="notifHist"></div>
     </div>
   </div>
-  <a class="btn btn-ghost btn-sm" href="https://247medicalaid.github.io/" id="btnPortal">Portal</a>
+  <a class="btn btn-ghost btn-sm" href="#" id="btnPortal">Portal</a>
   <button class="btn btn-ghost btn-sm btn-perfil hidden" id="btnDocs" type="button" aria-label="My documents"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span class="tx">My documents</span><b class="badge hidden" id="docsN"></b></button>
   <button class="btn btn-ghost btn-sm btn-perfil hidden" id="btnPerfil" type="button" aria-label="My profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg><span class="tx">My profile</span></button>
   <button class="btn btn-ghost btn-sm" id="btnRefrescar" type="button" title="Reload the page to see the latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span class="tx">Refresh</span></button>
@@ -2853,7 +2880,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <button class="tab" role="tab" data-v="emps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Users</span><b class="badge hidden" id="bancoBadge" title="Bank information changes to review"></b></button>
   <span class="sep-lat" aria-hidden="true"></span>
   <button class="tab" role="tab" data-v="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
-  <div class="pie-lat"><a class="tab" href="https://247medicalaid.github.io/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Portal</span></a></div>
+  <div class="pie-lat" id="pieLatPortal"><a class="tab" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Portal</span></a></div>
 </nav>
 
 <main>
@@ -3127,7 +3154,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <!-- ADMIN: MONITOR (el mismo monitor.html, dentro de la app) -->
   <section id="vMon" class="hidden">
     <div class="mon-cab"><h1>Monitor</h1><span class="esp"></span>
-      <a class="btn btn-ghost btn-sm" id="monNueva" href="https://247medicalaid.github.io/monitor.html" target="_blank" rel="noopener">Open in a new tab</a></div>
+      <a class="btn btn-ghost btn-sm" id="monNueva" href="#" target="_blank" rel="noopener">Open in a new tab</a></div>
     <div class="mon-marco" id="monMarco"><div class="mon-cargando" id="monCargando"><span class="spin dark"></span> Loading the Monitor…</div>
       <iframe id="monFrame" title="Agent activity monitor"></iframe></div>
   </section>
@@ -3215,7 +3242,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <div class="aj-ct"><h2>Company</h2></div>
             <p class="aj-desc">What everyone sees across the Time Clock: the company name in the header and the login, and the name of the app.</p>
             <div class="aj-filas">
-              <div class="aj-fila"><div class="aj-fl"><b>Company name</b><span>Shown in the header, the login and emails.</span></div><div class="aj-fr"><input id="ajMarcaNombre" type="text" maxlength="120" placeholder="24/7 Medical Aid"></div></div>
+              <div class="aj-fila"><div class="aj-fl"><b>Company name</b><span>Shown in the header, the login and emails.</span></div><div class="aj-fr"><input id="ajMarcaNombre" type="text" maxlength="120" placeholder="Your company name"></div></div>
               <div class="aj-fila"><div class="aj-fl"><b>App name</b><span>The name of this app for your team.</span></div><div class="aj-fr"><input id="ajMarcaApp" type="text" maxlength="60" placeholder="Time Clock"></div></div>
               <div class="aj-fila aj-fila-alta"><div class="aj-fl"><b>Logo</b><span>PNG, JPG, SVG or WebP &middot; an SVG or an image under ~250&nbsp;KB works best.</span></div>
                 <div class="aj-fr aj-logo"><div class="marca-logo-prev" id="ajMarcaLogoPrev"></div>
@@ -3242,7 +3269,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
                 <option value="America/Sao_Paulo">Brazil &mdash; S&atilde;o Paulo</option>
                 <option value="Europe/Madrid">Spain &mdash; Madrid</option>
               </select></div></div>
-              <div class="aj-fila"><div class="aj-fl"><b>Time label</b><span>Shown next to the clock, e.g. &laquo;Orlando time&raquo;.</span></div><div class="aj-fr"><input id="ajMarcaZonaLabel" type="text" maxlength="60" placeholder="Orlando time"></div></div>
+              <div class="aj-fila"><div class="aj-fl"><b>Time label</b><span>Shown next to the clock, e.g. &laquo;Eastern time&raquo;.</span></div><div class="aj-fr"><input id="ajMarcaZonaLabel" type="text" maxlength="60" placeholder="Eastern time"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMarcaGuardar" type="button">Save</button><span class="nota" id="ajMarcaEstado"></span></div>
           </div>
@@ -3620,7 +3647,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
     <div class="sub">Their sign-in email, account, Monitor and Payroll links, and personal details.</div>
     <div class="ficha-sec sec-id">
     <div class="ficha-grid">
-      <label class="campo c3" style="--w:160px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Maria Jose"></label>
+      <label class="campo c3" style="--w:160px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Ana Maria"></label>
       <label class="campo c3" style="--w:160px"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
       <label class="campo c6" style="--w:285px"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
       <label class="campo c3" style="--w:150px"><span>User ID <i class="opc" style="font-style:normal;font-weight:400">(for the Monitor app)</i></span><input id="eCodigo" readonly placeholder="— (on save)" title="Fixed code for this user. The Monitor app on their computer uses it to identify them." style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:1.5px;background:#fff"></label>
@@ -4124,7 +4151,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
   <div class="ventana" style="max-width:520px">
     <h2 id="cnTitulo">New chat</h2>
     <div class="upd-tabs" role="tablist"><button type="button" role="tab" data-cn-modo="persona" aria-selected="true">With a person</button><button type="button" role="tab" data-cn-modo="grupo" aria-selected="false">New group</button></div>
-    <div id="cnGrupo" class="hidden"><label class="campo"><span>Group name</span><input id="cnNombre" maxlength="80" autocomplete="off" placeholder="e.g. Total Sleep team"></label></div>
+    <div id="cnGrupo" class="hidden"><label class="campo"><span>Group name</span><input id="cnNombre" maxlength="80" autocomplete="off" placeholder="e.g. Front desk team"></label></div>
     <input id="cnBuscar" class="cn-buscar" type="search" placeholder="Search a name…" autocomplete="off" aria-label="Search people">
     <div class="cn-lista" id="cnLista"></div>
     <div class="err" id="cnErr" role="alert"></div>
@@ -4158,26 +4185,30 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
    ══════════════════════════════════════════════════════════════════════════ */
 
 
-const PORTAL = 'https://247medicalaid.github.io/';
-// (v305) App «24/7 Chat» (chat.247medical-aid.com) o ?solochat=1: solo el chat, para admins y agentes.
-const HOST_CHAT = location.hostname === 'chat.247medical-aid.com';
+// (v353) Valores de la instalación (bloque INSTALACION del <head>): 24/7 o el producto.
+const INST = window.INSTALACION || {};
+const PORTAL = INST.portal || '';
+const INST_SOLO247 = INST.solo247 !== false;
+const CHAT_NOMBRE = INST.chatNombre || 'Team chat';
+// (v305) App de Chat (su propio dominio) o ?solochat=1: solo el chat, para admins y agentes.
+const HOST_CHAT = !!INST.chatHost && location.hostname === INST.chatHost;
 function soloChatPedido(){ return HOST_CHAT || /[?&]solochat=1/.test(location.search); }
-const CLAVE  = 'portal247.sesion';
+const CLAVE  = INST.sesionClave || 'tc.sesion';
 // Fuera del portal (archivo descargado, vista previa) no hay sesión ni
 // servidor: se abre directamente el modo de ejemplo.
 // (v94) el Time Clock real vive en github.io (portal y administradores) y en timeclock.247medical-aid.com (agentes)
-const HOSTS_RELOJ = ['247medicalaid.github.io', 'timeclock.247medical-aid.com', 'chat.247medical-aid.com'];
+const HOSTS_RELOJ = INST.hosts || [];
 const DEMO   = new URLSearchParams(location.search).has('demo') || HOSTS_RELOJ.indexOf(location.hostname) < 0;
 // (v253) Marca y locale configurables. Un despliegue puede poner window.MARCA = {...} antes de este script;
 // lo que no defina, toma el valor de 24/7 por defecto. Así el TimeClock es genérico sin tocar el código.
-const MARCA_DEFAULT = {
-  nombre: '24/7 Medical Aid',
+const MARCA_DEFAULT = Object.assign({
+  nombre: '',
   appName: 'Time Clock',
-  logoUrl: 'https://247medical-aid.com/logo-247-dark.svg',
+  logoUrl: '',
   zona: 'America/New_York',
-  zonaLabel: 'Orlando time',
+  zonaLabel: 'Local time',
   logo: null, brand: null, accent: null, colores: null
-};
+}, INST.marca || {});
 const MARCA = Object.assign({}, MARCA_DEFAULT, (window.MARCA || {}));
 const MARCA_BASE = Object.assign({}, MARCA);   // defaults + override del despliegue; la config del servidor se superpone
 const MARCA_COL_DEF = { brand:'#0E86B4', accent:'#C81F29' };   // colores de 24/7 (si se eligen estos, NO se re-tematiza)
@@ -4196,11 +4227,12 @@ function _mcRamp(brand, accent){
 }
 function aplicarMarca(){
   try{
-    document.title = soloChatPedido() ? '24/7 Chat' : MARCA.appName + ' \u00b7 ' + MARCA.nombre;
+    document.title = soloChatPedido() ? CHAT_NOMBRE : (MARCA.nombre ? MARCA.appName + ' \u00b7 ' + MARCA.nombre : MARCA.appName);
     const mi = document.querySelector('#marcaWeb img'), logo = MARCA.logo || MARCA.logoUrl;
-    if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
+    if(mi && !logo){ mi.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre || MARCA.appName })); }
+    else if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
     const ma = document.querySelector('#marcaWeb .txt.app');
-    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? '24/7 Chat' : MARCA.appName;
+    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? CHAT_NOMBRE : MARCA.appName;
     const vars = Object.assign({}, _mcRamp(MARCA.brand, MARCA.accent), MARCA.colores || {});
     _MARCA_VARS.forEach(k => document.documentElement.style.removeProperty(k));
     for(const k in vars) document.documentElement.style.setProperty(k, vars[k]);
@@ -4213,6 +4245,13 @@ function setMarca(cfg){
   aplicarMarca();
 }
 aplicarMarca();
+// (v353) enlaces que dependen de la instalación
+(function(){ try{
+  const bp = document.getElementById('btnPortal'), pl = document.getElementById('pieLatPortal'), mn = document.getElementById('monNueva');
+  if(PORTAL){ if(bp) bp.href = PORTAL; if(pl && pl.firstElementChild) pl.firstElementChild.href = PORTAL; }
+  else { if(bp) bp.classList.add('solo-off'); if(pl) pl.classList.add('solo-off'); }
+  if(mn) mn.href = INST.monitorUrl || '#';
+}catch(e){} })();
 
 const NOMBRE_TIPO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
 const S = { token:null, yo:null, offset:0, zona:MARCA.zona, vista:null, hoja:null, emps:null,
@@ -4294,6 +4333,7 @@ document.addEventListener('keydown', e => { if(e.key !== 'Escape') return;
 /* ── SESIÓN Y SERVIDOR ── */
 function alPortal(motivo){
   if(motivo === 'expirada'){ try{ localStorage.removeItem(CLAVE); }catch(e){} }
+  if(!PORTAL){ pantallaLogin(motivo === 'expirada' ? 'Your session ended. Sign in again.' : ''); return; }   // (v353) sin portal
   location.replace(PORTAL + '?motivo=' + motivo + '&app=reloj');
 }
 /* ══════════════════ DATOS: SUPABASE ══════════════════
@@ -4305,9 +4345,9 @@ function alPortal(motivo){
    después: la hoja se pinta al instante y las alertas del PC se agregan
    cuando responde. */
 const CFG = { TOLERANCIA_MIN: 15, AUSENCIA_MIN: 5, ALMUERZO_MAX_MIN: 60, SIN_ALMUERZO_MIN: 360, MAX_DIAS: 31 };
-const DOMINIO_SB = '@usuarios.247medical-aid.com';
+const DOMINIO_SB = INST.dominioInterno || '';
 // El usuario interno: los agentes lo traen en su cuenta (app_metadata); los del portal, en su correo interno.
-const usuarioDe = ses => (ses.user.app_metadata && ses.user.app_metadata.usuario) || String(ses.user.email || '').replace(DOMINIO_SB, '');
+const usuarioDe = ses => (ses.user.app_metadata && ses.user.app_metadata.usuario) || (DOMINIO_SB ? String(ses.user.email || '').replace(DOMINIO_SB, '') : String(ses.user.email || ''));
 const EPISODIOS_AUSENCIA = { 'Inactivo': 1, 'Sin señal': 1, 'Sin internet': 1 };   // así los nombra el Monitor (datos, no texto)
 const EPISODIO_EN = { 'Inactivo':'Idle', 'Sin señal':'No signal', 'Sin internet':'No internet' };
 const MON_CLAVE = 'reloj_mon_v2';   // (v328) v1 tenía días vacíos leídos del Apps Script viejo
@@ -4411,7 +4451,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
    Los nombres se emparejan por nombre normalizado y, si no, por prefijo («CARDIO» ↔ «CARDIOVASCULAR») o por palabras. */
 function normCuenta(n){
   const x = String(n || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  for(const k of ['WHITE WILSON', 'ACCESS', 'ADVANTAGE', 'TOTAL SLEEP', 'MAB', 'ALONSO']) if(x.indexOf(k) >= 0) return k;
+  for(const k of (INST.cuentaClaves || [])) if(x.indexOf(k) >= 0) return k;
   return x.replace(/[^A-Z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function tintaDe(hex){   // la misma regla de la Nómina (ivTintaTexto)
@@ -4421,8 +4461,8 @@ function tintaDe(hex){   // la misma regla de la Nómina (ivTintaTexto)
   const L = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
   return ((L + 0.05) / 0.06454) > (1.05 / (L + 0.05)) ? '#0B2233' : '#FFFFFF';
 }
-const DEMO_COLORES = [{ nombre:'CARDIOVASCULAR', color:'#F2A93B' }, { nombre:'GASTROENTEROLOGY', color:'#fb7185' }, { nombre:'TOTAL SLEEP MANAGEMENT', color:'#34d399' },
-  { nombre:'MAB PULMONARY', color:'#818cf8' }, { nombre:'24/7 MEDICAL', color:'#38bdf8' }];
+const DEMO_COLORES = [{ nombre:'CARDIOVASCULAR', color:'#F2A93B' }, { nombre:'GASTROENTEROLOGY', color:'#fb7185' }, { nombre:'SLEEP CENTER', color:'#34d399' },
+  { nombre:'PULMONARY CARE', color:'#818cf8' }, { nombre:'MAIN OFFICE', color:'#38bdf8' }];
 // (v341) Los colores de cuenta se definen SOLO en el Time Clock (Settings → Accounts); ya no se leen de la Nómina.
 async function cargarColores(){ if(!S.coloresN) S.coloresN = []; return S.coloresN; }
 // Palabras que distinguen una cuenta (sin las genéricas).
@@ -5654,7 +5694,7 @@ const LOGO = MARCA.logoUrl;
 // (v311) Si la librería de Supabase no cargó desde jsdelivr (CDN caído o bloqueado en la red del agente),
 // se trae de una copia propia en github.io y, si no, de unpkg. Sin esto el login fallaba con
 // «Cannot read properties of undefined (reading 'auth')».
-const SUPA_RESPALDOS = ['https://247medicalaid.github.io/supabase-js-2.119.0.js', 'https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js'];
+const SUPA_RESPALDOS = [INST.libRespaldo, 'https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js'].filter(Boolean);
 let supaCargando = null;
 function supaLista(){ return !!(window.supabase && window.supabase.createClient); }
 function asegurarSupabase(){
@@ -5672,9 +5712,9 @@ function asegurarSupabase(){
     const ok = supaLista();
     if(ok){
       try{
-        if(!window.SB_URL) window.SB_URL = 'https://tftyyzoowctuhggwlgyt.supabase.co';
-        if(!window.SB_KEY) window.SB_KEY = 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1';
-        if(!window.sb) window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'portal247.sb' } });
+        if(!window.SB_URL) window.SB_URL = INST.sbUrl;
+        if(!window.SB_KEY) window.SB_KEY = INST.sbKey;
+        if(!window.sb) window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:INST.sbStorage || 'tc.sb' } });
       }catch(e){}
     }
     supaCargando = null;
@@ -5685,10 +5725,10 @@ function asegurarSupabase(){
 const ERR_SIN_CONEXION = 'Couldn\u2019t connect to the Time Clock. Check your internet connection and try again.';
 function clienteAgente(){
   if(!S.sbAg && window.supabase && window.supabase.createClient)
-    S.sbAg = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:'reloj247.agente' } });
+    S.sbAg = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:INST.agenteStorage || 'tc.agente' } });
   return S.sbAg;
 }
-const esCuentaPortal = ses => String(ses.user.email || '').endsWith(DOMINIO_SB);
+const esCuentaPortal = ses => !!DOMINIO_SB && String(ses.user.email || '').endsWith(DOMINIO_SB);
 function caja(html){
   const v = $('velo'); if(v) v.remove();
   $('acceso').classList.remove('hidden');
@@ -5709,11 +5749,11 @@ async function cuentasFn(accion, cuerpo, jwt){
 function cuentasOk(j){ if(!j.ok) throw new Error(enIngles(j.msg) || 'Something went wrong.'); return j; }
 const claveBuena = c => c.length >= 8 && c.length <= 72 && /[A-Za-z]/.test(c) && /\d/.test(c);
 const emailBueno = e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
-const portalLink = '<div class="pie-acc">Administrative staff: <a href="' + (HOST_CHAT ? '/?portal=1&goto=reloj&solochat=1&app=1' : PORTAL) + '">sign in through the portal</a>.</div>';
+const portalLink = PORTAL ? '<div class="pie-acc">Administrative staff: <a href="' + (HOST_CHAT ? '/?portal=1&goto=reloj&solochat=1&app=1' : PORTAL) + '">sign in through the portal</a>.</div>' : '';
 
 function pantallaLogin(aviso, email){
   appMandar({ tipo:'estado', v:1, conectado:false, empleado:false, estado:'fuera', nombre:'', minHoy:0, recordatorios:[] });
-  caja((soloChatPedido() ? '<h1>24/7 Chat</h1><div class="sub">Sign in with your work email and password to chat with your team.</div>'
+  caja((soloChatPedido() ? '<h1>' + esc(CHAT_NOMBRE) + '</h1><div class="sub">Sign in with your work email and password to chat with your team.</div>'
                           : '<h1>Sign in</h1><div class="sub">Clock in and out, see your hours and send requests.</div>') +
     (aviso ? '<div class="listo">' + aviso + '</div>' : '') +
     '<form id="fLogin" novalidate><label class="campo"><span>Email</span><input id="lEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="' + esc(email || '') + '"></label>' +
@@ -5958,7 +5998,7 @@ async function inicio(){
       // El icono del TimeClock nunca trae solochat en su URL -> panel completo.
       // (v298) En el subdominio del chat (chat.247medical-aid.com) SIEMPRE es solo-chat,
       // aunque la URL no traiga el parametro (el cargador hace document.write sin cambiar la URL).
-      const soloChat = /[?&]solochat=1/.test(location.search) || location.hostname === 'chat.247medical-aid.com';
+      const soloChat = /[?&]solochat=1/.test(location.search) || HOST_CHAT;
       if(soloChat){
         document.body.classList.add('solochat');
         irA('chat');
@@ -5971,7 +6011,7 @@ async function inicio(){
   }catch(e){
     if(e.codigo === 'SIN_SB'){
       $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px;line-height:1.6">' + esc(e.message) +
-        '<br><br><a class="btn" href="' + PORTAL + '" style="color:#fff;border-color:rgba(255,255,255,.4)">Go to the portal</a></div>';
+        (PORTAL ? '<br><br><a class="btn" href="' + PORTAL + '" style="color:#fff;border-color:rgba(255,255,255,.4)">Go to the portal</a>' : '') + '</div>';
       return;
     }
     $('velo').innerHTML = '<div style="max-width:420px;text-align:center;padding:20px">' + esc(e.message) +
@@ -6025,7 +6065,7 @@ function appLayout(){
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
-      '<div>Time Clock<small>24/7 Medical Aid</small></div></div>' +
+      '<div>' + esc(MARCA.appName) + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '') + '</div></div>' +
     AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<button class="aw-item" type="button" id="awRefrescar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh</span></button>' +
@@ -6118,10 +6158,10 @@ function appPanel(k){
 }
 // (v305) Agente dentro de la app «24/7 Chat»: el menú queda con Chat, Refresh y Sign out; títulos del chat.
 function awSoloChat(){
-  const m = document.querySelector('.aw-marca div'); if(m) m.innerHTML = '24/7 Chat<small>24/7 Medical Aid</small>';
+  const m = document.querySelector('.aw-marca div'); if(m) m.innerHTML = esc(CHAT_NOMBRE) + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '');
   const sv = document.querySelector('.aw-marca svg');
   if(sv) sv.outerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="16" fill="#0B2233" stroke="#17A9DE" stroke-width="4"/><rect x="14" y="17" width="36" height="25" rx="9" fill="#fff"/><path d="M20 40l-3 10 12-8z" fill="#fff"/><circle cx="24" cy="29.5" r="3" fill="#17A9DE"/><circle cx="32" cy="29.5" r="3" fill="#17A9DE"/><circle cx="40" cy="29.5" r="3" fill="#17A9DE"/></svg>';
-  const t = document.querySelector('.aw-movil b'); if(t) t.textContent = '24/7 Chat';
+  const t = document.querySelector('.aw-movil b'); if(t) t.textContent = CHAT_NOMBRE;
 }
 function appWin(){ return !!(window.chrome && window.chrome.webview && /[?&]app=win\b/.test(location.search)); }
 function appMandar(o){ if(!appWin()) return; try{ window.chrome.webview.postMessage(JSON.stringify(o)); }catch(e){} }
@@ -6304,7 +6344,7 @@ window.addEventListener('focus', () => { if(S.vista === 'reloj') refrescarYo(150
 // (v159) el titulo del header abre la version web. En la app (WebView2) window.open suele
 // quedar bloqueado, asi que se avisa al host y, si no abre, se copia el enlace.
 function abrirWeb(){
-  const url = 'https://timeclock.247medical-aid.com/';
+  const url = INST.web || (location.origin + location.pathname);
   if(typeof appWin === 'function' && appWin()){
     try{ appMandar({ tipo:'abrirWeb', url }); }catch(e){}
     // La app (WebView2) solo permite /reloj de github.io dentro de la ventana y manda cualquier
@@ -6317,7 +6357,8 @@ function abrirWeb(){
   if(!w){ try{ location.href = url; }catch(e){} }
 }
 (function(){ const mc = document.getElementById('marcaWeb'); if(!mc) return;
-  // El logo 24/7 vuelve al menu del portal.
+  // El logo vuelve al menu del portal (si la instalación tiene portal).
+  if(!PORTAL){ mc.removeAttribute('role'); mc.removeAttribute('tabindex'); mc.removeAttribute('title'); mc.style.cursor = 'default'; return; }
   const irPortal = () => { try{ location.assign(PORTAL); }catch(e){ try{ location.href = PORTAL; }catch(e2){} } };
   mc.addEventListener('click', irPortal);
   mc.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); irPortal(); } });
@@ -8546,8 +8587,9 @@ const CAMPOS_FICHA = { cuenta:'eCuenta', departamento:'eDepto', titulo:'eCargo',
   banco:'eBanco', cuentaBanco:'eCtaBanco', notas:'eNotas', apellidos:'eApellidos' };
 // Listas de Settings → Lists para los campos que se eligen.
 const LISTA_DE = { cuenta:'cuentas', departamento:'departamentos', tipoId:'tiposId', banco:'bancos' };
-const LISTAS_BASE = { cuentas:['24/7 Medical','CARDIO','GASTRO','MAB Pulmonary','Total Sleep'], departamentos:['Call Center','Human Resources'],
-  tiposId:['CC','CE','Passport','SSN'], bancos:['Bancolombia','Banco de Bogotá','BBVA','Davivienda','Nequi'] };
+const LISTAS_BASE = DEMO ? { cuentas:['Main Office','CARDIO','GASTRO','Pulmonary Care','Sleep Center'], departamentos:['Call Center','Human Resources'],
+  tiposId:['CC','CE','Passport','SSN'], bancos:['Bancolombia','Banco de Bogotá','BBVA','Davivienda','Nequi'] }
+  : { cuentas:[], departamentos:[], tiposId:['Passport','SSN'], bancos:[] };   // (v353) sin listas de 24/7: cada empresa pone las suyas
 // La lista de cuentas es la del Monitor (paso 24): se edita en el panel del Monitor → Cuentas.
 const listas = () => { const L = S.listas || LISTAS_BASE; return S.cuentasMon && S.cuentasMon.length ? Object.assign({}, L, { cuentas:S.cuentasMon }) : L; };
 const mismaCuenta = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
@@ -8564,10 +8606,10 @@ async function monitorSB(){
   const [a, c] = await Promise.all([q(sb.rpc('monitor_agentes_lista')), q(sb.rpc('monitor_cuentas_lista'))]);
   return { agentes:aplicarPushes(aplicarRenombres(Array.isArray(a) ? a : [])), cuentas:Array.isArray(c) ? c : [] };
 }
-const DEMO_CUENTAS_MON = ['24/7 Medical', 'CARDIO', 'GASTRO', 'MAB Pulmonary', 'Total Sleep'];
+const DEMO_CUENTAS_MON = ['Main Office', 'CARDIO', 'GASTRO', 'Pulmonary Care', 'Sleep Center'];
 function demoMonAg(){
   if(!DM.monAg) DM.monAg = DM.emps.filter(e => e.agenteMonitor).map(e => ({ agente:e.agenteMonitor, cuenta:e.cuenta || '', activo:true }))
-    .concat([{ agente:'Juan Sebastian Urrea', cuenta:'MAB Pulmonary', activo:true }, { agente:'Maria Jose Vasquez', cuenta:'CARDIO', activo:true }]);
+    .concat([{ agente:'Daniel Rivera', cuenta:'Pulmonary Care', activo:true }, { agente:'Ana Lopez', cuenta:'CARDIO', activo:true }]);
   return DM.monAg;
 }
 // Errores del Apps Script del Monitor (en español) para la interfaz en inglés.
@@ -9913,7 +9955,7 @@ const AJ_SEC = [
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
   { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor.', tono:'s' },
   { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' }
-];
+].filter(s => s.k !== 'solo247' || INST_SOLO247);   // (v353) el producto no tiene esta sección
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
 function ajIco(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (AJ_IC[k] || AJ_IC.inicio) + '</svg>'; }
@@ -12736,13 +12778,13 @@ $('chatApp').addEventListener('click', async ev => {
 });
 $('chatBuscar').addEventListener('input', pintarChatLista);
 // (v305) «24/7 Chat on your phone»: QR + enlace + pasos; el admin copia una invitación lista para mandar.
-const CHAT_URL = 'https://chat.247medical-aid.com';
-const CHAT_INVITACION = 'Install the 24/7 Chat app on your phone:\n' +
+const CHAT_URL = INST.chatUrl || '';
+const CHAT_INVITACION = 'Install the ' + CHAT_NOMBRE + ' app on your phone:\n' +
   '1. Open ' + CHAT_URL + ' in Chrome (Android) or Safari (iPhone).\n' +
-  '2. Android: tap "Install 24/7 Chat" (or Chrome menu ⋮ → Install app). iPhone: tap Share → Add to Home Screen.\n' +
-  '3. Open 24/7 Chat and sign in with the same email and password you use for the Time Clock.\n' +
+  '2. Android: tap "Install ' + CHAT_NOMBRE + '" (or Chrome menu ⋮ → Install app). iPhone: tap Share → Add to Home Screen.\n' +
+  '3. Open ' + CHAT_NOMBRE + ' and sign in with the same email and password you use for the Time Clock.\n' +
   '4. Tap "Turn on alerts" and allow notifications so new messages reach you even with the app closed.';
-if(!HOST_CHAT && $('chatAppLink')) $('chatAppLink').classList.remove('hidden');
+if(!HOST_CHAT && CHAT_URL && $('chatAppLink')) $('chatAppLink').classList.remove('hidden');
 $('chatAppLink').addEventListener('click', async () => {
   const adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
   const html = '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">' +
@@ -13003,7 +13045,7 @@ function popUpd(){
    notificaciones dado, suscribe este celular (llave VAPID pública de reloj_push_clave) y lo guarda
    con reloj_push_guardar. El servidor (disparador + Edge Function chat-push) avisa aunque la app
    esté cerrada. Si algo falla, el chat sigue como antes (avisos con la app abierta). */
-const PUSH_HOST = 'chat.247medical-aid.com';
+const PUSH_HOST = INST.chatHost || '';
 function pushB64uABytes(t){ t = String(t).replace(/-/g, '+').replace(/_/g, '/'); while(t.length % 4) t += '='; const b = atob(t), o = new Uint8Array(b.length); for(let i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; }
 function pushBytesAB64u(buf){ const b = new Uint8Array(buf); let t = ''; for(let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 async function pushActivar(){
@@ -13051,8 +13093,8 @@ function abrirMonitor(){
   if(!f.dataset.cargado){
     f.dataset.cargado = '1';
     f.addEventListener('load', () => { $('monCargando').classList.add('hidden'); });
-    f.src = PORTAL + 'monitor.html?embed=1' + (DEMO ? '&demo=1' : '');
-    if(DEMO) $('monNueva').href = PORTAL + 'monitor.html?demo=1';
+    f.src = (INST.monitorUrl || 'monitor.html') + '?embed=1' + (DEMO ? '&demo=1' : '');
+    if(DEMO) $('monNueva').href = (INST.monitorUrl || 'monitor.html') + '?demo=1';
   }
   setTimeout(monAjustar, 0);
 }
@@ -14059,17 +14101,18 @@ const SOLO247 = [
   { k:'ica', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays. Off: no withholding, no Rete ICA column or total.' },
   { k:'fuentes', pago:true, t:'Paid from Nómina 247 or Personal', d:'Two payment sources with their own totals, plus the Bank template (247) and Personal payments files. Off: everyone is paid from one place.' },
   { k:'aportes', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours. Off: everyone is paid by hours and nothing is taken off.' },
-  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format and import pay periods already paid from it.' }
+  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format and import pay periods already paid from it.' },
+  { k:'comprobantes', t:'Pay stubs and payment files (PDF)', d:'Bilingual pay stubs in pesos with 24/7\u2019s company names, the accountant\u2019s summary and Send to profiles. Off: the Payroll documents panel is hidden.' }
 ];
-const solo247 = k => { const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };
-const pagoComoProducto = () => SOLO247.some(x => x.pago && !solo247(x.k));
+const solo247 = k => { if(!INST_SOLO247) return false; const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };   // (v353) el producto no tiene nada de esto
+const pagoComoProducto = () => INST_SOLO247 && SOLO247.some(x => x.pago && !solo247(x.k));
 const soloPago = k => cerradaPago() || solo247(k);   // una nómina cerrada se ve como se pagó
 function aplicarSolo247(){
   const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !solo247(k)); };
   t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
-  t('ajFilaTope', 'tope'); t('ajFilaIca', 'ica');
+  t('ajFilaTope', 'tope'); t('ajFilaIca', 'ica'); t('pyDocs', 'comprobantes');
   const off = SOLO247.filter(x => !solo247(x.k)).length, a = $('soloAviso'), adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
-  if(a){ a.classList.toggle('hidden', !(adm && off)); a.textContent = 'Product preview · ' + off + (off === 1 ? ' 24/7 feature' : ' 24/7 features') + ' off'; }
+  if(a){ a.classList.toggle('hidden', !(adm && off && INST_SOLO247)); a.textContent = 'Product preview · ' + off + (off === 1 ? ' 24/7 feature' : ' 24/7 features') + ' off'; }
 }
 function pintarSolo247(){
   const el = $('ajSoloFilas'); if(!el) return;
@@ -14095,7 +14138,7 @@ $('ajSoloGuardar').addEventListener('click', async () => {
 });
 $('soloAviso').addEventListener('click', () => { irA('ajustes'); setTimeout(() => { try{ ajIr('solo247'); }catch(e){} }, 50); });
 // (v335) modo/pais/paisPago: sin configurar se comporta como hasta ahora (empresa en EE. UU., pago internacional a Colombia).
-const REGLAS_BASE = { extra:400, tope:4000, ica:9.5, pais:'US', modo:'int', paisPago:'CO', cuentasPais:{}, empPais:{}, reglasTasa:{} };
+const REGLAS_BASE = Object.assign({ extra:0, tope:0, ica:0, pais:'US', modo:'local', paisPago:'US' }, INST.reglasPago || {}, { cuentasPais:{}, empPais:{}, reglasTasa:{} });
 const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
 /* ══════════ (v335) PAÍSES Y MONEDAS ══════════
    La empresa tiene un país (moneda de las tarifas). El pago es LOCAL (todos en esa moneda, sin conversión) o
@@ -15393,25 +15436,25 @@ function demoInit(){
   S.zona = 'America/New_York'; S.modoPruebas = true; S.horFuente = 'tc';   // (v314)
   const hoy = fechaHoy();
   DM.emps = [
-    { usuario:'laura.a', nombre:'Laura Acevedo', agenteMonitor:'Laura Acevedo', nombreNomina:'LAURA ACEVEDO', horasDia:8, activo:true, cuenta:'Total Sleep', titulo:'TOTAL SLEEP', ciudad:'Cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'carloshtl75' } },
-    { usuario:'claudia.c', nombre:'Claudia Calle', agenteMonitor:'Claudia Calle', nombreNomina:'CLAUDIA CALLE', horasDia:8, activo:true, cuenta:'24/7 Medical', titulo:'24/7 Medical', ciudad:'cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00', lugar:{ lat:28.48114, lng:-81.45973, radio:400, por:'carloshtl75' } },
-    { usuario:'farouk.n', nombre:'Farouk Nasser', agenteMonitor:'Farouk Nasser', nombreNomina:'FAROUK NASSER', horasDia:8, activo:true, cuenta:'GASTRO', titulo:'GASTRO', ciudad:'Medellín', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00', lugar:{ lat:28.60402, lng:-81.20019, radio:400, por:'carloshtl75' } },
-    { usuario:'saori.m', nombre:'Saori Moribe', agenteMonitor:'Saori Moribe', nombreNomina:'SAORI MORIBE', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
-    { usuario:'hebert.h', nombre:'Hebert Hurtado', agenteMonitor:'', nombreNomina:'HEBERT ALEJANDRO HURTADO', horasDia:8, activo:true, cuenta:'Total Sleep', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
+    { usuario:'lucia.t', nombre:'Lucia Torres', agenteMonitor:'Lucia Torres', nombreNomina:'LUCIA TORRES', horasDia:8, activo:true, cuenta:'Sleep Center', titulo:'SLEEP CENTER', ciudad:'Cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00', lugar:{ lat:28.55291, lng:-81.30612, radio:400, por:'alex.admin' } },
+    { usuario:'maya.c', nombre:'Maya Collins', agenteMonitor:'Maya Collins', nombreNomina:'MAYA COLLINS', horasDia:8, activo:true, cuenta:'Main Office', titulo:'Main Office', ciudad:'cali', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-01-01', horaEntrada:'08:00', lugar:{ lat:28.48114, lng:-81.45973, radio:400, por:'alex.admin' } },
+    { usuario:'omar.h', nombre:'Omar Haddad', agenteMonitor:'Omar Haddad', nombreNomina:'OMAR HADDAD', horasDia:8, activo:true, cuenta:'GASTRO', titulo:'GASTRO', ciudad:'Medellín', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00', lugar:{ lat:28.60402, lng:-81.20019, radio:400, por:'alex.admin' } },
+    { usuario:'sofia.k', nombre:'Sofia Kim', agenteMonitor:'Sofia Kim', nombreNomina:'SOFIA KIM', horasDia:8, activo:true, cuenta:'CARDIO', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-08-01', horaEntrada:'08:00' },
+    { usuario:'henry.b', nombre:'Henry Brooks', agenteMonitor:'', nombreNomina:'HENRY JAMES BROOKS', horasDia:8, activo:true, cuenta:'Sleep Center', departamento:'Call Center', telefono:'', email:'', fechaIngreso:'2024-09-01', horaEntrada:'08:00' }
   ];
-  DM.emps.forEach(e => { e.pagoCuenta = e.usuario === 'saori.m' ? 'personal' : '247'; e.aportesCop = e.usuario === 'hebert.h' ? 259450 : 0; e.pagoFijoCop = e.usuario === 'claudia.c' ? 1454984 : null; });
+  DM.emps.forEach(e => { e.pagoCuenta = e.usuario === 'sofia.k' ? 'personal' : '247'; e.aportesCop = e.usuario === 'henry.b' ? 259450 : 0; e.pagoFijoCop = e.usuario === 'maya.c' ? 1454984 : null; });
   DM.nominas = []; DM.nomId = 0;
   DM.marcas = {}; DM.aprob = {}; DM.ubic = {};
   DM.diaLejos = sumarDias(hoy, -2); while([0, 6].indexOf(new Date(DM.diaLejos + 'T12:00:00Z').getUTCDay()) >= 0) DM.diaLejos = sumarDias(DM.diaLejos, -1);
   if(!S.autoSalida) S.autoSalida = { activo:true, margen:30 };   // (v92)
-  const CASA = { 'laura.a':[28.55291, -81.30612], 'claudia.c':[28.48114, -81.45973], 'farouk.n':[28.60402, -81.20019], 'saori.m':[28.4158, -81.2989], 'hebert.h':[28.6934, -81.3412] };
+  const CASA = { 'lucia.t':[28.55291, -81.30612], 'maya.c':[28.48114, -81.45973], 'omar.h':[28.60402, -81.20019], 'sofia.k':[28.4158, -81.2989], 'henry.b':[28.6934, -81.3412] };
   const hace = h => Date.now() - h * 3600000;
   DM.solId = 4;
   DM.sols = [
-    { id:4, usuario:'claudia.c', tipo:'ausencia', clase:'personal', fecha:sumarDias(hoy, 9), fechaFin:sumarDias(hoy, 10), motivo:'Family event out of town', estado:'pendiente', creada:hace(2), respuesta:'', pagada:null, horasDia:null },
-    { id:3, usuario:'farouk.n', tipo:'turno', fecha:sumarDias(hoy, -2), fechaFin:sumarDias(hoy, -2), horaIni:'18:00', horaFin:'19:30', motivo:'Stayed to finish callbacks, forgot to clock', estado:'pendiente', creada:hace(20), respuesta:'' },
-    { id:2, usuario:'saori.m', tipo:'ausencia', clase:'vacaciones', fecha:sumarDias(hoy, 3), fechaFin:sumarDias(hoy, 4), motivo:'Vacation', estado:'aprobada', creada:hace(50), respuesta:'Enjoy!', pagada:true, horasDia:8, decididaPor:'carloshtl75', decidida:hace(30) },
-    { id:1, usuario:'laura.a', tipo:'almuerzo', fecha:sumarDias(hoy, -3), fechaFin:sumarDias(hoy, -3), horaIni:'12:30', horaFin:'13:15', motivo:'Forgot to clock my lunch', estado:'rechazada', creada:hace(80), respuesta:'Your lunch was already clocked that day.', decididaPor:'carloshtl75', decidida:hace(70) }
+    { id:4, usuario:'maya.c', tipo:'ausencia', clase:'personal', fecha:sumarDias(hoy, 9), fechaFin:sumarDias(hoy, 10), motivo:'Family event out of town', estado:'pendiente', creada:hace(2), respuesta:'', pagada:null, horasDia:null },
+    { id:3, usuario:'omar.h', tipo:'turno', fecha:sumarDias(hoy, -2), fechaFin:sumarDias(hoy, -2), horaIni:'18:00', horaFin:'19:30', motivo:'Stayed to finish callbacks, forgot to clock', estado:'pendiente', creada:hace(20), respuesta:'' },
+    { id:2, usuario:'sofia.k', tipo:'ausencia', clase:'vacaciones', fecha:sumarDias(hoy, 3), fechaFin:sumarDias(hoy, 4), motivo:'Vacation', estado:'aprobada', creada:hace(50), respuesta:'Enjoy!', pagada:true, horasDia:8, decididaPor:'alex.admin', decidida:hace(30) },
+    { id:1, usuario:'lucia.t', tipo:'almuerzo', fecha:sumarDias(hoy, -3), fechaFin:sumarDias(hoy, -3), horaIni:'12:30', horaFin:'13:15', motivo:'Forgot to clock my lunch', estado:'rechazada', creada:hace(80), respuesta:'Your lunch was already clocked that day.', decididaPor:'alex.admin', decidida:hace(70) }
   ];
   let semilla = 7; const rnd = () => (semilla = (semilla * 9301 + 49297) % 233280) / 233280;
   const desde = sumarDias(hoy, -20);
@@ -15436,7 +15479,7 @@ function demoInit(){
         if(f < sumarDias(hoy, -7) && rnd() < .9) DM.aprob[k] = true;
       }
       DM.marcas[k] = m;
-      // dónde marcó: cerca de su casa; Farouk, el último día hábil antes de ayer, desde otra ciudad
+      // dónde marcó: cerca de su casa; Omar, el último día hábil antes de ayer, desde otra ciudad
       const c = CASA[e.usuario], lejos = i === 2 && f === DM.diaLejos;
       DM.ubic[k] = m.map(x => ({ usuario:e.usuario, fecha:f, tipo:x.tipo, ms:x.ms, anulada:false, prec: lejos ? 45 : 20 + Math.round(rnd() * 70),
         lat: lejos ? 28.0836 + rnd() * .001 : c[0] + (rnd() - .5) * .0012, lng: lejos ? -80.6081 + rnd() * .001 : c[1] + (rnd() - .5) * .0012,
@@ -15448,17 +15491,17 @@ function demoInit(){
       DM.mon[k] = { p: t(ent + (i === 0 && rnd() < .3 ? 35 : -3)), u: f === hoy ? ahora() - 60000 : t(sal + 2), e: ep };
     });
   }
-  // (v92) a Hebert se le olvidó el clock out en su último día completo antes de ayer: lo sacó el sistema a las 8 h + 30 min trabajadas
+  // (v92) a Henry se le olvidó el clock out en su último día completo antes de ayer: lo sacó el sistema a las 8 h + 30 min trabajadas
   for(let f = sumarDias(hoy, -2); f >= desde; f = sumarDias(f, -1)){
-    const k = 'hebert.h|' + f, m = DM.marcas[k];
+    const k = 'henry.b|' + f, m = DM.marcas[k];
     if(!m || m.length !== 4 || m[3].tipo !== 'salida') continue;
-    const e = DM.emps.find(x => x.usuario === 'hebert.h'), hd = e.horasDia || 8, lim = (hd * 60 + 30) * 60000;
+    const e = DM.emps.find(x => x.usuario === 'henry.b'), hd = e.horasDia || 8, lim = (hd * 60 + 30) * 60000;
     m[3] = { tipo:'salida', ms:m[2].ms + (lim - (m[1].ms - m[0].ms)), origen:'auto', autor:'sistema', motivo:'Auto clock out: still clocked in after ' + hd + ' h + 30 min' };
     if(DM.ubic[k]) DM.ubic[k] = DM.ubic[k].slice(0, 3);   // la salida del sistema no tiene ubicación
     delete DM.aprob[k]; DM.diaAuto = f; break;
   }
   // (v93) usuario de prueba, sin datos
-  DM.emps.push({ usuario:'carlos.test', nombre:'Carlos (Test)', agenteMonitor:'', nombreNomina:'', horasDia:8, activo:true, cuenta:'24/7 Medical', departamento:'Call Center', telefono:'', email:'',
+  DM.emps.push({ usuario:'test.user', nombre:'Test User', agenteMonitor:'', nombreNomina:'', horasDia:8, activo:true, cuenta:'Main Office', departamento:'Call Center', telefono:'', email:'',
     fechaIngreso:'2026-10-01', horaEntrada:'08:00', pagoCuenta:'247', aportesCop:0, pagoFijoCop:null, prueba:true });
 }
 function demoDia(e, f){
@@ -15475,12 +15518,12 @@ function demoDia(e, f){
   const incompleto = est !== 'fuera' && !esHoy;
   const d = { estado:est, enCurso:est !== 'fuera' && esHoy, incompleto, desde: est === 'trabajando' ? ini : est === 'almuerzo' ? ia : null,
               min:Math.round(mn / 60000), alm:Math.round(al / 60000), marcas:m, banderas:[],
-              aprobado: DM.aprob[e.usuario + '|' + f] ? { horas: DM.aprobH && DM.aprobH[e.usuario + '|' + f] != null ? DM.aprobH[e.usuario + '|' + f] : Math.round(mn / 36000) / 100, por:'carloshtl75',
+              aprobado: DM.aprob[e.usuario + '|' + f] ? { horas: DM.aprobH && DM.aprobH[e.usuario + '|' + f] != null ? DM.aprobH[e.usuario + '|' + f] : Math.round(mn / 36000) / 100, por:'alex.admin',
                 tarifa: DM.aprobT && DM.aprobT[e.usuario + '|' + f] != null ? DM.aprobT[e.usuario + '|' + f] : null } : null,
               monitor: e.agenteMonitor ? DM.mon[e.usuario + '|' + f] || null : null };
   if(incompleto){ d.min = 0; d.banderas.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' }); }
   if(d.alm > 60) d.banderas.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + d.alm + ' min: ' + (d.alm - 60) + ' min over the one-hour limit.' });
-  if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by carloshtl75: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
+  if(m.some(x => x.origen === 'admin')) d.banderas.push({ c:'CORREGIDO', n:'info', t:'Corrected by alex.admin: ' + (m.find(x => x.origen === 'admin').motivo || '') + '.' });
   { const fa = salidaAutoBandera(m); if(fa) d.banderas.push(fa); }   // (v92)
   if(m.length && m.every(x => x.origen === 'importado')){ d.banderas.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam.' }); d.monitor = null; return d; }
   if(monOn() && !e.agenteMonitor && m.length) d.banderas.push({ c:'SIN_VINCULO', n:'info', t:'Not linked to a Monitor agent: could not be verified.' });
@@ -15496,7 +15539,7 @@ function demoDia(e, f){
 }
 /* Documentos en el modo de ejemplo: archivos en memoria (PDF pequeños hechos aquí). */
 function demoPdf(texto){
-  const t = String(texto).replace(/[()\\]/g, '').slice(0, 90), st = 'BT /F1 16 Tf 56 740 Td (' + t + ') Tj 0 -26 Td /F1 11 Tf (Demo file - 24/7 Medical Aid Time Clock) Tj ET';
+  const t = String(texto).replace(/[()\\]/g, '').slice(0, 90), st = 'BT /F1 16 Tf 56 740 Td (' + t + ') Tj 0 -26 Td /F1 11 Tf (Demo file - Time Clock) Tj ET';
   const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
     '<< /Length ' + st.length + ' >>\nstream\n' + st + '\nendstream', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
@@ -15526,51 +15569,51 @@ function demoDocsInit(){
     DM.docFiles.set(ruta, demoPdf(nombre + ' - ' + u));
     const t = DM.docTipos.find(x => x.id === tid), fechaDoc = (extra && extra.fechaDoc) || '';
     DM.docs.push(Object.assign({ id, tipoId:tid, usuario:u, periodo:null, archivo:ruta, nombre:nombre, bytes:180000 + id * 913, mime:'application/pdf', fechaDoc,
-      estado, subidoPor:u, subidoEn:hace(dias), revisadoPor:estado === 'pendiente' ? '' : 'carloshtl75', revisadoEn:estado === 'pendiente' ? null : hace(dias - 1),
+      estado, subidoPor:u, subidoEn:hace(dias), revisadoPor:estado === 'pendiente' ? '' : 'alex.admin', revisadoEn:estado === 'pendiente' ? null : hace(dias - 1),
       nota:'', vence: estado === 'aprobado' ? docVenceDefecto(t, fechaDoc) : '' }, extra || {}));
   };
-  // Laura (la agente del ejemplo): contrato aprobado, HIPAA vencido, aportes del mes pasado por revisar
-  add('laura.a', 1, 'Contrato Laura firmado.pdf', 'aprobado', 40);
-  add('laura.a', 2, 'HIPAA certificate.pdf', 'aprobado', 400, { fechaDoc:sumarDias(hoy, -390), vence:sumarDias(hoy, -25) });
-  add('laura.a', 4, 'Resume Laura Acevedo.pdf', 'aprobado', 600);
-  add('claudia.c', 3, 'ID document.pdf', 'pendiente', 1); add('farouk.n', 3, 'ID document.pdf', 'aprobado', 12);
-  [5, 4, 3, 2].forEach(n => add('laura.a', 6, 'Planilla aportes ' + mesAnt(n) + '.pdf', 'aprobado', n * 30 - 20, { periodo:mesAnt(n), vence:'' }));
-  add('laura.a', 6, 'Planilla aportes ' + mesAnt(1) + '.pdf', 'pendiente', 3, { periodo:mesAnt(1) });
-  // Claudia: todo al día, HIPAA vence pronto
-  add('claudia.c', 1, 'Contrato Claudia.pdf', 'aprobado', 50);
-  add('claudia.c', 2, 'Certificado HIPAA Claudia.pdf', 'aprobado', 350, { fechaDoc:sumarDias(hoy, -350), vence:sumarDias(hoy, 15) });
-  // Farouk: contrato por revisar
-  add('farouk.n', 1, 'contrato farouk firmado.pdf', 'pendiente', 1);
-  add('farouk.n', 2, 'hipaa farouk.pdf', 'pendiente', 0, { fechaDoc:sumarDias(hoy, -2) });
-  // Saori: contrato y HIPAA aprobados
-  add('saori.m', 1, 'Contrato Saori.pdf', 'aprobado', 45);
-  add('saori.m', 2, 'HIPAA Saori.pdf', 'aprobado', 100, { fechaDoc:sumarDias(hoy, -100) });
-  // Hebert: HIPAA rechazado; aportes atrasados
-  add('hebert.h', 2, 'certificado.pdf', 'rechazado', 6, { nota:'Es el certificado de otra persona.' });
-  add('hebert.h', 6, 'aportes ' + mesAnt(5) + '.pdf', 'aprobado', 140, { periodo:mesAnt(5), vence:'' });
-  add('hebert.h', 6, 'aportes ' + mesAnt(4) + '.pdf', 'rechazado', 110, { periodo:mesAnt(4), nota:'Es de otro mes.' });
-  // quién presenta cada mensual: Aportes (Laura y Hebert, desde el primer mes), Cuenta de cobro (todos, desde hace 3 meses; Saori desde el mes pasado)
-  DM.docPersonas = [{ tipoId:6, usuario:'laura.a', desdeMes:mesAnt(5) }, { tipoId:6, usuario:'hebert.h', desdeMes:mesAnt(5) }]
-    .concat(DM.emps.filter(e => !e.prueba).map(e => ({ tipoId:5, usuario:e.usuario, desdeMes: e.usuario === 'saori.m' ? mesAnt(1) : mesAnt(3) })));
-  [3, 2, 1].forEach(n => ['laura.a', 'claudia.c', 'farouk.n'].forEach(u => add(u, 5, 'Cuenta de cobro ' + mesAnt(n) + '.pdf', n === 1 && u === 'farouk.n' ? 'pendiente' : 'aprobado', n * 30 - 25, { periodo:mesAnt(n), vence:'' })));
-  // Laura: en agosto subió uno bueno (aprobado) y luego otro equivocado (rechazado): sigue contando el bueno
-  add('laura.a', 5, 'Cuenta de cobro equivocada.pdf', 'rechazado', 50, { periodo:mesAnt(3), nota:'Es la cuenta de cobro de otro mes.' });
+  // Lucia (la agente del ejemplo): contrato aprobado, HIPAA vencido, aportes del mes pasado por revisar
+  add('lucia.t', 1, 'Contrato Lucia firmado.pdf', 'aprobado', 40);
+  add('lucia.t', 2, 'HIPAA certificate.pdf', 'aprobado', 400, { fechaDoc:sumarDias(hoy, -390), vence:sumarDias(hoy, -25) });
+  add('lucia.t', 4, 'Resume Lucia Torres.pdf', 'aprobado', 600);
+  add('maya.c', 3, 'ID document.pdf', 'pendiente', 1); add('omar.h', 3, 'ID document.pdf', 'aprobado', 12);
+  [5, 4, 3, 2].forEach(n => add('lucia.t', 6, 'Planilla aportes ' + mesAnt(n) + '.pdf', 'aprobado', n * 30 - 20, { periodo:mesAnt(n), vence:'' }));
+  add('lucia.t', 6, 'Planilla aportes ' + mesAnt(1) + '.pdf', 'pendiente', 3, { periodo:mesAnt(1) });
+  // Maya: todo al día, HIPAA vence pronto
+  add('maya.c', 1, 'Contrato Maya.pdf', 'aprobado', 50);
+  add('maya.c', 2, 'Certificado HIPAA Maya.pdf', 'aprobado', 350, { fechaDoc:sumarDias(hoy, -350), vence:sumarDias(hoy, 15) });
+  // Omar: contrato por revisar
+  add('omar.h', 1, 'contract omar signed.pdf', 'pendiente', 1);
+  add('omar.h', 2, 'hipaa omar.pdf', 'pendiente', 0, { fechaDoc:sumarDias(hoy, -2) });
+  // Sofia: contrato y HIPAA aprobados
+  add('sofia.k', 1, 'Contrato Sofia.pdf', 'aprobado', 45);
+  add('sofia.k', 2, 'HIPAA Sofia.pdf', 'aprobado', 100, { fechaDoc:sumarDias(hoy, -100) });
+  // Henry: HIPAA rechazado; aportes atrasados
+  add('henry.b', 2, 'certificado.pdf', 'rechazado', 6, { nota:'Es el certificado de otra persona.' });
+  add('henry.b', 6, 'aportes ' + mesAnt(5) + '.pdf', 'aprobado', 140, { periodo:mesAnt(5), vence:'' });
+  add('henry.b', 6, 'aportes ' + mesAnt(4) + '.pdf', 'rechazado', 110, { periodo:mesAnt(4), nota:'Es de otro mes.' });
+  // quién presenta cada mensual: Aportes (Lucia y Henry, desde el primer mes), Cuenta de cobro (todos, desde hace 3 meses; Sofia desde el mes pasado)
+  DM.docPersonas = [{ tipoId:6, usuario:'lucia.t', desdeMes:mesAnt(5) }, { tipoId:6, usuario:'henry.b', desdeMes:mesAnt(5) }]
+    .concat(DM.emps.filter(e => !e.prueba).map(e => ({ tipoId:5, usuario:e.usuario, desdeMes: e.usuario === 'sofia.k' ? mesAnt(1) : mesAnt(3) })));
+  [3, 2, 1].forEach(n => ['lucia.t', 'maya.c', 'omar.h'].forEach(u => add(u, 5, 'Cuenta de cobro ' + mesAnt(n) + '.pdf', n === 1 && u === 'omar.h' ? 'pendiente' : 'aprobado', n * 30 - 25, { periodo:mesAnt(n), vence:'' })));
+  // Lucia: en agosto subió uno bueno (aprobado) y luego otro equivocado (rechazado): sigue contando el bueno
+  add('lucia.t', 5, 'Cuenta de cobro equivocada.pdf', 'rechazado', 50, { periodo:mesAnt(3), nota:'Es la cuenta de cobro de otro mes.' });
   // Paystubs de las últimas quincenas (los manda «Comprobantes»)
   DM.paystubs = []; DM.payId = 0;
   const finQ = n => { let d = new Date(Date.UTC(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 1, Number(hoy.slice(8, 10)) <= 15 ? 0 : 15)); for(let i = 0; i < n; i++) d = d.getUTCDate() === 15 ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)) : new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 15)); return d.toISOString().slice(0, 10); };
   [3, 2, 1, 0].forEach(n => DM.emps.filter(e => !e.prueba).forEach((e, i) => { const f = finQ(n), id = ++DM.payId, ruta = e.usuario + '/paystubs/demo' + id + '-' + e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf';
     DM.docFiles.set(ruta, demoPdf('PAYSTUB ' + e.nombre + ' - pay period ending ' + f));
     DM.paystubs.push({ id, usuario:e.usuario, periodoFin:f, periodo:'', archivo:ruta, nombre:e.nombre.replace(/\s+/g, '_') + '_' + f + '.pdf', bytes:42000 + i * 311, neto:1200000 + i * 98500,
-      enviadoPor:'carloshtl75', enviadoEn:Date.parse(f + 'T22:00:00Z') + 86400000, vistoEn: n > 0 || i % 2 ? Date.parse(f + 'T22:00:00Z') + 2 * 86400000 : null, reemplazado:false }); }));
+      enviadoPor:'alex.admin', enviadoEn:Date.parse(f + 'T22:00:00Z') + 86400000, vistoEn: n > 0 || i % 2 ? Date.parse(f + 'T22:00:00Z') + 2 * 86400000 : null, reemplazado:false }); }));
 }
 const demoCopia = x => JSON.parse(JSON.stringify(x));
 async function demoDocs(action, p){
   demoDocsInit();
-  const yo = S.demoAgente ? 'laura.a' : 'carloshtl75', adm = !S.demoAgente;
+  const yo = S.demoAgente ? 'lucia.t' : 'alex.admin', adm = !S.demoAgente;
   const soloAdm = () => { if(!adm) throw new Error('Only an administrator can review documents.'); };
   if(action === 'docsAdmin'){ soloAdm(); return { tipos:demoCopia(DM.docTipos), docs:demoCopia(DM.docs), emps:DM.emps.map(e => Object.assign({}, e)), personas:demoCopia(DM.docPersonas), paystubs:demoCopia(DM.paystubs) }; }
-  if(action === 'docsMios') return { usuario:'laura.a', tipos:demoCopia(DM.docTipos.filter(t => t.activo)), docs:demoCopia(DM.docs.filter(d => d.usuario === 'laura.a')),
-    personas:demoCopia(DM.docPersonas.filter(x => x.usuario === 'laura.a')), paystubs:demoCopia(DM.paystubs.filter(x => x.usuario === 'laura.a')) };
+  if(action === 'docsMios') return { usuario:'lucia.t', tipos:demoCopia(DM.docTipos.filter(t => t.activo)), docs:demoCopia(DM.docs.filter(d => d.usuario === 'lucia.t')),
+    personas:demoCopia(DM.docPersonas.filter(x => x.usuario === 'lucia.t')), paystubs:demoCopia(DM.paystubs.filter(x => x.usuario === 'lucia.t')) };
   if(action === 'docPaystubVisto'){ const x = DM.paystubs.find(y => y.id === p.id && y.usuario === yo); if(x && !x.vistoEn) x.vistoEn = Date.now(); return { ok:true }; }
   if(action === 'docsPorRevisar') return DM.docs.filter(d => d.estado === 'pendiente').length;
   if(action === 'docArchivo'){ const b = DM.docFiles.get(p.ruta); if(!b) throw new Error('That file is not available.'); return b; }
@@ -15657,10 +15700,10 @@ function demoBancoInit(){
   const hace = m => Date.now() - m * 60000;
   let id = 0; DM.bancoHist = [];
   const add = (u, en, autor, origen, cambios, rev) => cambios.forEach(([campo, antes, despues]) => DM.bancoHist.push({ id:++id, usuario:u, campo, antes, despues, autor, origen, en,
-    revisadoPor:rev ? 'carloshtl75' : origen !== 'agente' ? autor : '', revisadoEn:rev ? en + 3600000 : origen !== 'agente' ? en : null }));
-  add('laura.a', hace(60 * 24 * 40), 'laura.a', 'agente', [['cuenta_banco', '0000-1111-2222', '4455-6677-8899']], true);
-  add('farouk.n', hace(60 * 24 * 10), 'carloshtl75', 'admin', [['num_id', '1.020.333.444', '1020333444']], false);
-  add('claudia.c', hace(25), 'claudia.c', 'agente', [['banco', 'Davivienda', 'Bancolombia'], ['cuenta_banco', '0550-1234-5678', '2310-9876-5432']], false);
+    revisadoPor:rev ? 'alex.admin' : origen !== 'agente' ? autor : '', revisadoEn:rev ? en + 3600000 : origen !== 'agente' ? en : null }));
+  add('lucia.t', hace(60 * 24 * 40), 'lucia.t', 'agente', [['cuenta_banco', '0000-1111-2222', '4455-6677-8899']], true);
+  add('omar.h', hace(60 * 24 * 10), 'alex.admin', 'admin', [['num_id', '1.020.333.444', '1020333444']], false);
+  add('maya.c', hace(25), 'maya.c', 'agente', [['banco', 'Davivienda', 'Bancolombia'], ['cuenta_banco', '0550-1234-5678', '2310-9876-5432']], false);
   DM.bancoId = id;
 }
 function demoBancoLog(u, antes, despues, autor, origen){
@@ -15675,7 +15718,7 @@ async function demoBanco(action, p){
   if(action === 'bancoPend') return { filas:demoCopia(DM.bancoHist.filter(h => !h.revisadoEn)), nombres };
   if(action === 'bancoHist') return { filas:demoCopia(DM.bancoHist), nombres };
   if(action === 'bancoRevisado'){ let n = 0;
-    DM.bancoHist.forEach(h => { if(!h.revisadoEn && (!p.ids || p.ids.includes(h.id))){ h.revisadoEn = Date.now(); h.revisadoPor = 'carloshtl75'; n++; } });
+    DM.bancoHist.forEach(h => { if(!h.revisadoEn && (!p.ids || p.ids.includes(h.id))){ h.revisadoEn = Date.now(); h.revisadoPor = 'alex.admin'; n++; } });
     return { ok:true, n }; }
   throw new Error('Unknown action.');
 }
@@ -15686,22 +15729,22 @@ function demoInvInit(){
   let id = 0; const eq = (o) => Object.assign({ id:++id, clave:'', origen:'monitor', tipo:'Laptop', equipo:'', marca:'', modelo:'', serie:'', windows:'Windows 11 Home',
     windowsInstalado:d(400), ramGb:8, discoGb:476, libreGb:210, agenteMonitor:'', usuario:null, aMano:false, visto:d(0), notas:'', activo:true }, o);
   DM.inv = { equipos:[
-    eq({ equipo:'LAURA-PC', marca:'Lenovo', modelo:'IdeaPad 3 15ALC6', serie:'PF3K2Z9A', agenteMonitor:'Laura Acevedo', usuario:'laura.a', ramGb:16, discoGb:512, libreGb:301, windowsInstalado:d(20) }),
-    eq({ equipo:'LAPTOP-7Q2', marca:'HP', modelo:'Laptop 15-fd0xxx', serie:'1H84481ZSK', agenteMonitor:'Laura Acevedo', usuario:'laura.a', ramGb:12, visto:d(21) }),
-    eq({ equipo:'CLAUDIA-NB', marca:'ASUS', modelo:'Vivobook X1504ZA', serie:'R9N0CX01Z75336A', agenteMonitor:'Claudia Calle', usuario:'claudia.c', libreGb:96 }),
-    eq({ equipo:'DESKTOP-FN', marca:'Acer', modelo:'Aspire A314-22', serie:'NXHVWAL00C10840B', agenteMonitor:'Farouk Nasser', usuario:'farouk.n', ramGb:6, discoGb:256, libreGb:41, visto:d(1) }),
-    eq({ equipo:'SAORI-LAP', marca:'Dell', modelo:'Inspiron 15 3520', serie:'7HQ2LM3', agenteMonitor:'Saori Moribe', usuario:'saori.m' }),
+    eq({ equipo:'LAURA-PC', marca:'Lenovo', modelo:'IdeaPad 3 15ALC6', serie:'PF3K2Z9A', agenteMonitor:'Lucia Torres', usuario:'lucia.t', ramGb:16, discoGb:512, libreGb:301, windowsInstalado:d(20) }),
+    eq({ equipo:'LAPTOP-7Q2', marca:'HP', modelo:'Laptop 15-fd0xxx', serie:'1H84481ZSK', agenteMonitor:'Lucia Torres', usuario:'lucia.t', ramGb:12, visto:d(21) }),
+    eq({ equipo:'CLAUDIA-NB', marca:'ASUS', modelo:'Vivobook X1504ZA', serie:'R9N0CX01Z75336A', agenteMonitor:'Maya Collins', usuario:'maya.c', libreGb:96 }),
+    eq({ equipo:'DESKTOP-FN', marca:'Acer', modelo:'Aspire A314-22', serie:'NXHVWAL00C10840B', agenteMonitor:'Omar Haddad', usuario:'omar.h', ramGb:6, discoGb:256, libreGb:41, visto:d(1) }),
+    eq({ equipo:'SAORI-LAP', marca:'Dell', modelo:'Inspiron 15 3520', serie:'7HQ2LM3', agenteMonitor:'Sofia Kim', usuario:'sofia.k' }),
     eq({ equipo:'PC-NUEVO', marca:'HP', modelo:'Victus 15', serie:'5CD2481XYZ', agenteMonitor:'Pedro Gomez', usuario:null, visto:d(2) }),
-    eq({ origen:'manual', tipo:'Monitor', marca:'Samsung', modelo:'24" S33A', serie:'H4ZR600123', usuario:'laura.a', windows:'', windowsInstalado:null, ramGb:null, discoGb:null, libreGb:null, visto:null, notas:'Second screen' })
+    eq({ origen:'manual', tipo:'Monitor', marca:'Samsung', modelo:'24" S33A', serie:'H4ZR600123', usuario:'lucia.t', windows:'', windowsInstalado:null, ramGb:null, discoGb:null, libreGb:null, visto:null, notas:'Second screen' })
   ], cambios:[], mant:[] };
   DM.invId = id;
   let ci = 0; const ca = (o) => DM.inv.cambios.push(Object.assign({ id:++ci, usuario:null, detalle:'', antes:'', despues:'', origen:'monitor', autor:'monitor', en:hace(60), revisadoPor:'', revisadoEn:null }, o));
-  ca({ equipoId:1, usuario:'laura.a', tipo:'alta', detalle:'New equipment detected by the Monitor', despues:'Laura Acevedo', en:hace(60 * 24 * 20), revisadoPor:'carloshtl75', revisadoEn:hace(60 * 24 * 19) });
-  ca({ equipoId:1, usuario:'laura.a', tipo:'asignacion', detalle:'Started using another computer', antes:'HP Laptop 15-fd0xxx (serial 1H84481ZSK)', despues:'Lenovo IdeaPad 3 15ALC6 (serial PF3K2Z9A)', en:hace(60 * 24 * 20), revisadoPor:'carloshtl75', revisadoEn:hace(60 * 24 * 19) });
-  ca({ equipoId:3, usuario:'claudia.c', tipo:'hardware', detalle:'RAM: 8 → 16 GB', en:hace(90), revisadoPor:'', revisadoEn:null });
-  ca({ equipoId:7, usuario:'laura.a', tipo:'alta', detalle:'Added by hand', despues:'Laura Acevedo', origen:'admin', autor:'carloshtl75', en:hace(60 * 24 * 30), revisadoPor:'carloshtl75', revisadoEn:hace(60 * 24 * 30) });
+  ca({ equipoId:1, usuario:'lucia.t', tipo:'alta', detalle:'New equipment detected by the Monitor', despues:'Lucia Torres', en:hace(60 * 24 * 20), revisadoPor:'alex.admin', revisadoEn:hace(60 * 24 * 19) });
+  ca({ equipoId:1, usuario:'lucia.t', tipo:'asignacion', detalle:'Started using another computer', antes:'HP Laptop 15-fd0xxx (serial 1H84481ZSK)', despues:'Lenovo IdeaPad 3 15ALC6 (serial PF3K2Z9A)', en:hace(60 * 24 * 20), revisadoPor:'alex.admin', revisadoEn:hace(60 * 24 * 19) });
+  ca({ equipoId:3, usuario:'maya.c', tipo:'hardware', detalle:'RAM: 8 → 16 GB', en:hace(90), revisadoPor:'', revisadoEn:null });
+  ca({ equipoId:7, usuario:'lucia.t', tipo:'alta', detalle:'Added by hand', despues:'Lucia Torres', origen:'admin', autor:'alex.admin', en:hace(60 * 24 * 30), revisadoPor:'alex.admin', revisadoEn:hace(60 * 24 * 30) });
   DM.invCi = ci;
-  let mi = 0; const ma = (o) => DM.inv.mant.push(Object.assign({ id:++mi, quien:'', notas:'', costo:null, moneda:'COP', creadoPor:'carloshtl75', creadoEn:Date.now() }, o));
+  let mi = 0; const ma = (o) => DM.inv.mant.push(Object.assign({ id:++mi, quien:'', notas:'', costo:null, moneda:'COP', creadoPor:'alex.admin', creadoEn:Date.now() }, o));
   ma({ equipoId:1, fecha:d(20), tipo:'preventivo', quien:'TecniPC Cali', notas:'Windows reinstalled, cleaning', costo:80000 });
   ma({ equipoId:3, fecha:d(150), tipo:'reparacion', quien:'ASUS service', notas:'Keyboard replaced', costo:45, moneda:'USD' });
   ma({ equipoId:4, fecha:d(400), tipo:'preventivo', quien:'TecniPC Cali', notas:'Cleaning' });
@@ -15710,7 +15753,7 @@ function demoInvInit(){
 async function demoInv(action, p){
   demoInvInit();
   if(S.demoAgente) throw new Error('Only an administrator can manage the inventory.');
-  const I = DM.inv, yo = 'carloshtl75', nom = u => (DM.emps.find(e => e.usuario === u) || {}).nombre || 'Not assigned';
+  const I = DM.inv, yo = 'alex.admin', nom = u => (DM.emps.find(e => e.usuario === u) || {}).nombre || 'Not assigned';
   const eqDe = id => { const e = I.equipos.find(x => x.id === Number(id)); if(!e) throw new Error('That equipment no longer exists. Reload the page.'); return e; };
   const log = o => I.cambios.push(Object.assign({ id:++DM.invCi, usuario:null, detalle:'', antes:'', despues:'', origen:'admin', autor:yo, en:Date.now(), revisadoPor:yo, revisadoEn:Date.now() }, o));
   if(action === 'invTodo') return { equipos:demoCopia(I.equipos), cambios:demoCopia(I.cambios), mant:demoCopia(I.mant),
@@ -15778,25 +15821,25 @@ function demoUpdIni(){
   const h = Date.now();
   DM.upds = [
     { id:2, titulo:'Office closed on Monday', cuerpo:'Hi team,\nThe office will be closed on Monday for the holiday. Calls go to the answering service.\nMore info: https://example.com/holidays',
-      autor:'carloshtl75', autorNombre:'Carlos Tobon', autorRol:'General Manager', creado:h - 2 * 3600e3, editado:null, destino:{ todos:true }, comentarios:true, fijado:true, adjuntos:[], borrado:false },
-    { id:1, titulo:'New script for Total Sleep', cuerpo:'Please use the new greeting starting today.', autor:'carloshtl75', autorNombre:'Carlos Tobon', autorRol:'General Manager', creado:h - 3 * 86400e3, editado:null,
-      destino:{ grupos:[{ t:'cuenta', v:'Total Sleep' }] }, comentarios:true, fijado:false, adjuntos:[], borrado:false }
+      autor:'alex.admin', autorNombre:'Alex Morgan', autorRol:'General Manager', creado:h - 2 * 3600e3, editado:null, destino:{ todos:true }, comentarios:true, fijado:true, adjuntos:[], borrado:false },
+    { id:1, titulo:'New script for Sleep Center', cuerpo:'Please use the new greeting starting today.', autor:'alex.admin', autorNombre:'Alex Morgan', autorRol:'General Manager', creado:h - 3 * 86400e3, editado:null,
+      destino:{ grupos:[{ t:'cuenta', v:'Sleep Center' }] }, comentarios:true, fijado:false, adjuntos:[], borrado:false }
   ];
   DM.updId = 2; DM.updComId = 1;
-  DM.updDest = [{ u:2, usuario:'laura.a', leido:null }, { u:2, usuario:'claudia.c', leido:h - 3600e3 }, { u:2, usuario:'farouk.n', leido:null }, { u:2, usuario:'saori.m', leido:null }, { u:2, usuario:'hebert.h', leido:null },
-    { u:1, usuario:'laura.a', leido:h - 2 * 86400e3 }, { u:1, usuario:'hebert.h', leido:null }];
-  DM.updComs = [{ id:1, u:1, usuario:'laura.a', nombre:'Laura Acevedo', texto:'Got it, thanks!', creado:h - 2 * 86400e3, borrado:false }];
-  DM.updReacs = [{ u:2, usuario:'claudia.c', nombre:'Claudia Calle', emoji:'👍' }];
+  DM.updDest = [{ u:2, usuario:'lucia.t', leido:null }, { u:2, usuario:'maya.c', leido:h - 3600e3 }, { u:2, usuario:'omar.h', leido:null }, { u:2, usuario:'sofia.k', leido:null }, { u:2, usuario:'henry.b', leido:null },
+    { u:1, usuario:'lucia.t', leido:h - 2 * 86400e3 }, { u:1, usuario:'henry.b', leido:null }];
+  DM.updComs = [{ id:1, u:1, usuario:'lucia.t', nombre:'Lucia Torres', texto:'Got it, thanks!', creado:h - 2 * 86400e3, borrado:false }];
+  DM.updReacs = [{ u:2, usuario:'maya.c', nombre:'Maya Collins', emoji:'👍' }];
 }
 function demoUpd(action, p){
   demoUpdIni();
-  const admin = !S.demoAgente, yo = admin ? 'carloshtl75' : 'laura.a', nom = admin ? 'Carlos Tobon' : 'Laura Acevedo';
+  const admin = !S.demoAgente, yo = admin ? 'alex.admin' : 'lucia.t', nom = admin ? 'Alex Morgan' : 'Lucia Torres';
   const mio = id => admin || DM.updDest.some(d => d.u === id && d.usuario === yo);
   const vivo = id => { const u = DM.upds.find(x => x.id === id && !x.borrado); if(!u || !mio(id)) throw new Error('That update no longer exists.'); return u; };
   if(action === 'mgrConsola'){
-    const gm = { usuario:'carloshtl75', nombre:'Carlos Tobon' };
+    const gm = { usuario:'alex.admin', nombre:'Alex Morgan' };
     if(admin) return { esManager:false, rol:'', cuentas:[], agentes:[], gm };
-    const cuentas = ['Total Sleep'];
+    const cuentas = ['Sleep Center'];
     const agentes = (DM.emps || []).filter(e => e.activo && cuentas.includes(e.cuenta)).map(e => ({ usuario:e.usuario, nombre:e.nombre, cuenta:e.cuenta }));
     return { esManager:true, rol:'Supervisor', cuentas, agentes, gm };
   }
@@ -15826,11 +15869,11 @@ function demoUpd(action, p){
     const cc = DM.updCC || { jefe:true, gm:true };
     const dests = quienes.map(e => e.usuario).filter(usr => usr !== yo);
     if(!admin){
-      if(cc.jefe !== false){ const jf = (DM.reportaA && DM.reportaA[yo]) || 'carloshtl75'; if(jf && jf !== yo && !dests.includes(jf)) dests.push(jf); }
-      if(cc.gm !== false){ if('carloshtl75' !== yo && !dests.includes('carloshtl75')) dests.push('carloshtl75'); }
+      if(cc.jefe !== false){ const jf = (DM.reportaA && DM.reportaA[yo]) || 'alex.admin'; if(jf && jf !== yo && !dests.includes(jf)) dests.push(jf); }
+      if(cc.gm !== false){ if('alex.admin' !== yo && !dests.includes('alex.admin')) dests.push('alex.admin'); }
     }
     if(x.incluir_roles && x.incluir_roles.length){
-      const gmU = S.gm || 'carloshtl75', rep2 = DM.reportaA || {}, cm = DM.cuentaMgr || {};
+      const gmU = S.gm || 'alex.admin', rep2 = DM.reportaA || {}, cm = DM.cuentaMgr || {};
       const repOf = {}; Object.keys(rep2).forEach(u => { const j = rep2[u]; if(j) (repOf[j] = repOf[j] || []).push(u); });
       const gestSet = new Set(Object.values(cm)), want = new Set(x.incluir_roles);
       const rolDe = u => { if(u === gmU) return 'General Manager'; const rs = repOf[u] || []; if(rs.some(r => (repOf[r] || []).length)) return 'Sector Manager'; if(rs.length) return 'Account Manager'; if(gestSet.has(u)) return 'Supervisor'; return ''; };
@@ -15863,24 +15906,24 @@ function demoUpd(action, p){
 function demoChatIni(){
   if(DM.chats) return;
   const h = Date.now();
-  DM.chats = [{ id:1, tipo:'privado', nombre:'', creadoPor:'carloshtl75', ultimo:h - 20 * 60000 }, { id:2, tipo:'grupo', nombre:'Total Sleep team', creadoPor:'carloshtl75', ultimo:h - 3 * 3600e3 },
-    { id:3, tipo:'privado', nombre:'', creadoPor:'claudia.c', ultimo:h - 86400e3 }];
-  DM.chatMb = [{ c:1, usuario:'carloshtl75', nombre:'Carlos Tobon', rol:'miembro', leido:2, salio:false }, { c:1, usuario:'laura.a', nombre:'Laura Acevedo', rol:'miembro', leido:1, salio:false },
-    { c:2, usuario:'carloshtl75', nombre:'Carlos Tobon', rol:'admin', leido:4, salio:false }, { c:2, usuario:'laura.a', nombre:'Laura Acevedo', rol:'miembro', leido:4, salio:false }, { c:2, usuario:'hebert.h', nombre:'Hebert Hurtado', rol:'miembro', leido:4, salio:false },
-    { c:3, usuario:'claudia.c', nombre:'Claudia Calle', rol:'miembro', leido:5, salio:false }, { c:3, usuario:'farouk.n', nombre:'Farouk Nasser', rol:'miembro', leido:5, salio:false }];
-  DM.chatMsgs = [{ id:1, c:1, usuario:'laura.a', nombre:'Laura Acevedo', texto:'Good morning! Can I leave 30 min early today?', adjunto:null, creado:h - 40 * 60000, borrado:false },
-    { id:2, c:1, usuario:'carloshtl75', nombre:'Carlos Tobon', texto:'Yes, no problem. Send the request in the Time Clock.', adjunto:null, creado:h - 20 * 60000, borrado:false },
-    { id:3, c:2, usuario:'carloshtl75', nombre:'Carlos Tobon', texto:'Welcome to the Total Sleep group 👋', adjunto:null, creado:h - 4 * 3600e3, borrado:false },
-    { id:4, c:2, usuario:'hebert.h', nombre:'Hebert Hurtado', texto:'Thanks!', adjunto:null, creado:h - 3 * 3600e3, borrado:false },
-    { id:5, c:3, usuario:'claudia.c', nombre:'Claudia Calle', texto:'Farouk, did you get the new list?', adjunto:null, creado:h - 86400e3, borrado:false }];
+  DM.chats = [{ id:1, tipo:'privado', nombre:'', creadoPor:'alex.admin', ultimo:h - 20 * 60000 }, { id:2, tipo:'grupo', nombre:'Sleep Center team', creadoPor:'alex.admin', ultimo:h - 3 * 3600e3 },
+    { id:3, tipo:'privado', nombre:'', creadoPor:'maya.c', ultimo:h - 86400e3 }];
+  DM.chatMb = [{ c:1, usuario:'alex.admin', nombre:'Alex Morgan', rol:'miembro', leido:2, salio:false }, { c:1, usuario:'lucia.t', nombre:'Lucia Torres', rol:'miembro', leido:1, salio:false },
+    { c:2, usuario:'alex.admin', nombre:'Alex Morgan', rol:'admin', leido:4, salio:false }, { c:2, usuario:'lucia.t', nombre:'Lucia Torres', rol:'miembro', leido:4, salio:false }, { c:2, usuario:'henry.b', nombre:'Henry Brooks', rol:'miembro', leido:4, salio:false },
+    { c:3, usuario:'maya.c', nombre:'Maya Collins', rol:'miembro', leido:5, salio:false }, { c:3, usuario:'omar.h', nombre:'Omar Haddad', rol:'miembro', leido:5, salio:false }];
+  DM.chatMsgs = [{ id:1, c:1, usuario:'lucia.t', nombre:'Lucia Torres', texto:'Good morning! Can I leave 30 min early today?', adjunto:null, creado:h - 40 * 60000, borrado:false },
+    { id:2, c:1, usuario:'alex.admin', nombre:'Alex Morgan', texto:'Yes, no problem. Send the request in the Time Clock.', adjunto:null, creado:h - 20 * 60000, borrado:false },
+    { id:3, c:2, usuario:'alex.admin', nombre:'Alex Morgan', texto:'Welcome to the Sleep Center group 👋', adjunto:null, creado:h - 4 * 3600e3, borrado:false },
+    { id:4, c:2, usuario:'henry.b', nombre:'Henry Brooks', texto:'Thanks!', adjunto:null, creado:h - 3 * 3600e3, borrado:false },
+    { id:5, c:3, usuario:'maya.c', nombre:'Maya Collins', texto:'Omar, did you get the new list?', adjunto:null, creado:h - 86400e3, borrado:false }];
   DM.chatId = 3; DM.chatMsgId = 5;
 }
 function demoChat(action, p){
   demoChatIni();
-  const admin = !S.demoAgente, yo = admin ? 'carloshtl75' : 'laura.a';
-  const nombreDe = u => u === 'carloshtl75' ? 'Carlos Tobon' : ((DM.emps.find(e => e.usuario === u) || {}).nombre || u);
+  const admin = !S.demoAgente, yo = admin ? 'alex.admin' : 'lucia.t';
+  const nombreDe = u => u === 'alex.admin' ? 'Alex Morgan' : ((DM.emps.find(e => e.usuario === u) || {}).nombre || u);
   const mio = c => DM.chatMb.some(m => m.c === c && m.usuario === yo && !m.salio);
-  const puede = u => u === 'carloshtl75' || DM.emps.some(e => e.usuario === u && e.activo);
+  const puede = u => u === 'alex.admin' || DM.emps.some(e => e.usuario === u && e.activo);
   if(action === 'chatResumen') return { yo, chats:DM.chats.filter(c => mio(c.id) && (c.tipo === 'grupo' || DM.chatMsgs.some(m => m.c === c.id) || c.creadoPor === yo)).map(c => {
     const m = DM.chatMb.find(x => x.c === c.id && x.usuario === yo), otro = DM.chatMb.find(x => x.c === c.id && x.usuario !== yo), ms = DM.chatMsgs.filter(x => x.c === c.id), u = ms[ms.length - 1];
     return { id:c.id, tipo:c.tipo, nombre:c.tipo === 'grupo' ? c.nombre : otro ? otro.nombre : '', otro:c.tipo === 'privado' && otro ? otro.usuario : null, rol:m.rol, ultimo:new Date(c.ultimo).toISOString(),
@@ -15890,8 +15933,8 @@ function demoChat(action, p){
   if(action === 'chatTodos'){ if(!admin) throw new Error('Only an administrator can review the chats.');
     return DM.chats.filter(c => c.tipo === 'grupo' || DM.chatMsgs.some(m => m.c === c.id)).map(c => ({ id:c.id, tipo:c.tipo, nombre:c.nombre, ultimo:new Date(c.ultimo).toISOString(),
       miembros:DM.chatMb.filter(m => m.c === c.id).map(m => ({ usuario:m.usuario, nombre:m.nombre, salio:m.salio })), mensajes:DM.chatMsgs.filter(m => m.c === c.id && !m.borrado).length })).sort((a, b) => b.ultimo.localeCompare(a.ultimo)); }
-  if(action === 'chatContactos') return DM.emps.filter(e => e.activo).map(e => ({ usuario:e.usuario, nombre:e.nombre, cuenta:e.cuenta || '', admin:false, cuentaCreada:e.usuario !== 'hebert.h' }))
-    .concat([{ usuario:'carloshtl75', nombre:'Carlos Tobon', cuenta:'', admin:true, cuentaCreada:true }]).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  if(action === 'chatContactos') return DM.emps.filter(e => e.activo).map(e => ({ usuario:e.usuario, nombre:e.nombre, cuenta:e.cuenta || '', admin:false, cuentaCreada:e.usuario !== 'henry.b' }))
+    .concat([{ usuario:'alex.admin', nombre:'Alex Morgan', cuenta:'', admin:true, cuentaCreada:true }]).sort((a, b) => a.nombre.localeCompare(b.nombre));
   if(action === 'chatMsgs'){ if(!admin && !mio(p.id)) throw new Error('That conversation no longer exists.');
     const ms = DM.chatMsgs.filter(m => m.c === p.id), d = Number(p.desde) || 0;
     return { msgs:demoCopia(ms.filter(m => m.id > d)).map(m => Object.assign(m, { adjunto:m.adjunto })), miembros:DM.chatMb.filter(m => m.c === p.id).map(m => { const lm = DM.chatMsgs.find(g => g.c === m.c && g.id === m.leido); return { usuario:m.usuario, nombre:m.nombre, rol:m.rol, salio:m.salio, leido:m.leido, leido_en:lm ? new Date(lm.creado + 60000).toISOString() : null }; }),
@@ -15930,7 +15973,7 @@ function demoChat(action, p){
 // v67: borrar chats en el modo de ejemplo (imita al paso 44)
 function demoChat2(action, p){
   demoChatIni(); DM.chatCop = DM.chatCop || {};
-  const admin = !S.demoAgente, yo = admin ? 'carloshtl75' : 'laura.a', mb = c => DM.chatMb.find(m => m.c === c && m.usuario === yo);
+  const admin = !S.demoAgente, yo = admin ? 'alex.admin' : 'lucia.t', mb = c => DM.chatMb.find(m => m.c === c && m.usuario === yo);
   if(action === 'chatResumen'){
     const r = demoChat(action, p);
     r.chats = r.chats.filter(x => { const m = mb(x.id), d = m.desde || 0; x.desde = d; if(!d) return true;
@@ -15965,8 +16008,8 @@ function demoChat2(action, p){
 function demoHorarios(action, p){
   if(!DM.horarios){ DM.horarios = []; let id = 1;
     const b = (i, f, aa, ab) => ({ i, f, aa:aa || '', ab:ab || '' }), sem = (x, vie) => ({ lun:x, mar:x, mie:x, jue:x, vie:vie || x, sab:null, dom:null });
-    const base = { 'laura.a':sem(b('08:00','17:00','14:00','15:00'), b('07:30','15:30')), 'claudia.c':sem(b('09:00','18:00','12:00','13:00')),
-      'farouk.n':sem(b('08:00','16:45','15:15','16:00')), 'saori.m':sem(b('08:00','17:00','12:30','13:30')) };
+    const base = { 'lucia.t':sem(b('08:00','17:00','14:00','15:00'), b('07:30','15:30')), 'maya.c':sem(b('09:00','18:00','12:00','13:00')),
+      'omar.h':sem(b('08:00','16:45','15:15','16:00')), 'sofia.k':sem(b('08:00','17:00','12:30','13:30')) };
     Object.keys(base).forEach(u => DM.horarios.push({ id:id++, usuario:u, desde:'2000-01-01', semana:base[u], origen:'monitor', creado:new Date().toISOString(), por:'paso139' })); }
   const hoy = fechaHoy(), vig = u => DM.horarios.filter(x => x.usuario === u && x.desde <= hoy).sort((a, c) => c.desde.localeCompare(a.desde) || c.id - a.id)[0];
   const txt = s => HO_DIAS.map(([k]) => k + '=' + (s[k] ? s[k].i + '-' + s[k].f + (s[k].aa ? '/' + s[k].aa + '-' + s[k].ab : '') : 'libre')).join(';');
@@ -16030,7 +16073,7 @@ async function demoApi(action, p){
       tarifa:'4', m:'352', y:'3603', n:'1268182', v:'12048', w:'254150', x:'1001984', de:'247', fijo:null, cuenta:'Cardiovascular' }];
   }
   await new Promise(s => setTimeout(s, 250));
-  const hoy = fechaHoy(), yoU = 'laura.a';
+  const hoy = fechaHoy(), yoU = 'lucia.t';
   const hojaDe = (desde, hasta) => {
     const fechas = []; for(let f = desde; f <= hasta; f = sumarDias(f, 1)) fechas.push(f);
     return { desde, hasta, hoy, ahora:ahora(), zona:S.zona, fechas, monitor:true, monitorFalla:0,
@@ -16052,10 +16095,10 @@ async function demoApi(action, p){
     const dow = (new Date(hoy + 'T12:00:00Z').getUTCDay() + 6) % 7, lun = sumarDias(hoy, -dow), semana = [];
     for(let i = 0; i < 7; i++){ const f = sumarDias(lun, i), x = demoDia(e, f); const au = DM.sols.find(s => s.usuario === yoU && s.tipo === 'ausencia' && s.estado === 'aprobada' && s.fecha <= f && s.fechaFin >= f);
       semana.push({ fecha:f, min:x.min, alm:x.alm, incompleto:x.incompleto, enCurso:x.enCurso, aprobado:!!x.aprobado, marcas:x.marcas.length, aus: au ? { clase:au.clase, pagada:!!au.pagada } : null }); }
-    if(S.demoAgente) return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'laura.a', nombre:'Laura Acevedo', rol:'agente' }, esAdmin:false,
+    if(S.demoAgente) return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'lucia.t', nombre:'Lucia Torres', rol:'agente' }, esAdmin:false,
       empleado:{ nombre:e.nombre, horasDia:8, horaEntrada:'08:00' }, config:{ almuerzoMax:60, monitor:true },
       reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
-    return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'carloshtl75', nombre:'Carlos Tobon (demo)', rol:'admin' }, esAdmin:true,
+    return { ahora:ahora(), zona:S.zona, hoy, usuario:{ username:'alex.admin', nombre:'Alex Morgan (demo)', rol:'admin' }, esAdmin:true,
       empleado:{ nombre:e.nombre, horasDia:8 }, config:{ almuerzoMax:60, monitor:true },
       reloj:{ fecha:hoy, estado:d.estado, desde:d.desde, min:d.min, alm:d.alm, marcas:d.marcas, turnoDeAyer:false, semana, pendientes:[] } };
   };
@@ -16072,7 +16115,7 @@ async function demoApi(action, p){
     const r = yo(); r.marcada = { tipo:p.tipo, nombre:NOMBRE_TIPO[p.tipo], ms:ahora(), fecha:hoy, minTurno:r.reloj.min }; return r;
   }
   if(action === 'fijarLugar'){ const e = DM.emps.find(x => x.usuario === p.usuario);
-    e.lugar = p.lat == null ? null : { lat:p.lat, lng:p.lng, radio:p.radio, por:'carloshtl75' }; return { ok:true }; }
+    e.lugar = p.lat == null ? null : { lat:p.lat, lng:p.lng, radio:p.radio, por:'alex.admin' }; return { ok:true }; }
   if(action === 'hoja') return hojaDe(p.desde, p.hasta);
   if(action === 'aprobar' || action === 'desaprobar'){ p.items.forEach(i => { if(action === 'aprobar') DM.aprob[i.usuario + '|' + i.fecha] = true; else delete DM.aprob[i.usuario + '|' + i.fecha]; }); return { hechos:p.items.length, saltados:[] }; }
   if(action === 'corregir' || action === 'corregirLote'){
@@ -16083,7 +16126,7 @@ async function demoApi(action, p){
     DM.marcas[p.usuario + '|' + p.fecha] = p.marcas.map(m => ({ tipo:m.tipo, ms:wall(p.fecha, m.hora), origen:'admin', motivo:p.motivo }));
     delete DM.aprob[p.usuario + '|' + p.fecha]; return { corregido:true };
   }
-  if(action === 'empleados'){ const m = await monitorSB(); S.cuentasMon = m.cuentas; S.gm = S.gm || 'carloshtl75';
+  if(action === 'empleados'){ const m = await monitorSB(); S.cuentasMon = m.cuentas; S.gm = S.gm || 'alex.admin';
     const cuentaMgr = DM.cuentaMgr || {}, reportaA = DM.reportaA || {}, monitorea = DM.monitorea || {};
     const nom = {}; DM.emps.forEach(e => { nom[e.usuario] = e.nombre; });
     const gestDir = {}; Object.keys(cuentaMgr).forEach(c => { const u = cuentaMgr[c]; (gestDir[u] = gestDir[u] || []).push(c); });
@@ -16138,7 +16181,7 @@ async function demoApi(action, p){
     const pag = a.pagada == null ? false : a.pagada, emp = DM.emps.find(e => e.usuario === a.usuario) || {};
     const s = { id:++DM.solId, usuario:a.usuario, tipo:'ausencia', clase:a.clase, fecha:a.fecha, fechaFin:a.horaIni ? a.fecha : ff, horaIni:a.horaIni || null, horaFin:a.horaFin || null,
       motivo:a.motivo || 'Added by the administrator', estado:'aprobada', creada:Date.now(), respuesta:'', pagada:pag, conceptoId:a.conceptoId || null, conceptoNombre:a.conceptoNombre || null,
-      horasDia:pag ? (a.horas == null ? (a.horaIni ? minParcial(a) / 60 : (emp.horasDia || 8)) : a.horas) : 0, decididaPor:'carloshtl75', decidida:Date.now() };
+      horasDia:pag ? (a.horas == null ? (a.horaIni ? minParcial(a) / 60 : (emp.horasDia || 8)) : a.horas) : 0, decididaPor:'alex.admin', decidida:Date.now() };
     DM.sols.unshift(s); return { ok:true, id:s.id };
   }
   if(action === 'quitarAusencia'){
@@ -16161,7 +16204,7 @@ async function demoApi(action, p){
       delete DM.aprob[k];
     }
     if(p.aprobar && s.tipo === 'ausencia'){ s.pagada = p.pagada == null ? false : p.pagada; s.horasDia = s.pagada ? (p.horas == null ? (esParcial(s) ? minParcial(s) / 60 : 8) : p.horas) : 0; if(p.clase) s.clase = p.clase; if(p.conceptoId != null) s.conceptoId = p.conceptoId; if(p.conceptoNombre != null) s.conceptoNombre = p.conceptoNombre; }
-    s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'carloshtl75'; s.decidida = Date.now();
+    s.estado = p.aprobar ? 'aprobada' : 'rechazada'; s.respuesta = p.respuesta || ''; s.decididaPor = 'alex.admin'; s.decidida = Date.now();
     return { ok:true };
   }
   if(action === 'miPeriodo'){
@@ -16209,9 +16252,9 @@ async function demoApi(action, p){
     const x = p.nomina, ya = DM.nominas.find(n => n.desde === x.desde && n.hasta === x.hasta), ahoraIso = new Date().toISOString();
     if(ya && ya.estado === 'cerrada') throw new Error('That pay run is already closed. Reopen it to change it.');
     if(p.cerrar && (!x.trm || !x.tasa || !x.fechaPago) && !(ya && ya.origen === 'importada')) throw new Error('To close the pay run, set the payment date and the TRM.');
-    const n = ya || { id:++DM.nomId, desde:x.desde, hasta:x.hasta, origen:'reloj', creado_por:'carloshtl75', creado_en:ahoraIso };
-    Object.assign(n, { fecha_pago:x.fechaPago, trm:x.trm, tasa:x.tasa, estado:p.cerrar ? 'cerrada' : 'borrador', datos:copia(x.datos), totales:copia(x.totales), actualizado_por:'carloshtl75', actualizado_en:ahoraIso,
-      cerrado_por:p.cerrar ? 'carloshtl75' : null, cerrado_en:p.cerrar ? ahoraIso : null });
+    const n = ya || { id:++DM.nomId, desde:x.desde, hasta:x.hasta, origen:'reloj', creado_por:'alex.admin', creado_en:ahoraIso };
+    Object.assign(n, { fecha_pago:x.fechaPago, trm:x.trm, tasa:x.tasa, estado:p.cerrar ? 'cerrada' : 'borrador', datos:copia(x.datos), totales:copia(x.totales), actualizado_por:'alex.admin', actualizado_en:ahoraIso,
+      cerrado_por:p.cerrar ? 'alex.admin' : null, cerrado_en:p.cerrar ? ahoraIso : null });
     if(!ya) DM.nominas.push(n);
     return { ok:true, id:n.id, estado:n.estado };
   }
@@ -16221,8 +16264,8 @@ async function demoApi(action, p){
     p.nominas.forEach(x => { const ya = DM.nominas.find(n => n.desde === x.desde && n.hasta === x.hasta);
       if(ya && ya.estado === 'cerrada'){ saltadas.push({ desde:x.desde, hasta:x.hasta, por:ya.origen === 'importada' ? 'Ya está importada y bloqueada.' : 'Ya está cerrada en el Time Clock.' }); return; }
       if(ya) reemplazadas++;
-      const n = ya || { id:++DM.nomId, desde:x.desde, hasta:x.hasta, creado_por:'carloshtl75', creado_en:ahoraIso };
-      Object.assign(n, { fecha_pago:x.fechaPago, trm:x.trm, tasa:x.tasa, estado:'cerrada', origen:'importada', datos:copia(x.datos), totales:copia(x.totales), actualizado_por:'carloshtl75', actualizado_en:ahoraIso, cerrado_por:'carloshtl75', cerrado_en:ahoraIso });
+      const n = ya || { id:++DM.nomId, desde:x.desde, hasta:x.hasta, creado_por:'alex.admin', creado_en:ahoraIso };
+      Object.assign(n, { fecha_pago:x.fechaPago, trm:x.trm, tasa:x.tasa, estado:'cerrada', origen:'importada', datos:copia(x.datos), totales:copia(x.totales), actualizado_por:'alex.admin', actualizado_en:ahoraIso, cerrado_por:'alex.admin', cerrado_en:ahoraIso });
       if(!ya) DM.nominas.push(n); hechas++; });
     DM.ultimoMotivo = null; return { ok:true, hechas, reemplazadas, saltadas };
   }
@@ -16241,7 +16284,7 @@ async function demoApi(action, p){
         cuenta:n.cuenta || '', departamento:'', telefono:'', email:'', pagoHora: n.pagoHora == null ? '' : String(n.pagoHora), notas:'Former employee, imported from Connecteam' });
       usuarios[n.clave] = u; creados.push(u);
     });
-    DM.imps.push({ id, archivo:d.archivo, zona:d.zona, desde:d.desde, hasta:d.hasta, creado_por:'carloshtl75', creado_en:new Date(ahora()).toISOString(), resumen:{}, creados, deshecha_en:null });
+    DM.imps.push({ id, archivo:d.archivo, zona:d.zona, desde:d.desde, hasta:d.hasta, creado_por:'alex.admin', creado_en:new Date(ahora()).toISOString(), resumen:{}, creados, deshecha_en:null });
     return { id, usuarios };
   }
   if(action === 'impLote'){
@@ -16268,7 +16311,7 @@ async function demoApi(action, p){
         if(DM.sols.some(s => s.usuario === d.usuario && s.tipo === 'ausencia' && ['aprobada', 'pendiente'].includes(s.estado) && s.fecha <= d.fecha && s.fechaFin >= d.fecha && (!hi || !s.horaIni || (s.horaIni < hf && hi < s.horaFin)))){
           saltados.push({ usuario:d.usuario, fecha:d.fecha, por:'Ya tiene tiempo libre ese día.' }); return; }
         DM.sols.unshift({ id:++DM.solId, usuario:d.usuario, tipo:'ausencia', clase:a.clase, fecha:d.fecha, fechaFin:d.fecha, horaIni:hi, horaFin:hf, motivo:a.motivo || 'Imported from Connecteam',
-          estado:'aprobada', creada:Date.now(), respuesta:'Imported from Connecteam', pagada:!!a.pagada, horasDia: a.pagada ? (a.horas || 8) : 0, decididaPor:'carloshtl75', decidida:Date.now(), imp:p.id });
+          estado:'aprobada', creada:Date.now(), respuesta:'Imported from Connecteam', pagada:!!a.pagada, horasDia: a.pagada ? (a.horas || 8) : 0, decididaPor:'alex.admin', decidida:Date.now(), imp:p.id });
         ausencias++;
       });
     });
@@ -16294,7 +16337,7 @@ async function demoApi(action, p){
   if(action === 'monitorTramos') return [{ desde:'2000-01-01', hasta:null }];
   if(action.startsWith('horario')){ await new Promise(r => setTimeout(r, 120)); return demoHorarios(action, p || {}); }   // (v314)
   if(action === 'guardarConexiones'){ S.conexiones = Object.assign({ nomina_colores:true, comprobantes:true }, S.conexiones || {}, p.valor); return S.conexiones; }
-  if(action === 'monPendiente'){ const e = Object.assign({ id:'d' + Date.now() + Math.random().toString(36).slice(2, 6), ts:new Date().toISOString(), por:'carloshtl75' }, p.p); S.monPend = (S.monPend || []).concat([e]); return { ok:true, id:e.id, total:S.monPend.length }; }
+  if(action === 'monPendiente'){ const e = Object.assign({ id:'d' + Date.now() + Math.random().toString(36).slice(2, 6), ts:new Date().toISOString(), por:'alex.admin' }, p.p); S.monPend = (S.monPend || []).concat([e]); return { ok:true, id:e.id, total:S.monPend.length }; }
   if(action === 'monPendQuitar'){ S.monPend = (S.monPend || []).filter(x => (p.ids || []).indexOf(x.id) < 0); return { ok:true, total:S.monPend.length }; }
   if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
   if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
@@ -16382,7 +16425,7 @@ async function demoApi(action, p){
     if(!x.usuario){ if(!em) throw new Error('Enter the employee\'s email. They\'ll use it to sign in.');
       let b = em.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 28), u = b, n = 1; while(DM.emps.some(e => e.usuario === u)) u = b + (++n); x.usuario = u; nuevo = true; }
     const i = DM.emps.findIndex(e => e.usuario === x.usuario);
-    if(i >= 0){ cambio = (DM.emps[i].email || '') !== em && !!(DM.cuentas || {})[x.usuario]; demoBancoLog(x.usuario, DM.emps[i], x, 'carloshtl75', 'admin'); DM.emps[i] = Object.assign({}, DM.emps[i], x); } else DM.emps.push(x);
+    if(i >= 0){ cambio = (DM.emps[i].email || '') !== em && !!(DM.cuentas || {})[x.usuario]; demoBancoLog(x.usuario, DM.emps[i], x, 'alex.admin', 'admin'); DM.emps[i] = Object.assign({}, DM.emps[i], x); } else DM.emps.push(x);
     const r = await demoApi('empleados'); r.res = { ok:true, usuario:x.usuario, nuevo, emailCambio:cambio }; return r;
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
@@ -16427,28 +16470,28 @@ demoApi = async function(action, p){
   foto.forEach(x => { const now = DM.marcas[x.u + '|' + x.f] || [];
     if(JSON.stringify(now.map(m => m.tipo + m.ms)) === JSON.stringify(x.m.map(m => m.tipo + m.ms))) return;
     DM.anuladas = DM.anuladas || {}; const k = x.u + '|' + x.f, t = Date.now();
-    x.m.filter(m => !now.includes(m)).forEach(m => (DM.anuladas[k] = DM.anuladas[k] || []).push(Object.assign({}, m, { anuladaEn:t, anuladaPor:'carloshtl75' })));
-    log('carloshtl75', 'corregir', { usuario:x.u, fecha:x.f, antes:x.m.map(m => ({ tipo:m.tipo, ts:new Date(m.ms).toISOString() })),
+    x.m.filter(m => !now.includes(m)).forEach(m => (DM.anuladas[k] = DM.anuladas[k] || []).push(Object.assign({}, m, { anuladaEn:t, anuladaPor:'alex.admin' })));
+    log('alex.admin', 'corregir', { usuario:x.u, fecha:x.f, antes:x.m.map(m => ({ tipo:m.tipo, ts:new Date(m.ms).toISOString() })),
       despues:now.map(m => ({ tipo:m.tipo, hora:hhmm(m.ms) })), motivo:(now[0] && now[0].motivo) || p.motivo || '',
-      aprobacionQuitada: x.ap && !DM.aprob[x.u + '|' + x.f] ? { horas:Math.round(x.h / 0.6) / 100, por:'carloshtl75' } : null }); });
-  if(action === 'solicitar') log('laura.a', 'solicitar', Object.assign({}, p.sol, { id:r.id }));
-  if(action === 'cancelarSolicitud') log('laura.a', 'cancelarSolicitud', { id:p.id });
-  if(action === 'decidir' && estAntes === 'pendiente') log('carloshtl75', p.aprobar ? 'aprobarSolicitud' : 'rechazarSolicitud', { id:p.id });
-  if(action === 'revertir') log('carloshtl75', 'revertirSolicitud', { id:p.id, respuesta:p.respuesta || '' });
-  if(action === 'modificarSolicitud') log('carloshtl75', 'modificarSolicitud', { id:p.id });
-  if(action === 'ajustarAusencia') log('carloshtl75', 'ajustarSolicitud', { id:p.id, antes:r && r._antes, despues:p.sol });
-  if(action === 'aprobar' || action === 'desaprobar') log('carloshtl75', action, { dias:p.items.map(i => ({ usuario:i.usuario, fecha:i.fecha,
+      aprobacionQuitada: x.ap && !DM.aprob[x.u + '|' + x.f] ? { horas:Math.round(x.h / 0.6) / 100, por:'alex.admin' } : null }); });
+  if(action === 'solicitar') log('lucia.t', 'solicitar', Object.assign({}, p.sol, { id:r.id }));
+  if(action === 'cancelarSolicitud') log('lucia.t', 'cancelarSolicitud', { id:p.id });
+  if(action === 'decidir' && estAntes === 'pendiente') log('alex.admin', p.aprobar ? 'aprobarSolicitud' : 'rechazarSolicitud', { id:p.id });
+  if(action === 'revertir') log('alex.admin', 'revertirSolicitud', { id:p.id, respuesta:p.respuesta || '' });
+  if(action === 'modificarSolicitud') log('alex.admin', 'modificarSolicitud', { id:p.id });
+  if(action === 'ajustarAusencia') log('alex.admin', 'ajustarSolicitud', { id:p.id, antes:r && r._antes, despues:p.sol });
+  if(action === 'aprobar' || action === 'desaprobar') log('alex.admin', action, { dias:p.items.map(i => ({ usuario:i.usuario, fecha:i.fecha,
     horas:Math.round(demoDia(DM.emps.find(e => e.usuario === i.usuario), i.fecha).min / 0.6) / 100 })) });
   return r;
 };
-// Cuentas de ejemplo: Laura, Farouk y Saori ya entran; Claudia está invitada; Hebert aún no tiene acceso.
+// Cuentas de ejemplo: Lucia, Omar y Sofia ya entran; Maya está invitada; Henry aún no tiene acceso.
 function demoPortal(){
   if(!DM.cuentas){ const hace = d => new Date(Date.now() - d * 86400000).toISOString();
-    DM.cuentas = { 'laura.a':{ invitado:hace(40), activado:hace(39) }, 'farouk.n':{ invitado:hace(30), activado:hace(30) },
-                   'saori.m':{ invitado:hace(60), activado:hace(58) }, 'claudia.c':{ invitado:hace(2), activado:null } };
+    DM.cuentas = { 'lucia.t':{ invitado:hace(40), activado:hace(39) }, 'omar.h':{ invitado:hace(30), activado:hace(30) },
+                   'sofia.k':{ invitado:hace(60), activado:hace(58) }, 'maya.c':{ invitado:hace(2), activado:null } };
     DM.emps.forEach(e => { if(!e.email) e.email = e.usuario.replace(/\..*$/, '') + '@example.com'; }); }
   return Object.keys(DM.cuentas).map(u => ({ username:u, nombre:(DM.emps.find(e => e.usuario === u) || {}).nombre || u, activo:true, rol:'agente',
-    invitado:DM.cuentas[u].invitado, activado:DM.cuentas[u].activado })).concat([{ username:'carloshtl75', nombre:'Carlos Tobon', activo:true, rol:'admin' }]);
+    invitado:DM.cuentas[u].invitado, activado:DM.cuentas[u].activado })).concat([{ username:'alex.admin', nombre:'Alex Morgan', activo:true, rol:'admin' }]);
 }
 async function demoCuentas(accion, p){
   await new Promise(r => setTimeout(r, 300));
@@ -16468,10 +16511,10 @@ async function demoCuentas(accion, p){
     DM.correos.push({ tipo:'claveAdmin', email:e.email });
     return { ok:true, enviado:true, email:e.email };
   }
-  if(accion === 'ver') return p.token === 'demo' ? { ok:true, estado:'ok', tipo:'invitacion', email:'laura@example.com', nombre:'Laura Acevedo' }
-    : p.token === 'reset' ? { ok:true, estado:'ok', tipo:'clave', email:'laura@example.com', nombre:'Laura Acevedo' }
+  if(accion === 'ver') return p.token === 'demo' ? { ok:true, estado:'ok', tipo:'invitacion', email:'lucia@example.com', nombre:'Lucia Torres' }
+    : p.token === 'reset' ? { ok:true, estado:'ok', tipo:'clave', email:'lucia@example.com', nombre:'Lucia Torres' }
     : { ok:false, estado:['vencido','usado','reemplazado','inactivo'].includes(p.token) ? p.token : 'no', tipo:'invitacion' };
-  if(accion === 'activar') return !claveBuena(p.clave || '') ? { ok:false, msg:'La contraseña debe tener al menos 8 caracteres, con letras y números.' } : { ok:true, email:'laura@example.com' };
+  if(accion === 'activar') return !claveBuena(p.clave || '') ? { ok:false, msg:'La contraseña debe tener al menos 8 caracteres, con letras y números.' } : { ok:true, email:'lucia@example.com' };
   if(accion === 'olvide'){ DM.correos.push({ tipo:'clave', email:p.email }); return { ok:true }; }
   return { ok:false, msg:'Acción desconocida' };
 }
@@ -16486,8 +16529,8 @@ async function demoHistorial(u, f){
     || ((a.accion === 'aprobar' || a.accion === 'desaprobar') && a.detalle.dias.some(d => d.usuario === u && d.fecha === f))
     || (a.detalle.id != null && ids.includes(a.detalle.id) && a.accion !== 'corregir'));
   const marcas = (DM.marcas[k] || []).concat((DM.anuladas || {})[k] || []).map((m, i) => ({ id:i + 1, tipo:m.tipo, ts:iso(m.ms), origen:m.origen || 'agente',
-    autor:m.origen === 'admin' ? 'carloshtl75' : u, motivo:m.motivo || '', creado:iso(m.ms), anuladaPor:m.anuladaPor || null, anuladaEn:m.anuladaEn ? iso(m.anuladaEn) : null }));
-  const ap = DM.aprob[k] ? { usuario:u, fecha:f, horas:Math.round(demoDia(DM.emps.find(e => e.usuario === u), f).min / 0.6) / 100, aprobado_por:'carloshtl75',
+    autor:m.origen === 'admin' ? 'alex.admin' : u, motivo:m.motivo || '', creado:iso(m.ms), anuladaPor:m.anuladaPor || null, anuladaEn:m.anuladaEn ? iso(m.anuladaEn) : null }));
+  const ap = DM.aprob[k] ? { usuario:u, fecha:f, horas:Math.round(demoDia(DM.emps.find(e => e.usuario === u), f).min / 0.6) / 100, aprobado_por:'alex.admin',
     aprobado_en:iso(wall(sumarDias(f, 1), '09:30')) } : null;
   return { marcas, sols, audit, aprob:ap };
 }
@@ -17530,7 +17573,7 @@ try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cad
     if(!APP_BUILD) return false;
     // 1) chequeo liviano: version.txt (unos bytes) con el build desplegado
     try{
-      const r = await fetch('https://247medicalaid.github.io/version.txt?vck=' + Date.now(), { cache:'no-store' });
+      const r = await fetch((INST.base || '/') + 'version.txt?vck=' + Date.now(), { cache:'no-store' });
       if(r && r.ok){
         const v = (await r.text()).trim();
         if(/^v\d/.test(v)) return v !== APP_BUILD;   // archivito válido: decide con él
@@ -17538,7 +17581,7 @@ try{ window.CP = { aoa:cpAOA, emps:cpEmps, uno:cpUno, combinado:cpCombinado, cad
     }catch(e){}
     // 2) respaldo: descargar el reloj.html completo y comparar el build (como antes)
     try{
-      const r = await fetch('https://247medicalaid.github.io/reloj.html?vck=' + Date.now(), { cache:'no-store' });
+      const r = await fetch((INST.base || '/') + 'reloj.html?vck=' + Date.now(), { cache:'no-store' });
       if(!r || !r.ok) return false;
       const txt = await r.text();
       return txt.indexOf('name="app-build"') !== -1 && txt.indexOf(APP_BUILD) === -1;
