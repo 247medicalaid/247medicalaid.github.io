@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v340-202611132045">
+<meta name="app-build" content="v341-202611132130">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3359,16 +3359,6 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajSoloGuardar" type="button">Save</button><span class="nota" id="ajSoloEstado"></span></div>
           </div>
 
-          <div class="ajuste aj-card" id="ajConxBox" data-guardar="ajConxGuardar">
-            <div class="aj-ct"><h2>Your other apps</h2><span class="aj-pill" id="ajPillConx"></span></div>
-            <p class="aj-desc">Links with apps that only 24/7 Medical Aid uses. Turn them off to see the Time Clock as the product will work without them. Nothing is deleted.</p>
-            <div class="aj-filas">
-              <div class="aj-fila"><label class="aj-fl" for="ajConxNomCol"><b>Account colors from the Payroll app</b><span>If an account has no color in Accounts, use its color from N&oacute;mina. Off = only the colors set in Accounts.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajConxNomCol" role="switch"></div></div>
-              <div class="aj-fila"><label class="aj-fl" for="ajConxComp"><b>Pay stubs from the PayStub Center</b><span>Comprobantes can send each pay stub to the person&rsquo;s Documents &rarr; Paystubs. Off = only the Pay run sends them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajConxComp" role="switch"></div></div>
-            </div>
-            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajConxGuardar" type="button">Save</button><span class="nota" id="ajConxEstado"></span></div>
-          </div>
-
           <div class="ajuste aj-card" id="ajConxFijas">
             <div class="aj-ct"><h2>Always on for 24/7</h2><span class="aj-pill">Outside the Time Clock</span></div>
             <p class="aj-desc">These run outside the Time Clock and can&rsquo;t be turned off from here. In the product each one is replaced.</p>
@@ -4316,10 +4306,8 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   return f;
 }
 
-/* ── Colores de las cuentas: los de la Nómina (Settings de cada cuenta allá) ──
-   Se leen de nomina_docs (config) cada vez que se abre la Timesheet: si Carlos cambia
-   un color en la Nómina, aquí se ve al volver a cargar. Los nombres se emparejan como
-   en la Nómina (normalizeAccountName) y, si no, por prefijo («CARDIO» ↔ «CARDIOVASCULAR»). */
+/* ── Colores de las cuentas: los de Settings → Accounts del Time Clock (v341: ya no se leen de la Nómina) ──
+   Los nombres se emparejan por nombre normalizado y, si no, por prefijo («CARDIO» ↔ «CARDIOVASCULAR») o por palabras. */
 function normCuenta(n){
   const x = String(n || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   for(const k of ['WHITE WILSON', 'ACCESS', 'ADVANTAGE', 'TOTAL SLEEP', 'MAB', 'ALONSO']) if(x.indexOf(k) >= 0) return k;
@@ -4334,21 +4322,8 @@ function tintaDe(hex){   // la misma regla de la Nómina (ivTintaTexto)
 }
 const DEMO_COLORES = [{ nombre:'CARDIOVASCULAR', color:'#F2A93B' }, { nombre:'GASTROENTEROLOGY', color:'#fb7185' }, { nombre:'TOTAL SLEEP MANAGEMENT', color:'#34d399' },
   { nombre:'MAB PULMONARY', color:'#818cf8' }, { nombre:'24/7 MEDICAL', color:'#38bdf8' }];
-async function cargarColores(){
-  if(S.coloresCargando) return S.coloresCargando;
-  S.coloresCargando = (async () => {
-    await null;   // que la asignación de arriba ocurra antes de soltar el candado
-    let l = [];
-    if(!conx('nomina_colores')) l = [];   // (v312) conexión con Nómina apagada
-    else if(DEMO) l = DEMO_COLORES;
-    else try{ const r = await q(sb.from('nomina_docs').select('datos').eq('tipo', 'config').eq('clave', '_').maybeSingle());
-      let d = r && r.datos; if(typeof d === 'string') d = JSON.parse(d); l = (d && d.cuentas) || []; }catch(x){ l = []; }
-    S.coloresN = l.filter(c => c && c.nombre && /^#[0-9a-f]{3,6}$/i.test(String(c.color || ''))).map(c => ({ k:normCuenta(c.nombre), p:palabrasCuenta(c.nombre), color:c.color }));
-    S.coloresCargando = null;
-    return S.coloresN;
-  })();
-  return S.coloresCargando;
-}
+// (v341) Los colores de cuenta se definen SOLO en el Time Clock (Settings → Accounts); ya no se leen de la Nómina.
+async function cargarColores(){ if(!S.coloresN) S.coloresN = []; return S.coloresN; }
 // Palabras que distinguen una cuenta (sin las genéricas).
 const PALABRAS_VACIAS = new Set(['MEDICAL', 'CENTER', 'CENTRE', 'GROUP', 'SERVICES', 'SERVICE', 'AID', 'DR', 'THE', 'OF', 'AND', 'OWN', 'MANAGEMENT', 'CLINIC', 'LLC', 'INC', 'PA']);
 function palabrasCuenta(n){
@@ -4358,18 +4333,11 @@ function palabrasCuenta(n){
 function colorCuenta(nombre){
   if(!nombre) return null;
   const k = normCuenta(nombre); if(!k) return null;
-  // 1) store propio del TimeClock (dueño de los colores de cuenta)
-  if(Array.isArray(S.cuentas)){
-    const s = S.cuentas.find(c => c && c.nombre && c.color && normCuenta(c.nombre) === k);
-    if(s) return s.color;
-  }
-  // 2) respaldo: color actual de la Nómina (nomina_docs)
-  if(!S.coloresN) return null;
-  let x = S.coloresN.find(c => c.k === k) || S.coloresN.find(c => k.length >= 4 && c.k.length >= 4 && (c.k.indexOf(k) === 0 || k.indexOf(c.k) === 0));
-  if(!x){   // todas las palabras de un nombre están en el otro
-    const p = palabrasCuenta(nombre);
-    if(p.length) x = S.coloresN.find(c => c.p && c.p.length && (p.every(w => c.p.indexOf(w) >= 0) || c.p.every(w => p.indexOf(w) >= 0)));
-  }
+  const l = (Array.isArray(S.cuentas) && S.cuentas.length ? S.cuentas : DEMO ? DEMO_COLORES : []).filter(c => c && c.nombre && c.color);
+  // igual de nombre; si no, uno empieza con el otro; si no, todas las palabras de un nombre están en el otro
+  let x = l.find(c => normCuenta(c.nombre) === k) || l.find(c => { const ck = normCuenta(c.nombre); return k.length >= 4 && ck.length >= 4 && (ck.indexOf(k) === 0 || k.indexOf(ck) === 0); });
+  if(!x){ const p = palabrasCuenta(nombre);
+    if(p.length) x = l.find(c => { const cp = palabrasCuenta(c.nombre); return cp.length && (p.every(w => cp.indexOf(w) >= 0) || cp.every(w => p.indexOf(w) >= 0)); }); }
   return x ? x.color : null;
 }
 // Si los colores no han llegado, se piden y se vuelve a pintar la vista.
@@ -9436,22 +9404,8 @@ async function monPendEnviar(preguntar){
   toast(error ? 'Sent ' + hechos.length + ' of ' + l.length + '. Stopped at ' + error : 'Sent ' + hechos.length + (hechos.length === 1 ? ' change' : ' changes') + ' to the Monitor.', error ? 'err' : '');
 }
 function pintarConexiones(){
-  if($('ajConxNomCol')) $('ajConxNomCol').checked = conx('nomina_colores');
-  if($('ajConxComp')) $('ajConxComp').checked = conx('comprobantes');
-  if($('ajConxEstado')) $('ajConxEstado').textContent = '';
   pintarMonPend();
 }
-if($('ajConxGuardar')) $('ajConxGuardar').addEventListener('click', async () => {
-  const b = $('ajConxGuardar'); b.disabled = true; $('ajConxEstado').textContent = 'Saving…';
-  const val = { nomina_colores: $('ajConxNomCol').checked, comprobantes: $('ajConxComp').checked };
-  try{
-    const r = await api('guardarConexiones', { valor:val });
-    S.conexiones = (r && typeof r === 'object' && 'nomina_colores' in r) ? r : Object.assign({}, S.conexiones || {}, val);
-    S.coloresN = null; S.coloresCargando = null; S.hoja = null; S.hojaHoy = null;
-    $('ajConxEstado').textContent = 'Saved.'; toast('Connections saved.');
-  }catch(e){ $('ajConxEstado').textContent = e.message; }
-  finally{ b.disabled = false; }
-});
 const CONCEPTOS_DEF = [
   { id:'vac_u', nombre:'Vacation', clase:'vacaciones' },
   { id:'sick_u', nombre:'Sick', clase:'enfermedad' },
@@ -9755,8 +9709,8 @@ function ajResumen(k){
       case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R);
         return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
-      case 'solo247': { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length, m = SOLO247.filter(x => solo247(x.k)).length;
-        return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')], ['Other apps', n + ' of 2 on']]; }
+      case 'solo247': { const m = SOLO247.filter(x => solo247(x.k)).length;
+        return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')]]; }
     }
   }catch(e){}
   return [];
@@ -9772,7 +9726,7 @@ function ajSub(k){
     case 'tiempo': return 'Rounding ' + v(0).toLowerCase() + ' · auto clock out ' + v(2).toLowerCase();
     case 'ausencias': return v(0) + ' types · paid by ' + v(1);
     case 'nomina': return v(0) + ' · ' + v(1);
-    case 'solo247': return v(0) + ' · other apps ' + v(1);
+    case 'solo247': return v(0);
     default: return v(0);
   }
 }
@@ -9807,7 +9761,6 @@ function ajPills(){
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
   set('ajPillMon', typeof monSyncCfg === 'function' ? monSyncCfg().activo : true, 'Connected', 'Off');
-  { const n = ['nomina_colores', 'comprobantes'].filter(k => conx(k)).length; set('ajPillConx', n === 2, n === 2 ? 'All on' : n + ' of 2 on', n + ' of 2 on'); }
   if($('ajZonaTxt')) $('ajZonaTxt').textContent = MARCA.zonaLabel || 'local time';
 }
 function ajIr(k, opt){
@@ -13871,7 +13824,7 @@ const SOLO247 = [
   { k:'ica', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays. Off: no withholding, no Rete ICA column or total.' },
   { k:'fuentes', pago:true, t:'Paid from Nómina 247 or Personal', d:'Two payment sources with their own totals, plus the Bank template (247) and Personal payments files. Off: everyone is paid from one place.' },
   { k:'aportes', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours. Off: everyone is paid by hours and nothing is taken off.' },
-  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format (Paystubs reads it) and import pay periods already paid from it.' }
+  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format and import pay periods already paid from it.' }
 ];
 const solo247 = k => { const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };
 const pagoComoProducto = () => SOLO247.some(x => x.pago && !solo247(x.k));
