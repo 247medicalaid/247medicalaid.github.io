@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v341-202611132130">
+<meta name="app-build" content="v342-202611132215">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1196,6 +1196,12 @@ table.imp-tab td.arch{max-width:220px;overflow-wrap:anywhere;font-size:12.5px;co
 .ot-dot{font-weight:800;color:#9A5B00;font-size:13px;line-height:1}
 .globo-auto{position:fixed;z-index:3000;background:var(--ink-900, #0B2233);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;box-shadow:0 4px 12px rgba(11,34,51,.25);pointer-events:none}
 .globo-auto.hidden{display:none}
+/* (v342) ⓘ con la explicación al pasar el mouse (o tocar) en vez de texto debajo */
+.info-i{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:5px;vertical-align:-3px;color:var(--text-muted);cursor:help;border-radius:50%;flex:0 0 auto}
+.campo span.info-i,span.info-i{display:inline-flex;margin-bottom:0}
+.info-i svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.info-i:hover,.info-i:focus-visible{color:var(--brand-600);outline:none}
+.globo-auto.largo{white-space:normal !important;max-width:300px;font-weight:500;padding:7px 10px;line-height:1.4}
 .pill-test{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:0 6px;border-radius:999px;background:#EDE7FB;color:#5A43A0;line-height:16px;letter-spacing:.05em;vertical-align:1px}
 .nom-btn .pill-test{margin-left:5px;flex:none}
 .aj-prueba{display:grid;grid-template-columns:minmax(0,320px) minmax(0,260px);gap:10px 14px;margin:2px 0 12px}
@@ -4258,17 +4264,22 @@ function salidaAutoBandera(marcas){
 function globoAutoMostrar(c){
   let g = $('globoAuto');
   if(!g){ g = document.createElement('div'); g.id = 'globoAuto'; g.className = 'globo-auto hidden'; g.setAttribute('role', 'tooltip'); document.body.appendChild(g); }
-  g.textContent = c.dataset.globo || 'Auto clock out';
+  const src = c.dataset.globoSrc ? document.querySelector(c.dataset.globoSrc) : null;
+  g.textContent = (src && src.textContent.trim()) || c.dataset.globo || 'Auto clock out';
+  g.classList.toggle('largo', c.classList.contains('info-i'));
   g.classList.remove('hidden');
   const r = c.getBoundingClientRect(), w = g.offsetWidth, h = g.offsetHeight;
   let y = r.top - h - 6; if(y < 8) y = r.bottom + 6;
   g.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px'; g.style.top = y + 'px';
 }
+const IC_INFO_I = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6v.2"/></svg>';
+// (v342) ⓘ con su explicación: txt (texto) o src (selector de un elemento cuyo texto se muestra)
+function infoI(txt, src){ return '<span class="info-i" tabindex="0" role="button" aria-label="' + esc(txt || 'More info') + '"' + (src ? ' data-globo-src="' + esc(src) + '"' : '') + ' data-globo="' + esc(txt || '') + '">' + IC_INFO_I + '</span>'; }
 function globoAutoOcultar(){ const g = $('globoAuto'); if(g) g.classList.add('hidden'); }
-document.addEventListener('mouseover', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto],[data-globo]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
+document.addEventListener('mouseover', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto],[data-globo]'); if(c) globoAutoMostrar(c); else if(!(S.infoToque && Date.now() - S.infoToque < 1000)) globoAutoOcultar(); });
 document.addEventListener('focusin', ev => { const c = ev.target.closest && ev.target.closest('.celda[data-auto],[data-globo]'); if(c) globoAutoMostrar(c); else globoAutoOcultar(); });
 document.addEventListener('scroll', globoAutoOcultar, true);
-document.addEventListener('click', globoAutoOcultar, true);
+document.addEventListener('click', ev => { const c = ev.target.closest && ev.target.closest('.info-i'); if(c){ ev.preventDefault(); S.infoToque = Date.now(); globoAutoMostrar(c); } else { S.infoToque = 0; globoAutoOcultar(); } }, true);   // (v342) tocar ⓘ en el celular
 function banderas(dia, marcas, emp, mon, ahora, ub){
   const f = [], tol = CFG.TOLERANCIA_MIN * 60000;
   if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' });
@@ -14193,10 +14204,9 @@ function pintarPago(){
     '<div class="pr-g pr-g-fecha"><label class="campo"><span>Payment date</span><input type="date" id="pyFecha" value="' + esc(P.fechaPago || '') + '"' + dis + '></label></div>' +
     pintarCambioPago(R, dis, cerr) +
     '<div class="pr-g pr-g-dias">' +
-      '<label class="campo"><span>Pay remaining days from</span><input type="date" id="pyAsume" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '>' +
-        '<small>' + (asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
-          : 'No days paid in advance: every day of the pay period is counted as worked.') + '</small></label>' +
-      '<label class="campo"><span>Add days — everyone</span><div class="pr-fila"><input type="number" id="pyDiasTodos" min="0" max="10" step="0.5" inputmode="decimal" placeholder="e.g. 1"' + dis + '><button class="btn btn-ghost btn-sm" id="pyDiasAplicar" type="button"' + dis + '>Add to all</button></div><small>Adds these days on top for everyone (e.g. a paid holiday with no punches); you can still change each person.</small></label>' +
+      '<div class="campo"><span>Pay remaining days from' + infoI(asum.length ? asum.length + (asum.length === 1 ? ' weekday' : ' weekdays') + ' paid in advance: ' + asum.map(diaS).join(', ') + (P.asumeDesde > pr.desde ? '. Hours counted through ' + diaS(sumarDias(P.asumeDesde, -1)) + '.' : '. No hours counted yet.')
+          : 'No days paid in advance: every day of the pay period is counted as worked.') + '</span><input type="date" id="pyAsume" aria-label="Pay remaining days from" min="' + pr.desde + '" max="' + sumarDias(pr.hasta, 1) + '" value="' + esc(P.asumeDesde || '') + '"' + dis + '></div>' +
+      '<div class="campo"><span>Add days — everyone' + infoI('Adds these days on top for everyone (e.g. a paid holiday with no punches); you can still change each person.') + '</span><div class="pr-fila"><input type="number" id="pyDiasTodos" min="0" max="10" step="0.5" inputmode="decimal" placeholder="e.g. 1"' + dis + '><button class="btn btn-ghost btn-sm" id="pyDiasAplicar" type="button"' + dis + '>Add to all</button></div></div>' +
     '</div>';
   pintarResumenPago();
   if($('pyOrden')) $('pyOrden').value = pyModo();
@@ -14230,8 +14240,7 @@ function pintarPago(){
 // (v335) Tarjeta de la tasa: una por cada moneda extranjera de la nómina; pago local = solo dice la moneda.
 function pintarCambioPago(R, dis, cerr){
   const P = S.pr.P, cm = cfgMoneda(R), mons = monedasPago();
-  if(!mons.length) return '<div class="pr-g pr-g-dolar pr-local"><div class="campo"><span>Currency</span><b class="pr-mon-local">' + esc(cm.base) + '</b>' +
-    '<small>Local payroll: everyone is paid in ' + esc(cm.base) + ', no exchange rate. (Settings → Pay &amp; currency)</small></div></div>';
+  if(!mons.length) return '<div class="pr-g pr-g-dolar pr-local"><div class="campo"><span>Currency' + infoI('Local payroll: everyone is paid in ' + cm.base + ', no exchange rate (Settings → Pay & currency).') + '</span><b class="pr-mon-local">' + esc(cm.base) + '</b></div></div>';
   return '<div class="pr-g pr-g-dolar' + (mons.length > 1 ? ' pr-varias' : '') + '">' + mons.map(m => {
     const c = (P.cambio || {})[m] || {}, tasa = tasaMon(m, c.base, R), esCop = m === 'COP';
     const regla = esCop
@@ -14241,14 +14250,14 @@ function pintarCambioPago(R, dis, cerr){
 
         (Number(R.extra) !== Number(reglasPago().extra) || (topeOn(R) && Number(R.tope) !== Number(reglasPago().tope))
           ? '<small class="pr-regla-nota">Default: ' + esc(textoRegla('COP', reglasPago())) + (cerr ? '' : ' · <button class="btn-link" id="pyReglaDef" type="button" style="font-size:12.5px;padding:0">Use default</button>') + '</small>'
-          : '<small>Default rule (Settings → Pay &amp; currency).</small>')
-      : '<small>' + esc(textoRegla(m, R)) + ' (Settings → Pay &amp; currency).</small>';
+          : '')
+      : '';
     return '<div class="pr-cambio">' +
-      '<div class="campo pr-trm"><span>' + (esCop && cm.base === 'USD' ? 'TRM (COP/USD)' : 'Rate (' + esc(m) + '/' + esc(cm.base) + ')') + '</span><div class="pr-fila">' +
+      '<div class="campo pr-trm"><span>' + (esCop && cm.base === 'USD' ? 'TRM (COP/USD)' : 'Rate (' + esc(m) + '/' + esc(cm.base) + ')') + infoI('Rate for the payment date.', '[data-cambio-nota="' + m + '"]') + '</span><div class="pr-fila">' +
         '<input type="number" class="py-cambio" data-mon="' + m + '" min="0" step="any" inputmode="decimal" value="' + (c.base != null ? c.base : '') + '"' + dis + ' aria-label="Exchange rate ' + m + '">' +
         (cerr ? '' : '<button class="btn btn-ghost btn-sm" data-cambio-get="' + m + '" type="button" title="Get the rate for the payment date">Get</button>') + '</div>' +
-        '<small data-cambio-nota="' + m + '">' + esc(c.nota || '') + '</small></div>' +
-      '<div class="campo pr-tasa"><span>' + esc(cm.base === 'USD' ? 'Dollar' : cm.base) + ' paid at</span><b>' + (tasa ? simboloMon(m) + tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:tasa < 10 ? 4 : 2 }) : '—') + '</b>' + regla + '</div></div>';
+        '<small class="hidden" data-cambio-nota="' + m + '">' + esc(c.nota || '') + '</small></div>' +
+      '<div class="campo pr-tasa"><span>' + esc(cm.base === 'USD' ? 'Dollar' : cm.base) + ' paid at' + infoI(esCop ? (Number(R.extra) !== Number(reglasPago().extra) || (topeOn(R) && Number(R.tope) !== Number(reglasPago().tope)) ? 'This pay period uses its own rule.' : 'Default rule: ' + textoRegla('COP', R) + ' (Settings → Pay & currency).') : textoRegla(m, R) + ' (Settings → Pay & currency).') + '</span><b>' + (tasa ? simboloMon(m) + tasa.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:tasa < 10 ? 4 : 2 }) : '—') + '</b>' + regla + '</div></div>';
   }).join('') + '</div>';
 }
 function pintarResumenPago(){
