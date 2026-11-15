@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v353-202611141900">
+<meta name="app-build" content="v354-202611142130">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5972,6 +5972,9 @@ async function inicio(){
   if(DEMO) $('demoTag').classList.remove('hidden');
   try{
     const yo = await api('yo');
+    // (v354) Producto (sin portal): el administrador entra con su correo, igual que los agentes;
+    // una vez que se sabe que es admin, la app lo trata como admin (no como agente).
+    if(S.agente && yo.esAdmin && !PORTAL) S.agente = false;
     aplicarYo(yo);
     $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
     $('quienRol').textContent = yo.esAdmin ? 'Administrator' : (yo.empleado ? 'Agent' : '');
