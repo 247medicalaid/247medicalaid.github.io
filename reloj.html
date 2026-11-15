@@ -16,7 +16,15 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v363-202611151345">
+<!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
+<!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
+<!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
+<!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
+<!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
+<!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
+<meta name="app-build" content="v371-202611151900">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -1016,6 +1024,19 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 #vAjustes .aj-ct h2{font-size:16px;margin:0;color:var(--text);flex:1;min-width:0}
 #vAjustes .aj-ct2{border-top:1px solid var(--aj-sep);background:var(--aj-suave)}
 #vAjustes .aj-ct2 h2{font-size:14.5px}
+#vAjustes .pl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:12px 20px 4px}
+#vAjustes .pl-card{border:1px solid var(--aj-line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:#fff}
+#vAjustes .pl-card.dest{border-color:var(--brand-500)}
+#vAjustes .pl-card.actual{background:var(--aj-suave)}
+#vAjustes .pl-cab{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#vAjustes .pl-cab h3{margin:0;font-size:16px}
+#vAjustes .pl-para{margin:0;color:var(--text-muted);font-size:13px}
+#vAjustes .pl-precio{display:flex;align-items:baseline;gap:6px;margin:4px 0}
+#vAjustes .pl-precio b{font-size:26px;letter-spacing:-.02em}
+#vAjustes .pl-precio small{color:var(--text-muted);font-size:12.5px}
+#vAjustes .pl-card ul{margin:2px 0 8px;padding-left:18px;font-size:13px;color:var(--ink-700);line-height:1.55;flex:1}
+#vAjustes .pl-sube{align-self:flex-start}
+@media (max-width:819px){#vAjustes .pl-grid{grid-template-columns:1fr;padding:12px 16px 4px}}
 #vAjustes .aj-desc{margin:12px 20px 4px;color:var(--text-muted);font-size:13.5px;line-height:1.55;max-width:80ch}
 #vAjustes .aj-filas{padding:0}
 #vAjustes .aj-fila{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 24px;align-items:center;padding:13px 20px;border-top:1px solid var(--aj-sep)}
@@ -2019,6 +2040,10 @@ table.emps{width:100%;border-collapse:collapse;font-size:14px}
 .acceso .pista{font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px}
 .acceso .ver{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-muted);margin:-4px 0 12px;cursor:pointer}
 .acceso .err{min-height:0;margin:0 0 10px}
+.acceso .act-barra{height:6px;border-radius:99px;background:var(--brand-50);overflow:hidden;margin:4px 0 6px}
+.acceso .act-barra span{display:block;height:100%;width:35%;border-radius:99px;background:var(--brand-600);animation:actBarra 1.6s ease-in-out infinite}
+@keyframes actBarra{0%{transform:translateX(-100%)}100%{transform:translateX(290%)}}
+@media (prefers-reduced-motion:reduce){.acceso .act-barra span{animation:none;width:100%;opacity:.5}}
 .acceso .listo{background:var(--brand-50);color:var(--ink-700);border-radius:var(--radius-sm);padding:12px 14px;font-size:14.5px;line-height:1.5;margin-bottom:12px}
 .acceso .pie-acc{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-size:12.5px;color:var(--text-muted)}
 .acceso .pie-acc a{color:var(--brand-700);font-weight:600}
@@ -3342,7 +3367,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           <div class="ajuste aj-card" id="ajUbicBox" data-guardar="ajUbicGuardar">
             <div class="aj-ct"><h2>Location</h2><span class="aj-pill" id="ajPillUbic"></span></div>
             <div class="aj-filas">
-              <div class="aj-fila"><label class="aj-fl" for="ajUbic"><b>Require location to clock in and out</b><span>Each punch saves where it was made (GPS on phones, Wi&#8209;Fi on computers). When required, a punch isn&rsquo;t recorded until the person shares their location.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajUbic" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajUbic"><b>Ask for location to clock in and out</b><span>On: each punch saves where it was made (GPS on phones, Wi&#8209;Fi on computers), and a punch isn&rsquo;t recorded until the person shares their location. Off: the Time Clock never asks for location.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajUbic" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajUbicGuardar" type="button">Save</button><span class="nota" id="ajUbicEstado"></span></div>
           </div>
@@ -3479,6 +3504,16 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
               <div class="aj-fila"><span class="aj-fl"><b>The Payroll app reads the account names</b><span>N&oacute;mina doesn&rsquo;t go into the product.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
               <div class="aj-fila"><span class="aj-fl"><b>The Monitor installs the Windows app</b><span>Product: its own signed installer.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
             </div>
+          </div>
+        </div>
+
+        <!-- MORE · Plan & billing (v366, solo 247Punch): plan actual y planes disponibles -->
+        <div class="aj-pag" data-pag="plan">
+          <div class="ajuste aj-card" id="ajPlanBox">
+            <div class="aj-ct"><h2>Your plan</h2><span class="aj-pill" id="ajPillPlan"></span></div>
+            <p class="aj-desc" id="ajPlanDesc"></p>
+            <div class="pl-grid" id="ajPlanes"></div>
+            <div class="aj-pie"><span class="nota" id="ajPlanEstado"></span><span class="nota">Prices per person who clocks in. Administrators are free.</span></div>
           </div>
         </div>
 
@@ -4229,7 +4264,9 @@ const CLAVE  = INST.sesionClave || 'tc.sesion';
 // servidor: se abre directamente el modo de ejemplo.
 // (v94) el Time Clock real vive en github.io (portal y administradores) y en timeclock.247medical-aid.com (agentes)
 const HOSTS_RELOJ = INST.hosts || [];
-const DEMO   = new URLSearchParams(location.search).has('demo') || HOSTS_RELOJ.indexOf(location.hostname) < 0;
+// (v368) una entrada que empieza con «.» acepta sus subdominios (vistas previas de 247Punch: <nombre>.247punch.pages.dev)
+const DEMO   = new URLSearchParams(location.search).has('demo') ||
+  !HOSTS_RELOJ.some(h => h === location.hostname || (h.charAt(0) === '.' && location.hostname.endsWith(h)));
 // (v253) Marca y locale configurables. Un despliegue puede poner window.MARCA = {...} antes de este script;
 // lo que no defina, toma el valor de 24/7 por defecto. Así el TimeClock es genérico sin tocar el código.
 const MARCA_DEFAULT = Object.assign({
@@ -4571,19 +4608,20 @@ function ubicDia(lista, emp){
 }
 /* El navegador da la ubicación (pide permiso la primera vez). Devuelve {lat, lng, prec}
    o lanza un error con .cod: 'denegada' | 'sin_dato' | 'tarde' | 'sin_soporte'. */
-function pedirUbicacion(){
+function pedirUbicacion(espera){   // (v369) espera: tope en ms (25 s si la ubicación es obligatoria; 6 s si es opcional)
+  espera = espera || 25000;
   return new Promise((res, rej) => {
     const err = cod => Object.assign(new Error('location ' + cod), { cod });
     if(!window.isSecureContext || !navigator.geolocation) return rej(err('sin_soporte'));
     let listo = false;
-    const tope = setTimeout(() => { if(!listo){ listo = true; rej(err('tarde')); } }, 25000);
+    const tope = setTimeout(() => { if(!listo){ listo = true; rej(err('tarde')); } }, espera);
     navigator.geolocation.getCurrentPosition(pos => {
       if(listo) return; listo = true; clearTimeout(tope);
       res({ lat:+pos.coords.latitude.toFixed(6), lng:+pos.coords.longitude.toFixed(6), prec:Math.round(pos.coords.accuracy || 0) });
     }, e => {
       if(listo) return; listo = true; clearTimeout(tope);
       rej(err(e && e.code === 1 ? 'denegada' : e && e.code === 3 ? 'tarde' : 'sin_dato'));
-    }, { enableHighAccuracy:true, timeout:20000, maximumAge:60000 });
+    }, { enableHighAccuracy:true, timeout:Math.max(3000, espera - 5000), maximumAge:60000 });
   });
 }
 const AYUDA_UBIC = {
@@ -4746,6 +4784,11 @@ function reducirMonitor(j){
 function tiempo(nombre, t0){ const ms = Math.round(performance.now() - t0); TIEMPOS.push({ nombre, ms, en: Date.now() }); if(TIEMPOS.length > 60) TIEMPOS.shift(); window.__tiempos = TIEMPOS; return ms; }
 const seg = ms => (ms / 1000).toFixed(1) + ' s';
 async function q(p){ const { data, error } = await p; if(error){ const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
+/* (v371) Errores que solo pasan si a la base le falta algo instalado (antes decían «needs SQL step N in Supabase»):
+   la persona ve un mensaje normal y el detalle técnico queda en la consola del navegador para quien da soporte. */
+const PRONTO = ' Try again in a few minutes. If it keeps happening, contact support.';
+function tec(amable, detalle){ try{ console.warn('[' + MARCA.appName + '] ' + detalle); }catch(e){} return amable + PRONTO; }
+const TEC = (amable, paso) => { const f = m => tec(amable, 'Falta el paso SQL ' + paso + ' (' + String(m || '').slice(0, 200) + ')'); f.entero = true; return f; };
 /* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
 const SERVIDOR_EN = [
   [/^Tu sesión no es válida.*/, PORTAL ? 'Your session is not valid. Sign in to the portal again.' : 'Your session is not valid. Sign in again.'],
@@ -4775,11 +4818,11 @@ const SERVIDOR_EN = [
   [/^Los días a revisar deben estar entre 1 y 31\.$/, 'The days to check must be between 1 and 31.'],
   [/^La hora de cierre debe estar entre 0 y 23\.$/, 'The closing time must be between 0 and 23.'],
   [/^Falta indicar si la revisión de ausencias queda encendida\.$/, 'Choose whether the absence check is on.'],
-  [/^.*(reloj_guardar_eval_ausencias|reloj_ausencias_diarias_ahora).*$/, 'The daily absence check needs SQL step 129 in Supabase.'],
+  [/^.*(reloj_guardar_eval_ausencias|reloj_ausencias_diarias_ahora).*$/, TEC('The daily absence check isn\'t working right now.', 129)],
   [/^Escribe el usuario del portal\.$/, 'Enter the portal user.'],
   [/^Escribe el nombre\.$/, 'Enter the name.'],
   [/^El día aún no termina\.$/, 'The day isn\'t over yet.'],
-  [/^No tiene marcas\.$/, 'It has no punches (run SQL step 141 to lock days with no hours).'],
+  [/^No tiene marcas\.$/, 'It has no punches, so it can\'t be locked.'],
   [/^Tiene una solicitud pendiente ese día\.$/, 'It has a pending request that day — decide the request first.'],
   [/^Falta la salida\.$/, 'Clock-out is missing.'],
   [/^Tipo de solicitud no válido\.$/, 'Invalid request type.'],
@@ -4807,20 +4850,20 @@ const SERVIDOR_EN = [
   [/^Confirma el cambio de tu información bancaria\.$/, 'Confirm the change to your bank information.'],
   [/^Tus datos bancarios cambiaron mientras tenías abierto tu perfil.*/, 'Your bank information was changed while your profile was open. We reloaded it: check it and save again.'],
   [/^Los dos números de cuenta no coinciden\.$/, 'The two account numbers don\'t match.'],
-  [/reloj_horario_temporal/, 'Temporary schedule changes need SQL step 143 in Supabase.'],
+  [/reloj_horario_temporal/, TEC('Temporary schedule changes aren\'t working right now.', 143)],
   [/^Solo un administrador puede revisar este historial\.$/, 'Only an administrator can review this history.'],
   [/^Este documento es parte del perfil: no se puede quitar\.$/, 'This document is part of My profile: it can\'t be removed.'],
-  [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, 'The bank history needs SQL step 37 in Supabase.'],
-  [/^.*(reloj_importar_usuarios).*$/, 'Importing users needs SQL step 40 in Supabase.'],
-  [/^.*(reloj_archivar_empleado).*$/, 'Archiving needs SQL step 53 in Supabase.'],
-  [/^.*(reloj_guardar_auto_salida|reloj_auto_salida).*$/, 'Automatic clock out needs SQL step 54 in Supabase.'],
-  [/^.*(reloj_copiar_a_prueba).*$/, 'Copying to the test user needs SQL step 55 in Supabase.'],
+  [/^.*(reloj_banco_historial|reloj_banco_revisado).*$/, TEC('The bank information history isn\'t working right now.', 37)],
+  [/^.*(reloj_importar_usuarios).*$/, TEC('Importing users isn\'t working right now.', 40)],
+  [/^.*(reloj_archivar_empleado).*$/, TEC('Archiving isn\'t working right now.', 53)],
+  [/^.*(reloj_guardar_auto_salida|reloj_auto_salida).*$/, TEC('Automatic clock out isn\'t working right now.', 54)],
+  [/^.*(reloj_copiar_a_prueba).*$/, TEC('Copying to the test user isn\'t working right now.', 55)],
   [/^Solo un administrador puede copiar datos al usuario de prueba\.$/, 'Only an administrator can copy data to the test user.'],
   [/^Solo se puede copiar a un usuario de prueba\.$/, 'You can only copy to a test user.'],
   [/^Elige un agente que no sea de prueba\.$/, 'Choose an agent who isn\'t a test user.'],
   [/^Solo un administrador puede vaciar el usuario de prueba\.$/, 'Only an administrator can clear the test user.'],
   [/^Solo se puede vaciar un usuario de prueba\.$/, 'You can only clear a test user.'],
-  [/^.*(reloj_vaciar_prueba|reloj_prueba_estado).*$/, 'Clearing or checking the test user needs SQL step 59 in Supabase.'],
+  [/^.*(reloj_vaciar_prueba|reloj_prueba_estado).*$/, TEC('The test user tools aren\'t working right now.', 59)],
   [/^El margen debe estar entre 0 y 240 minutos\.$/, 'The margin must be between 0 and 240 minutes.'],
   [/^Solo un administrador puede cambiar la configuración\.$/, 'Only an administrator can change the settings.'],
   [/^Solo un administrador puede manejar el inventario\.$/, 'Only an administrator can manage the inventory.'],
@@ -4831,7 +4874,7 @@ const SERVIDOR_EN = [
   [/^Elige el tipo de mantenimiento\.$/, 'Choose the type of maintenance.'],
   [/^Costo no válido\.$/, 'Invalid cost.'],
   [/^Ese mantenimiento ya no existe\.$/, 'That maintenance record no longer exists.'],
-  [/^.*(reloj_inv_).*$/, 'The inventory needs SQL step 39 in Supabase.'],
+  [/^.*(reloj_inv_).*$/, TEC('The inventory isn\'t working right now.', 39)],
   [/^Solo un administrador puede publicar comunicados\.$/, 'Only an administrator can publish updates.'],
   [/^Escribe el título del comunicado\.$/, 'Write the title of the update.'],
   [/^Máximo 10 archivos por comunicado\.$/, 'Up to 10 files per update.'],
@@ -4843,7 +4886,7 @@ const SERVIDOR_EN = [
   [/^Escribe el comentario\.$/, 'Write the comment.'],
   [/^Ese comentario ya no existe\.$/, 'That comment no longer exists.'],
   [/^Reacción no válida\.$/, 'Invalid reaction.'],
-  [/^.*(reloj_upd).*$/, 'Updates need SQL step 42 in Supabase.'],
+  [/^.*(reloj_upd).*$/, TEC('Updates aren\'t working right now.', 42)],
   [/^Tu usuario no puede usar el chat\.$/, 'Your user can\'t use the chat. Ask the administrator.'],
   [/^Esa persona no está disponible en el chat\.$/, 'That person isn\'t available in the chat.'],
   [/^Escribe el nombre del grupo\.$/, 'Write the name of the group.'],
@@ -4855,9 +4898,9 @@ const SERVIDOR_EN = [
   [/^Ese mensaje ya no existe\.$/, 'That message no longer exists.'],
   [/^Solo un administrador puede revisar los chats\.$/, 'Only an administrator can review the chats.'],
   [/^Solo un administrador puede borrar conversaciones\.$/, 'Only an administrator can delete conversations.'],
-  [/^.*(reloj_chat_ocultar|reloj_chat_conservar|reloj_chat_eliminar|reloj_chat_msg_borrado).*$/, 'Deleting chats needs SQL step 44 in Supabase.'],
-  [/^.*(reloj_chat).*$/, 'Chat needs SQL step 43 in Supabase.'],
-  [/^.*(reloj_doc_|reloj_docs|reloj_doc_tipos|reloj_paystubs).*$/, 'Documents need SQL step 36 in Supabase.'],
+  [/^.*(reloj_chat_ocultar|reloj_chat_conservar|reloj_chat_eliminar|reloj_chat_msg_borrado).*$/, TEC('Deleting chats isn\'t working right now.', 44)],
+  [/^.*(reloj_chat).*$/, TEC('Chat isn\'t working right now.', 43)],
+  [/^.*(reloj_doc_|reloj_docs|reloj_doc_tipos|reloj_paystubs).*$/, TEC('Documents aren\'t working right now.', 36)],
   [/^La fecha debe ser de hoy o de los últimos 31 días\.$/, 'The date must be today or within the last 31 days.'],
   [/^Completa las dos horas\.$/, 'Fill in both times.'],
   [/^La hora de fin debe ser después de la de inicio\.$/, 'The end time must be after the start time.'],
@@ -4904,9 +4947,9 @@ const SERVIDOR_EN = [
   [/^Reglas de pago no válidas\.$/, 'Invalid pay run rules.'],
   [/^Solo un administrador puede (cambiar las conexiones|guardar cambios para el Monitor|cambiar los pendientes del Monitor)\.$/, 'Only an administrator can change connections.'],
   [/demasiados cambios pendientes para el Monitor/, 'There are too many changes waiting for the Monitor. Turn it on and send them first.'],
-  [/reloj_guardar_conexiones|reloj_monitor_pendiente/, 'Connections need SQL step 133 in Supabase.'],
-  [/reloj_nomina_importar|p_motivo/, 'Importing past pay runs needs SQL step 34 in Supabase.'],
-  [/reloj_nominas|reloj_nomina_guardar|reloj_pago_defaults|pago_cuenta/, 'The Pay run needs SQL step 33 in Supabase.'],
+  [/reloj_guardar_conexiones|reloj_monitor_pendiente/, TEC('Connections aren\'t working right now.', 133)],
+  [/reloj_nomina_importar|p_motivo/, TEC('Importing past pay runs isn\'t working right now.', 34)],
+  [/reloj_nominas|reloj_nomina_guardar|reloj_pago_defaults|pago_cuenta/, TEC('The Pay run isn\'t working right now.', 33)],
   [/^El día (\d{4}-\d{2}-\d{2}) está aprobado\. Quita la aprobación para cambiarlo\.$/, (x, f) => diaS(f) + ' is approved, so it\'s locked. Remove the approval to change it.'],
   [/^Solo un administrador puede borrar el Reloj\.$/, 'Only an administrator can erase the Time Clock.'],
   [/^El modo de pruebas está apagado: ya no se puede borrar todo\.$/, 'Testing tools are turned off, so the Time Clock can no longer be erased.'],
@@ -4933,7 +4976,7 @@ const SERVIDOR_EN = [
   [/^Falta el mes de ese documento\.$/, 'That document has no month.'],
   [/^Usa un PDF o una foto \(JPG o PNG\)\.$/, 'Use a PDF or a photo (JPG or PNG).'],
   [/^Archivo de Connecteam no válido\.$/, 'Invalid Connecteam file.'],
-  [/^Los documentos mensuales no se importan de Connecteam\.$/, 'Importing Aportes and Cuentas de Cobro needs SQL step 51 in Supabase.'],
+  [/^Los documentos mensuales no se importan de Connecteam\.$/, 'Monthly documents can\'t be imported.'],
   [/^Elige una opción de la lista\.$/, 'Choose an option from the list.'],
   [/^Escribe el correo del empleado\.$/, 'Enter the employee\'s email. They\'ll use it to sign in.'],
   [/^Ese correo ya lo tiene otro empleado\.$/, 'Another employee already has that email.'],
@@ -4955,10 +4998,10 @@ const SERVIDOR_EN = [
   [/^Solo un administrador puede fijar el lugar de trabajo\.$/, 'Only an administrator can set the work location.'],
   [/^Radio no válido\.$/, 'Invalid distance.'],
   [/^Ajuste no válido\.$/, 'Invalid setting.'],
-  [/reloj_fijar_lugar|lugar_lat/, 'The work location needs SQL step 21 in Supabase.'],
-  [/reloj_marcar\(p_tipo => .*p_ubic/, 'Clocking with location needs SQL step 21 in Supabase.'],
+  [/reloj_fijar_lugar|lugar_lat/, TEC('The work location isn\'t working right now.', 21)],
+  [/reloj_marcar\(p_tipo => .*p_ubic/, TEC('Clocking in with location isn\'t working right now.', 21)],
   [/^Solo un administrador puede ver el historial\.$/, 'Only an administrator can see the history.'],
-  [/reloj_historial_dia/, 'The history needs SQL step 17 in Supabase.'],
+  [/reloj_historial_dia/, TEC('The history isn\'t working right now.', 17)],
   [/^Una corrección de horas no se edita.*/, 'An hours correction can\'t be edited: undo the approval, or fix the day in the timesheet.'],
   // (v355) mensajes del servidor que no tenían traducción (revisión 14 nov)
   [/^Ese enlace ya no sirve\.$/, 'That link no longer works.'],
@@ -5046,7 +5089,7 @@ const SERVIDOR_EN = [
 // (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico.
 const IMP_DE = INST_SOLO247 ? 'Connecteam' : 'another system';
 function enIngles(m){ m = String(m || '');
-  const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
+  const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return t.entero ? t(m) : m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
 async function todas(armar){ let out = [], i = 0; for(;;){ const d = await q(armar().range(i, i + 999)); out = out.concat(d); if(d.length < 1000) return out; i += 1000; } }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), msReal:(m.ts_real ? Date.parse(m.ts_real) : Date.parse(m.ts)), origen:m.origen, autor:m.autor, motivo:m.motivo });
@@ -5084,6 +5127,17 @@ async function sesionSB(){
 }
 
 /* Documentos en Supabase: tablas reloj_doc_tipos / reloj_docs y los archivos en Storage («reloj-docs», privada). */
+/* (v370) Subir un archivo a Storage. Si falla por algo pasajero (sesión que se estaba renovando: Storage a veces lo
+   reporta como «bucket not found»), se renueva la sesión y se intenta UNA vez más antes de mostrar el error. */
+async function subirSB(bucket, ruta, cuerpo, opts){
+  let r = await sb.storage.from(bucket).upload(ruta, cuerpo, opts);
+  if(r.error && /bucket not found|jwt|token|expired|unauthori[sz]ed|fetch|network/i.test(r.error.message || '')){
+    try{ await sb.auth.refreshSession(); }catch(e){}
+    await new Promise(z => setTimeout(z, 800));
+    r = await sb.storage.from(bucket).upload(ruta, cuerpo, opts);
+  }
+  return r;
+}
 let BUCKET_DOCS = 'reloj-docs';   // (v362) en un compartimento: e-<codigo>-docs
 const tipoJS = t => ({ id:Number(t.id), nombre:t.nombre, descripcion:t.descripcion || '', plantilla:t.plantilla || null, plantillaNombre:t.plantilla_nombre || '',
   clave:t.clave || null, obligatorio:!!t.obligatorio, agenteSube:!!t.agente_sube, revision:!!t.revision, vence:t.vence || 'nunca', venceFecha:t.vence_fecha || '',
@@ -5103,7 +5157,7 @@ function docRuta(carpeta, sub, nombre){
 }
 function docErrStorage(e){
   const m = String((e && (e.message || e.error)) || e || '');
-  if(/bucket not found/i.test(m)) return 'Documents need SQL step 36 in Supabase.';
+  if(/bucket not found/i.test(m)) return tec('Documents aren\'t working right now.', 'Storage: ' + m);
   if(/mime|not supported|invalid_mime/i.test(m)) return 'This type of file isn\'t allowed. Use a PDF, a photo (JPG or PNG) or a Word file.';
   if(/size|too large|exceeded/i.test(m)) return 'The file is too big. The limit is 15 MB.';
   if(/row-level|unauthorized|forbidden|policy|403/i.test(m)) return 'You can\'t use this file. Sign out, sign back in and try again.';
@@ -5113,7 +5167,7 @@ function docErrStorage(e){
 }
 async function docStorageSubir(ruta, f){
   const tipo = f.type || docMime(f.name), cuerpo = f.type ? f : new Blob([f], { type:tipo });
-  const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, cuerpo, { contentType:tipo, upsert:false });
+  const { error } = await subirSB(BUCKET_DOCS, ruta, cuerpo, { contentType:tipo, upsert:false });
   if(error) throw new Error(docErrStorage(error));
 }
 // v62: Updates en Supabase (paso 42)
@@ -5148,8 +5202,8 @@ async function updSB(action, p){
     try{
       for(const f of p.nuevos || []){
         const ruta = 'u/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '/' + (String(f.name || 'file').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._ -]+/g, '').replace(/\s+/g, '_').replace(/^[._-]+/, '').slice(-90) || 'file');
-        const tipo = f.type || docMime(f.name), { error } = await sb.storage.from(BUCKET_UPD).upload(ruta, f, { contentType:tipo, upsert:false });
-        if(error) throw new Error(/bucket not found/i.test(error.message || '') ? 'Updates need SQL step 42 in Supabase.' : docErrStorage(error).replace('Use a PDF, a photo (JPG or PNG) or a Word file', 'Use photos, PDF, Word, Excel or PowerPoint'));
+        const tipo = f.type || docMime(f.name), { error } = await subirSB(BUCKET_UPD, ruta, f, { contentType:tipo, upsert:false });
+        if(error) throw new Error(/bucket not found/i.test(error.message || '') ? tec('Updates aren\'t working right now.', 'Storage ' + BUCKET_UPD + ': ' + error.message) : docErrStorage(error).replace('Use a PDF, a photo (JPG or PNG) or a Word file', 'Use photos, PDF, Word, Excel or PowerPoint'));
         subidos.push({ archivo:ruta, nombre:f.name.slice(-160), mime:tipo, bytes:f.size });
       }
       return await q(sb.rpc('reloj_upd_publicar', { p:Object.assign({}, p.upd, { adjuntos:(p.upd.adjuntos || []).concat(subidos) }) }));
@@ -5206,9 +5260,9 @@ async function chatSB(action, p){
     if(p.archivo){
       const f = p.archivo, ruta = 'c/' + p.id + '/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '/' +
         (String(f.name || 'file').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._ -]+/g, '').replace(/\s+/g, '_').replace(/^[._-]+/, '').slice(-90) || 'file');
-      const tipo = chatMime(f), { error } = await sb.storage.from(BUCKET_CHAT).upload(ruta, f, { contentType:tipo, upsert:false });
-      if(error) throw new Error(/bucket not found/i.test(error.message || '') ? 'Chat needs SQL step 43 in Supabase.'
-        : /mime|not supported|invalid_mime/i.test(error.message || '') ? 'This type of file needs SQL step 46 in Supabase. For now, send a photo, PDF, Word or Excel file.'
+      const tipo = chatMime(f), { error } = await subirSB(BUCKET_CHAT, ruta, f, { contentType:tipo, upsert:false });
+      if(error) throw new Error(/bucket not found/i.test(error.message || '') ? tec('Chat isn\'t working right now.', 'Storage ' + BUCKET_CHAT + ': ' + error.message)
+        : /mime|not supported|invalid_mime/i.test(error.message || '') ? 'This type of file can\'t be sent. Send a photo, PDF, Word or Excel file.'
         : /row-level|policy|403|unauthorized/i.test(error.message || '') && CHAT_BLOQ.test(f.name || '') ? 'For safety, programs and web pages can\'t be sent.'
         : docErrStorage(error));
       adj = { archivo:ruta, nombre:f.name.slice(-160), mime:tipo, bytes:f.size };
@@ -5262,7 +5316,7 @@ async function docsSB(action, p){
   if(action === 'docImportar'){
     await sesionSB();
     const ruta = p.usuario + '/' + p.tipoId + '/' + p.clave + '-' + dimpLimpio(p.nombre), tipo = p.mime;
-    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
+    const { error } = await subirSB(BUCKET_DOCS, ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
     const subio = !error;
     if(error && !/exist|duplicate|409/i.test(String(error.message || '') + ' ' + String(error.statusCode || '') + ' ' + String(error.error || ''))) throw new Error(docErrStorage(error));
     try{
@@ -5272,7 +5326,7 @@ async function docsSB(action, p){
       return r;
     }catch(e){
       if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
-      if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing documents needs SQL step 50 in Supabase.');
+      if(/reloj_doc_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error(tec('Importing documents isn\'t working right now.', 'Falta el paso SQL 50: ' + e.message));
       throw e;
     }
   }
@@ -5286,13 +5340,13 @@ async function docsSB(action, p){
   if(action === 'docPayEnviar'){
     await sesionSB();
     const ruta = p.usuario + '/paystubs/' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36) + '-' + dimpLimpio(p.nombre);
-    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:'application/pdf' }), { contentType:'application/pdf', upsert:false });
+    const { error } = await subirSB(BUCKET_DOCS, ruta, new Blob([p.datos], { type:'application/pdf' }), { contentType:'application/pdf', upsert:false });
     if(error) throw new Error(docErrStorage(error));
     try{
       return await q(sb.rpc('reloj_paystub_registrar', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, periodo:p.periodo || '', archivo:ruta, nombre:String(p.nombre).slice(-160), bytes:p.datos.length, neto:Math.round(Number(p.neto) || 0) } }));
     }catch(e){
       try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
-      if(/reloj_paystub_registrar|does not exist|could not find the function/i.test(e.message)) throw new Error('Sending paystubs needs the Paystubs SQL step in Supabase.');
+      if(/reloj_paystub_registrar|does not exist|could not find the function/i.test(e.message)) throw new Error(tec('Sending paystubs isn\'t working right now.', 'Falta el paso SQL de Paystubs: ' + e.message));
       throw e;
     }
   }
@@ -5300,7 +5354,7 @@ async function docsSB(action, p){
   if(action === 'docPayImportar'){
     await sesionSB();
     const ruta = p.usuario + '/paystubs/' + p.clave + '-' + dimpLimpio(p.nombre), tipo = p.mime;
-    const { error } = await sb.storage.from(BUCKET_DOCS).upload(ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
+    const { error } = await subirSB(BUCKET_DOCS, ruta, new Blob([p.datos], { type:tipo }), { contentType:tipo, upsert:false });
     const subio = !error;
     if(error && !/exist|duplicate|409/i.test(String(error.message || '') + ' ' + String(error.statusCode || '') + ' ' + String(error.error || ''))) throw new Error(docErrStorage(error));
     try{
@@ -5310,7 +5364,7 @@ async function docsSB(action, p){
       return r;
     }catch(e){
       if(subio) try{ await sb.storage.from(BUCKET_DOCS).remove([ruta]); }catch(x){}
-      if(/reloj_paystub_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error('Importing paystubs needs SQL step 51 in Supabase.');
+      if(/reloj_paystub_importar|function .* does not exist|could not find the function/i.test(e.message)) throw new Error(tec('Importing paystubs isn\'t working right now.', 'Falta el paso SQL 51: ' + e.message));
       throw e;
     }
   }
@@ -5535,7 +5589,7 @@ async function api(action, p){
     if(error && /exist|duplicate/i.test(error.message || '')){ await sb.storage.from(BUCKET_DOCS).remove([p.a]); ({ error } = await sb.storage.from(BUCKET_DOCS).copy(p.de, p.a)); }
     if(error){   // si la copia directa no se permite: bajarlo y subirlo
       const d = await sb.storage.from(BUCKET_DOCS).download(p.de); if(d.error) throw new Error(docErrStorage(d.error));
-      const u = await sb.storage.from(BUCKET_DOCS).upload(p.a, d.data, { contentType:d.data.type || docMime(p.a), upsert:true }); if(u.error) throw new Error(docErrStorage(u.error));
+      const u = await subirSB(BUCKET_DOCS, p.a, d.data, { contentType:d.data.type || docMime(p.a), upsert:true }); if(u.error) throw new Error(docErrStorage(u.error));
     }
     return { ok:true };
   }
@@ -5858,7 +5912,7 @@ async function cuentasFn(accion, cuerpo, jwt){
   if(DEMO) return demoCuentas(accion, cuerpo || {});
   const h = { 'Content-Type':'application/json', apikey:window.SB_KEY };
   if(jwt) h.Authorization = 'Bearer ' + jwt;
-  if(INST.compartimentos && (accion === 'ver' || accion === 'activar')){   // (v362) el enlace dice de qué compartimento es
+  if(INST.compartimentos && !INST.destino && (accion === 'ver' || accion === 'activar')){   // (v362) el enlace dice de qué compartimento es
     const c = new URLSearchParams(location.search).get('c');
     if(c && /^e_[a-z0-9]{3,20}$/.test(c)) cuerpo = Object.assign({}, cuerpo || {}, { esquema:c });
   }
@@ -5884,7 +5938,9 @@ function pantallaLogin(aviso, email){
     '<label class="campo"><span>Password</span><input id="lClave" type="password" autocomplete="current-password"></label>' +
     '<label class="ver"><input type="checkbox" id="lVer"> Show password</label>' +
     '<div class="err" id="lErr" role="alert"></div><button class="btn btn-brand" id="lEntrar" type="submit">Sign in</button></form>' +
-    '<div class="enlaces"><button class="btn-link" type="button" id="lOlvide">Forgot password?</button></div>' + portalLink);
+    '<div class="enlaces">' + (INST.compartimentos && /\.247punch\.pages\.dev$/.test(location.hostname) ? '<button class="btn-link" type="button" id="lEnlace">Email me a sign-in link</button>' : '') +   // (v370) SOLO para pruebas (decisión de Carlos): solo en las vistas previas
+    '<button class="btn-link" type="button" id="lOlvide">Forgot password?</button></div>' + portalLink);
+  if($('lEnlace')) $('lEnlace').addEventListener('click', () => pantallaEnlace($('lEmail').value.trim()));
   $('lVer').addEventListener('change', () => { $('lClave').type = $('lVer').checked ? 'text' : 'password'; });
   $('lOlvide').addEventListener('click', () => pantallaOlvide($('lEmail').value.trim()));
   $('fLogin').addEventListener('submit', async ev => {
@@ -5897,12 +5953,58 @@ function pantallaLogin(aviso, email){
       if(DEMO){ await new Promise(r => setTimeout(r, 300)); if(clave !== 'Demo1234') throw new Error('Wrong email or password.');
         S.demoAgente = true; $('acceso').classList.add('hidden'); document.body.insertAdjacentHTML('afterbegin', '<div class="velo" id="velo"><div class="spin"></div></div>'); return inicio(); }
       if(!(await asegurarSupabase())) throw new Error(ERR_SIN_CONEXION);
-      const { error } = await clienteAgente().auth.signInWithPassword({ email, password:clave });
+      // (v364) 247Punch: si el correo es de una empresa con su propia base, se entra ahí
+      if(INST.compartimentos && !INST.destino){ const d = await dondeEntra(email); if(d) ponerBase(d); }
+      let { error } = await clienteAgente().auth.signInWithPassword({ email, password:clave });
+      if(error && INST.compartimentos && INST.destino && /invalid login|invalid credentials/i.test(error.message)){
+        const d = await dondeEntra(email);   // este equipo entraba a otra base: ¿a cuál va este correo?
+        if(!d || d.ref !== INST.destino){ ponerBase(d); ({ error } = await clienteAgente().auth.signInWithPassword({ email, password:clave })); }
+      }
       if(error) throw new Error(/invalid login|invalid credentials/i.test(error.message) ? 'Wrong email or password.' : error.message);
       location.replace(location.pathname);
     }catch(e){ $('lErr').textContent = e.message; b.disabled = false; b.textContent = 'Sign in'; }
   });
   setTimeout(() => { const i = email ? $('lClave') : $('lEmail'); if(i) i.focus(); }, 30);
+}
+/* (v368) 247Punch, SOLO PARA PRUEBAS (Carlos, 15 nov: no va en el producto): «Email me a sign-in link» — entrar sin contraseña con un
+   enlace de un solo uso (1 hora) que manda reloj-cuentas (acción «enlace»). El enlace trae ?entrar=<código>. */
+function pantallaEnlace(email){
+  caja('<h1>Sign in with a link</h1><div class="sub">Enter your email and we\'ll send you a link to sign in. No password needed.</div>' +
+    '<form id="fLnk" novalidate><label class="campo"><span>Email</span><input id="lnkEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="' + esc(email || '') + '"></label>' +
+    '<div class="err" id="lnkErr" role="alert"></div><button class="btn btn-brand" id="lnkEnviar" type="submit">Send link</button></form>' +
+    '<div class="enlaces"><button class="btn-link" type="button" id="lnkVolver">‹ Back to sign in</button></div>');
+  $('lnkVolver').addEventListener('click', () => pantallaLogin(null, $('lnkEmail').value.trim()));
+  $('fLnk').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const email = $('lnkEmail').value.trim().toLowerCase();
+    if(!emailBueno(email)) return $('lnkErr').textContent = 'Enter your email.';
+    const b = $('lnkEnviar'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Sending…'; $('lnkErr').textContent = '';
+    try{
+      if(INST.compartimentos && !INST.destino){ const d = await dondeEntra(email); if(d) ponerBase(d); }
+      cuentasOk(await cuentasFn('enlace', { email }));
+      caja('<h1>Check your email</h1><div class="listo">If <b>' + esc(email) + '</b> has an account, we sent it a link to sign in. ' +
+        'The link expires in 1 hour. If you don\'t see it, check your spam folder.</div>' +
+        '<div class="enlaces"><button class="btn-link" type="button" id="lnkVolver2">‹ Back to sign in</button></div>');
+      $('lnkVolver2').addEventListener('click', () => pantallaLogin(null, email));
+    }catch(e){ $('lnkErr').textContent = e.message; b.disabled = false; b.textContent = 'Send link'; }
+  });
+  setTimeout(() => $('lnkEmail') && $('lnkEmail').focus(), 30);
+}
+async function pantallaEntrarConEnlace(token){
+  caja('<div class="nota" style="padding:20px 0"><span class="spin dark"></span> Signing you in…</div>');
+  try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  try{
+    if(!(await asegurarSupabase())) throw new Error(ERR_SIN_CONEXION);
+    let { error } = await clienteAgente().auth.verifyOtp({ token_hash:token, type:'magiclink' });
+    if(error) ({ error } = await clienteAgente().auth.verifyOtp({ token_hash:token, type:'email' }));
+    if(error) throw error;
+    location.replace(location.pathname);
+  }catch(e){
+    caja('<h1>Sign-in link</h1><div class="err" style="font-size:15px;margin:6px 0 16px">This link has expired or was already used. Ask for a new one.</div>' +
+      '<div class="enlaces"><button class="btn-link" type="button" id="xNuevo">Email me a new link</button><button class="btn-link" type="button" id="xLogin">Go to sign in</button></div>');
+    $('xNuevo').addEventListener('click', () => pantallaEnlace());
+    $('xLogin').addEventListener('click', () => pantallaLogin());
+  }
 }
 function pantallaOlvide(email){
   caja('<h1>Reset your password</h1><div class="sub">Enter your email and we\'ll send you a link to choose a new password.</div>' +
@@ -5929,6 +6031,8 @@ async function pantallaClave(tipo, token){
   caja('<div class="nota" style="padding:20px 0"><span class="spin dark"></span> Checking your link…</div>');
   let v;
   try{ v = await cuentasFn('ver', { token }); }catch(e){ v = { ok:false, estado:'error', msg:e.message }; }
+  if(v && v.destino && v.destino.ref && typeof ponerBase === 'function') ponerBase(v.destino);   // (v365) enlace de antes de la mudanza: sigue en la base nueva
+  else if(INST.compartimentos && new URLSearchParams(location.search).get('c')) ponerBase(null);   // (v367) enlace de una empresa de la base compartida: este equipo deja la base de otra empresa
   const limpiar = () => { try{ history.replaceState(null, '', location.pathname); }catch(e){} };
   if(!v.ok){
     const inv = (v.tipo || tipo) === 'invitacion';
@@ -6078,6 +6182,7 @@ async function entrarCompartimento(){
   if(!INST.compartimentos || DEMO || !window.sb) return 'public';
   const { data, error } = await window.sb.rpc('punch_mi_compartimento');
   if(error || !data || !data.esquema) return 'public';
+  S.compInfo = data;   // (v364)
   if(data.estado !== 'activa') return 'vencida:' + (data.estado || '');
   const esq = data.esquema, base = window.sb;
   if(!/^e_[a-z0-9]{3,20}$/.test(esq)) return 'public';
@@ -6092,16 +6197,165 @@ async function entrarCompartimento(){
   return esq;
 }
 function pantallaVencida(estado){
-  caja('<h1>' + (estado === 'mudada' ? 'Your company moved' : 'Your trial has ended') + '</h1><div class="sub">' +
-    (estado === 'mudada' ? 'Your company now has its own space. Sign out and sign in again to continue.'
-      : 'Your company\u2019s free trial is over. Ask your administrator to choose a plan to keep using ' + esc(MARCA.appName) + '.') + '</div>' +
+  const info = S.compInfo || {};
+  if(estado === 'mudando') return pantallaActualizando();
+  if(estado === 'mudada' && info.destino && info.destino.ref) return entrarCuentaNueva(info.destino);
+  caja('<h1>' + (estado === 'mudada' ? 'Your account was updated' : 'Your trial has ended') + '</h1><div class="sub">' +
+    (estado === 'mudada' ? 'Sign out and sign in again to continue.'
+      : 'Your company’s free trial is over. Ask your administrator to choose a plan to keep using ' + esc(MARCA.appName) + '.') + '</div>' +
     '<div class="enlaces"><button class="btn-link" type="button" id="vSalir">Sign out</button></div>');
   $('vSalir').addEventListener('click', async () => { try{ await clienteAgente().auth.signOut({ scope:'local' }); }catch(e){} location.replace(location.pathname); });
 }
+/* (v364–v366) 247Punch: al pasar a un plan pago, la empresa se MUDA a su propia base (un proyecto de Supabase
+   solo para ella). El cliente NO ve nada de eso (pedido de Carlos, 15 nov): elige el plan en Settings → Plan &
+   billing, paga y listo. La mudanza la corre la función punch-mudar en segundo plano (y la base la retoma cada
+   minuto); mientras se copian los datos todos ven «Updating your account» un par de minutos, y al terminar la app
+   entra sola a la base nueva con un código de un solo uso (sin volver a escribir la contraseña). El destino queda
+   guardado en este equipo ({INST.id}.destino); en otro equipo, antes del login se pregunta a la base compartida
+   (punch_donde), y los enlaces de los correos de la base nueva traen &p=<proyecto>&k=<llave pública>.
+   El bloque INSTALACION del producto lee ese destino antes de crear el cliente de Supabase. 24/7: nada cambia. */
+const DESTINO_CLAVE = (INST.id || 'tc') + '.destino';
+function ponerBase(d){   // d = { ref, key, plan? } (base propia) o null (la base compartida)
+  if(!INST.central) INST.central = { url:INST.sbUrl, key:INST.sbKey, sbStorage:INST.sbStorage || 'tc.sb', agenteStorage:INST.agenteStorage || 'tc.agente' };
+  const c = INST.central, ok = d && /^[a-z]{20}$/.test(String(d.ref || '')) && d.key;
+  try{ if(ok) localStorage.setItem(DESTINO_CLAVE, JSON.stringify({ ref:d.ref, key:d.key, plan:d.plan || INST.destinoPlan || '' })); else localStorage.removeItem(DESTINO_CLAVE); }catch(e){}
+  INST.destino = ok ? d.ref : null; if(ok && d.plan) INST.destinoPlan = d.plan;
+  S.comp = null; BUCKET_DOCS = 'reloj-docs'; BUCKET_UPD = 'reloj-upd'; BUCKET_CHAT = 'reloj-chat';   // (v370) al cambiar de base, carpetas normales
+  window.SB_URL = ok ? 'https://' + d.ref + '.supabase.co' : c.url; window.SB_KEY = ok ? d.key : c.key;
+  INST.sbStorage = c.sbStorage + (ok ? '.' + d.ref : ''); INST.agenteStorage = c.agenteStorage + (ok ? '.' + d.ref : '');
+  window.sb = window.supabase.createClient(window.SB_URL, window.SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storageKey:INST.sbStorage } });
+  S.sbAg = null;
+}
+async function dondeEntra(email){   // ¿el correo es de una empresa con su propia base? (pregunta a la base compartida)
+  const c = INST.central || { url:INST.sbUrl, key:INST.sbKey };
+  try{
+    const r = await fetch(c.url + '/rest/v1/rpc/punch_donde', { method:'POST', headers:{ apikey:c.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_email:email }) });
+    const j = r.ok ? await r.json() : null;
+    return j && /^[a-z]{20}$/.test(String(j.ref || '')) && j.key ? j : null;
+  }catch(e){ return null; }
+}
+async function irABasePropia(destino){   // respaldo: si el pase no funcionó, se pide entrar otra vez
+  let email = '';
+  try{ const ses = (await clienteAgente().auth.getSession()).data.session; email = ses ? ses.user.email : ''; }catch(e){}
+  try{ await clienteAgente().auth.signOut({ scope:'local' }); }catch(e){}
+  ponerBase(destino);
+  pantallaLogin('Your account was updated. Please sign in again to continue.', email);
+}
+// La empresa ya está en su base nueva: se entra sola con un código de un solo uso (la sesión de la compartida se cierra)
+async function entrarCuentaNueva(destino){
+  caja('<div class="nota" style="padding:20px 0"><span class="spin dark"></span> Opening your account…</div>');
+  try{
+    const j = await mudarFn('pase');
+    if(!j.ok || !j.token_hash || !j.destino) throw new Error(j.msg || 'pase');
+    try{ await clienteAgente().auth.signOut({ scope:'local' }); }catch(e){}
+    ponerBase(j.destino);
+    const { error } = await clienteAgente().auth.verifyOtp({ token_hash:j.token_hash, type:'magiclink' });
+    if(error) throw error;
+    location.replace(location.pathname);
+  }catch(e){ irABasePropia(destino); }
+}
+async function mudarFn(accion, extra){
+  const c = INST.central || { url:INST.sbUrl, key:INST.sbKey };
+  let jwt = '';
+  try{ const ses = (await window.sb.auth.getSession()).data.session; jwt = ses ? ses.access_token : ''; }catch(e){}
+  const r = await fetch(c.url + '/functions/v1/punch-mudar', { method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:c.key, Authorization:'Bearer ' + jwt }, body:JSON.stringify(Object.assign({ accion }, extra || {})) });
+  let j = null; try{ j = await r.json(); }catch(e){}
+  if(!j) throw new Error('Unexpected answer from the server (HTTP ' + r.status + ').');
+  j.status = r.status;
+  return j;
+}
+// «Updating your account»: la ve quien pidió el upgrade y, mientras se copian los datos, todos los de la empresa
+function pantallaActualizando(){
+  if($('actAviso')) return;
+  caja('<h1>Updating your account</h1><div class="sub">We’re setting up your new plan. ' + esc(MARCA.appName) +
+    ' is paused for a couple of minutes; this page continues on its own when it’s ready.</div>' +
+    '<div class="act-barra"><span></span></div><div class="nota" id="actAviso" style="margin-top:10px">This usually takes 2 to 5 minutes.</div>');
+  let fallos = 0;
+  const tick = async () => {
+    if(!$('actAviso')) return;
+    let j;
+    try{ j = await mudarFn('estado'); fallos = 0; }
+    catch(e){ fallos++; if(fallos > 3) $('actAviso').textContent = 'Couldn’t connect. We keep trying…'; return setTimeout(tick, 6000); }
+    if(j.ok && j.estado === 'lista' && j.destino) return entrarCuentaNueva(j.destino);
+    if(j.ok && (j.estado === 'cancelada' || j.estado === 'ninguna')) return location.replace(location.pathname);
+    if(j.ok && j.error && j.intentos >= 6) $('actAviso').textContent = 'This is taking longer than usual. We’re on it; you can leave this page open.';
+    setTimeout(tick, 4000);
+  };
+  tick();
+}
+// Mientras la app está abierta: si la cuenta pasa a actualizarse (o ya terminó), se muestra el aviso
+function vigilarCuenta(){
+  if(!INST.compartimentos || INST.destino || !S.comp || DEMO || S.vigilando) return;
+  S.vigilando = setInterval(async () => {
+    if($('actAviso')) return;
+    try{
+      const { data } = await window.sb.schema('public').rpc('punch_mi_compartimento');
+      if(data && (data.estado === 'mudando' || data.estado === 'mudada')){ S.compInfo = data; pantallaVencida(data.estado); }
+    }catch(e){}
+  }, 30000);
+}
+/* Settings → Plan & billing */
+const PLANES = [
+  { k:'gratis', t:'Free', para:'For trying it with a small team.', precio:'$0', sub:'up to 5 people',
+    inc:['Clock in with location', 'Timesheets and approvals', 'Time off requests', 'Team chat'] },
+  { k:'team', t:'Team', para:'Everything to run hours and pay.', precio:'$3', sub:'per person / month',
+    inc:['Everything in Free, for any team size', 'Pay run and Excel export', 'Schedules and schedule requests', 'Updates with read tracking', 'Employee documents'] },
+  { k:'business', t:'Business', para:'For several locations or client accounts.', precio:'$5', sub:'per person / month',
+    inc:['Everything in Team', 'Accounts and departments', 'Managers with their own teams', 'Pay in more than one currency', 'Priority support'] }
+];
+const PLAN_NOMBRE = { prueba:'Free trial', gratis:'Free', team:'Team', business:'Business', pago:'Team' };
+function planActual(){ return INST.destino ? (INST.destinoPlan || 'team') : ((S.comp && S.comp.plan) || 'prueba'); }
+function planResumen(){
+  const p = planActual(), c = S.comp;
+  const r = [['Plan', p === 'prueba' ? 'Free trial' : ajPill(PLAN_NOMBRE[p] || p, 'ok')]];
+  if(!INST.destino && c && c.vence && (p === 'prueba' || p === 'gratis'))
+    r.push(['Trial ends', esc(fmt(Date.parse(c.vence + 'T12:00:00Z'), { month:'short', day:'numeric', year:'numeric' }))]);
+  return r;
+}
+function pintarPlan(){
+  if(!INST.compartimentos || !$('ajPlanBox')) return;
+  const p = planActual(), c = S.comp, admin = S.yo && S.yo.esAdmin;
+  const orden = { prueba:0, gratis:0, team:1, pago:1, business:2 };
+  let dias = null;
+  if(!INST.destino && c && c.vence && p === 'prueba') dias = Math.max(0, Math.ceil((Date.parse(c.vence + 'T23:59:59Z') - Date.now()) / 86400000));
+  $('ajPillPlan').textContent = PLAN_NOMBRE[p] || p;
+  $('ajPlanDesc').innerHTML = p === 'prueba'
+    ? 'You’re on a free trial' + (dias != null ? ' with <b>' + dias + (dias === 1 ? ' day' : ' days') + ' left</b>' : '') + '. Choose a plan to keep everything when it ends.'
+    : 'You’re on the <b>' + esc(PLAN_NOMBRE[p] || p) + '</b> plan.';
+  $('ajPlanes').innerHTML = PLANES.map(x => {
+    const actual = (orden[x.k] === orden[p] && p !== 'prueba') || (p === 'prueba' && x.k === 'gratis');
+    const sube = orden[x.k] > orden[p];
+    return '<div class="pl-card' + (actual ? ' actual' : '') + (x.k === 'team' ? ' dest' : '') + '">' +
+      '<div class="pl-cab"><h3>' + x.t + '</h3>' + (actual ? '<span class="aj-pill ok">' + (p === 'prueba' ? 'Trial' : 'Current plan') + '</span>' : '') + '</div>' +
+      '<p class="pl-para">' + x.para + '</p><div class="pl-precio"><b>' + x.precio + '</b><small>' + x.sub + '</small></div>' +
+      '<ul>' + x.inc.map(i => '<li>' + esc(i) + '</li>').join('') + '</ul>' +
+      (sube && admin && !INST.destino ? '<button class="btn ' + (x.k === 'team' ? 'btn-brand' : 'btn-ink') + ' btn-sm pl-sube" type="button" data-plan="' + x.k + '">Upgrade to ' + x.t + '</button>'
+        : sube && INST.destino ? '<p class="nota">To change your plan, contact support.</p>' : '') +
+      '</div>';
+  }).join('');
+  $('ajPlanEstado').textContent = '';
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('.pl-sube'); if(!b) return;
+  const plan = b.dataset.plan, nombre = PLAN_NOMBRE[plan] || plan;
+  const ok = await confirmar('Upgrade to ' + nombre + '?', 'Your new plan starts right away. While we set it up, ' + esc(MARCA.appName) +
+    ' is paused for everyone in your company for a couple of minutes. Nobody needs to sign in again.', 'Upgrade');
+  if(!ok) return;
+  document.querySelectorAll('.pl-sube').forEach(x => { x.disabled = true; });
+  $('ajPlanEstado').textContent = 'Processing…';
+  try{
+    const j = await mudarFn('mejorar', { plan });
+    if(j.codigo === 'SIN_PAGOS') throw new Error('Online payments aren’t available yet. Contact us to upgrade.');
+    if(!j.ok) throw new Error(enIngles(j.msg) || 'Couldn’t upgrade. Try again.');
+    pantallaActualizando();
+  }catch(e){ $('ajPlanEstado').textContent = e.message; document.querySelectorAll('.pl-sube').forEach(x => { x.disabled = false; }); }
+});
 async function inicio(){
   await asegurarSupabase();   // (v311) respaldo si jsdelivr no cargó
   const qs = new URLSearchParams(location.search), tok = qs.get('invite') || qs.get('reset');
   if(tok) return pantallaClave(qs.get('invite') ? 'invitacion' : 'clave', tok);
+  if(INST.compartimentos && /^[A-Za-z0-9_-]{20,200}$/.test(qs.get('entrar') || '')) return pantallaEntrarConEnlace(qs.get('entrar'));   // (v368)
   let s = null;
   try{ s = JSON.parse(localStorage.getItem(CLAVE) || 'null'); }catch(e){}
   if(DEMO){ if(qs.has('agente')) S.demoAgente = true; if(qs.has('login') && !S.demoAgente) return pantallaLogin(); }
@@ -6121,7 +6375,8 @@ async function inicio(){
     }
   }
   { const c = await entrarCompartimento().catch(() => 'public');   // (v362)
-    if(String(c).startsWith('vencida:')) return pantallaVencida(String(c).slice(8)); }
+    if(String(c).startsWith('vencida:')) return pantallaVencida(String(c).slice(8));
+    vigilarCuenta(); }   // (v366)
   if(S.agente || S.demoAgente) modoAgente();
   S.token = s && s.token;
   if(DEMO) $('demoTag').classList.remove('hidden');
@@ -6523,13 +6778,17 @@ function abrirWeb(){
   mc.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); irPortal(); } });
 })();
 
-function irA(v){
+function irA(v, salirSinGuardar){
   try{ aplicarSolo247(); }catch(e){}
   if(v === 'mon' && typeof monOn === 'function' && !monOn()) v = 'hoy';   // (v312) Monitor apagado
-  if(S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio &&
-     !confirm('You have unsaved changes in the Pay run. Leave without saving? Your changes will be lost.')) return;
-  if(S.vista === 'ajustes' && v !== 'ajustes' && typeof AJ !== 'undefined' && AJ.sucios.size &&
-     !confirm('You have unsaved changes in Settings. Leave without saving? Your changes will be lost.')) return;   // (v306)
+  // (v371) Cambios sin guardar: se pregunta con la ventana de la app (antes era el aviso gris del navegador)
+  const sucio = S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio ? 'the Pay run'
+    : S.vista === 'ajustes' && v !== 'ajustes' && typeof AJ !== 'undefined' && AJ.sucios.size ? 'Settings' : '';   // (v306)
+  if(sucio && !salirSinGuardar){
+    confirmar('Leave without saving?', 'You have unsaved changes in ' + sucio + '. If you leave now, they will be lost.', 'Leave without saving', true)
+      .then(si => { if(si) irA(v, true); });
+    return;
+  }
   S.vista = v; document.body.dataset.vista = v;
   ['reloj','sin','hoy','sols','hoja','pago','aus','docs','upd','chat','mon','inv','emps','ajustes'].forEach(x => $('v' + x[0].toUpperCase() + x.slice(1)).classList.toggle('hidden', x !== v));
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v));
@@ -6767,6 +7026,7 @@ async function enviarCambioHorario(){
   catch(e){ $('sErr').textContent = e.message; b.disabled = false; }
 }
 function pintarReloj(){
+  { const n = document.querySelector('.nota-ubic'); if(n) n.classList.toggle('hidden', S.ubicObligatoria === false); }   // (v370) sin ubicación no se menciona
   const yo = S.yo, r = yo.reloj;
   // minutos cerrados (sin el tramo abierto), para contar en vivo sin pedir al servidor
   const abierto = r.estado !== 'fuera' ? (yo.ahora - r.desde) / 60000 : 0;
@@ -7255,8 +7515,9 @@ async function marcar(tipo){
   botones.forEach(b => { b.disabled = true; });
   let ubic = null;
   try{
-    if(boton) boton.innerHTML = '<span class="spin"></span> Getting your location…';
-    try{ ubic = await pedirUbicacion(); }
+    if(boton) boton.innerHTML = '<span class="spin"></span> ' + (S.ubicObligatoria === false ? 'Saving…' : 'Getting your location…');
+    // (v370) La ubicación se pide o no se pide (decisión de Carlos): apagada, el reloj nunca la pide; prendida, es obligatoria.
+    try{ ubic = S.ubicObligatoria === false ? null : await pedirUbicacion(25000); }
     catch(e){
       if(S.ubicObligatoria !== false){
         if(boton) boton.textContent = txt; botones.forEach(b => { b.disabled = false; }); S.ocupado = false;
@@ -8623,7 +8884,7 @@ const UCOLS = [
 const UCOLS_BASE = ['cuenta', 'contacto', 'ingreso', 'horario', 'pago', 'monitor', 'app', 'tcv'];
 // v104: quién ya entró desde la app de Windows (se instala sola con el Monitor 2.9)
 function appUsoHTML(e){
-  if(S.appUso === null) return '<span class="muted" title="The Windows app usage needs SQL step 56 in Supabase.">Run SQL step 56</span>';
+  if(S.appUso === null) return '<span class="muted" title="Windows app usage isn\'t available.">Not available</span>';
   if(!S.appUso) return '<span class="muted">…</span>';
   const a = S.appUso[e.usuario]; if(!a) return '<span class="muted" title="Hasn\'t signed in from the Windows app yet">—</span>';
   const f = x => new Intl.DateTimeFormat('en-US', { timeZone:S.zona || 'America/New_York', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }).format(new Date(x));
@@ -8860,7 +9121,7 @@ async function monAccionSB(params){
     if(j && j.modo === 'google'){ try{ localStorage.setItem('mon247_modo', 'google'); }catch(e){} return null; }
     if(j && (modo === 'supabase' || r.status === 200)){ try{ localStorage.setItem('mon247_modo', 'supabase'); }catch(e){} return j; }
   }catch(e){ /* sin conexión */ }
-  if(modo === 'supabase') return { ok:false, error:(j && j.error) || 'Supabase didn\'t answer. Check your internet and save again.' };
+  if(modo === 'supabase') return { ok:false, error:(j && j.error) || 'The server didn\'t answer. Check your internet and save again.' };
   return null;
 }
 async function renombrarAgenteMonitor(agente, nuevo, cuenta){
@@ -9467,7 +9728,7 @@ function pintarHoVers(){
 }
 $('hoVersL').addEventListener('click', async ev => {
   const b = ev.target.closest('[data-ho-borrar]'); if(!b) return;
-  if(!confirm('Remove this schedule from the history? The days it covered will use the schedule before it.')) return;
+  if(!(await confirmar('Remove this schedule?', 'It comes out of the history. The days it covered will use the schedule before it.', 'Remove', true))) return;
   b.disabled = true;
   try{ await api('horarioBorrar', { id:+b.dataset.hoBorrar }); await horarioDespues('Schedule removed'); }
   catch(err){ hoAviso(err.message, 'mal'); b.disabled = false; }
@@ -9633,7 +9894,7 @@ $('eGuardar').addEventListener('click', async () => {
         for(const c of _del){ const sup = _mgrDe[c] || ''; if(sup === _u) await api('setCuentaManager', { cuenta:c, usuario:null }); else if(sup && _repA[sup] === _u && ![..._sel].some(x => (_mgrDe[x] || '') === sup)) await api('setReporta', { usuario:sup, jefe:null }); }
         { const _repOrig = (((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}).reportaA || '', _repNew = S.reportaSel || ''; if(_repNew !== _repOrig && _repNew !== _u) await api('setReporta', { usuario:_u, jefe:_repNew || null }); }
         { const _emp = ((S.emps && S.emps.empleados) || []).find(x => x.usuario === _u) || {}, _scope = (_emp.gestiona || []); const _msel = S.monitSel || new Set(), _mselArr = [..._msel].filter(x => _scope.includes(x)).sort(), _mdef = _mselArr.length === _scope.length, _morig = _emp.monitorea, _morep = (_morig == null) ? null : _morig.slice().sort(), _mnew = _mdef ? null : _mselArr; if(JSON.stringify(_morep) !== JSON.stringify(_mnew)) await api('setMonitorea', { usuario:_u, cuentas:_mnew }); } } }
-    catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? 'Assigning account managers needs SQL steps 98 + 98b in Supabase.' : 'Could not save the account managers.', 'err'); }
+    catch(_m){ const _s = (_m && _m.message) || ''; toast(/reloj_set_cuenta_manager|reloj_cuenta_manager|does not exist|could not find|schema cache/i.test(_s) ? tec('Assigning account managers isn\'t working right now.', 'Faltan los pasos SQL 98 + 98b: ' + _s) : 'Could not save the account managers.', 'err'); }
     // (v337) país de pago de la persona (con fecha)
     try{ const _up = datos.usuario || ((r.empleados || []).find(x => (x.email || '').toLowerCase() === datos.email) || {}).usuario; if(_up) await guardarPaisEmp(_up); }
     catch(_p){ toast('User saved, but not the payment country: ' + _p.message, 'err'); }
@@ -10166,7 +10427,7 @@ if($('ajOTGuardar')) $('ajOTGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles(); pintarOT();
-  pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
+  pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas(); pintarPlan();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
@@ -10192,7 +10453,8 @@ const AJ_IC = {
   nomina:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   integ:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
   solo247:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/>',
-  avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>'
+  avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>',
+  plan:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'
 };
 const AJ_SEC = [
   { k:'inicio',    g:'',        t:'Overview',          d:'How the Time Clock is set up.', tono:'s' },
@@ -10204,8 +10466,9 @@ const AJ_SEC = [
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
   { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor.', tono:'s' },
-  { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' }
-].filter(s => s.k !== 'solo247' || INST_SOLO247);   // (v353) el producto no tiene esta sección
+  { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' },
+  { k:'plan',      g:'More',    t:'Plan & billing',    d:'Your plan and what each plan includes.', tono:'s' }
+].filter(s => (s.k !== 'solo247' || INST_SOLO247) && (s.k !== 'plan' || INST.compartimentos));   // (v353) el producto no tiene «24/7 only»; (v364) solo el producto tiene «Plan»
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
 function ajIco(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (AJ_IC[k] || AJ_IC.inicio) + '</svg>'; }
@@ -10229,7 +10492,7 @@ function ajResumen(k){
       case 'listas': { const L = S.listas || (typeof LISTAS_BASE !== 'undefined' ? LISTAS_BASE : {}); const ks = Object.keys(L).filter(x => x !== 'cuentas' && Array.isArray(L[x]));
         return [['Fields', String(ks.length)], ['Options', String(ks.reduce((t, x) => t + L[x].length, 0))]]; }
       case 'equipo': return [['General Manager', S.gm ? esc(nom(S.gm)) : ajPill('Not set', 'w')], ['Managers & supervisors', String(emps.filter(e => e.esManager).length)]];
-      case 'tiempo': return [['Rounding', red === 1 ? 'Exact' : 'Every ' + red + ' min'], ['Location', S.ubicObligatoria !== false ? 'Required' : 'Optional'],
+      case 'tiempo': return [['Rounding', red === 1 ? 'Exact' : 'Every ' + red + ' min'], ['Location', S.ubicObligatoria !== false ? 'Required' : 'Not asked'],
         ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
       case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
@@ -10237,6 +10500,7 @@ function ajResumen(k){
         const otR = oc.regla === 'ninguna' ? 'None' : (oc.regla === 'semanal' ? 'Weekly · ' + (oc.horas || 40) + ' h' : 'Daily · ' + (oc.horas ? oc.horas + ' h' : 'hours per day')) + ' · ' + oc.mult + '×';
         return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
+      case 'plan': return planResumen();
       case 'solo247': { const m = SOLO247.filter(x => solo247(x.k)).length;
         return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')]]; }
     }
@@ -10285,7 +10549,7 @@ function ajPintarResumen(){
 }
 function ajPills(){
   const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
-  set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Optional');
+  set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Not asked');
   { const oc = cfgOT(); set('ajPillOT', oc.regla !== 'ninguna', oc.regla === 'semanal' ? 'Weekly · ' + oc.mult + '×' : 'Daily · ' + oc.mult + '×', 'Off'); }
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
@@ -10525,7 +10789,7 @@ $('ajUbicGuardar').addEventListener('click', async () => {
   try{
     await api('guardarConfig', { clave:'ubicacion', valor:v });
     S.ubicObligatoria = v;
-    $('ajUbicEstado').textContent = v ? 'Saved. Location is required to clock.' : 'Saved. Agents can clock without sharing their location.'; toast('Settings saved.');
+    $('ajUbicEstado').textContent = v ? 'Saved. Location is required to clock.' : 'Saved. The Time Clock won\u2019t ask for location.'; toast('Settings saved.');
   }catch(e){ $('ajUbicEstado').textContent = e.message; }
   b.disabled = false;
 });
@@ -10631,7 +10895,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
   if(S.vista === 'ajustes') pintarAjustes();
 });
 $('prApagar') && $('prApagar').addEventListener('click', async () => {
-  const si = await confirmar('Turn off testing tools?', 'The <b>Erase all Time Clock data</b> button will disappear, so the real data can\'t be erased by mistake. Turning it back on can only be done in Supabase (SQL).', 'Turn off', true);
+  const si = await confirmar('Turn off testing tools?', 'The <b>Erase all Time Clock data</b> button will disappear, so the real data can\'t be erased by mistake. Only support can turn it back on.', 'Turn off', true);
   if(!si) return;
   try{ await api('apagarPruebas'); S.modoPruebas = false; pintarAjustes(); toast('Testing tools turned off.'); }
   catch(e){ $('prEstado').textContent = e.message; }
@@ -12552,7 +12816,7 @@ function pintarUpdRecBar(){
   const bar = $('updRecBar'); if(!bar) return;
   const st = S.updRecState;
   if(!st){ bar.innerHTML = '<span class="muted">\u2026</span>'; return; }
-  if(st.needsSql){ bar.innerHTML = '<span class="muted">Reminders need SQL step 87 in Supabase.</span>'; return; }
+  if(st.needsSql){ bar.innerHTML = '<span class="muted">Reminders aren\'t available right now.</span>'; return; }
   const falta = st.falta || 0, dis = falta ? '' : ' disabled';
   const izq = '<span class="upd-rec-k">Remind unread</span>' + (falta ? '<span class="upd-rec-n">' + falta + ' not read</span>' : '<span class="upd-rec-n ok">All read</span>');
   let acc;
@@ -14641,7 +14905,7 @@ function armarBase(primera){
                    moneda:(cong && g.moneda) ? g.moneda : monedaPagoDe(e.usuario, e.cuenta || x.cuenta, pr.P.reglas, pr.desde),
                    horas:(cong && g.horas != null ? g.horas : x.horas), ot:(cong && g.ot != null ? g.ot : x.ot), min:x.min, minOt:x.minOt,
                    j:(cong ? (Number(g.j) || 0) : jLive), horasDia:Number(e.horasDia) || 8, activo:e.activo !== false, libres, excl };
-    if(!(base.min > 0 || fijo != null || aj || g)) return;
+    if(!(base.min > 0 || fijo != null || aj || g || base.activo)) return;   // (v370) activo sin horas también sale (solo se omite a quien está archivado y sin nada que pagar)
     let ed = pr.ed[e.usuario];
     if(!ed || primera){
       ed = g ? { dias:g.dias || 0, bonoTxt:g.bonoTxt || '', ajusteSi:!!g.ajusteSi, de:g.de, aportes:g.aportes != null ? g.aportes : g.w, fijo:numO(g.fijo), tasaPropia:numO(g.tasaPropia) }
@@ -17771,7 +18035,7 @@ function cpModalPersonal(rows){
     try{ await api('pagoPersonalSet', { usuario:u, periodoFin, pagado, confirmacion });
       if(el){ el.classList.add('cp-ok'); setTimeout(() => el.classList.remove('cp-ok'), 800); } }
     catch(e){ const m = (e && e.message) || '';
-      toast(/reloj_pago_personal|does not exist|could not find|schema cache/i.test(m) ? 'Saving needs the Personal payments SQL step (paso 62) in Supabase.' : (m || 'Could not save the payment.'), 'err'); } };
+      toast(/reloj_pago_personal|does not exist|could not find|schema cache/i.test(m) ? tec('Saving personal payments isn\'t working right now.', 'Falta el paso SQL 62: ' + m) : (m || 'Could not save the payment.'), 'err'); } };
   ov.addEventListener('change', e => { const c = e.target.closest('.cp-pago-chk, .cp-pago-conf'); if(!c) return; const tr = c.closest('tr'); if(tr) guardar(tr.dataset.u, c); });
   (async () => { try{ const prev = await api('pagoPersonalPeriodo', { periodoFin });
     (prev || []).forEach(x => { const tr = trDe(x.usuario); if(!tr) return;
