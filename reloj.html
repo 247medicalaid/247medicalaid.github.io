@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v361-202611150100">
+<meta name="app-build" content="v362-202611151330">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5084,7 +5084,7 @@ async function sesionSB(){
 }
 
 /* Documentos en Supabase: tablas reloj_doc_tipos / reloj_docs y los archivos en Storage («reloj-docs», privada). */
-const BUCKET_DOCS = 'reloj-docs';
+let BUCKET_DOCS = 'reloj-docs';   // (v362) en un compartimento: e-<codigo>-docs
 const tipoJS = t => ({ id:Number(t.id), nombre:t.nombre, descripcion:t.descripcion || '', plantilla:t.plantilla || null, plantillaNombre:t.plantilla_nombre || '',
   clave:t.clave || null, obligatorio:!!t.obligatorio, agenteSube:!!t.agente_sube, revision:!!t.revision, vence:t.vence || 'nunca', venceFecha:t.vence_fecha || '',
   venceMeses:t.vence_meses == null ? null : Number(t.vence_meses), mensual:!!t.mensual, desdeMes:t.desde_mes || '', diaLimite:Number(t.dia_limite) || 10, orden:Number(t.orden) || 0, activo:!!t.activo });
@@ -5117,7 +5117,7 @@ async function docStorageSubir(ruta, f){
   if(error) throw new Error(docErrStorage(error));
 }
 // v62: Updates en Supabase (paso 42)
-const BUCKET_UPD = 'reloj-upd';
+let BUCKET_UPD = 'reloj-upd';
 async function updSB(action, p){
   const ses = await sesionSB(), yo = usuarioDe(ses);
   if(action === 'updLista'){
@@ -5172,7 +5172,7 @@ async function updSB(action, p){
   throw new Error('?');
 }
 // v63: Chat en Supabase (paso 43)
-const BUCKET_CHAT = 'reloj-chat';
+let BUCKET_CHAT = 'reloj-chat';
 const chatMsgJS = m => ({ id:Number(m.id), usuario:m.usuario, nombre:m.nombre || '', texto:m.texto || '', adjunto:m.adjunto || null, creado:Date.parse(m.creado), borrado:!!m.borrado });
 async function chatFirmar(msgs){
   const rutas = [...new Set(msgs.filter(m => m.adjunto && m.adjunto.archivo).map(m => m.adjunto.archivo))];
@@ -5858,6 +5858,10 @@ async function cuentasFn(accion, cuerpo, jwt){
   if(DEMO) return demoCuentas(accion, cuerpo || {});
   const h = { 'Content-Type':'application/json', apikey:window.SB_KEY };
   if(jwt) h.Authorization = 'Bearer ' + jwt;
+  if(INST.compartimentos && (accion === 'ver' || accion === 'activar')){   // (v362) el enlace dice de qué compartimento es
+    const c = new URLSearchParams(location.search).get('c');
+    if(c && /^e_[a-z0-9]{3,20}$/.test(c)) cuerpo = Object.assign({}, cuerpo || {}, { esquema:c });
+  }
   let r;
   try{ r = await fetch(window.SB_URL + '/functions/v1/reloj-cuentas', { method:'POST', headers:h, body:JSON.stringify(Object.assign({ accion }, cuerpo || {})) }); }
   catch(e){ throw new Error('Couldn\'t connect. Check your internet and try again.'); }
@@ -6065,6 +6069,35 @@ $('btnSalir').addEventListener('click', async () => {
   location.replace(location.pathname);
 });
 
+/* (v362) 247Punch: las empresas en prueba / plan gratis viven en un COMPARTIMENTO (esquema e_<codigo>) de la
+   base compartida. Al entrar se pregunta a cuál pertenece el usuario y, desde ahí, todo lo que la app lee y
+   escribe va a ese compartimento (tablas, funciones, carpetas de archivos y el chat en vivo). La empresa
+   original de la base (esquema public) y 24/7 (sin compartimentos) no cambian. */
+S.comp = null;
+async function entrarCompartimento(){
+  if(!INST.compartimentos || DEMO || !window.sb) return 'public';
+  const { data, error } = await window.sb.rpc('punch_mi_compartimento');
+  if(error || !data || !data.esquema) return 'public';
+  if(data.estado !== 'activa') return 'vencida:' + (data.estado || '');
+  const esq = data.esquema, base = window.sb;
+  if(!/^e_[a-z0-9]{3,20}$/.test(esq)) return 'public';
+  S.comp = data;
+  if(!base.__compartimento){
+    base.__compartimento = esq;
+    base.from = t => base.schema(esq).from(t);
+    base.rpc = (fn, args, opts) => base.schema(esq).rpc(fn, args, opts);
+  }
+  const pre = 'e-' + esq.slice(2) + '-';
+  BUCKET_DOCS = pre + 'docs'; BUCKET_UPD = pre + 'upd'; BUCKET_CHAT = pre + 'chat';
+  return esq;
+}
+function pantallaVencida(estado){
+  caja('<h1>' + (estado === 'mudada' ? 'Your company moved' : 'Your trial has ended') + '</h1><div class="sub">' +
+    (estado === 'mudada' ? 'Your company now has its own space. Sign out and sign in again to continue.'
+      : 'Your company\u2019s free trial is over. Ask your administrator to choose a plan to keep using ' + esc(MARCA.appName) + '.') + '</div>' +
+    '<div class="enlaces"><button class="btn-link" type="button" id="vSalir">Sign out</button></div>');
+  $('vSalir').addEventListener('click', async () => { try{ await clienteAgente().auth.signOut({ scope:'local' }); }catch(e){} location.replace(location.pathname); });
+}
 async function inicio(){
   await asegurarSupabase();   // (v311) respaldo si jsdelivr no cargó
   const qs = new URLSearchParams(location.search), tok = qs.get('invite') || qs.get('reset');
@@ -6087,6 +6120,8 @@ async function inicio(){
       else return pantallaLogin();
     }
   }
+  { const c = await entrarCompartimento().catch(() => 'public');   // (v362)
+    if(String(c).startsWith('vencida:')) return pantallaVencida(String(c).slice(8)); }
   if(S.agente || S.demoAgente) modoAgente();
   S.token = s && s.token;
   if(DEMO) $('demoTag').classList.remove('hidden');
@@ -13136,7 +13171,7 @@ function chatRTArrancar(){
   if(S.chatRT || !window.sb || typeof window.sb.channel !== 'function') return;
   try{
     S.chatRT = window.sb.channel('reloj-chat-' + Math.random().toString(36).slice(2))
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'reloj_chat_msg' }, chatRTtoque)
+      .on('postgres_changes', { event:'INSERT', schema:(S.comp && S.comp.esquema) || 'public', table:'reloj_chat_msg' }, chatRTtoque)
       .subscribe((st) => { S.chatRTok = (st === 'SUBSCRIBED'); });
   }catch(e){ S.chatRT = null; S.chatRTok = false; }
 }
