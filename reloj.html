@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v358-202611142330">
+<meta name="app-build" content="v359-202611150030">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3405,6 +3405,24 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <p class="ejemplo" id="ajPagoEjemplo"></p>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajPagoGuardar" type="button">Save</button><span class="nota" id="ajPagoEstado"></span></div>
           </div>
+          <!-- (v359) Overtime configurable -->
+          <div class="ajuste aj-card" id="ajOT" data-guardar="ajOTGuardar">
+            <div class="aj-ct"><h2>Overtime</h2><span class="aj-pill" id="ajPillOT"></span></div>
+            <p class="aj-desc">When worked hours count as overtime and how they're paid. Used in the Timesheet, the Pay run and the exports. In the US, federal law asks for 1.5&times; after 40 hours in the week; some states also count it by the day.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajOTRegla"><b>Count overtime</b><span id="ajOTReglaTxt"></span></label>
+                <div class="aj-fr"><select id="ajOTRegla"><option value="semanal">By week</option><option value="diaria">By day</option><option value="ninguna">No overtime</option></select></div></div>
+              <div class="aj-fila" id="ajOTFilaHoras"><label class="aj-fl" for="ajOTHoras"><b>After</b><span id="ajOTHorasTxt"></span></label>
+                <div class="aj-fr"><input id="ajOTHoras" class="aj-num" type="number" min="1" max="80" step="0.5" inputmode="decimal"><span class="aj-uni">hours</span></div></div>
+              <div class="aj-fila" id="ajOTFilaInicio"><label class="aj-fl" for="ajOTInicio"><b>The week starts on</b><span>The workweek used to add up the hours.</span></label>
+                <div class="aj-fr"><select id="ajOTInicio"><option value="0">Sunday</option><option value="1">Monday</option></select></div></div>
+              <div class="aj-fila" id="ajOTFilaPago"><label class="aj-fl" for="ajOTMult"><b>Pay each overtime hour at</b><span>Times the person's hourly rate.</span></label>
+                <div class="aj-fr"><select id="ajOTMult"><option value="1">1&times; (regular rate)</option><option value="1.5">1.5&times; (time and a half)</option><option value="2">2&times; (double time)</option><option value="otro">Other…</option></select>
+                  <input id="ajOTMultOtro" class="aj-num hidden" type="number" min="1" max="5" step="0.05" inputmode="decimal" aria-label="Overtime pay multiplier"><span class="aj-uni hidden" id="ajOTMultUni">&times;</span></div></div>
+            </div>
+            <p class="ejemplo" id="ajOTEjemplo"></p>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajOTGuardar" type="button">Save</button><span class="nota" id="ajOTEstado"></span></div>
+          </div>
         </div>
 
         <!-- MORE · Connections (v312: antes Integrations) -->
@@ -5019,7 +5037,11 @@ const SERVIDOR_EN = [
   [/^Ese update no existe\.$/, 'That update doesn\'t exist.'],
   [/^Método no permitido$/, 'Method not allowed.'],
   [/^JSON inválido$/, 'Invalid request.'],
-  [/^Acción desconocida$/, 'Unknown action.']
+  [/^Acción desconocida$/, 'Unknown action.'],
+  // (v359) overtime
+  [/^Regla de overtime no válida\.$/, 'Invalid overtime rule.'],
+  [/^Horas de overtime no válidas\.$/, 'Invalid overtime hours.'],
+  [/^Pago de overtime no válido\.$/, 'Invalid overtime pay.']
 ];
 // (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico.
 const IMP_DE = INST_SOLO247 ? 'Connecteam' : 'another system';
@@ -5050,7 +5072,7 @@ async function cargarConfig(){
     if(x.clave === 'horarios' && x.valor && typeof x.valor === 'object') S.horFuente = x.valor.fuente || '';   // (v314, paso 139)
     if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
     if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
-    if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; }); }catch(e){}
+    if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; if(x.clave === 'overtime' && x.valor && typeof x.valor === 'object') S.overtime = x.valor; }); }catch(e){}
   try{ aplicarConexiones(); }catch(e){}
   try{ aplicarSolo247(); }catch(e){}
 }
@@ -5533,6 +5555,7 @@ async function api(action, p){
   if(action === 'monPendQuitar') return q(sb.rpc('reloj_monitor_pendientes_quitar', { p_ids:p.ids }));
   if(action === 'guardarConceptos') return q(sb.rpc('reloj_guardar_conceptos', { p:p.valor }));
   if(action === 'guardarPagoRoles') return q(sb.rpc('reloj_guardar_pago_roles', { p:p.valor }));
+  if(action === 'guardarOvertime') return q(sb.rpc('reloj_guardar_overtime', { p:p.valor }));   // (v359, paso 146)
   if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
   if(action === 'renombrarCuenta') return q(sb.rpc('reloj_renombrar_cuenta', { p_origen:p.origen, p_destino:p.destino, p_aplicar:!!p.aplicar }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
@@ -5615,7 +5638,7 @@ function cuentasDelPeriodo(emps, aprob){
     const c = Object.keys(x).sort((a, b) => (x[b].n - x[a].n) || (x[b].f < x[a].f ? -1 : x[b].f > x[a].f ? 1 : 0))[0];
     return c && c !== e.cuenta ? Object.assign({}, e, { cuenta:c, cuentaFicha:e.cuenta }) : e; });
 }
-async function hojaSB(desde, hasta){
+async function hojaSB(desde, hasta, sinPrevSem){
   const t0 = performance.now(); await sesionSB();
   await cargarMonTramos();   // (v326)
   const hoy = fechaHoy();
@@ -5649,10 +5672,11 @@ async function hojaSB(desde, hasta){
                 aus:aus.map(a => ({ id:a.id, usuario:a.usuario, fecha:a.fecha, fechaFin:a.fecha_fin, horaIni:a.hora_ini || null, horaFin:a.hora_fin || null, clase:a.clase, pagada:!!a.pagada, horas:Number(a.horas_dia || 0), por:a.decidida_por, conceptoNombre:a.concepto_nombre || null })) };
   const h = construirHoja(raw, monDisponible(fechas), ahora());
   h._raw = raw; h.seg = tiempo('hoja', t0);
+  if(!sinPrevSem){ try{ h._prevSem = await prevSemanaHoja(h, desde); }catch(e){ h._prevSem = {}; } ponerPrevSem(h); }   // (v359) overtime semanal
   return h;
 }
 // Recalcula una hoja ya cargada cuando llegan datos del Monitor (sin volver a Supabase).
-function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ahora()); n._raw = h._raw; n.seg = h.seg; return n; }
+function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ahora()); n._raw = h._raw; n.seg = h.seg; n._prevSem = h._prevSem; return ponerPrevSem(n); }
 
 async function empleadosSB(){
   await sesionSB();
@@ -7319,7 +7343,7 @@ const COLS_HOY = [
   { k:'total', t:'Daily total', def:true, num:true, h:x => { const d = x.d; if(!d || !d.marcas.length) return vacioC;
       return (d.estado === 'trabajando' ? '<span class="en-curso" title="Still working">' : '<span>') + hm(d.min) + '</span>'; } },
   { k:'extra', t:'Overtime', def:true, num:true, h:x => { const d = x.d; if(!d || !d.marcas.length) return vacioC;
-      const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? '+' + hm(ex) : vacioC; } },
+      const ex = otDia(x.e, d); return ex > 0 ? '+' + hm(ex) : vacioC; } },
   { k:'almMin', t:'Lunch time', def:false, num:true, h:x => x.d && x.d.alm ? hm(x.d.alm) : vacioC },
   { k:'depto', t:'Department', def:false, h:x => x.e.departamento ? esc(x.e.departamento) : vacioC },
   { k:'ausencia', t:'Time off', def:false, h:x => { const a = x.d && x.d.ausencia; if(!a) return vacioC;
@@ -7370,7 +7394,7 @@ const ORD_HOY = {
   almuerzo: x => msHoyDe(x.d, 'almuerzo_ini'),
   salida: x => x.d && x.d.estado === 'fuera' ? msHoyDe(x.d, 'salida', true) : null,
   total: x => x.d && x.d.marcas.length ? x.d.min : null,
-  extra: x => { const d = x.d; if(!d || !d.marcas.length) return null; const ex = d.min - Math.round((x.e.horasDia || 8) * 60); return ex > 0 ? ex : null; },
+  extra: x => { const d = x.d; if(!d || !d.marcas.length) return null; const ex = otDia(x.e, d); return ex > 0 ? ex : null; },
   almMin: x => x.d && x.d.alm ? x.d.alm : null,
   depto: x => (x.e.departamento || '').toLowerCase() || null,
   ausencia: x => x.d && x.d.ausencia ? CLASE_TXT[x.d.ausencia.clase] : null,
@@ -7587,9 +7611,41 @@ $('hCuenta').addEventListener('change', () => { S.cuentaFiltro = $('hCuenta').va
 $('hGrupo').addEventListener('change', () => { ordenHoja().grupo = $('hGrupo').checked; guardarOrden(); if(S.hoja) pintarHoja(); });
 $('hOrden').addEventListener('change', () => { ordenHoja().por = $('hOrden').value; guardarOrden(); if(S.hoja) pintarHoja(); });
 // Empleados que se ven en la hoja (según el filtro de cuenta).
-// Overtime: lo que cada día cerrado pase de las horas por día del agente (los días sin salida no cuentan).
-function otDia(e, d){ if(!d || d.incompleto || !d.marcas || !d.marcas.length) return 0; return Math.max(0, d.min - Math.round((e.horasDia || 8) * 60)); }
-function otEmp(e){ return Object.keys(e.dias || {}).reduce((s, f) => s + otDia(e, e.dias[f]), 0); }
+// (v359) Overtime configurable (Settings → Payroll → Overtime; reloj_config 'overtime', paso 146):
+//   regla 'diaria'  → lo que cada día pase de «horas» (sin horas: las horas por día de cada persona) — lo de siempre en 24/7
+//   regla 'semanal' → lo que la semana (empieza domingo o lunes) pase de «horas» (40 por defecto), contado en orden:
+//                     las horas que cruzan el tope son overtime del día en que lo cruzan (incluye los días de la semana fuera del periodo)
+//   regla 'ninguna' → sin overtime. «mult» = cuánto se paga cada hora extra (1 = tarifa normal, 1.5 = tiempo y medio…).
+function cfgOT(){ const c = S.overtime && typeof S.overtime === 'object' ? S.overtime : {};
+  const regla = ['ninguna', 'diaria', 'semanal'].includes(c.regla) ? c.regla : 'diaria', h = Number(c.horas), m = Number(c.mult);
+  return { regla, horas:h > 0 ? h : null, mult:m >= 1 && m <= 5 ? m : 1, inicio:Number(c.inicio) === 1 ? 1 : 0 }; }
+function semanaDe(f, inicio){ const d = new Date(f + 'T12:00:00Z'), dw = d.getUTCDay(), atras = (dw - (inicio || 0) + 7) % 7; d.setUTCDate(d.getUTCDate() - atras); return d.toISOString().slice(0, 10); }
+const minVisOT = d => !d || d.incompleto || !d.marcas || !d.marcas.length ? 0 : Math.round(d.min);
+function otMapa(e, minFn){
+  const c = cfgOT(), out = {}, fs = Object.keys(e.dias || {}).sort();
+  if(c.regla === 'ninguna') return out;
+  if(c.regla === 'diaria'){ const u = Math.round((c.horas || e.horasDia || 8) * 60); fs.forEach(f => { const m = minFn(e.dias[f]); if(m > u) out[f] = m - u; }); return out; }
+  const u = Math.round((c.horas || 40) * 60), acc = {};
+  Object.keys(e.prevSem || {}).forEach(f => { const w = semanaDe(f, c.inicio); acc[w] = (acc[w] || 0) + (Number(e.prevSem[f]) || 0); });
+  fs.forEach(f => { const w = semanaDe(f, c.inicio), antes = acc[w] || 0, m = minFn(e.dias[f]), desp = antes + m; acc[w] = desp;
+    const ot = Math.max(0, desp - Math.max(u, antes)); if(ot > 0) out[f] = ot; });
+  return out;
+}
+function otMapaVis(e){ const sig = JSON.stringify(cfgOT()) + '|' + Object.keys(e.dias || {}).length; if(!e._otv || e._otvSig !== sig){ e._otv = otMapa(e, minVisOT); e._otvSig = sig; } return e._otv; }
+function otDia(e, d){ if(!d) return 0; const f = Object.keys(e.dias || {}).find(k => e.dias[k] === d); return f ? (otMapaVis(e)[f] || 0) : 0; }
+function otEmp(e){ const m = otMapaVis(e); return Object.keys(m).reduce((s, f) => s + m[f], 0); }
+function otTexto(e){ const c = cfgOT(); if(c.regla === 'ninguna') return 'no overtime'; if(c.regla === 'semanal') return 'above ' + (c.horas || 40) + ' h in the week';
+  const h = c.horas || (e ? (e.horasDia || 8) : null); return h ? 'above ' + h + ' h a day' : 'above each person\'s hours per day'; }
+// Semana: los días de la semana que caen antes del periodo (para contar el tope semanal). Solo con la regla semanal.
+async function prevSemanaHoja(h, desde){
+  const c = cfgOT(); if(c.regla !== 'semanal' || DEMO) return {};
+  const ws = semanaDe(desde, c.inicio); if(ws >= desde) return {};
+  const d1 = new Date(desde + 'T12:00:00Z'); d1.setUTCDate(d1.getUTCDate() - 1);
+  const ph = await hojaSB(ws, d1.toISOString().slice(0, 10), true), out = {};
+  (ph.empleados || []).forEach(e => { const m = {}; Object.keys(e.dias || {}).forEach(f => { const v = minPagoDia(e.dias[f]); if(v) m[f] = v; }); out[e.usuario] = m; });
+  return out;
+}
+function ponerPrevSem(h){ const P = (h && h._prevSem) || {}; (h.empleados || []).forEach(e => { e.prevSem = P[e.usuario] || {}; e._otv = null; }); return h; }
 // Orden de la hoja (se recuerda en este navegador)
 const ORDEN_CLAVE = 'reloj_hoja_orden_v1';
 function ordenHoja(){
@@ -7723,9 +7779,9 @@ async function cargarHoja(){
 // Resumen del periodo (con el filtro de cuenta): horas, almuerzo, tiempo libre sin pago, días aprobados y pago.
 function resumenHoja(h){
   const emps = empsNomina(); let trab = 0, ot = 0, pto = 0, alm = 0, ausNP = 0, pago = 0, diasAp = 0, diasTot = 0;
-  emps.forEach(e => { const hd = Math.round((e.horasDia || 8) * 60);
+  emps.forEach(e => { const hd = Math.round((e.horasDia || 8) * 60), otM = otMapa(e, minPagoDia);   // (v359) overtime según Settings
     Object.keys(e.dias).forEach(f => { const d = e.dias[f]; if(!d) return; const m = minPagoDia(d);
-      trab += m; ot += Math.max(0, m - hd);
+      trab += m; ot += otM[f] || 0;
       if(d.marcas && d.marcas.length && !d.incompleto) alm += d.alm || 0;
       if(d.marcas && d.marcas.length && f < h.hoy){ diasTot++; if(d.aprobado) diasAp++; }
       const a = d.ausencia; if(a && !a.pagada) ausNP += ausTapada(esParcial(a) ? minParcial(a) : hd, hd, m); });
@@ -7771,7 +7827,7 @@ function pintarHoja(){
       const inner = esc(diaC(f)) + '<br>' + diaN(f) + (fok && !perOk ? '<span class="apf-ic">' + IC.ok + '</span>' : '');
       return '<th class="' + [finde(f) ? 'fin' : '', fok ? 'fok' : ''].filter(Boolean).join(' ') + '">' + (fut ? inner : '<button type="button" class="apf' + (fok ? ' apf-ok' : '') + '" data-apf="' + f + '" title="' + (fok ? esc(fechaL(f)) + ' — everyone shown is approved. Click to review.' : 'Approve ' + esc(fechaL(f)) + ' for everyone shown') + '">' + inner + '</button>') + '</th>'; }).join('') +
     '<th class="tot">' + ord('horas', 'Hours', 'Sort by hours, most first') + '</th>' +
-    '<th class="tot" title="Hours above each agent\'s hours per day, added up for the period">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
+    '<th class="tot" title="' + esc('Overtime (' + otTexto(null) + '), added up for the period') + '">' + ord('ot', 'Overtime', 'Sort by overtime, most first') + '</th>' +
     '</tr></thead><tbody>';
   let grupoAct = null;
   lista.forEach(e => {
@@ -7825,7 +7881,7 @@ function pintarHoja(){
         ((() => {   // (v327) lo que antes ocupaba ancho (+1:00, OFF 1:27 h) va en el globo al pasar el mouse
           const g = [];
           if(d.banderas.some(b => b.c === 'SALIDA_AUTO')) g.push('Auto clock out');
-          if(otd) g.push('Overtime +' + hm(otd) + ' (above ' + (e.horasDia || 8) + ' h)');
+          if(otd) g.push('Overtime +' + hm(otd) + ' (' + otTexto(e) + ')');
           if(_ausCont > 0) g.push(ausEtq(d.ausencia) + ' ' + hm(_ausCont) + ' h');
           return g.length ? ' data-globo="' + esc(g.join('\n')) + '"' : ''; })()) + '>' +
         '<span class="num">' + etiqueta + '</span><span class="ics">' + (otd ? '<span class="ot-dot" aria-hidden="true">+</span>' : '') + ics + '</span></button></td>';
@@ -8277,10 +8333,11 @@ function minPagoDia(d){
 function filasPayroll(h, lista){
   return (lista || empsNomina()).map(e => {
     let trab = 0, ot = 0, pagoDias = 0; const tarifaHoy = e.pagoHora === '' || e.pagoHora == null || isNaN(Number(e.pagoHora)) ? null : Number(e.pagoHora), tarDias = new Set();
-    Object.keys(e.dias).forEach(f => { const d = e.dias[f], m = minPagoDia(d); trab += m; ot += Math.max(0, m - Math.round((e.horasDia || 8) * 60));
+    const otM = otMapa(e, minPagoDia), mult = cfgOT().mult;   // (v359) overtime según Settings; la hora extra se paga × mult
+    Object.keys(e.dias).forEach(f => { const d = e.dias[f], m = minPagoDia(d), om = otM[f] || 0; trab += m; ot += om;
       const td = d && d.aprobado && d.aprobado.tarifa != null ? d.aprobado.tarifa : tarifaHoy;
       if(m && d && d.aprobado && d.aprobado.tarifa != null) tarDias.add(d.aprobado.tarifa);
-      if(td != null) pagoDias += td * m / 60; });
+      if(td != null) pagoDias += td * m / 60 + (mult - 1) * td * om / 60; });
     const pagadas = trab + (e.totales.minPto || 0);
     // la tarifa que se muestra: la de los días importados si es una sola; si no, la actual
     const tarifa = tarDias.size === 1 && (tarifaHoy == null || !Object.keys(e.dias).some(f => minPagoDia(e.dias[f]) && !(e.dias[f].aprobado && e.dias[f].aprobado.tarifa != null))) ? [...tarDias][0] : tarifaHoy;
@@ -10026,8 +10083,42 @@ if($('ajPRGuardar')) $('ajPRGuardar').addEventListener('click', async () => {
   catch(e){ $('ajPREstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
+// (v359) Settings → Payroll → Overtime
+function leerOT(){ const regla = $('ajOTRegla').value, hTxt = String($('ajOTHoras').value || '').trim(), h = hTxt === '' ? null : Number(hTxt);
+  const mv = $('ajOTMult').value, mult = mv === 'otro' ? Number($('ajOTMultOtro').value) : Number(mv);
+  return { regla, horas:h, mult, inicio:Number($('ajOTInicio').value) === 1 ? 1 : 0 }; }
+function pintarOTFilas(){
+  const r = $('ajOTRegla').value, no = r === 'ninguna';
+  $('ajOTFilaHoras').classList.toggle('hidden', no); $('ajOTFilaPago').classList.toggle('hidden', no); $('ajOTFilaInicio').classList.toggle('hidden', r !== 'semanal');
+  $('ajOTReglaTxt').textContent = r === 'semanal' ? 'Hours worked in the week above the limit.' : r === 'diaria' ? 'Hours worked in a day above the limit.' : 'Every hour is paid at the regular rate.';
+  $('ajOTHoras').placeholder = r === 'semanal' ? '40' : 'Each person';
+  $('ajOTHorasTxt').textContent = r === 'semanal' ? 'Hours in the week (40 if blank).' : 'Hours in the day. Blank: each person\'s hours per day.';
+  const otro = $('ajOTMult').value === 'otro'; $('ajOTMultOtro').classList.toggle('hidden', !otro); $('ajOTMultUni').classList.toggle('hidden', !otro);
+  const o = leerOT(), m = o.mult >= 1 ? o.mult : 1;
+  $('ajOTEjemplo').innerHTML = no ? 'No overtime: hours are paid at each person\'s rate.' :
+    'Example at $20/hour: ' + (o.regla === 'semanal' ? 'someone who works <b>' + ((o.horas || 40) + 5) + ' h</b> in a week' : 'someone who works <b>' + ((o.horas || 8) + 2) + ' h</b> in a day') +
+    ' gets <b>' + (o.regla === 'semanal' ? 5 : 2) + ' h</b> of overtime, paid at <b>$' + (20 * m).toFixed(2) + '/h</b>' + (m === 1 ? ' (same as regular)' : '') + '.';
+}
+function pintarOT(){
+  if(!$('ajOT')) return; const c = cfgOT();
+  $('ajOTRegla').value = c.regla; $('ajOTHoras').value = c.horas != null ? c.horas : ''; $('ajOTInicio').value = String(c.inicio);
+  const std = ['1', '1.5', '2'].includes(String(c.mult)); $('ajOTMult').value = std ? String(c.mult) : 'otro'; $('ajOTMultOtro').value = std ? '' : c.mult;
+  $('ajOTEstado').textContent = ''; pintarOTFilas();
+}
+['ajOTRegla', 'ajOTMult', 'ajOTHoras', 'ajOTMultOtro', 'ajOTInicio'].forEach(id => { const el = $(id); if(el) ['change', 'input'].forEach(ev => el.addEventListener(ev, pintarOTFilas)); });
+if($('ajOTGuardar')) $('ajOTGuardar').addEventListener('click', async () => {
+  const o = leerOT(), b = $('ajOTGuardar'), est = $('ajOTEstado');
+  if(o.regla !== 'ninguna'){
+    if(o.horas != null && !(o.horas >= 1 && o.horas <= (o.regla === 'semanal' ? 80 : 24))) return est.textContent = o.regla === 'semanal' ? 'Weekly hours must be between 1 and 80.' : 'Daily hours must be between 1 and 24.';
+    if(!(o.mult >= 1 && o.mult <= 5)) return est.textContent = 'The overtime pay must be between 1× and 5×.';
+  }
+  b.disabled = true;
+  try{ await api('guardarOvertime', { valor:o }); S.overtime = o; est.textContent = 'Saved.'; toast('Overtime saved.'); }
+  catch(e){ est.textContent = e.message; }
+  finally{ b.disabled = false; }
+});
 function pintarAjustes(){
-  pintarRoles();
+  pintarRoles(); pintarOT();
   pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
@@ -10095,8 +10186,9 @@ function ajResumen(k){
         ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
       case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
-      case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R);
-        return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
+      case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R), oc = cfgOT();
+        const otR = oc.regla === 'ninguna' ? 'None' : (oc.regla === 'semanal' ? 'Weekly · ' + (oc.horas || 40) + ' h' : 'Daily · ' + (oc.horas ? oc.horas + ' h' : 'hours per day')) + ' · ' + oc.mult + '×';
+        return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
       case 'solo247': { const m = SOLO247.filter(x => solo247(x.k)).length;
         return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')]]; }
@@ -10147,6 +10239,7 @@ function ajPintarResumen(){
 function ajPills(){
   const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
   set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Optional');
+  { const oc = cfgOT(); set('ajPillOT', oc.regla !== 'ninguna', oc.regla === 'semanal' ? 'Weekly · ' + oc.mult + '×' : 'Daily · ' + oc.mult + '×', 'Off'); }
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
   set('ajPillMon', typeof monSyncCfg === 'function' ? monSyncCfg().activo : true, 'Connected', 'Off');
@@ -10478,7 +10571,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null; S.overtime = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -14482,6 +14575,7 @@ function armarBase(primera){
   const hojaE = pr.hoja.empleados.filter(e => !e.prueba), emps = hojaE.map(e => recortarEmp(e, corte));   // (v93) sin usuarios de prueba
   const fp = filasPayroll(pr.hoja, emps);
   pr.asumidos = asum; pr.corte = corte; if(!pr.refrescados) pr.refrescados = new Set(); pr.live = {};
+  if(pagoVivo()) hojaE.forEach(e => pr.refrescados.add(e.usuario));   // (v359) borrador nunca cerrado: siempre con lo de la Timesheet
   pr.haySnap = Object.keys(pr.guardadas || {}).length > 0; pr.nuevos = [];
   pr.base = [];
   fp.forEach((x, i) => {
@@ -14566,6 +14660,9 @@ function recalcPago(){
     f.fechasAdd = f.dias ? b.libres.slice(0, Math.ceil(f.dias)) : []; f.excl = b.excl || []; return f; });
 }
 const cerradaPago = () => !!(S.pr && S.pr.run && S.pr.run.estado === 'cerrada');
+// (v359) Un borrador que nunca se cerró se recalcula solo con la Timesheet (y otra vez justo antes de cerrarlo).
+// Una nómina reabierta (datos.cerradaAntes) conserva lo pagado y avisa las diferencias, como siempre.
+const pagoVivo = () => !!(S.pr && !(S.pr.run && (S.pr.run.estado === 'cerrada' || (S.pr.run.datos && S.pr.run.datos.cerradaAntes))));
 function ordenPago(filas){ return filas.slice().sort((a, b) => (a.cuenta || '~').localeCompare(b.cuenta || '~', 'en') || (a.nom + ' ' + a.ape).localeCompare(b.nom + ' ' + b.ape, 'en')); }
 
 // (v347) Cómo se calcula, en pocas líneas y según lo que esta empresa usa (moneda, 24/7 only)
@@ -14928,7 +15025,8 @@ function paqueteNomina(){
   sincTasas();
   return { desde:pr.desde, hasta:pr.hasta, fechaPago:P.fechaPago || null, trm:P.trm, tasa:P.tasa,
            datos:{ v:1, filas, asumeDesde:P.asumeDesde || '', asumidos:pr.asumidos || [], reglas:P.reglas, trmNota:P.trmNota || '',
-                   cambio:P.cambio || {}, monPrincipal:P.monPrincipal || '', monedaBase:cfgMoneda(P.reglas).base }, totales:totalesPago(pr.filas) };
+                   cambio:P.cambio || {}, monPrincipal:P.monPrincipal || '', monedaBase:cfgMoneda(P.reglas).base,
+                   cerradaAntes:!!(pr.run && pr.run.datos && pr.run.datos.cerradaAntes) || !!pr.cerrando, overtime:cfgOT() }, totales:totalesPago(pr.filas) };
 }
 async function guardarPago(cerrarla){
   if(S.pr && !cerradaPago() && pagoComoProducto()) return toast('Pay runs can\'t be saved or closed while 24/7 payroll features are off (Settings → 24/7 only). Turn them back on to save.', 'err');   // (v338)
@@ -14936,6 +15034,10 @@ async function guardarPago(cerrarla){
   const pr = S.pr; if(!pr || pr.cargando || cerradaPago()) return;
   const malos = pr.filas.filter(f => !f.bonoOk);
   if(malos.length) return toast('Check the bonus of ' + malos.map(f => f.nombre || f.nom).join(', ') + ': use a number, or pesos like -100000 COP.', 'err');
+  if(cerrarla && pagoVivo()){   // (v359) justo antes de cerrar, la Timesheet más reciente
+    try{ const hj = await api('hoja', { desde:pr.desde, hasta:pr.hasta }); if(S.pr !== pr) return; pr.hoja = hj; armarBase(false); pintarPago(); }
+    catch(e){ return toast('Couldn\'t refresh the hours before closing: ' + e.message, 'err'); }
+  }
   if(cerrarla){
     const faltan = monedasPago().filter(m => !(pr.P.cambio[m] && pr.P.cambio[m].base > 0));   // (v335)
     if(!pr.P.fechaPago || faltan.length) return toast('To close the pay run, set the payment date' + (faltan.length ? ' and the exchange rate (' + faltan.join(', ') + ')' : '') + '.', 'err');
@@ -14948,6 +15050,7 @@ async function guardarPago(cerrarla){
   }
   const bs = ['pyGuardar','pyCerrar'].map(id => $(id)); bs.forEach(b => { b.disabled = true; });
   try{
+    pr.cerrando = !!cerrarla;
     await api('guardarNomina', { nomina:paqueteNomina(), cerrar:!!cerrarla });
     // lo que cambió en la persona (de dónde se paga, aportes, fijo) se recuerda para la próxima quincena
     const cambios = [];
@@ -14958,7 +15061,7 @@ async function guardarPago(cerrarla){
       catch(e){ toast('The pay run was saved, but the people\'s payment settings weren\'t: ' + e.message, 'err'); } }
     toast(cerrarla ? 'Pay run closed.' : 'Draft saved.');
     pr.sucio = false; await cargarPago(pr.desde);
-  }catch(e){ toast(e.message, 'err'); }
+  }catch(e){ pr.cerrando = false; toast(e.message, 'err'); }
   bs.forEach(b => { b.disabled = false; });
 }
 $('pyGuardar').addEventListener('click', () => guardarPago(false));
@@ -16455,6 +16558,7 @@ async function demoApi(action, p){
   if(action === 'monPendQuitar'){ S.monPend = (S.monPend || []).filter(x => (p.ids || []).indexOf(x.id) < 0); return { ok:true, total:S.monPend.length }; }
   if(action === 'guardarConceptos'){ S.conceptos = p.valor; return { ok:true }; }
   if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
+  if(action === 'guardarOvertime'){ S.overtime = p.valor; return { ok:true }; }
   if(action === 'guardarCuentas'){ S.cuentas = p.valor; return { ok:true }; }
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
