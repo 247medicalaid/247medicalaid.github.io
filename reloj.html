@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v356-202611142215">
+<meta name="app-build" content="v357-202611142225">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8677,7 +8677,13 @@ const LISTAS_BASE = DEMO ? { cuentas:['Main Office','CARDIO','GASTRO','Pulmonary
   tiposId:['CC','CE','Passport','SSN'], bancos:['Bancolombia','Banco de Bogotá','BBVA','Davivienda','Nequi'] }
   : { cuentas:[], departamentos:[], tiposId:['Passport','SSN'], bancos:[] };   // (v353) sin listas de 24/7: cada empresa pone las suyas
 // La lista de cuentas es la del Monitor (paso 24): se edita en el panel del Monitor → Cuentas.
-const listas = () => { const L = S.listas || LISTAS_BASE; return S.cuentasMon && S.cuentasMon.length ? Object.assign({}, L, { cuentas:S.cuentasMon }) : L; };
+const listas = () => { const L = S.listas || LISTAS_BASE;
+  if(S.cuentasMon && S.cuentasMon.length) return Object.assign({}, L, { cuentas:S.cuentasMon });
+  // (v357) sin Monitor: las cuentas creadas en Settings → Accounts también se pueden asignar
+  const deAj = (S.cuentas || []).map(c => c && c.nombre).filter(Boolean);
+  if(!deAj.length) return L;
+  const todas = deAj.slice(); (L.cuentas || []).forEach(n => { if(n && !todas.some(x => x.toLowerCase() === String(n).toLowerCase())) todas.push(n); });
+  return Object.assign({}, L, { cuentas:todas }); };
 const mismaCuenta = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
 /* ── Cuenta del agente en el Monitor ──
    Los agentes del Monitor y su cuenta salen de Supabase (copia de la hoja Agentes, cada 5 min).
