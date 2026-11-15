@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v359-202611150030">
+<meta name="app-build" content="v360-202611150050">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -6461,6 +6461,7 @@ async function refrescarYo(minimo){
   S.refYo = true;
   try{ const yo = await api('yo'); if(!S.ocupado){ aplicarYo(yo); if(S.vista === 'reloj' && yo.reloj) pintarReloj(); } }catch(e){}
   S.refYo = false;
+  if(S.contadas && typeof contarMias === 'function') contarMias();   // (v360) «View your requests» baja solo cuando el admin responde
 }
 document.addEventListener('visibilitychange', () => { if(!document.hidden && S.vista === 'reloj') refrescarYo(1500); });
 window.addEventListener('focus', () => { if(S.vista === 'reloj') refrescarYo(1500); });
@@ -7065,10 +7066,20 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
   });
   const esHoy = fecha === fechaHoy();
   if(abierto && esHoy) tramos.push([tipoAb + ' vivo', abierto, t]);
-  tramos.forEach(x => { ini = Math.min(ini, x[1]); fin = Math.max(fin, x[2]); });
-  if(monitor && monitor.p != null){ ini = Math.min(ini, monitor.p); fin = Math.max(fin, monitor.u); }
+  // (v360) con marcas, la escala va de la primera a la última (más 1 h de margen) en horas en punto, mínimo 4 h;
+  // antes se estiraba desde las 6 a. m. y unas marcas de noche quedaban como una raya en el borde.
+  const H = 3600000, base = wall(fecha, '00:00'), puntos = [];
+  tramos.forEach(x => puntos.push(x[1], x[2]));
+  if(monitor && monitor.p != null) puntos.push(monitor.p, monitor.u);
+  if(puntos.length){
+    ini = base + Math.floor((Math.min(...puntos) - base) / H) * H - H; fin = base + Math.ceil((Math.max(...puntos) - base) / H) * H + H;
+    ini = Math.max(ini, base); fin = Math.min(fin, base + 24 * H);
+    while(fin - ini < 4 * H){ if(fin < base + 24 * H) fin += H; else ini -= H; }
+  }
+  const nH = Math.round((fin - ini) / H), cada = [1, 2, 3, 4, 6].find(s => nH / s <= 6) || 6;
+  while(Math.round((fin - ini) / H) % cada){ if(fin < base + 24 * H) fin += H; else ini -= H; }   // las horas del eje caen parejas
   const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
-  let h = tramos.map(x => '<div class="seg ' + x[0] + '" style="left:' + pct(x[1]) + '%;width:' + (pct(x[2]) - pct(x[1])) + '%"></div>').join('');
+  let h = tramos.map(x => '<div class="seg ' + x[0] + '" title="' + (x[0].startsWith('alm') ? 'Lunch ' : 'Work ') + esc(hora(x[1]) + ' – ' + hora(x[2])) + '" style="left:' + pct(x[1]) + '%;width:' + Math.max(.6, pct(x[2]) - pct(x[1])) + '%"></div>').join('');
   if(monitor && monitor.p != null){
     h += '<div class="seg pcon" title="PC online ' + hora(monitor.p) + ' – ' + hora(monitor.u) + '" style="left:' + pct(monitor.p) + '%;width:' + (pct(monitor.u) - pct(monitor.p)) + '%"></div>';
   }
@@ -7080,7 +7091,7 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', tramos.length ? 'Day segments: ' + tramos.map(x => (x[0].startsWith('alm') ? 'lunch ' : 'work ') + hora(x[1]) + ' to ' + hora(x[2])).join(', ') : 'No punches');
   const marcasEje = [];
-  for(let k = 0; k <= 4; k++) marcasEje.push(hora(ini + (fin - ini) * k / 4));
+  for(let m = ini; m <= fin; m += cada * H) marcasEje.push(hora(m).replace(':00 ', ' '));
   eje.innerHTML = marcasEje.map(x => '<span>' + esc(x) + '</span>').join('');
 }
 
