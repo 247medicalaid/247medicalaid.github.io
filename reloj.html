@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v355-202611142230">
+<meta name="app-build" content="v356-202611142215">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -63,7 +63,7 @@
   var deferred=null, chip=null;
   function mkChip(){
     if(chip||app||!document.body) return;
-    chip=document.createElement('button'); chip.type='button'; chip.id='pwaInstall'; chip.textContent='Instalar app'; chip.setAttribute('aria-label','Install app');
+    chip=document.createElement('button'); chip.type='button'; chip.id='pwaInstall'; chip.textContent='Install app'; chip.setAttribute('aria-label','Install app');
     chip.style.cssText='position:fixed;z-index:9999;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));background:#04141F;color:#fff;border:0;border-radius:999px;padding:11px 16px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 6px 20px rgba(4,20,31,.35);cursor:pointer';
     document.body.appendChild(chip);
     chip.addEventListener('click',async function(){ if(!deferred) return; chip.disabled=true; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; if(chip){ chip.remove(); chip=null; } });
@@ -1097,7 +1097,7 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 #vAjustes .cx-pend ul{margin:8px 0 0;padding-left:18px;color:var(--text)}
 #vAjustes .cx-pend li{margin:2px 0}
 #vAjustes .cx-lock{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);background:#EDF1F4;border-radius:99px;padding:4px 10px;white-space:nowrap}
-body.sin-monitor .tab[data-v="mon"], body.sin-monitor .campo-mon, body.sin-monitor #ivSync, body.sin-monitor #ajMonSyncBox .aj-ct2, body.sin-monitor #ajMonSyncBox .aj-ct2 + .aj-filas{display:none!important}
+body.sin-monitor .tab[data-v="mon"], body.sin-monitor .tab[data-v="inv"], body.sin-monitor .txt-mon, body.sin-monitor .campo-mon, body.sin-monitor #ivSync, body.sin-monitor #ajMonSyncBox .aj-ct2, body.sin-monitor #ajMonSyncBox .aj-ct2 + .aj-filas{display:none!important}
 @media (max-width:700px){ #vAjustes .cx-efectos{grid-template-columns:1fr;margin-left:16px;margin-right:16px} #vAjustes .cx-pend{margin-left:16px;margin-right:16px} }
 /* cuentas (v307) */
 #vAjustes .cta-cuerpo{padding-top:4px}
@@ -3176,7 +3176,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <aside class="chat-lado">
         <div class="chat-lado-cab"><h2>Chat</h2><button class="btn btn-ink btn-sm" id="chatNuevo" type="button" aria-label="New chat"><span class="cn-mas" aria-hidden="true">+</span><span class="cn-txt"> New chat</span></button></div>
         <div class="chat-modo hidden" id="chatModo" role="group" aria-label="Which conversations"><button type="button" data-chat-modo="mios" aria-pressed="true">My chats</button><button type="button" data-chat-modo="todos" aria-pressed="false">Review all <b class="chat-rev-n hidden" id="chatRevN"></b></button></div>
-        <p class="chat-aviso hidden" id="chatAvisoRev">The administrator can review the chats. Don't share patient information here.</p>
+        <p class="chat-aviso hidden" id="chatAvisoRev">The administrator can review the chats. Don't share <span id="chatAvisoQue">patient</span> information here.</p>
         <button class="btn-link chat-notif hidden" id="chatNotif" type="button">🔔 Turn on alerts for new messages</button>
         <button class="btn-link chat-notif hidden" id="chatAppLink" type="button">📱 Get the phone app</button>
         <input id="chatBuscar" type="search" placeholder="Search…" autocomplete="off" aria-label="Search conversations">
@@ -3467,7 +3467,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <span class="esp"></span>
       <button class="btn btn-ink btn-sm" id="eNuevo">Add user</button>
     </div>
-    <p class="nota" style="margin:-6px 0 12px;max-width:80ch">Agents sign in to the Time Clock with their email: add them here and they get an email to create their password. They only see their own Time Clock. Administrative staff are created in the portal.</p>
+    <p class="nota" style="margin:-6px 0 12px;max-width:80ch">Agents sign in to the Time Clock with their email: add them here and they get an email to create their password. They only see their own Time Clock.<span id="notaPortalAdm"> Administrative staff are created in the portal.</span></p>
     <div class="users-barra">
       <input id="uBuscar" type="search" placeholder="Search name, phone, email…" autocomplete="off" aria-label="Search users">
       <select id="uCuenta" aria-label="Account"><option value="">All accounts</option></select>
@@ -3644,13 +3644,13 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <div class="overlay hidden" id="ovEmp" role="dialog" aria-modal="true" aria-labelledby="eTitulo">
   <div class="ventana ventana-ficha">
     <h2 id="eTitulo">Add user</h2>
-    <div class="sub">Their sign-in email, account, Monitor and Payroll links, and personal details.</div>
+    <div class="sub">Their sign-in email, account, <span class="txt-mon">Monitor and </span>Payroll links, and personal details.</div>
     <div class="ficha-sec sec-id">
     <div class="ficha-grid">
       <label class="campo c3" style="--w:160px"><span>First name</span><input id="eNombre" autocomplete="off" autocapitalize="words" placeholder="e.g. Ana Maria"></label>
       <label class="campo c3" style="--w:160px"><span>Last name</span><input id="eApellidos" autocomplete="off" autocapitalize="words" placeholder="e.g. Restrepo Gomez"></label>
       <label class="campo c6" style="--w:285px"><span>Email <i class="opc" style="font-style:normal;font-weight:400">(they sign in with it)</i></span><input id="eEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@example.com"></label>
-      <label class="campo c3" style="--w:150px"><span>User ID <i class="opc" style="font-style:normal;font-weight:400">(for the Monitor app)</i></span><input id="eCodigo" readonly placeholder="— (on save)" title="Fixed code for this user. The Monitor app on their computer uses it to identify them." style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:1.5px;background:#fff"></label>
+      <label class="campo c3" style="--w:150px"><span>User ID <i class="opc txt-mon" style="font-style:normal;font-weight:400">(for the Monitor app)</i></span><input id="eCodigo" readonly placeholder="— (on save)" title="Fixed code for this user. The Monitor app on their computer uses it to identify them." style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:1.5px;background:#fff"></label>
     </div>
     <div class="acc-emp" id="eAcceso"></div>
     <div class="lugar-emp hidden" id="eLugar"></div>
@@ -4251,6 +4251,9 @@ aplicarMarca();
   if(PORTAL){ if(bp) bp.href = PORTAL; if(pl && pl.firstElementChild) pl.firstElementChild.href = PORTAL; }
   else { if(bp) bp.classList.add('solo-off'); if(pl) pl.classList.add('solo-off'); }
   if(mn) mn.href = INST.monitorUrl || '#';
+  // (v356) sin portal no hay «personal administrativo del portal»; fuera de 24/7 el aviso del chat es genérico
+  if(!PORTAL){ const np = document.getElementById('notaPortalAdm'); if(np) np.remove(); }
+  if(!INST_SOLO247){ const cq = document.getElementById('chatAvisoQue'); if(cq) cq.textContent = 'sensitive'; }
 }catch(e){} })();
 
 const NOMBRE_TIPO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
@@ -6586,7 +6589,7 @@ function pintarHorario(){
   const hoy = (S.yo && S.yo.hoy) || fechaHoy();
   if(!S.hor) S.hor = { lunes:lunesDe(hoy), dias:(S.yo && S.yo.horario) || null };
   const sem = S.hor.dias;
-  if(!sem){ const nel = $('rHorNav'); if(nel) nel.innerHTML = ''; cont.innerHTML = '<p class="muted">Your schedule isn\'t set in the Monitor yet. Ask your administrator.</p>'; return; }
+  if(!sem){ const nel = $('rHorNav'); if(nel) nel.innerHTML = ''; cont.innerHTML = '<p class="muted">Your schedule isn\'t set yet. Ask your administrator.</p>'; return; }
   const diaL = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', weekday:'long' }).format(new Date(f + 'T12:00:00Z'));
   const mdc = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
   const diaNum = f => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', day:'numeric' }).format(new Date(f + 'T12:00:00Z'));
@@ -7216,7 +7219,7 @@ function pintarHoy(){
   filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'en'));
   if(!filas.length){
     $('hoyResumen').innerHTML = ''; $('hoyFiltro').innerHTML = '';
-    $('hoyLista').innerHTML = '<div class="vacio"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
+    $('hoyLista').innerHTML = '<div class="vacio"><h2>No employees in the Time Clock yet</h2><p>Add them in Users.</p></div>';
     return;
   }
   // v100: filtro por estado (Clocked in / Clocked out / Not clocked in / Time off / With alerts)
@@ -7729,7 +7732,7 @@ function pintarHoja(){
   if(h.empleados.length) $('hojaResumen').innerHTML = resumenHoja(h);
   requestAnimationFrame(altoResumen);
   if(!h.empleados.length){
-    $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees in the Time Clock yet</h2><p>Add them in the Employees section.</p></div>';
+    $('hojaTabla').innerHTML = '<div class="vacio" style="border:0"><h2>No employees in the Time Clock yet</h2><p>Add them in Users.</p></div>';
     return;
   }
   const finde = f => [0,6].includes(new Date(f + 'T12:00:00Z').getUTCDay());
@@ -8537,7 +8540,7 @@ function tcvHTML(e){
 const UGRUPOS = { cuenta:{ t:'Account', v:e => e.cuenta, vacio:'No account' }, titulo:{ t:'Title', v:e => e.titulo, vacio:'No title' }, ciudad:{ t:'City', v:e => e.ciudad, vacio:'No city' } };
 function uPref(k, def){ try{ const v = JSON.parse(localStorage.getItem('reloj_users_' + k)); return v == null ? def : v; }catch(e){ return def; } }
 function uGuardarPref(k, v){ try{ localStorage.setItem('reloj_users_' + k, JSON.stringify(v)); }catch(e){} }
-function uColsVer(){ const c = uPref('cols', UCOLS_BASE); return (Array.isArray(c) ? UCOLS.filter(x => c.includes(x.k)) : UCOLS.filter(x => UCOLS_BASE.includes(x.k))).filter(x => x.k !== 'monitor' || monOn()); }
+function uColsVer(){ const c = uPref('cols', UCOLS_BASE); return (Array.isArray(c) ? UCOLS.filter(x => c.includes(x.k)) : UCOLS.filter(x => UCOLS_BASE.includes(x.k))).filter(x => !['monitor', 'app', 'tcv'].includes(x.k) || monOn()); }
 // grupos: por clave normalizada; el nombre que se muestra es la forma más común
 function uGrupos(l, por){
   const g = UGRUPOS[por], m = new Map();
@@ -8598,7 +8601,7 @@ $('empsTabla').addEventListener('click', ev => {
 // columnas: el panel con casillas
 function pintarUCols(){
   const ver = uColsVer().map(c => c.k);
-  $('uColsLista').innerHTML = UCOLS.filter(c => c.k !== 'monitor' || monOn()).map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (ver.includes(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('');
+  $('uColsLista').innerHTML = UCOLS.filter(c => !['monitor', 'app', 'tcv'].includes(c.k) || monOn()).map(c => '<label><input type="checkbox" data-col="' + c.k + '"' + (ver.includes(c.k) ? ' checked' : '') + '> ' + esc(c.t) + '</label>').join('');
   $('uCols').textContent = 'Columns (' + ver.length + ')';
 }
 $('uCols').addEventListener('click', ev => { ev.stopPropagation(); const p = $('uColsPanel'), abre = p.classList.contains('hidden'); p.classList.toggle('hidden', !abre); $('uCols').setAttribute('aria-expanded', abre); });
@@ -9085,8 +9088,7 @@ function verEmp(usuario){
     row('Bank', t(e.banco)) +
     row('Account number', copiable(e.cuentaBanco, 'account number'));
   const app = (monOn() ? row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') : '') +
-    row('Windows app', appUsoHTML(e)) +
-    row('App version', tcvHTML(e));
+    (monOn() ? row('Windows app', appUsoHTML(e)) + row('App version', tcvHTML(e)) : '');
   const col = (inner) => '<div class="ve-col">' + inner + '</div>';
   $('veCuerpo').innerHTML =
     col(sec('sec-work', 'Work', work) + sec('sec-personal', 'Personal', personal)) +
@@ -9690,7 +9692,7 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
 // (v312) Settings → Connections: interruptores reales (el del Monitor = monitor_sync.activo; los demás en reloj_config('conexiones')).
 function monOn(){ return !(S.monitorSync && S.monitorSync.activo === false); }
 function conx(k){ const c = S.conexiones || {}; return c[k] !== false; }
-function aplicarConexiones(){ document.body.classList.toggle('sin-monitor', !monOn()); if(!monOn() && S.vista === 'mon') irA('hoy'); }
+function aplicarConexiones(){ document.body.classList.toggle('sin-monitor', !monOn()); if(!monOn() && (S.vista === 'mon' || S.vista === 'inv')) irA('hoy'); }   // (v356) Inventory también depende del Monitor
 function monSyncCfg(){ const c = S.monitorSync || {}; const pg = c.pago || {}; return { activo: c.activo !== false, pago:{ vacaciones: pg.vacaciones === true, enfermedad: pg.enfermedad === true, personal: pg.personal === true } }; }
 // (v326) Historial de activación del Monitor (Settings → Connections)
 function pintarMonTramos(){
