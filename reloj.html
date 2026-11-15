@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v360-202611150050">
+<meta name="app-build" content="v361-202611150100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -15122,11 +15122,31 @@ $('pyAnios').addEventListener('click', async e => {
   try{
     const runs = await api('nominasAnio', { anio:b.dataset.anio });
     if(!S.coloresN) await cargarColores().catch(() => null);
-    descargarBlob(xlsxPayRun(runs.map(runDeGuardada), 'PAY ROLL ' + b.dataset.anio), (INST_SOLO247 ? 'CALL CENTER PAY ROLL ' : 'Pay runs ') + b.dataset.anio + '.xlsx');
+    if(solo247('cpr')) descargarBlob(xlsxPayRun(runs.map(runDeGuardada), 'PAY ROLL ' + b.dataset.anio), 'CALL CENTER PAY ROLL ' + b.dataset.anio + '.xlsx');
+    else descargarBlob(xlsxPagosAnio(runs, b.dataset.anio), 'Pay runs ' + b.dataset.anio + '.xlsx');   // (v360) fuera de 24/7: tabla simple, sin TRM ni Nómina 247
     toast('Exported ' + runs.length + (runs.length === 1 ? ' pay run.' : ' pay runs.'));
   }catch(x){ toast(x.message, 'err'); }
   b.disabled = false;
 });
+// (v360) Pay runs del año en una tabla: una fila por persona y pay run, con totales
+function xlsxPagosAnio(runs, anio){
+  const base = cfgMoneda(reglasPago()).base, num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 0 : Math.round(Number(v) * 100) / 100;
+  const otraMon = runs.some(r => ((r.datos && r.datos.filas) || []).some(f => f.moneda && f.moneda !== base));
+  const cab = ['Pay period', 'Status', 'Employee', 'Account'].concat(otraMon ? ['Paid in'] : [], ['Rate (' + base + '/hour)', 'Hours', 'Overtime hours', 'Hours pay', 'Add days', 'Add pay', 'Bonus', 'Adjustment', 'Total', 'Net']);
+  const filas = [], tot = { h:0, ot:0, j:0, d:0, k:0, b:0, a:0, m:0, x:0 };
+  runs.slice().sort((a, b) => a.desde.localeCompare(b.desde)).forEach(r => {
+    const per = diaS(r.desde) + ' – ' + diaS(r.hasta), est = r.estado === 'cerrada' ? 'Closed' : 'Draft';
+    ordenPago((r.datos && r.datos.filas) || []).forEach(f => {
+      const v = { h:expHd(f.min), ot:expHd(f.minOt), j:num(f.j), d:num(f.dias), k:num(f.k), b:num(f.bonoUsd), a:num(f.aj), m:num(f.m), x:num(f.x) };
+      Object.keys(tot).forEach(k => { tot[k] += v[k]; });
+      filas.push([per, est, f.nombre || ctTitulo((f.nom || '') + ' ' + (f.ape || '')), f.cuenta || ''].concat(otraMon ? [f.moneda || base] : [], [num(f.tarifa), v.h, v.ot, v.j, v.d, v.k, v.b, v.a, v.m, v.x]));
+    });
+  });
+  const r2 = n => Math.round(n * 100) / 100, t = ['Total', '', '', ''].concat(otraMon ? [''] : [], ['', r2(tot.h), r2(tot.ot), r2(tot.j), r2(tot.d), r2(tot.k), r2(tot.b), r2(tot.a), otraMon ? '' : r2(tot.m), otraMon ? '' : r2(tot.x)]);
+  t.negrita = true; filas.push(t);
+  return xlsxTablas([{ nombre:'Pay runs ' + anio, titulo:['Pay runs ' + anio + ' · ' + runs.length + (runs.length === 1 ? ' pay run' : ' pay runs')], cab, filas,
+    anchos:[24, 9, 26, 22].concat(otraMon ? [9] : [], [12, 9, 11, 11, 9, 10, 10, 11, 12, 12]) }]);
+}
 const runDeGuardada = r => ({ desde:r.desde, hasta:r.hasta, trm:Number(r.trm), tasa:Number(r.tasa), reglas:(r.datos && r.datos.reglas) || reglasPago(), filas:(r.datos && r.datos.filas) || [] });
 function descargarBlob(blob, nombre){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
