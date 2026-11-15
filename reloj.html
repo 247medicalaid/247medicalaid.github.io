@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v357-202611142225">
+<meta name="app-build" content="v358-202611142330">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -61,15 +61,28 @@
   if(app) document.documentElement.setAttribute('data-app','1');
   if('serviceWorker' in navigator) addEventListener('load',function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
   var deferred=null, chip=null;
+  // (v358) «Install app» tapaba el botón Send del chat y los avisos: ahora tiene ×, se esconde solo a los 12 s y mientras se escribe;
+  //        si lo cierran no vuelve en 14 días (preferencia de este navegador).
+  var CHIP_K='tc.pwaChipNo';
+  function chipCerrado(){ try{ var t=Number(localStorage.getItem(CHIP_K)||0); return t && Date.now()-t < 14*864e5; }catch(_){ return false; } }
+  function quitarChip(rec){ if(rec){ try{ localStorage.setItem(CHIP_K, String(Date.now())); }catch(_){} } if(chip){ chip.remove(); chip=null; } }
   function mkChip(){
-    if(chip||app||!document.body) return;
-    chip=document.createElement('button'); chip.type='button'; chip.id='pwaInstall'; chip.textContent='Install app'; chip.setAttribute('aria-label','Install app');
-    chip.style.cssText='position:fixed;z-index:9999;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));background:#04141F;color:#fff;border:0;border-radius:999px;padding:11px 16px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 6px 20px rgba(4,20,31,.35);cursor:pointer';
-    document.body.appendChild(chip);
-    chip.addEventListener('click',async function(){ if(!deferred) return; chip.disabled=true; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; if(chip){ chip.remove(); chip=null; } });
+    if(chip||app||!document.body||chipCerrado()) return;
+    chip=document.createElement('div'); chip.id='pwaInstall';
+    chip.style.cssText='position:fixed;z-index:9999;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;background:#04141F;color:#fff;border-radius:999px;box-shadow:0 6px 20px rgba(4,20,31,.35);font:600 14px Inter,system-ui,sans-serif;transition:opacity .2s';
+    var b1=document.createElement('button'); b1.type='button'; b1.textContent='Install app'; b1.setAttribute('aria-label','Install app');
+    b1.style.cssText='background:none;border:0;color:inherit;font:inherit;padding:11px 6px 11px 16px;cursor:pointer';
+    var b2=document.createElement('button'); b2.type='button'; b2.textContent='\u00d7'; b2.setAttribute('aria-label','Hide');
+    b2.style.cssText='background:none;border:0;color:#9FB3C0;font:600 18px Inter,system-ui,sans-serif;padding:8px 14px 8px 8px;cursor:pointer;line-height:1';
+    chip.appendChild(b1); chip.appendChild(b2); document.body.appendChild(chip);
+    b1.addEventListener('click',async function(){ if(!deferred) return; b1.disabled=true; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; quitarChip(false); });
+    b2.addEventListener('click',function(){ quitarChip(true); });
+    setTimeout(function(){ quitarChip(false); }, 12000);
   }
+  addEventListener('focusin',function(e){ var t=e.target; if(chip && t && (t.tagName==='TEXTAREA'||t.tagName==='INPUT'||t.isContentEditable)) chip.style.display='none'; });
+  addEventListener('focusout',function(){ if(chip) chip.style.display='flex'; });
   addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferred=e; if(document.body) mkChip(); else addEventListener('DOMContentLoaded',mkChip); });
-  addEventListener('appinstalled',function(){ if(chip){ chip.remove(); chip=null; } deferred=null; });
+  addEventListener('appinstalled',function(){ quitarChip(false); deferred=null; });
   // Botón ATRÁS de Android (solo como app instalada): cerrar overlay/menú antes de salir
   if(app){
     var reArm=function(){ try{ history.pushState({tc:1},''); }catch(_){} };
@@ -3166,7 +3179,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <span class="esp"></span>
       <button class="btn btn-ink btn-sm" id="updNuevo" type="button">New update</button>
     </div>
-    <p class="nota" style="margin:-6px 0 12px;max-width:85ch">Messages for the agents: for everyone or for a group (account, title or city). They see them in the Time Clock and get a Windows notification. Open one to see who read it.</p>
+    <p class="nota" style="margin:-6px 0 12px;max-width:85ch">Messages for the agents: for everyone or for a group (account, title or city). They see them in the Time Clock<span class="txt-mon"> and get a Windows notification</span>. Open one to see who read it.</p>
     <div id="updLista" class="upd-lista"></div>
   </section>
 
@@ -6765,14 +6778,16 @@ function pintarPagoAg(){
   const num = k => { const r = pg[k]; if(r == null || r === '') return null; const v = Number(r); return isFinite(v) ? v : null; };
   const m = num('m'), y = num('y'), n = num('n'), v = num('v'), w = num('w'), x = num('x'), tar = num('tarifa'), fijo = num('fijo');
   const es247 = pg.de === '247';
+  // (v358) nómina local (sin cambio de moneda): todo en la moneda de la empresa, sin «Exchange rate» ni pesos
+  const local = !INST_SOLO247 && (y == null || Math.abs(y - 1) < 1e-9), bm = cfgMoneda().base, enB = v => bm + ' ' + (v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(2);
   const cel = (et, va, cls) => '<div class="pay-cel' + (cls ? ' ' + cls : '') + '"><span class="et">' + et + '</span><span class="va">' + va + '</span></div>';
   const celdas = [];
   if(fijo == null){
     if(tar != null) celdas.push(cel('Hourly rate', 'USD ' + tar.toFixed(2)));
     if(m != null) celdas.push(cel('Gross pay (USD)', 'USD ' + m.toFixed(2)));
-    if(y) celdas.push(cel('Exchange rate', '$' + Math.round(y).toLocaleString('es-CO')));
+    if(y && !local) celdas.push(cel('Exchange rate', '$' + Math.round(y).toLocaleString('es-CO')));
   }
-  celdas.push(cel(fijo != null ? 'Fixed pay (COP)' : 'Gross pay (COP)', copCO(fijo != null ? fijo : n)));
+  if(!local || fijo != null) celdas.push(cel(fijo != null ? 'Fixed pay (' + (local ? bm : 'COP') + ')' : 'Gross pay (COP)', local ? enB(fijo) : copCO(fijo != null ? fijo : n)));
   // deducciones: una celda con el total; el detalle sale al pasar el mouse o al tocar (globo flotante, no alarga)
   const det = [];
   if(es247 && v) det.push(['Rete ICA (' + esc(String(pg.ica || '9.5')) + ' per 1,000)', v]);
@@ -6781,13 +6796,15 @@ function pintarPagoAg(){
   if(det.length){
     const CAR = det.length > 1 ? ' <svg class="car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' : '';
     const arriba = celdas.length >= 3;   // caería en la 2ª fila: el globo sale hacia arriba
-    const titulo = det.map(d => d[0].replace(/<[^>]+>/g, '') + ': −' + copCO(d[1])).join('  ·  ');
+    const fmD = v => local ? enB(v) : copCO(v);
+    const titulo = det.map(d => d[0].replace(/<[^>]+>/g, '') + ': −' + fmD(d[1])).join('  ·  ');
     const pop = det.length > 1 ? '<div class="pay-ded-pop ' + (arriba ? 'arriba' : 'abajo') + '">' +
-        det.map(d => '<div class="dl"><span class="et">' + d[0] + '</span><span class="va">−' + copCO(d[1]) + '</span></div>').join('') + '</div>' : '';
+        det.map(d => '<div class="dl"><span class="et">' + d[0] + '</span><span class="va">−' + fmD(d[1]) + '</span></div>').join('') + '</div>' : '';
     celdas.push('<div class="pay-cel ded"' + (det.length > 1 ? ' tabindex="0" role="button" aria-expanded="false"' : '') + ' title="' + esc(titulo) + '">' +
-        '<span class="et">Deductions' + CAR + '</span><span class="va neg">−' + copCO(totDed) + '</span>' + pop + '</div>');
+        '<span class="et">Deductions' + CAR + '</span><span class="va neg">−' + fmD(totDed) + '</span>' + pop + '</div>');
   }
-  celdas.push(cel('Net pay (COP)', copCO(x != null ? x : (n || 0) - totDed), 'neto'));
+  celdas.push(local ? cel('Net pay (' + bm + ')', enB(x != null ? x : (fijo != null ? fijo : (m || 0)) - totDed), 'neto')
+                    : cel('Net pay (COP)', copCO(x != null ? x : (n || 0) - totDed), 'neto'));
   let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
   h += '<div class="pay-grid">' + celdas.join('') + '</div>';
   if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from ' + IMP_DE : '') + '</div>';
@@ -7463,7 +7480,7 @@ function estadoMonitorHoja(h){
   const act = h.fechas.filter(f => monActivoEn(f)), actPas = pasadas.filter(f => monActivoEn(f));
   if(!monOn()) return tr && actPas.length
     ? et('gris', 'Agent Monitor is off — PC checks unavailable', 'The Monitor was active on some of these dates, but it\'s turned off now (Settings → Connections).')
-    : et('gris', 'Monitor not active in this period');
+    : '';   // (v358) sin Monitor no hay nada que avisar
   if(!actPas.length) return et('gris', 'Monitor not active in this period', 'The Agent Monitor wasn\'t active on these dates, so punches aren\'t checked against the PCs.');
   if(!h.monitor) return et('info', 'Monitor not connected in this browser', 'Open the Agent Monitor here once, with its URL and token, and the Time Clock will use it.');
   if(h.monitorCargando) return et('info', 'Checking against the Monitor…', 'Hours are ready; PC alerts will appear in a few seconds.');
@@ -8616,7 +8633,11 @@ $('eCargo').addEventListener('focus', () => { const t = new Set((S.emps ? S.emps
   $('eCargoLista').innerHTML = [...t].sort().map(x => '<option value="' + esc(x) + '">').join(''); });
 ['uBuscar','uCuenta','uEstado'].forEach(id => $(id).addEventListener(id === 'uBuscar' ? 'input' : 'change', () => { if(S.emps) pintarEmps(); }));
 // (v238) Actualiza el bloque de manager de cuenta en la ficha segun la cuenta elegida.
-function nombreGM(){ const g = S.gm || ''; if(!g) return 'General Manager'; const e = ((S.emps && S.emps.empleados) || []).find(x => x.usuario === g); return e ? e.nombre : 'General Manager'; }
+// (v358) Nombre para mostrar de un usuario: empleado, luego cuenta de acceso (admins), luego yo; si no, el usuario tal cual.
+function nombreDeUsuario(u){ if(!u) return ''; const E = S.emps || {}, e = (E.empleados || []).find(x => x.usuario === u); if(e && e.nombre) return e.nombre;
+  const p = (E.portal || []).find(x => x.username === u); if(p && p.nombre) return p.nombre;
+  if(S.yo && S.yo.usuario && S.yo.usuario.username === u && S.yo.usuario.nombre) return S.yo.usuario.nombre; return u; }
+function nombreGM(){ const g = S.gm || ''; if(!g) return 'General Manager'; const n = nombreDeUsuario(g); return n && n !== g ? n : 'General Manager'; }
 function actualizarMgrNota(){
   const sel = S.mgrSel || (S.mgrSel = new Set());
   const cta = ($('eCuenta') && $('eCuenta').value) || '';
@@ -10059,7 +10080,7 @@ function ajPill(txt, tipo){ return '<span class="aj-pill ' + (tipo || '') + '">'
 // Resumen de cada sección (lo GUARDADO, no lo que se está editando).
 function ajResumen(k){
   const emps = (S.emps && S.emps.empleados) || [];
-  const nom = u => { const e = emps.find(x => x.usuario === u); return e ? e.nombre : u; };
+  const nom = u => nombreDeUsuario(u);
   const red = S.redondeo || 1, as = S.autoSalida || {}, ad = S.ausDiaria || {};
   try{
     switch(k){
@@ -14197,7 +14218,7 @@ const SOLO247 = [
 ];
 const solo247 = k => { if(!INST_SOLO247) return false; const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };   // (v353) el producto no tiene nada de esto
 const pagoComoProducto = () => INST_SOLO247 && SOLO247.some(x => x.pago && !solo247(x.k));
-const soloPago = k => cerradaPago() || solo247(k);   // una nómina cerrada se ve como se pagó
+const soloPago = k => INST_SOLO247 && (cerradaPago() || solo247(k));   // una nómina cerrada se ve como se pagó · (v358) fuera de 24/7 nunca
 function aplicarSolo247(){
   const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !solo247(k)); };
   t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
@@ -14562,7 +14583,7 @@ function pintarPago(){
   $('pyReabrir').textContent = 'Reopen'; $('pyCerrar').textContent = 'Close pay run';
   const pr = S.pr, P = pr.P, cerr = cerradaPago(), run = pr.run;
   $('pyEstado').innerHTML = '<span class="pill ' + (cerr ? 'pr-cerr' : run ? 'pr-borr' : '') + '">' + (cerr ? 'Closed' : run ? 'Draft' : 'Not saved') + '</span>' +
-    '<span class="nota">' + (cerr ? 'Closed by ' + esc(run.cerrado_por || '') + ' on ' + fmt(Date.parse(run.cerrado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + '. Reopen it to change anything.'
+    '<span class="nota">' + (cerr ? 'Closed by ' + esc(nombreDeUsuario(run.cerrado_por || '')) + ' on ' + fmt(Date.parse(run.cerrado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + '. Reopen it to change anything.'
       : run ? 'Saved ' + fmt(Date.parse(run.actualizado_en || run.creado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + ' by ' + esc(run.actualizado_por || run.creado_por || '') + '.'
       : 'Nothing saved for this pay period yet.') + (pr.sucio ? ' <b class="pr-sucio">Unsaved changes.</b>' : '') + '</span>';
   const R = P.reglas, dis = cerr ? ' disabled' : '';
@@ -14920,7 +14941,7 @@ async function guardarPago(cerrarla){
     if(!pr.P.fechaPago || faltan.length) return toast('To close the pay run, set the payment date' + (faltan.length ? ' and the exchange rate (' + faltan.join(', ') + ')' : '') + '.', 'err');
     const t = totalesPago(pr.filas);
     const pendRev = (pr.diffs || []).filter(d => !(pr.revisados && pr.revisados.has(d.usuario))).length;
-    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + dinero(t.neto, t.moneda) + ' to pay</b> (Nómina 247 ' + dinero(t.neto247, t.moneda) + ', personal ' + dinero(t.netoPersonal, t.moneda) + ')' +
+    if(!(await confirmar('Close the ' + nomQuin(pr.desde) + ' pay run?', t.personas + ' people · ' + usd(t.usd) + ' · <b>' + dinero(t.neto, t.moneda) + ' to pay</b>' + (soloPago('fuentes') ? ' (Nómina 247 ' + dinero(t.neto247, t.moneda) + ', personal ' + dinero(t.netoPersonal, t.moneda) + ')' : '') +
       Object.keys(t.porMon).filter(x => x !== t.moneda).map(x => ' + <b>' + dinero(t.porMon[x].neto, x) + '</b>').join('') +
       (pendRev ? '.<br><br><b>' + pendRev + ' recalculated change' + (pendRev === 1 ? '' : 's') + ' not reviewed</b> — kept as paid.' : '') +
       '<br><br>Closed pay runs don\'t change when hours are edited later. You can reopen it if something has to change.', 'Close pay run'))) return;
@@ -14970,13 +14991,15 @@ async function pintarHistorialPago(){
     if(!l.length){ caja.innerHTML = '<p class="nota">No saved pay runs yet.</p>'; $('pyAnios').innerHTML = ''; return; }
     const anios = Array.from(new Set(l.filter(x => x.estado === 'cerrada').map(x => x.desde.slice(0, 4)))).sort().reverse();
     $('pyAnios').innerHTML = anios.map(a => '<button class="btn btn-ghost btn-sm" type="button" data-anio="' + a + '">Export ' + a + ' (Excel)</button>').join('');
-    caja.innerHTML = '<div class="tabla-wrap"><table class="hoja pr-hist"><thead><tr><th class="nombre">Pay period</th><th>Status</th><th>Payment date</th><th>TRM</th><th>Dollar at</th><th>People</th><th class="tot">Total USD</th><th class="tot">To pay (COP)</th></tr></thead><tbody>' +
+    // (v358) TRM / tasa / total en pesos solo si alguna nómina se pagó en otra moneda (24/7); en una nómina local, solo el total
+    const cmH = cfgMoneda(), conCambio = INST_SOLO247 || l.some(x => x.tasa != null && Math.abs(Number(x.tasa) - 1) > 1e-9);
+    caja.innerHTML = '<div class="tabla-wrap"><table class="hoja pr-hist"><thead><tr><th class="nombre">Pay period</th><th>Status</th><th>Payment date</th>' + (conCambio ? '<th>TRM</th><th>Dollar at</th>' : '') + '<th>People</th><th class="tot">Total ' + cmH.base + '</th>' + (conCambio ? '<th class="tot">To pay (COP)</th>' : '') + '</tr></thead><tbody>' +
       l.map(x => { const t = x.totales || {};
         return '<tr class="' + (S.pr && x.desde === S.pr.desde ? 'sel' : '') + '"><td class="nombre"><button class="nom-btn" type="button" data-pq="' + x.desde + '"><span>' + esc(nomQuin(x.desde)) + '</span></button></td>' +
           '<td><span class="pill ' + (x.estado === 'cerrada' ? 'pr-cerr' : 'pr-borr') + '">' + (x.estado === 'cerrada' ? (x.origen === 'importada' ? 'Imported · locked' : 'Closed') : (x.origen === 'importada' ? 'Imported · unlocked' : 'Draft')) + '</span></td>' +
-          '<td>' + (x.fecha_pago ? diaS(x.fecha_pago) : '—') + '</td><td class="num">' + (x.trm != null ? Number(x.trm).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td>' +
-          '<td class="num">' + (x.tasa != null ? Number(x.tasa).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td><td class="num">' + (t.personas || 0) + '</td>' +
-          '<td class="tot num">' + usd(t.usd || 0) + '</td><td class="tot num">' + cop(t.neto || 0) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+          '<td>' + (x.fecha_pago ? diaS(x.fecha_pago) : '—') + '</td>' + (conCambio ? '<td class="num">' + (x.trm != null ? Number(x.trm).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td>' +
+          '<td class="num">' + (x.tasa != null ? Number(x.tasa).toLocaleString('en-US', { minimumFractionDigits:2 }) : '—') + '</td>' : '') + '<td class="num">' + (t.personas || 0) + '</td>' +
+          '<td class="tot num">' + usd(t.usd || 0) + '</td>' + (conCambio ? '<td class="tot num">' + cop(t.neto || 0) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
   }catch(e){ caja.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; }
 }
 $('pyHist').addEventListener('click', e => { const b = e.target.closest('[data-pq]'); if(b){ irPago(b.dataset.pq); window.scrollTo({ top:0, behavior:'smooth' }); } });
@@ -14985,7 +15008,7 @@ $('pyAnios').addEventListener('click', async e => {
   try{
     const runs = await api('nominasAnio', { anio:b.dataset.anio });
     if(!S.coloresN) await cargarColores().catch(() => null);
-    descargarBlob(xlsxPayRun(runs.map(runDeGuardada), 'PAY ROLL ' + b.dataset.anio), 'CALL CENTER PAY ROLL ' + b.dataset.anio + '.xlsx');
+    descargarBlob(xlsxPayRun(runs.map(runDeGuardada), 'PAY ROLL ' + b.dataset.anio), (INST_SOLO247 ? 'CALL CENTER PAY ROLL ' : 'Pay runs ') + b.dataset.anio + '.xlsx');
     toast('Exported ' + runs.length + (runs.length === 1 ? ' pay run.' : ' pay runs.'));
   }catch(x){ toast(x.message, 'err'); }
   b.disabled = false;
