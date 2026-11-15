@@ -16,7 +16,7 @@
 <!-- v302: Timesheet — dialogo de aprobar una fecha: listas de nombres plegables (See who / alerts / no clock-out), letra mas chica -->
 <!-- v301: Timesheet — aprobar una FECHA cuenta y nombra PERSONAS ("3 people"), marcando las de solo time off; antes decia "3 days" y confundia -->
 <!-- v300: Timesheet — la fecha solo se marca aprobada si TODOS los agentes visibles (incluidos los dias con solo ausencia) estan aprobados; ✗ de "Unauthorized absence" mas grande y fondo rojo mas oscuro -->
-<meta name="app-build" content="v354-202611142130">
+<meta name="app-build" content="v355-202611142230">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3113,7 +3113,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
       <button class="btn btn-ink btn-sm" id="auExpDet" type="button" title="Select people with the boxes on the left">Export detail (Excel)</button>
       <div class="periodo"><select id="auAnio" aria-label="Year"></select></div>
     </div>
-    <p class="nota" style="margin:-6px 0 12px;max-width:95ch">Approved time off for each person in the year (including what came from Connecteam). A full day counts as 1; time off by the hour counts its hours divided by the person's hours per day. Weekends inside a multi-day time off aren't counted. Click a person to see each date. Tick the boxes to export the day-by-day detail of those people.</p>
+    <p class="nota" style="margin:-6px 0 12px;max-width:95ch">Approved time off for each person in the year (including imported time off). A full day counts as 1; time off by the hour counts its hours divided by the person's hours per day. Weekends inside a multi-day time off aren't counted. Click a person to see each date. Tick the boxes to export the day-by-day detail of those people.</p>
     <div class="users-barra">
       <input id="auBuscar" type="search" placeholder="Search name…" autocomplete="off" aria-label="Search">
       <select id="auCuenta" aria-label="Account"><option value="">All accounts</option></select>
@@ -4423,7 +4423,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(!marcas.length) return f;
   if(marcas.every(m => m.origen === 'importado')){
     const mo = (marcas.find(m => /^Connecteam: /.test(m.motivo || '')) || {}).motivo;
-    f.push({ c:'IMPORTADO', n:'info', t:'Imported from Connecteam' + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
+    f.push({ c:'IMPORTADO', n:'info', t:'Imported from ' + IMP_DE + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
   }
   if(!monOn()) return f;   // (v312) Monitor apagado: sin verificación de PC
   if(mon === MON_OFF) return f;   // (v326) ese día el Monitor no estaba activo: no hay nada que verificar
@@ -4714,7 +4714,7 @@ const seg = ms => (ms / 1000).toFixed(1) + ' s';
 async function q(p){ const { data, error } = await p; if(error){ const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
 /* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
 const SERVIDOR_EN = [
-  [/^Tu sesión no es válida.*/, 'Your session is not valid. Sign in to the portal again.'],
+  [/^Tu sesión no es válida.*/, PORTAL ? 'Your session is not valid. Sign in to the portal again.' : 'Your session is not valid. Sign in again.'],
   [/^Tu usuario aún no tiene reloj.*/, 'Your user doesn\'t have a time clock yet. Ask the administrator to add you.'],
   [/^Tipo de marca no válido\.$/, 'Invalid punch type.'],
   [/^Ya hiciste esa marca hace un momento\.$/, 'You already made that punch a moment ago.'],
@@ -4925,8 +4925,88 @@ const SERVIDOR_EN = [
   [/reloj_marcar\(p_tipo => .*p_ubic/, 'Clocking with location needs SQL step 21 in Supabase.'],
   [/^Solo un administrador puede ver el historial\.$/, 'Only an administrator can see the history.'],
   [/reloj_historial_dia/, 'The history needs SQL step 17 in Supabase.'],
-  [/^Una corrección de horas no se edita.*/, 'An hours correction can\'t be edited: undo the approval, or fix the day in the timesheet.']
+  [/^Una corrección de horas no se edita.*/, 'An hours correction can\'t be edited: undo the approval, or fix the day in the timesheet.'],
+  // (v355) mensajes del servidor que no tenían traducción (revisión 14 nov)
+  [/^Ese enlace ya no sirve\.$/, 'That link no longer works.'],
+  [/^Ya hay una ausencia (.*) del (.*) al (.*) que se cruza con esas fechas\.$/, 'There is already a $1 absence from $2 to $3 that overlaps those dates.'],
+  [/^Solo un administrador puede ejecutar el Auto Clock out\.$/, 'Only an administrator can run the Auto Clock out.'],
+  [/^No hay sesión\.$/, 'You\'re not signed in.'],
+  [/^Sin sesión\.$/, 'You\'re not signed in.'],
+  [/^Inicia sesión\.$/, 'Sign in first.'],
+  [/^Modo inválido\.$/, 'Invalid mode.'],
+  [/^Ese día no está dentro de la solicitud\.$/, 'That day isn\'t part of the request.'],
+  [/^No se encontró esa solicitud de horario\.$/, 'That schedule request wasn\'t found.'],
+  [/^Solo un administrador\.$/, 'Only an administrator can do this.'],
+  [/^Solo un administrador puede importar documentos\.$/, 'Only an administrator can import documents.'],
+  [/^Ese documento ya no existe en Time Track\.$/, 'That document no longer exists.'],
+  [/^Ese empleado no existe en Time Track\.$/, 'That employee doesn\'t exist.'],
+  [/^Solo un administrador puede fusionar cuentas\.$/, 'Only an administrator can merge accounts.'],
+  [/^Origen y destino no pueden estar vacíos\.$/, 'Both account names are required.'],
+  [/^Origen y destino son el mismo nombre\.$/, 'Both account names are the same.'],
+  [/^La re-pregunta debe estar entre 5 y 240 minutos\.$/, 'The reminder must be between 5 and 240 minutes.'],
+  [/^El temporizador debe estar entre 5 y 120 segundos\.$/, 'The timer must be between 5 and 120 seconds.'],
+  [/^Configuración inválida\.$/, 'Invalid settings.'],
+  [/^Faltan los valores de las conexiones\.$/, 'The connection settings are missing.'],
+  [/^Solo un administrador puede cambiar las cuentas\.$/, 'Only an administrator can change the accounts.'],
+  [/^Lista de cuentas inválida\.$/, 'Invalid list of accounts.'],
+  [/^Solo un administrador puede cambiar la apariencia\.$/, 'Only an administrator can change the appearance.'],
+  [/^Datos de apariencia inválidos\.$/, 'Invalid appearance settings.'],
+  [/^Color principal inválido\.$/, 'Invalid main color.'],
+  [/^Color de acento inválido\.$/, 'Invalid accent color.'],
+  [/^El logo debe ser una imagen subida o una URL https\.$/, 'The logo must be an uploaded image or an https link.'],
+  [/^El logo es muy grande\..*/, 'The logo is too large. Use a lighter image (SVG or under ~250 KB).'],
+  [/^Solo un administrador puede cambiar horarios\.$/, 'Only an administrator can change schedules.'],
+  [/^Fechas no válidas\.$/, 'Invalid dates.'],
+  [/^Fecha de marca no válida\.$/, 'Invalid punch date.'],
+  [/^Las marcas no van en orden\.$/, 'The punches are out of order.'],
+  [/^Horas o tarifa no válidas\.$/, 'Invalid hours or rate.'],
+  [/^Horas no válidas\.$/, 'Invalid hours.'],
+  [/^Cambio para el Monitor no válido\.$/, 'Invalid change for the Monitor.'],
+  [/^Datos no válidos\.$/, 'Invalid data.'],
+  [/^Solo un administrador puede registrar pagos\.$/, 'Only an administrator can record payments.'],
+  [/^Faltan datos del pago\.$/, 'Some payment details are missing.'],
+  [/^Demasiados días\.$/, 'Too many days.'],
+  [/^Suscripción inválida\.$/, 'Invalid subscription.'],
+  [/^Solo un administrador puede renombrar cuentas\.$/, 'Only an administrator can rename accounts.'],
+  [/^Faltan el nombre actual o el nombre nuevo\.$/, 'Write the current name and the new name.'],
+  [/^Solo un administrador puede asignar managers\.$/, 'Only an administrator can assign managers.'],
+  [/^Falta la cuenta\.$/, 'The account is missing.'],
+  [/^Solo un administrador puede marcar managers\.$/, 'Only an administrator can set managers.'],
+  [/^Falta el usuario\.$/, 'The user is missing.'],
+  [/^Solo un administrador puede configurar el monitoreo de updates\.$/, 'Only an administrator can set who follows updates.'],
+  [/^Solo un administrador puede cambiar la jerarquía\.$/, 'Only an administrator can change who reports to whom.'],
+  [/^Un usuario no puede reportarse a sí mismo\.$/, 'A person can\'t report to themselves.'],
+  [/^Ese jefe no existe\.$/, 'That supervisor doesn\'t exist.'],
+  [/^Eso crearía un ciclo.*/, 'That would create a loop (that person already reports to this user).'],
+  [/^Solo un administrador puede configurar la supervisión de updates\.$/, 'Only an administrator can set up update supervision.'],
+  [/^Tu usuario no está activo\.$/, 'Your user is not active.'],
+  [/^Tu usuario no está vinculado a un agente del Monitor.*/, 'You don\'t have a schedule to change yet. Ask your administrator.'],
+  [/^Tipo de cambio no válido\.$/, 'Invalid type of change.'],
+  [/^Pon la hora de entrada y de salida\.$/, 'Enter the start and end times.'],
+  [/^La salida debe ser después de la entrada\.$/, 'The end time must be after the start time.'],
+  [/^Pon las dos horas del almuerzo o déjalas en blanco\.$/, 'Enter both lunch times or leave them blank.'],
+  [/^Hora de almuerzo no válida\.$/, 'Invalid lunch time.'],
+  [/^El almuerzo debe quedar dentro del turno\.$/, 'Lunch must be within the shift.'],
+  [/^Elige si el cambio es por un día, un rango o permanente\.$/, 'Choose whether the change is for one day, a range or permanent.'],
+  [/^Falta el día de la semana del cambio permanente\.$/, 'Choose the weekday for the permanent change.'],
+  [/^Día de la semana no válido\.$/, 'Invalid weekday.'],
+  [/^Elige la fecha\.$/, 'Choose the date.'],
+  [/^No se puede cambiar el horario de un día que ya pasó\.$/, 'You can\'t change the schedule of a day that already passed.'],
+  [/^La fecha es demasiado lejana\.$/, 'That date is too far ahead.'],
+  [/^Tienes demasiadas solicitudes de horario pendientes\.$/, 'You have too many pending schedule requests.'],
+  [/^Sin permiso\.$/, 'You don\'t have permission.'],
+  [/^Falta el agente\.$/, 'The agent is missing.'],
+  [/^Solo un administrador puede ver las ubicaciones\.$/, 'Only an administrator can see the locations.'],
+  [/^No tienes permiso para publicar comunicados\.$/, 'You don\'t have permission to post updates.'],
+  [/^Solo puedes enviar comunicados a los agentes de tu\(s\) cuenta\(s\)\.$/, 'You can only send updates to the agents of your account(s).'],
+  [/^Solo el autor o un administrador puede recordar este update\.$/, 'Only the author or an administrator can resend this update.'],
+  [/^Ese update no existe\.$/, 'That update doesn\'t exist.'],
+  [/^Método no permitido$/, 'Method not allowed.'],
+  [/^JSON inválido$/, 'Invalid request.'],
+  [/^Acción desconocida$/, 'Unknown action.']
 ];
+// (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico.
+const IMP_DE = INST_SOLO247 ? 'Connecteam' : 'another system';
 function enIngles(m){ m = String(m || '');
   const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
@@ -6643,7 +6723,7 @@ function pintarReloj(){
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map((m, i) => { let corr = '';
       if(_dc[i] && _dc[i].corrected){ const antesTxt = _dc[i].beforeMs != null ? 'Was ' + hora(_dc[i].beforeMs) + (_dc[i].beforeAuto ? ' (Auto Clock)' : '') + ' · ' : ''; corr = antesTxt + 'Corrected by ' + (m.autor || 'the administrator') + (m.motivo ? ': ' + m.motivo : ''); }
       return '<li' + (corr ? ' title="' + esc(corr) + '"' : '') + '><span>' + NOMBRE_TIPO[m.tipo] +
-      (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
+      (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + IMP_DE + '">' + (INST_SOLO247 ? 'Connecteam' : 'imported') + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta(); pintarHorario();
   if(!S.awListo && !yo.esAdmin) appLayout();   // agentes: menú lateral en la app y en el navegador
@@ -6707,7 +6787,7 @@ function pintarPagoAg(){
   celdas.push(cel('Net pay (COP)', copCO(x != null ? x : (n || 0) - totDed), 'neto'));
   let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
   h += '<div class="pay-grid">' + celdas.join('') + '</div>';
-  if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from Connecteam' : '') + '</div>';
+  if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from ' + IMP_DE : '') + '</div>';
   caja.className = 'pay-res'; caja.innerHTML = h;
   const dcel = caja.querySelector('.pay-cel.ded');
   if(dcel && dcel.querySelector('.pay-ded-pop')) dcel.addEventListener('click', () => { const ab = dcel.classList.toggle('abierto'); dcel.setAttribute('aria-expanded', ab); });
@@ -7843,7 +7923,7 @@ function vistaDia(){
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
       (d.ubic && d.ubic.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>An unusual punch location was detected. Check Punch locations below.</span></div>' : '') +
-      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc('Exact punch: ' + hora(m.msReal || m.ms)) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from Connecteam">Connecteam</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
+      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc('Exact punch: ' + hora(m.msReal || m.ms)) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + IMP_DE + '">' + (INST_SOLO247 ? 'Connecteam' : 'imported') + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
