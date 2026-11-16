@@ -22,9 +22,10 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v371-202611151900">
+<meta name="app-build" content="v372-202611152000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4415,7 +4416,7 @@ function alPortal(motivo){
    La verificación con el Monitor (que sigue en Apps Script, lento) llega
    después: la hoja se pinta al instante y las alertas del PC se agregan
    cuando responde. */
-const CFG = { TOLERANCIA_MIN: 15, AUSENCIA_MIN: 5, ALMUERZO_MAX_MIN: 60, SIN_ALMUERZO_MIN: 360, MAX_DIAS: 31 };
+const CFG = { TOLERANCIA_MIN: 15, AUSENCIA_MIN: 5, ALMUERZO_MAX_MIN: 60, SIN_ALMUERZO_MIN: 360, MAX_DIAS: 31, DIA_LARGO_MIN: 14 * 60 };
 const DOMINIO_SB = INST.dominioInterno || '';
 // El usuario interno: los agentes lo traen en su cuenta (app_metadata); los del portal, en su correo interno.
 const usuarioDe = ses => (ses.user.app_metadata && ses.user.app_metadata.usuario) || (DOMINIO_SB ? String(ses.user.email || '').replace(DOMINIO_SB, '') : String(ses.user.email || ''));
@@ -4486,6 +4487,8 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(dia.incompleto) f.push({ c:'SIN_SALIDA', n:'alerta', t:'Clock-out is missing. This day\'s hours don\'t count until it\'s corrected.' });
   if(dia.alm > CFG.ALMUERZO_MAX_MIN) f.push({ c:'ALMUERZO_LARGO', n:'aviso', t:'Lunch was ' + dia.alm + ' min: ' + (dia.alm - CFG.ALMUERZO_MAX_MIN) + ' min over the one-hour limit.' });
   if(!dia.almuerzos.length && !dia.enCurso && dia.min >= CFG.SIN_ALMUERZO_MIN) f.push({ c:'SIN_ALMUERZO', n:'info', t:'No lunch was recorded.' });
+  // (v372) Un día de más de 14 h casi siempre es una marca equivocada: aviso (no se aprueba con «days with no issues»)
+  if(!dia.enCurso && dia.min > CFG.DIA_LARGO_MIN) f.push({ c:'DIA_LARGO', n:'aviso', t:'This day has ' + hm(dia.min) + ' h worked. Check the punches.' });
   const corr = marcas.find(m => m.origen === 'admin');
   if(corr) f.push({ c:'CORREGIDO', n:'info', t:'Corrected by ' + corr.autor + (corr.motivo ? ': ' + corr.motivo : '') + '.' });
   const fAuto = salidaAutoBandera(marcas); if(fAuto) f.push(fAuto);   // (v92)
@@ -4788,6 +4791,8 @@ async function q(p){ const { data, error } = await p; if(error){ const e = new E
    la persona ve un mensaje normal y el detalle técnico queda en la consola del navegador para quien da soporte. */
 const PRONTO = ' Try again in a few minutes. If it keeps happening, contact support.';
 function tec(amable, detalle){ try{ console.warn('[' + MARCA.appName + '] ' + detalle); }catch(e){} return amable + PRONTO; }
+// (v372) Reemplaza el mensaje entero (no solo la parte que coincide); con «log» el original va a la consola
+const ENT = (txt, log) => { const f = m => { if(log) try{ console.warn('[' + MARCA.appName + '] ' + String(m || '').slice(0, 300)); }catch(e){} return txt; }; f.entero = true; return f; };
 const TEC = (amable, paso) => { const f = m => tec(amable, 'Falta el paso SQL ' + paso + ' (' + String(m || '').slice(0, 200) + ')'); f.entero = true; return f; };
 /* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
 const SERVIDOR_EN = [
@@ -5084,7 +5089,12 @@ const SERVIDOR_EN = [
   // (v359) overtime
   [/^Regla de overtime no válida\.$/, 'Invalid overtime rule.'],
   [/^Horas de overtime no válidas\.$/, 'Invalid overtime hours.'],
-  [/^Pago de overtime no válido\.$/, 'Invalid overtime pay.']
+  [/^Pago de overtime no válido\.$/, 'Invalid overtime pay.'],
+  // (v372) mensajes encontrados en las pruebas del 16 nov
+  [/^Ese correo ya lo usa otra persona en 247Punch.*$/, 'That email is already used by another person on 247Punch (it may be in another company). Use a different email.'],
+  [/reloj_empleados_horas_dia_check/, ENT('Hours per day must be between 1 and 12.')],
+  // Errores crudos de la base (no deberían llegar): mensaje normal y el detalle a la consola
+  [/violates (check|foreign key|not-null) constraint|null value in column|duplicate key value|invalid input syntax|out of range/i, ENT('Some of the information isn\'t valid. Check the form and try again.', true)]
 ];
 // (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico.
 const IMP_DE = INST_SOLO247 ? 'Connecteam' : 'another system';
@@ -6388,6 +6398,9 @@ async function inicio(){
     aplicarYo(yo);
     $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
     $('quienRol').textContent = yo.esAdmin ? 'Administrator' : (yo.empleado ? 'Agent' : '');
+    // (v372) Un agente que maneja cuentas se ve como Supervisor / Account Manager (antes decía «Agent»)
+    if(!yo.esAdmin && yo.empleado && !DEMO) api('mgrConsola').then(m => { if(S.mgr === undefined) S.mgr = m; if(!m || !m.esManager) return;
+      const t = m.rol || ((m.cuentas || []).length > 1 ? 'Account Manager' : 'Supervisor'); $('quienRol').textContent = t; if($('awRol')) $('awRol').textContent = t; }).catch(() => {});
     $('btnPerfil').classList.toggle('hidden', yo.esAdmin || !yo.empleado);
     $('btnDocs').classList.toggle('hidden', yo.esAdmin || !yo.empleado);
     if(!yo.esAdmin && yo.empleado) docsAvisoAgente();
@@ -6482,7 +6495,7 @@ function appLayout(){
     AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<button class="aw-item" type="button" id="awRefrescar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh</span></button>' +
-    '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span>Agent</span>' +
+    '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span id="awRol">Agent</span>' +
     '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
   // (v91) títulos de grupo como en el menú del administrador (app y web)
   [['g1', 'My day'], ['g2', 'Communication'], ['g3', 'Me']].forEach(([c, tx]) => { const g = document.createElement('div'); g.className = 'aw-grupo ' + c; g.textContent = tx; nav.querySelector('.aw-sep').before(g); });
@@ -10264,8 +10277,15 @@ function pintarCuentas(){
   if($('ajCuentasNuevas')) $('ajCuentasNuevas').innerHTML = '';
   if($('ajCuentasEstado')) $('ajCuentasEstado').textContent = '';
 }
+// (v372) Cada cuenta nueva sale con un color distinto (antes todas grises)
+const CTA_PALETA = ['#38bdf8', '#f2a93b', '#34d399', '#fb7185', '#818cf8', '#f472b6', '#a3e635', '#22d3ee', '#fb923c', '#c084fc', '#facc15', '#2dd4bf'];
+function ctaColorLibre(){
+  const usados = new Set([].slice.call(document.querySelectorAll('#ajCuentasLista .cta-color, #ajCuentasNuevas .cta-color')).map(i => String(i.value || '').toLowerCase()));
+  return CTA_PALETA.find(c => !usados.has(c)) || CTA_PALETA[usados.size % CTA_PALETA.length];
+}
 if($('ajCuentasAgregar')) $('ajCuentasAgregar').addEventListener('click', () => {
-  const cont = document.createElement('div'); cont.innerHTML = filaCuentaAj({ nombre:'', color:'#888888' }, true);
+  const vac = document.querySelector('#ajCuentasLista .cta-vacio'); if(vac) vac.remove();   // (v372) sin «No accounts yet» mientras se agrega una
+  const cont = document.createElement('div'); cont.innerHTML = filaCuentaAj({ nombre:'', color:ctaColorLibre() }, true);
   const fila = cont.firstChild;
   const q = fila.querySelector('.cta-quitar'); if(q) q.addEventListener('click', () => fila.remove());
   $('ajCuentasNuevas').prepend(fila);
@@ -10286,7 +10306,7 @@ if($('ajCuentasGuardar')) $('ajCuentasGuardar').addEventListener('click', async 
     if(ov && ov.checked){ const pr = {}; f.querySelectorAll('.cta-pago-roles input[data-r]').forEach(ri => pr[ri.getAttribute('data-r')] = ri.checked); entry.pago_roles = pr; }
     val.push(entry);
   });
-  try{ await api('guardarCuentas', { valor:val }); S.cuentas = val; S.coloresN = null; pintarCuentas(); $('ajCuentasEstado').textContent = 'Saved.'; toast('Accounts saved.'); }
+  try{ await api('guardarCuentas', { valor:val }); S.cuentas = val; try{ await cargarConfig(); }catch(x){} S.coloresN = null; /* (v372) se vuelve a leer: la base les pone su código al guardar */ pintarCuentas(); $('ajCuentasEstado').textContent = 'Saved.'; toast('Accounts saved.'); }
   catch(e){ $('ajCuentasEstado').textContent = e.message; }
   finally{ b.disabled = false; }
 });
