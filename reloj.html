@@ -22,6 +22,7 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v380: moneda con el país de la empresa primero · ID genérico y privado (Settings → Roles & managers → Private information, paso 156) · aviso de solicitudes por correo (247Punch) · el administrador también puede marcar -->
 <!-- v379: 247Punch — un usuario nuevo con un correo que ya usa otra persona no se queda a medias (el formulario sigue abierto con el error) · sin aviso «No account» si la empresa no tiene cuentas · botón «Add your team» en el Daily vacío -->
 <!-- v378: pedir cambio de horario nocturno (paso 153) · orden de marcas que pasan la medianoche igual que el servidor (paso 154) · el producto no muestra «Connections» (Agent Monitor) -->
 <!-- v377: nombres en vez de usuarios en «Approved by / Saved by / Corrected by» · el archivo de payroll ya no dice PAYROLL_247 fuera de 24/7 (paso 152 en el servidor: cambios por fecha sin horario semanal) -->
@@ -32,7 +33,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v379-202611161630">
+<meta name="app-build" content="v380-202611161930">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3424,6 +3425,35 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMgrGuardar" type="button">Save</button><span class="nota" id="ajMgrEstado"></span></div>
           </div>
+          <!-- (v380, paso 156) quién ve el ID y la cuenta bancaria -->
+          <div class="ajuste aj-card" id="ajSensBox" data-guardar="ajSensGuardar">
+            <div class="aj-ct"><h2>Private information</h2><span class="aj-pill" id="ajPillSens"></span></div>
+            <p class="aj-desc">The ID and the bank account number in each profile. Each person always sees their own; choose who else can.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajSensAdmin"><b>Administrators</b><span>Everyone&rsquo;s, in Users. Off: they can&rsquo;t see or change them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensAdmin" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajSensMgr"><b>Account managers</b><span>The people in the accounts they manage, in My team.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensMgr" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajSensSup"><b>Supervisors</b><span>The people in the account they supervise, in My team.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensSup" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajSensGuardar" type="button">Save</button><span class="nota" id="ajSensEstado"></span></div>
+          </div>
+          <!-- (v380, paso 156) aviso de solicitudes nuevas (solo 247Punch) -->
+          <div class="ajuste aj-card" id="ajAvisoBox" data-guardar="ajAvisoGuardar">
+            <div class="aj-ct"><h2>New requests</h2></div>
+            <p class="aj-desc">How administrators find out about a new request (time off, missed punches, schedule changes).</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajAvisoCorreo"><b>Also email administrators</b><span>Off: only the counter in Requests. On: each new request also sends an email to every administrator.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajAvisoCorreo" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajAvisoGuardar" type="button">Save</button><span class="nota" id="ajAvisoEstado"></span></div>
+          </div>
+          <!-- (v380, paso 156) el administrador también marca -->
+          <div class="ajuste aj-card" id="ajAdmRelojBox">
+            <div class="aj-ct"><h2>Your own Time Clock</h2></div>
+            <p class="aj-desc">For administrators who also work shifts: you get <b>My clock</b> to clock in and out, and you show up in Daily, Timesheet and Pay run like everyone else.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajAdmReloj"><b>I also clock in and out</b><span>Only for you. Turning it off archives your time clock; your hours are kept.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajAdmReloj" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><span class="nota" id="ajAdmRelojEstado"></span></div>
+          </div>
         </div>
 
         <!-- TIME · Time tracking -->
@@ -3847,7 +3877,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
         <label class="campo" style="--w:190px"><span>Bank name</span><select id="eBanco"></select></label>
         <label class="campo" style="--w:150px"><span>Account number</span><input id="eCtaBanco" autocomplete="off"></label>
       </div>
-      <p class="nota" style="margin:-4px 0 4px">Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.</p>
+      <p class="nota hidden" id="eSensNota" style="margin:-4px 0 6px">The ID and the bank account number are private: only the person sees them in their profile. Choose who else can in <b>Settings → Roles &amp; managers</b>.</p>
+      <p class="nota" id="eListasNota" style="margin:-4px 0 4px">Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.</p>
       <button class="btn-link bh-enlace" type="button" id="eBancoHist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>View change history</button>
     </div>
     <label class="campo" style="margin-top:6px"><span>Notes</span><textarea id="eNotas" maxlength="2000"></textarea></label>
@@ -5216,17 +5247,34 @@ function conHuella(i){
 }
 const mapM = m => ({ usuario:m.usuario, fecha:m.fecha, tipo:m.tipo, ms:Date.parse(m.ts), msReal:(m.ts_real ? Date.parse(m.ts_real) : Date.parse(m.ts)), origen:m.origen, autor:m.autor, motivo:m.motivo });
 const empJS = e => ({ usuario:e.usuario, codigo:e.codigo || '', nombre:e.nombre, agenteMonitor:e.agente_monitor, nombreNomina:e.nombre_nomina, horasDia:Number(e.horas_dia), activo:e.activo, esManager:e.es_manager === true,
-  cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '',
+  cuenta:e.cuenta || '', departamento:e.departamento || '', jefe:e.jefe || '', telefono:e.telefono || '', email:e.email || '', tipoId:e.tipo_id || '', numId:e.num_id || '', verSens:e._sens === true,
   direccion:e.direccion || '', ciudad:e.ciudad || '', banco:e.banco || '', cuentaBanco:e.cuenta_banco || '', contactoEmergencia:e.contacto_emergencia || '',
   cumpleanos:e.cumpleanos || '', fechaIngreso:e.fecha_ingreso || '', horaEntrada:e.hora_entrada || '', pagoHora:e.pago_hora == null ? '' : String(e.pago_hora), notas:e.notas || '', apellidos:e.apellidos || '', archivadoEn:e.archivado_en || null, titulo:e.titulo || '',
   prueba:e.prueba === true, pagoCuenta:e.pago_cuenta === 'personal' ? 'personal' : '247', aportesCop:Number(e.aportes_cop) || 0, pagoFijoCop:e.pago_fijo_cop == null ? null : Number(e.pago_fijo_cop), tcVersion:e.tc_version || '', tcVersionEn:e.tc_version_en || null,
   lugar: e.lugar_lat == null ? null : { lat:Number(e.lugar_lat), lng:Number(e.lugar_lng), radio:Number(e.lugar_radio_m) || 400, por:e.lugar_por || '', en:e.lugar_en || '' } });
 const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
+// (v380, paso 156) La tabla de empleados se lee SIN el ID y la cuenta bancaria; esos dos los entrega reloj_sensibles() solo para
+// quien puede verlos (cada persona los suyos; admins / managers / supervisores según Settings → Roles & managers).
+const COLS_E = 'usuario,nombre,agente_monitor,nombre_nomina,horas_dia,activo,actualizado,cuenta,departamento,jefe,tipo_id,ciudad,banco,telefono,email,' +
+  'direccion,contacto_emergencia,cumpleanos,fecha_ingreso,hora_entrada,pago_hora,notas,lugar_lat,lugar_lng,lugar_radio_m,lugar_por,lugar_en,apellidos,' +
+  'pago_cuenta,aportes_cop,pago_fijo_cop,archivado_en,titulo,prueba,es_manager,tc_version,tc_version_en,codigo';
+// Sin ajuste guardado: los administradores (como siempre). Igual que reloj__sens_ver() del servidor.
+const sensVer = () => Array.isArray(S.sensVer) ? S.sensVer : ['admin'];
+const adminVeSens = () => sensVer().includes('admin');
+async function sensiblesSB(){
+  try{ return (await q(sb.rpc('reloj_sensibles'))) || {}; }
+  catch(e){   // base sin el paso 156: la tabla todavía los entrega a quien los podía leer
+    try{ const r = await q(sb.from('reloj_empleados').select('usuario,num_id,cuenta_banco')), o = {};
+      r.forEach(x => { o[x.usuario] = { numId:x.num_id || '', cuentaBanco:x.cuenta_banco || '' }; }); return o; }catch(e2){ return {}; } } }
+function conSens(rows, sens){ (rows || []).forEach(r => { const x = sens && sens[r.usuario]; r.num_id = x ? x.numId || '' : ''; r.cuenta_banco = x ? x.cuentaBanco || '' : ''; r._sens = !!x; }); return rows; }
 
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'entrada_temprana' && x.valor && typeof x.valor === 'object') S.entradaTemprana = x.valor;   // (v373)
     if(x.clave === 'managers' && x.valor && typeof x.valor === 'object') S.mgrReglas = x.valor;
+    if(x.clave === 'alta_web' && x.valor && typeof x.valor === 'object') S.altaWeb = x.valor;
+    if(x.clave === 'sensibles' && x.valor && Array.isArray(x.valor.ver)) S.sensVer = x.valor.ver;   // (v380, paso 156)
+    if(x.clave === 'avisos' && x.valor && typeof x.valor === 'object') S.avisosCfg = x.valor;   // (v380) lo que escribió al registrarse en la web (país, zona)
     if(x.clave === 'auto_eval_ausencias') (S.ausDiaria = S.ausDiaria || {}).activo = x.valor === true || x.valor === 'true';   // (v299, paso 129)
     if(x.clave === 'auto_eval_dias') (S.ausDiaria = S.ausDiaria || {}).dias = Number(x.valor) || 3;
     if(x.clave === 'auto_cierre_hora') (S.ausDiaria = S.ausDiaria || {}).hora = x.valor == null ? 21 : Number(x.valor);
@@ -5411,7 +5459,7 @@ async function docsSB(action, p){
   if(action === 'docsAdmin'){
     await sesionSB();
     const [tipos, docs, emps, personas, pays] = await Promise.all([q(sb.from('reloj_doc_tipos').select('*').order('orden').order('id')),
-      todas(() => sb.from('reloj_docs').select('*').order('id')), q(sb.from('reloj_empleados').select('*')),
+      todas(() => sb.from('reloj_docs').select('*').order('id')), q(sb.from('reloj_empleados').select(COLS_E)),
       todas(() => sb.from('reloj_doc_personas').select('*').order('tipo_id').order('usuario')), todas(() => sb.from('reloj_paystubs').select('*').order('id'))]);
     return { tipos:tipos.map(tipoJS), docs:docs.map(docJS), emps:emps.map(empJS), personas:personas.map(personaJS), paystubs:pays.map(payJS) };
   }
@@ -5552,7 +5600,8 @@ async function api(action, p){
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
     const ses = await sesionSB();
-    const [row] = await Promise.all([q(sb.from('reloj_empleados').select('*').eq('usuario', usuarioDe(ses)).maybeSingle()), cargarConfig()]);
+    const [row, sensM] = await Promise.all([q(sb.from('reloj_empleados').select(COLS_E).eq('usuario', usuarioDe(ses)).maybeSingle()), sensiblesSB(), cargarConfig()]);
+    if(row) conSens([row], sensM);
     if(!row) throw new Error('Your user doesn\'t have a time clock yet. Ask the administrator to add you.');
     return { ficha:empJS(row), email:esCuentaPortal(ses) ? (row.email || '') : ses.user.email };
   }
@@ -5579,7 +5628,7 @@ async function api(action, p){
   if(action === 'cancelarDia') return q(sb.rpc('reloj_cancelar_dia', { p_id:p.id, p_fecha:p.fecha }));
   if(action === 'ausenciasAnio'){
     await sesionSB();
-    const [emps, aus] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
+    const [emps, aus] = await Promise.all([q(sb.from('reloj_empleados').select(COLS_E)),
       todas(() => sb.from('reloj_solicitudes').select('id,usuario,fecha,fecha_fin,hora_ini,hora_fin,clase,motivo,pagada,horas_dia,importacion')
         .eq('tipo', 'ausencia').eq('estado', 'aprobada').lte('fecha', p.hasta).gte('fecha_fin', p.desde).order('fecha').order('id'))]);
     return { emps:emps.map(empJS), aus:aus.map(r => ({ usuario:r.usuario, fecha:r.fecha, fechaFin:r.fecha_fin, horaIni:r.hora_ini || null, horaFin:r.hora_fin || null,
@@ -5590,7 +5639,7 @@ async function api(action, p){
     const desde = sumarDias(fechaHoy(), -45);
     const [rows, emps] = await Promise.all([
       q(sb.from('reloj_solicitudes').select('*').or('estado.eq.pendiente,creada_en.gte.' + desde).order('creada_en', { ascending:false }).limit(300)),
-      q(sb.from('reloj_empleados').select('*'))]);
+      q(sb.from('reloj_empleados').select(COLS_E))]);
     // días libres aprobados este año, por empleado (para decidir con el dato a mano)
     const anio = fechaHoy().slice(0,4) + '-01-01';
     const usados = await q(sb.from('reloj_solicitudes').select('usuario,fecha,fecha_fin,hora_ini,hora_fin,clase').eq('tipo', 'ausencia').eq('estado', 'aprobada').gte('fecha_fin', anio));
@@ -5740,7 +5789,9 @@ async function api(action, p){
   if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
   if(action === 'renombrarCuenta') return q(sb.rpc('reloj_renombrar_cuenta', { p_origen:p.origen, p_destino:p.destino, p_aplicar:!!p.aplicar }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
-  if(action === 'guardarRegla') return q(sb.rpc('reloj_guardar_regla', { p_clave:p.clave, p_valor:p.valor }));   // (v373, paso 148)
+  if(action === 'guardarRegla') return q(sb.rpc('reloj_guardar_regla', { p_clave:p.clave, p_valor:p.valor }));
+  if(action === 'adminReloj') return q(sb.rpc('reloj_admin_reloj', { p_activo:!!p.activo }));   // (v380, paso 156)
+  if(action === 'sensibles') return sensiblesSB();   // (v373, paso 148)
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
   if(action === 'impExistentes') return q(sb.rpc('reloj_importados', { p_desde:p.desde, p_hasta:p.hasta }));
@@ -5781,7 +5832,7 @@ async function yoSB(){
     // (la configuración se pide en paralelo y queda en S.redondeo)
     q(sb.rpc('ahora')),
     q(sb.from('perfiles').select('usuario,nombre,rol,activo').eq('user_id', ses.user.id).maybeSingle()),
-    q(sb.from('reloj_empleados').select('*').eq('usuario', usuario).maybeSingle()),
+    q(sb.from('reloj_empleados').select(COLS_E).eq('usuario', usuario).maybeSingle()),
     q(sb.from('reloj_marcas').select(COLS_M).eq('usuario', usuario).is('anulada_en', null).gte('fecha', desde).order('ts').order('id')),
     q(sb.from('reloj_aprobaciones').select('fecha').eq('usuario', usuario).gte('fecha', desde)),
     q(sb.from('reloj_solicitudes').select('fecha,fecha_fin,clase,pagada,horas_dia').eq('usuario', usuario).eq('tipo', 'ausencia')
@@ -5830,8 +5881,8 @@ async function hojaSB(desde, hasta, sinPrevSem){
   const fechas = rango(desde, hasta);
   if(fechas.length > CFG.MAX_DIAS) throw new Error('Choose a period of 31 days at most.');
   hasta = fechas[fechas.length - 1];
-  const [empsT, marcas, aprob, aus, ubic, pcs] = await Promise.all([
-    q(sb.from('reloj_empleados').select('*')),
+  const [empsT, marcas, aprob, aus, ubic, pcs, , sensH] = await Promise.all([
+    q(sb.from('reloj_empleados').select(COLS_E)),
     todas(() => sb.from('reloj_marcas').select(COLS_M).is('anulada_en', null).gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')),
     todas(() => sb.from('reloj_aprobaciones').select('*').gte('fecha', desde).lte('fecha', hasta)),
     // si la tabla de solicitudes aún no existe, la hoja sigue funcionando sin ausencias
@@ -5842,8 +5893,9 @@ async function hojaSB(desde, hasta, sinPrevSem){
       .gte('fecha', desde).lte('fecha', hasta).order('ts').order('id')).catch(() => []),
     // la ubicación del PC cerca de cada marca (sin el paso 22 de SQL, la hoja sigue sin esta comparación)
     q(sb.rpc('reloj_ubic_pc', { p_desde:desde, p_hasta:hasta })).catch(() => []),
-    cargarConfig()
+    cargarConfig(), sensiblesSB()
   ]);
+  conSens(empsT, sensH);   // (v380)
   S.nomU = Object.assign(S.nomU || {}, Object.fromEntries(empsT.map(e => [e.usuario, e.nombre])));   // (v376) nombres para «Corrected by»
   // los inactivos (p. ej. ex empleados importados) salen solo si tienen algo en el periodo
   const conDatos = new Set([].concat(marcas.map(m => m.usuario), aprob.map(a => a.usuario), aus.map(a => a.usuario)));
@@ -5863,12 +5915,13 @@ function rehacer(h){ const n = construirHoja(h._raw, monDisponible(h.fechas), ah
 
 async function empleadosSB(){
   await sesionSB();
-  const [emps, perfiles, , monSB, mgrRows, reportaRows, monitRows] = await Promise.all([q(sb.from('reloj_empleados').select('*')),
+  const [emps, perfiles, , monSB, mgrRows, reportaRows, monitRows, sensE] = await Promise.all([q(sb.from('reloj_empleados').select(COLS_E)),
     q(sb.from('perfiles').select('usuario,nombre,activo,rol,invitado_en,activado_en')).catch(() => q(sb.from('perfiles').select('usuario,nombre,activo,rol'))), cargarConfig(),
     (monOn() ? monitorSB().catch(() => null) : Promise.resolve(null)),
     q(sb.from('reloj_cuenta_manager').select('cuenta,usuario')).catch(() => []),
     q(sb.from('reloj_reporta').select('usuario,jefe')).catch(() => []),
-    q(sb.from('reloj_upd_monitorea').select('usuario,cuentas')).catch(() => [])]);
+    q(sb.from('reloj_upd_monitorea').select('usuario,cuentas')).catch(() => []), sensiblesSB()]);
+  conSens(emps, sensE);   // (v380)
   const cuentaMgr = {}; (mgrRows || []).forEach(x => { if(x && x.cuenta) cuentaMgr[x.cuenta] = x.usuario; });
   const reportaA = {}; (reportaRows || []).forEach(x => { if(x && x.usuario && x.jefe) reportaA[x.usuario] = x.jefe; });
   const monitMap = {}; (monitRows || []).forEach(x => { if(x && x.usuario) monitMap[x.usuario] = x.cuentas || []; });
@@ -6251,6 +6304,8 @@ function pintarPerfil(){
   $('mpTel').value = f.telefono; $('mpCumple').value = f.cumpleanos; $('mpCiudad').value = f.ciudad; $('mpDir').value = f.direccion;
   $('mpNumId').value = f.numId; $('mpCta').value = f.cuentaBanco;
   llenarSelect('mpTipoId', L.tiposId || [], f.tipoId); llenarSelect('mpBanco', L.bancos || [], f.banco);
+  $('mpTipoId').closest('.campo').classList.toggle('hidden', !INST_SOLO247);   // (v380) fuera de 24/7: un solo campo «ID»
+  $('mpNumId').closest('.campo').querySelector('span').textContent = INST_SOLO247 ? 'ID number' : 'ID';
   $('mpCumple').max = fechaHoy();
   if($('mpClaveAbrir')){
     $('mpClaveAbrir').addEventListener('click', () => { $('mpClaveCaja').classList.toggle('hidden'); if(!$('mpClaveCaja').classList.contains('hidden')) $('mpClave').focus(); });
@@ -9512,6 +9567,13 @@ function abrirEmp(usuario){
     const v = e ? (e[k] || '') : (k === 'departamento' && listas().departamentos.indexOf('Call Center') >= 0 ? 'Call Center' : '');
     if(LISTA_DE[k]) llenarSelect(CAMPOS_FICHA[k], listas()[LISTA_DE[k]] || [], v); else $(CAMPOS_FICHA[k]).value = v;
   });
+  { const ve = adminVeSens() && (!e || e.verSens);   // (v380) ID y cuenta: solo si Settings deja verlos
+    $('eNumId').closest('.campo').classList.toggle('hidden', !ve); $('eCtaBanco').closest('.campo').classList.toggle('hidden', !ve);
+    $('eTipoId').closest('.campo').classList.toggle('hidden', !INST_SOLO247);   // fuera de 24/7: un solo campo «ID», sin tipo
+    $('eNumId').closest('.campo').querySelector('span').textContent = INST_SOLO247 ? 'ID number' : 'ID';
+    $('eSensNota').classList.toggle('hidden', ve);
+    $('eListasNota').innerHTML = INST_SOLO247 ? 'Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.'
+      : 'Edit the Department and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.'; }
   S.mgrSel = new Set(e ? (e.gestiona || []) : []);
   S.reportaSel = e ? (e.reportaA || '') : '';
   { const _m = e ? e.monitorea : null; S.monitSel = new Set((_m === null || _m === undefined) ? (e ? (e.gestiona || []) : []) : _m); }
@@ -9643,9 +9705,10 @@ function verEmp(usuario){
     row('Birthday', e.cumpleanos ? esc(fechaUS(e.cumpleanos)) : '') +
     row('Home address', t(e.direccion)) +
     row('City', t(e.ciudad));
-  const bank = row('ID', copiable([e.tipoId, e.numId].filter(Boolean).join(' '), 'ID', e.numId)) +
+  const privado = '<span class="ve-nada">Private</span>';   // (v380) el ID y la cuenta solo los ve quien Settings permite
+  const bank = row('ID', e.verSens ? copiable((INST_SOLO247 ? [e.tipoId, e.numId] : [e.numId]).filter(Boolean).join(' '), 'ID', e.numId) : privado) +
     row('Bank', t(e.banco)) +
-    row('Account number', copiable(e.cuentaBanco, 'account number'));
+    row('Account number', e.verSens ? copiable(e.cuentaBanco, 'account number') : privado);
   const app = (monOn() ? row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') : '') +
     (monOn() ? row('Windows app', appUsoHTML(e)) + row('App version', tcvHTML(e)) : '');
   const col = (inner) => '<div class="ve-col">' + inner + '</div>';
@@ -10037,6 +10100,9 @@ $('eGuardar').addEventListener('click', async () => {
   const datos = { usuario:S.empEdit || '', nombre:nombreFicha(), agenteMonitor:$('eMonitor').value,
                   nombreNomina:$('eNomina').value.trim(), horasDia:+$('eHoras').value, activo:S.empEdit ? !!(S.emps.empleados.find(x => x.usuario === S.empEdit) || {}).activo : true };
   Object.keys(CAMPOS_FICHA).forEach(k => { datos[k] = $(CAMPOS_FICHA[k]).value.trim(); });
+  { const _eS = S.empEdit && ((S.emps && S.emps.empleados) || []).find(x => x.usuario === S.empEdit);   // (v380) lo que no se ve no se manda (y no se borra)
+    if(!adminVeSens() || (_eS && !_eS.verSens)){ delete datos.numId; delete datos.cuentaBanco; }
+    if(!INST_SOLO247) delete datos.tipoId; }
   datos.email = datos.email.toLowerCase();
   const antes = S.empEdit ? S.emps.empleados.find(x => x.usuario === S.empEdit) : null, acc = accesoDe(antes);
   if(!datos.email && (!antes || acc.k !== 'portal')) return $('eErr').textContent = 'Enter the email. They\'ll use it to sign in.';
@@ -10632,6 +10698,9 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
+  { const sv = sensVer(); $('ajSensAdmin').checked = sv.includes('admin'); $('ajSensMgr').checked = sv.includes('manager'); $('ajSensSup').checked = sv.includes('supervisor'); $('ajSensEstado').textContent = '';   // (v380)
+    $('ajAvisoBox').classList.toggle('hidden', INST_SOLO247); $('ajAvisoCorreo').checked = !!(S.avisosCfg && S.avisosCfg.correo); $('ajAvisoEstado').textContent = '';
+    $('ajAdmReloj').checked = !!(S.yo && S.yo.empleado); $('ajAdmRelojEstado').textContent = ''; }
   { const mr = S.mgrReglas || {}; $('ajMgrAprueban').checked = mr.aprueban === true; $('ajMgrVerHoras').checked = mr.verHoras === true; $('ajMgrEditan').checked = mr.editan === true; $('ajMgrEstado').textContent = ''; }   // (v373)
   { const et = S.entradaTemprana || {}; $('ajTempLim').checked = et.limitar === true; $('ajTempMin').value = et.minutos != null ? et.minutos : 15; $('ajTempEstado').textContent = ''; ejemploTemprana(); }   // (v373)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
@@ -10700,7 +10769,7 @@ function ajResumen(k){
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R), oc = cfgOT();
         const otR = oc.regla === 'ninguna' ? 'None' : (oc.regla === 'semanal' ? 'Weekly · ' + (oc.horas || 40) + ' h' : 'Daily · ' + (oc.horas ? oc.horas + ' h' : 'hours per day')) + ' · ' + oc.mult + '×';
-        return [['Company', paisNombre(R.pais) + ' · ' + cm.base], ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
+        return [['Company', !S.reglasPago && !INST_SOLO247 ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
       case 'plan': return planResumen();
       case 'solo247': { const m = SOLO247.filter(x => solo247(x.k)).length;
@@ -10754,7 +10823,8 @@ function ajPills(){
   const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
   set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Not asked');
   set('ajPillTemp', !!(S.entradaTemprana && S.entradaTemprana.limitar), 'Limited', 'Any time');   // (v373)
-  { const mr = S.mgrReglas || {}, l = [mr.aprueban && 'Approve', mr.editan ? 'Correct hours' : mr.verHoras && 'See hours'].filter(Boolean); set('ajPillMgr', l.length > 0, l.join(' · '), 'Admins only'); }   // (v375)
+  { const mr = S.mgrReglas || {}, l = [mr.aprueban && 'Approve', mr.editan ? 'Correct hours' : mr.verHoras && 'See hours'].filter(Boolean); set('ajPillMgr', l.length > 0, l.join(' · '), 'Admins only'); }
+  { const sv = sensVer(); set('ajPillSens', sv.length > 0, sv.length ? sv.length + (sv.length === 1 ? ' role' : ' roles') : '', 'Only the person'); }   // (v380)   // (v375)
   { const oc = cfgOT(); set('ajPillOT', oc.regla !== 'ninguna', oc.regla === 'semanal' ? 'Weekly · ' + oc.mult + '×' : 'Daily · ' + oc.mult + '×', 'Off'); }
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
@@ -11004,6 +11074,28 @@ $('ajMgrGuardar').addEventListener('click', async () => {   // (v373) qué puede
   catch(e){ $('ajMgrEstado').textContent = e.message; }
   b.disabled = false;
 });
+$('ajSensGuardar').addEventListener('click', async () => {   // (v380, paso 156) quién ve el ID y la cuenta bancaria
+  const ver = [['ajSensAdmin', 'admin'], ['ajSensMgr', 'manager'], ['ajSensSup', 'supervisor']].filter(x => $(x[0]).checked).map(x => x[1]), b = $('ajSensGuardar'); b.disabled = true;
+  try{ await api('guardarRegla', { clave:'sensibles', valor:{ ver } }); S.sensVer = ver; S.emps = null; S.hoja = null;
+    const nom = { admin:'administrators', manager:'account managers', supervisor:'supervisors' };
+    $('ajSensEstado').textContent = 'Saved. ' + (ver.length ? 'Besides each person, ' + ver.map(x => nom[x]).join(', ') + ' can see them.' : 'Only each person sees their own.');
+    toast('Settings saved.'); ajPills(); }
+  catch(e){ $('ajSensEstado').textContent = e.message; }
+  b.disabled = false;
+});
+$('ajAvisoGuardar').addEventListener('click', async () => {   // (v380, paso 156) aviso por correo de solicitudes nuevas
+  const v = { correo:$('ajAvisoCorreo').checked }, b = $('ajAvisoGuardar'); b.disabled = true;
+  try{ await api('guardarRegla', { clave:'avisos', valor:v }); S.avisosCfg = v;
+    $('ajAvisoEstado').textContent = v.correo ? 'Saved. Administrators get an email for each new request.' : 'Saved. New requests show only in the app.'; toast('Settings saved.'); }
+  catch(e){ $('ajAvisoEstado').textContent = e.message; }
+  b.disabled = false;
+});
+$('ajAdmReloj').addEventListener('change', async ev => {   // (v380, paso 156) el administrador también marca (se aplica enseguida)
+  const on = ev.target.checked; ev.target.disabled = true; $('ajAdmRelojEstado').textContent = on ? 'Setting up your time clock…' : 'Archiving your time clock…';
+  try{ await api('adminReloj', { activo:on }); toast(on ? 'Your time clock is ready: open My clock.' : 'Your time clock is archived.');
+    setTimeout(() => location.reload(), 1200); }
+  catch(e){ ev.target.checked = !on; $('ajAdmRelojEstado').textContent = e.message; ev.target.disabled = false; }
+});
 $('ajTempLim').addEventListener('change', ejemploTemprana); $('ajTempMin').addEventListener('input', ejemploTemprana);
 $('ajTempGuardar').addEventListener('click', async () => {
   const v = { limitar:$('ajTempLim').checked, minutos:Math.max(0, Math.min(240, Math.round(+$('ajTempMin').value || 0))) }, b = $('ajTempGuardar'); b.disabled = true;
@@ -11110,7 +11202,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null; S.overtime = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.sensVer = undefined; S.avisosCfg = undefined; S.altaWeb = undefined; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null; S.overtime = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -11302,6 +11394,8 @@ function usadosPorUsuario(lista, anio){
 async function avisarSolicitud(id){
   try{
     const ses = await sesionSB();
+    // (v380) 247Punch: lo manda reloj-cuentas, solo si Settings → Roles & managers → New requests lo pide
+    if(!INST_SOLO247){ if(S.avisosCfg && S.avisosCfg.correo === false) return; await cuentasFn('aviso', { id }, ses.access_token); return; }
     await fetch(window.SB_URL + '/functions/v1/reloj-aviso', { method:'POST',
       headers:{ 'Content-Type':'application/json', apikey:window.SB_KEY, Authorization:'Bearer ' + ses.access_token }, body:JSON.stringify({ id }) });
   }catch(e){ /* el aviso por correo es opcional: el contador del menú igual lo muestra */ }
@@ -13001,7 +13095,9 @@ async function cargarEq(callado){
   const c = $('eqCuerpo'); if(!c) return;
   if(!EQ.desde) EQ.desde = lunesDe(fechaHoy());
   if(!callado && !S.eq) c.innerHTML = '<div style="padding:24px"><span class="spin dark"></span> Loading…</div>';
-  try{ const r = await api('mgrEquipo', { desde:EQ.desde, hasta:sumarDias(EQ.desde, 6) }); S.eq = r; eqContar(r); pintarEq(); }
+  try{ const [r, sx] = await Promise.all([api('mgrEquipo', { desde:EQ.desde, hasta:sumarDias(EQ.desde, 6) }), api('sensibles').catch(() => ({}))]);
+    const yoU = S.yo && S.yo.usuario && S.yo.usuario.username; S.eqSens = Object.fromEntries(Object.entries(sx || {}).filter(([u]) => u !== yoU));   // (v380)
+    S.eq = r; eqContar(r); pintarEq(); }
   catch(e){ c.innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
 }
 const eqNomA = a => !a ? '' : a.apellidos && (a.nombre || '').indexOf(a.apellidos) < 0 ? a.nombre + ' ' + a.apellidos : (a.nombre || a.usuario);   // sin repetir el apellido
@@ -13049,7 +13145,9 @@ function eqHorasHTML(r){
       const sel = EQ.ed && EQ.ed.usuario === a.usuario && EQ.ed.fecha === f;
       return '<td class="' + (finde(f) ? 'finde' : '') + (f === hoy ? ' hoy' : '') + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' +
         (r.editan && f <= hoy ? '<button type="button" class="eq-cel' + (sel ? ' sel' : '') + '" data-eqcel="' + esc(a.usuario) + '|' + f + '" aria-label="' + esc(eqNomA(a) + ', ' + diaS(f) + (l.length ? ', ' + hm(min) : ', no punches') + (r.editan ? '. Correct punches' : '')) + '">' + (dentro || '<span class="vacio-c">+</span>') + '</button>' : dentro) + '</td>'; });   // (v375)
-    return '<tr><th scope="row">' + esc(eqNomA(a)) + (a.cuenta ? '<small>' + esc(a.cuenta) + '</small>' : '') + '</th>' + celdas.join('') + '<td class="tot">' + hm(tot) + '</td></tr>'; });
+    const sx = (S.eqSens || {})[a.usuario];   // (v380) ID y cuenta si Settings deja verlos a managers / supervisores
+    return '<tr><th scope="row">' + esc(eqNomA(a)) + (a.cuenta ? '<small>' + esc(a.cuenta) + '</small>' : '') +
+      (sx && (sx.numId || sx.cuentaBanco) ? '<small class="eq-sens">' + esc([sx.numId ? 'ID ' + sx.numId : '', sx.cuentaBanco ? 'Bank ' + sx.cuentaBanco : ''].filter(Boolean).join(' · ')) + '</small>' : '') + '</th>' + celdas.join('') + '<td class="tot">' + hm(tot) + '</td></tr>'; });
   return '<div class="eq-sem"><button class="btn btn-ghost btn-sm" type="button" data-eqsem="-1" aria-label="Previous week">&lsaquo;</button><b>' + esc(diaS(r.desde) + ' – ' + diaS(r.hasta)) + '</b>' +
       '<button class="btn btn-ghost btn-sm" type="button" data-eqsem="1" aria-label="Next week"' + (r.hasta >= hoy ? ' disabled' : '') + '>&rsaquo;</button></div>' +
     '<div class="eq-tabla-w"><table class="eq-tabla"><thead><tr><th scope="col">Person</th>' + dias.map(f => '<th scope="col" class="' + (finde(f) ? 'finde' : '') + '">' + esc(diaC(f)) + ' ' + diaN(f) + '</th>').join('') + '<th scope="col">Total</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div>' +
@@ -15060,6 +15158,32 @@ const PAIS = Object.fromEntries(PAISES.map(x => [x[0], { nombre:x[1], moneda:x[2
 const MON_ENTERA = new Set(['COP','CLP','PYG','VND','IDR','JPY','KRW','HUF','ISK','UGX','XOF','XAF']);
 const monedaDePais = c => (PAIS[c] || {}).moneda || 'USD';
 const paisNombre = c => (PAIS[c] || {}).nombre || c;
+// (v380) País de origen de la empresa (247Punch): el que escribió al registrarse en la web o, si no se reconoce, el de su zona horaria.
+// Va PRIMERO en las listas de países/monedas. En 24/7 no hay alta web → null (las listas quedan igual).
+const PAIS_ALIAS = { 'estados unidos':'US', 'eeuu':'US', 'ee uu':'US', 'usa':'US', 'us':'US', 'united states of america':'US', 'mexico':'MX', 'filipinas':'PH',
+  'republica dominicana':'DO', 'panama':'PA', 'peru':'PE', 'brasil':'BR', 'espana':'ES', 'canada':'CA', 'reino unido':'GB', 'uk':'GB', 'inglaterra':'GB',
+  'francia':'FR', 'alemania':'DE', 'italia':'IT', 'paises bajos':'NL', 'holanda':'NL', 'polonia':'PL', 'rumania':'RO', 'sudafrica':'ZA', 'marruecos':'MA',
+  'egipto':'EG', 'pakistan':'PK', 'tailandia':'TH', 'malasia':'MY', 'nueva zelanda':'NZ', 'irlanda':'IE', 'belice':'BZ', 'kenia':'KE', 'vietnam':'VN' };
+const ZONA_PAIS = { 'America/Bogota':'CO', 'America/Puerto_Rico':'PR', 'America/Santo_Domingo':'DO', 'America/Guatemala':'GT', 'America/Tegucigalpa':'HN',
+  'America/El_Salvador':'SV', 'America/Managua':'NI', 'America/Costa_Rica':'CR', 'America/Panama':'PA', 'America/Lima':'PE', 'America/Guayaquil':'EC',
+  'America/Caracas':'VE', 'America/La_Paz':'BO', 'America/Santiago':'CL', 'America/Montevideo':'UY', 'America/Asuncion':'PY', 'America/Jamaica':'JM',
+  'America/Belize':'BZ', 'Europe/London':'GB', 'Europe/Dublin':'IE', 'Europe/Madrid':'ES', 'Europe/Lisbon':'PT', 'Europe/Paris':'FR', 'Europe/Berlin':'DE',
+  'Europe/Rome':'IT', 'Europe/Amsterdam':'NL', 'Europe/Warsaw':'PL', 'Europe/Bucharest':'RO', 'Africa/Johannesburg':'ZA', 'Africa/Nairobi':'KE',
+  'Africa/Lagos':'NG', 'Africa/Cairo':'EG', 'Africa/Casablanca':'MA', 'Asia/Karachi':'PK', 'Asia/Dhaka':'BD', 'Asia/Colombo':'LK', 'Asia/Ho_Chi_Minh':'VN',
+  'Asia/Saigon':'VN', 'Asia/Jakarta':'ID', 'Asia/Kuala_Lumpur':'MY', 'Asia/Bangkok':'TH', 'Asia/Manila':'PH', 'Asia/Kolkata':'IN', 'Asia/Calcutta':'IN',
+  'Pacific/Auckland':'NZ', 'Pacific/Honolulu':'US' };
+function paisDeZona(z){ z = String(z || ''); if(ZONA_PAIS[z]) return ZONA_PAIS[z];
+  if(/^America\/(Mexico_City|Cancun|Monterrey|Merida|Tijuana|Hermosillo|Chihuahua|Mazatlan|Matamoros|Bahia_Banderas|Ciudad_Juarez|Ojinaga)$/.test(z)) return 'MX';
+  if(/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Detroit|Boise|Juneau|Indiana\/.+|Kentucky\/.+|North_Dakota\/.+)$/.test(z)) return 'US';
+  if(/^America\/(Toronto|Vancouver|Edmonton|Winnipeg|Halifax|Regina|St_Johns|Moncton)$/.test(z)) return 'CA';
+  if(/^America\/Argentina\//.test(z) || z === 'America/Buenos_Aires') return 'AR';
+  if(/^America\/(Sao_Paulo|Manaus|Fortaleza|Recife|Belem|Bahia|Cuiaba|Porto_Velho|Rio_Branco|Maceio|Campo_Grande)$/.test(z)) return 'BR';
+  if(/^Australia\//.test(z)) return 'AU'; return null; }
+function paisOrigen(){
+  const a = S.altaWeb || {}, sinTilde = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[.]/g, '').trim();
+  const t = sinTilde(a.pais);
+  if(t){ if(PAIS_ALIAS[t]) return PAIS_ALIAS[t]; const x = PAISES.find(p => sinTilde(p[1]) === t || p[0].toLowerCase() === t); if(x) return x[0]; }
+  const z = paisDeZona(a.zona || (S.altaWeb ? (typeof MARCA !== 'undefined' && MARCA.zona) : '')); return z && PAIS[z] ? z : null; }
 function cfgMoneda(R){ R = R || reglasPago(); const base = monedaDePais(R.pais || 'US'), intl = R.modo !== 'local';
   const hd = intl && R.paisPagoH && R.paisPagoH.length ? vigente(R.paisPagoH, fechaHoy()) : null, pd = (hd && hd.pais) || R.paisPago || 'CO';
   return { base, intl, pagoDef:intl ? monedaDePais(pd) : base, paisDef:intl ? pd : (R.pais || 'US') }; }
@@ -15978,13 +16102,17 @@ function xlsxPayRun(runs, nombreHoja){
 function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = '';
   const H = histPago(R);
   AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, reglasTasa:R.reglasTasa || {}, h:H })); AJM.pend = {};
+  { const o = paisOrigen(); if(!S.reglasPago && o){ AJM.v.pais = o;   // (v380) aún sin guardar: se propone el país de la empresa
+      $('ajPagoEstado').textContent = 'Suggested: ' + paisNombre(o) + ' (' + monedaDePais(o) + '), where your company signed up. Choose your country and save.';
+      setTimeout(() => ajMarcarSucio($('ajPago')), 0); } }   // queda como cambio sin guardar: sale «Save changes»
   pintarMonedaAj(); ejemploReglas();
   if(!S.emps) api('empleados', {}).then(r => { S.emps = r; pintarMonedaAj(); }).catch(() => {}); }
 /* ══════════ (v335/v336) Settings → Pay & currency ══════════
    Cambiar el país de pago (por defecto, de una cuenta o de una persona) pide DESDE QUÉ QUINCENA vale: se guarda como historia. */
 const AJM = { v:null, pend:{} };
-const opcPaises = (sel, primera) => (primera ? '<option value="">' + esc(primera) + '</option>' : '') +
-  PAISES.map(([c, n, m]) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(n) + ' (' + m + ')</option>').join('');
+const opcPaises = (sel, primera) => { const o = paisOrigen(), op = ([c, n, m]) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(n) + ' (' + m + ')</option>';
+  return (primera ? '<option value="">' + esc(primera) + '</option>' : '') +
+    (o ? op(PAISES.find(p => p[0] === o)) + '<option disabled>──────────</option>' + PAISES.filter(p => p[0] !== o).map(op).join('') : PAISES.map(op).join('')); };   // (v380) el país de la empresa primero
 const ajmHist = k => { const v = AJM.v; if(k === 'def') return v.h.def; const [t, id] = [k.slice(0, 2), k.slice(2)]; return (t === 'c:' ? v.h.cta : v.h.emp)[id] || []; };
 const ajmQuins = () => { const q0 = quinDe(fechaHoy()), l = [q0]; for(let i = 0; i < 3; i++) l.push(quinSig(l[l.length - 1])); return l; };
 function ajmValor(k){ const p = AJM.pend[k]; if(p) return p.pais; const x = vigente(ajmHist(k), fechaHoy()); return x && x.pais ? x.pais : ''; }
