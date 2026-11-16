@@ -22,6 +22,7 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v378: pedir cambio de horario nocturno (paso 153) · orden de marcas que pasan la medianoche igual que el servidor (paso 154) · el producto no muestra «Connections» (Agent Monitor) -->
 <!-- v377: nombres en vez de usuarios en «Approved by / Saved by / Corrected by» · el archivo de payroll ya no dice PAYROLL_247 fuera de 24/7 (paso 152 en el servidor: cambios por fecha sin horario semanal) -->
 <!-- v376: aprobar días con la huella de las marcas en pantalla (paso 151: no aprueba si cambiaron mientras tanto) · «Corrected by» muestra el nombre · My team aparece sin recargar cuando el admin lo enciende -->
 <!-- v375: Settings «Correct their team's hours»: los supervisores / account managers pueden corregir las marcas de su equipo desde My team → Hours (no las suyas, no días aprobados) -->
@@ -30,7 +31,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v377-202611160700">
+<meta name="app-build" content="v378-202611161430">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -7151,7 +7152,7 @@ async function enviarCambioHorario(){
   else { sol.fecha = $('hcFecha').value; if(alcance === 'rango') sol.fechaFin = $('hcFechaFin').value; }
   const err = sol.motivo.length < 3 ? 'Enter the reason for the change.'
     : clase === 'cambio' && (!sol.horaIni || !sol.horaFin) ? 'Fill in the clock in and clock out.'
-    : clase === 'cambio' && sol.horaFin <= sol.horaIni ? 'Clock out must be after clock in.'
+    : clase === 'cambio' && turnoMal(sol.horaIni, sol.horaFin, sol.almIni, sol.almFin) ? turnoMal(sol.horaIni, sol.horaFin, sol.almIni, sol.almFin)   // (v378) turnos nocturnos también al pedir cambio de horario
     : alcance !== 'permanente' && !sol.fecha ? 'Choose the date.'
     : alcance === 'rango' && (!sol.fechaFin || sol.fechaFin < sol.fecha) ? 'The end date can\'t be before the start date.' : '';
   if(err){ $('sErr').textContent = err; return; }
@@ -10652,7 +10653,7 @@ const AJ_SEC = [
   { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor.', tono:'s' },
   { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' },
   { k:'plan',      g:'More',    t:'Plan & billing',    d:'Your plan and what each plan includes.', tono:'s' }
-].filter(s => (s.k !== 'solo247' || INST_SOLO247) && (s.k !== 'plan' || INST.compartimentos));   // (v353) el producto no tiene «24/7 only»; (v364) solo el producto tiene «Plan»
+].filter(s => (s.k !== 'solo247' || INST_SOLO247) && (s.k !== 'integ' || INST_SOLO247) && (s.k !== 'plan' || INST.compartimentos));   // (v378) el Agent Monitor es de 24/7: el producto no muestra «Connections»   // (v353) el producto no tiene «24/7 only»; (v364) solo el producto tiene «Plan»
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
 function ajIco(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (AJ_IC[k] || AJ_IC.inicio) + '</svg>'; }
@@ -14149,8 +14150,15 @@ const IC_NOTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 
 const IC_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12.5 17.5l.5-2 3.5-3.5 1.5 1.5-3.5 3.5z"/></svg>';
 const ORDEN_T = { entrada:0, almuerzo_ini:1, almuerzo_fin:2, salida:3 };
 // (v373) Turno nocturno: en la lista de un día, una hora antes de la primera entrada es del día siguiente (si el turno no pasa de 16 h)
-function minTurno(l){ const es = (l || []).filter(m => m.tipo === 'entrada' && m.hora).map(m => aMin(m.hora)); const E = es.length ? Math.min.apply(null, es) : null;
-  return h => { const x = aMin(h); return E != null && x != null && x < E && x + 1440 - E <= 960 ? x + 1440 : x; }; }
+// (v378, paso 154) el turno empieza en la ENTRADA con el hueco más grande antes de ella en el reloj de 24 h (igual que el servidor);
+// antes era la entrada más temprana, y un turno de 9:46 PM con «seguir trabajando» de 5:47 AM a 1:11 PM salía revuelto.
+function minTurno(l){
+  const ts = (l || []).filter(m => m.hora).map(m => ({ x:aMin(m.hora), e:m.tipo === 'entrada' })).filter(m => m.x != null);
+  let E = null, mejor = -1;
+  ts.filter(m => m.e).forEach(m => { const otros = ts.filter(o => o.x !== m.x).map(o => ((m.x - o.x) % 1440 + 1440) % 1440);
+    const hueco = otros.length ? Math.min.apply(null, otros) : 1440;
+    if(hueco > mejor || (hueco === mejor && m.x < E)){ mejor = hueco; E = m.x; } });
+  return h => { const x = aMin(h); return E != null && x != null && x < E ? x + 1440 : x; }; }
 const ordenarMarcas = l => { const k = minTurno(l); return l.slice().sort((a, b) => (k(a.hora) - k(b.hora)) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo])); };
 // Minutos trabajados de una lista de marcas {tipo, hora} (varios turnos incluidos), con el redondeo de Settings.
 function minutosLista(l){
