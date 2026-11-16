@@ -22,11 +22,12 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v374: Daily dice «Day off», «Starts at», «Late» o «Absent» según el horario (en vez de «Not clocked in»); el agente puede pedir turnos y almuerzos que pasan la medianoche; Settings: conteo de managers y GM administrador en el selector -->
 <!-- v373: turnos nocturnos (horarios y correcciones que pasan la medianoche, hasta 16 h); Settings «Early clock in» (limitar la entrada antes del horario); Settings «What managers can do» (aprueban las solicitudes de su equipo / ven sus horas) y panel «My team»; fines de semana con fondo suave en Timesheet; opción B del correo: un correo, una empresa activa (aviso al reactivar) -->
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v373-202611160200">
+<meta name="app-build" content="v374-202611160330">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -424,6 +425,8 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .st-almuerzo i{background:linear-gradient(90deg,var(--st-alm) 50%,transparent 50%);border:2px solid var(--st-alm)}
 .st-fuera i{border:2.5px solid var(--st-fuera)}
 .st-sin i{border:2.5px dashed var(--st-fuera)}
+.st-tarde{color:var(--warn)}.st-tarde i{border:2.5px solid var(--warn);background:var(--warn-50)}   /* (v374) Late / Absent */
+.st-libre{color:var(--text-muted);font-weight:500}.st-libre i{background:var(--sand-2);border:2.5px solid var(--line)}   /* (v374) Day off */
 
 /* ── RELOJ DEL AGENTE ── */
 .reloj{max-width:560px;margin:0 auto}
@@ -4967,6 +4970,9 @@ const SERVIDOR_EN = [
   [/^La fecha debe ser de hoy o de los últimos 31 días\.$/, 'The date must be today or within the last 31 days.'],
   [/^Completa las dos horas\.$/, 'Fill in both times.'],
   [/^La hora de fin debe ser después de la de inicio\.$/, 'The end time must be after the start time.'],
+  [/^La hora de fin debe ser distinta de la de inicio\.$/, 'The end time must be different from the start time.'],   // (v374)
+  [/^Un turno no puede pasar de 16 horas\.$/, 'A shift can\'t be longer than 16 hours.'],
+  [/reloj_horarios_dia|reloj__orden_turno/, TEC('The Daily schedule view isn\'t working right now.', 149)],
   [/^Completa las dos horas o marca el día completo\.$/, 'Fill in both times, or choose All day.'],
   [/^El tiempo libre por horas es de un solo día\.$/, 'Part-of-the-day time off is for one day only.'],
   [/^Esa hora todavía no ha pasado\.$/, 'That time hasn\'t happened yet.'],
@@ -5677,6 +5683,7 @@ async function api(action, p){
   if(action === 'monPendiente') return q(sb.rpc('reloj_monitor_pendiente', { p:p.p }));
   if(action === 'horariosResumen') return q(sb.rpc('reloj_horarios_resumen'));   // (v314, paso 139)
   if(action === 'horarioDe') return q(sb.rpc('reloj_horario_de', { p_usuario:p.usuario, p_fecha:p.fecha }));   // (v316, paso 140)
+  if(action === 'horariosDia') return q(sb.rpc('reloj_horarios_dia', { p_fecha:p.fecha }));   // (v374, paso 149) el horario de todos ese día, para el Daily
   if(action === 'horarioTemporal') return q(sb.rpc('reloj_horario_temporal', { p:p.p }));   // (v351, paso 143)
   if(action === 'horarioTemporalQuitar') return q(sb.rpc('reloj_horario_temporal_quitar', { p_id:p.id }));
   if(action === 'horarioTemporales') return q(sb.rpc('reloj_horario_temporales', { p_usuario:p.usuario || null }));
@@ -7632,10 +7639,22 @@ async function cargarHoy(silencioso){
   if(!silencioso && !S.hojaHoy) $('hoyLista').innerHTML = '<div class="vacio"><span class="spin dark"></span> Loading…</div>';
   try{
     const f = S.hoyFecha || fechaHoy();
-    S.hojaHoy = await api('hoja', { desde:f, hasta:f });
+    const [hj, hr] = await Promise.all([api('hoja', { desde:f, hasta:f }), api('horariosDia', { fecha:f }).catch(() => null)]);   // (v374) sin el paso 149 sigue con «Not clocked in»
+    S.hojaHoy = hj; S.hoyHor = hr ? { fecha:f, m:hr } : null;
     pintarHoy();
     if(!DEMO){ const raw = S.hojaHoy._raw; monPedir(S.hojaHoy.fechas, () => { if(S.hojaHoy && S.hojaHoy._raw === raw){ S.hojaHoy = rehacer(S.hojaHoy); if(S.vista === 'hoy') pintarHoy(); } }); }
   }catch(e){ if(!silencioso) toast(e.message, 'err'); }
+}
+// (v374) Persona sin marcas ni time off ese día: qué dice su horario (paso 149). Sin horario → «Not clocked in».
+function hoySin(e, f){
+  const m = S.hoyHor && S.hoyHor.fecha === f ? S.hoyHor.m : null, h = m && m[e.usuario];
+  if(!h) return { k:'sin', t:'Not clocked in' };
+  if(h.libre || !h.inicio) return { k:'libre', t:'Day off' };
+  const ini = wall(f, h.inicio), fin0 = h.fin ? wall(f, h.fin) : null, fin = fin0 != null && fin0 <= ini ? fin0 + 864e5 : fin0;   // turno nocturno
+  const t = ahora(), esHoy = f === fechaHoy();
+  if(esHoy && t < ini) return { k:'sin', t:'Starts at ' + hora(ini) };
+  if(esHoy && (fin == null || t < fin)) return { k:'tarde', t:'Late · due ' + hora(ini) };
+  return { k:'tarde', t:'Absent · due ' + hora(ini) };
 }
 function pintarHoy(){
   const h = S.hojaHoy, f = S.hoyFecha || h.hoy;
@@ -7646,11 +7665,12 @@ function pintarHoy(){
   $('hoyAct').textContent = 'Updated ' + hora(h.ahora) + (h.seg ? ' · ' + seg(h.seg) : '');
   const filas = h.empleados.map(e => {
     const d = e.dias[f];
-    return { e, d, estado: d ? d.estado : 'sin', fl: d ? d.banderas : [] };
+    const sin = !d || (!d.marcas.length && !d.ausencia) ? hoySin(e, f) : null;   // (v374) sin marcas: Day off / Starts at / Late / Absent según su horario
+    return { e, d, sin, estado: sin ? sin.k : d.estado, fl: d ? d.banderas : [] };
   });
   $('hoyAvisos').innerHTML = avisosMonitor(h);
   const peso = x => (nivelMax(x.fl) === 'alerta' ? 0 : nivelMax(x.fl) === 'aviso' ? 1 : 2) * 10 +
-    ({ trabajando:0, almuerzo:1, sin:2, fuera:3 })[x.estado];
+    ({ trabajando:0, almuerzo:1, tarde:2, sin:2, fuera:3, libre:4 })[x.estado];
   filas.sort((a, b) => peso(a) - peso(b) || a.e.nombre.localeCompare(b.e.nombre, 'en'));
   if(!filas.length){
     $('hoyResumen').innerHTML = ''; $('hoyFiltro').innerHTML = '';
@@ -7659,7 +7679,7 @@ function pintarHoy(){
   }
   // v100: filtro por estado (Clocked in / Clocked out / Not clocked in / Time off / With alerts)
   const grupo = x => { const d = x.d;
-    if(!d || !d.marcas.length) return d && d.ausencia ? 'aus' : 'sin';
+    if(!d || !d.marcas.length) return d && d.ausencia ? 'aus' : x.estado === 'libre' ? 'libre' : 'sin';
     return d.estado === 'trabajando' || d.estado === 'almuerzo' ? 'dentro' : 'salio'; };
   const FILTROS = [
     ['todos', 'All', () => true],
@@ -7668,11 +7688,13 @@ function pintarHoy(){
     ['salio', 'Clocked out', x => grupo(x) === 'salio'],
     ['sin', 'Not clocked in', x => grupo(x) === 'sin'],
     ['aus', 'Time off', x => grupo(x) === 'aus'],
+    ['tarde', 'Late or absent', x => x.estado === 'tarde'],   // (v374) con horario y sin marcar a tiempo
+    ['libre', 'Day off', x => grupo(x) === 'libre'],   // (v374) libres según su horario
     ['alerta', 'With alerts', x => nivelMax(x.fl) === 'alerta']];
   const nF = Object.fromEntries(FILTROS.map(([k, , fn]) => [k, filas.filter(fn).length]));
   if(!FILTROS.some(([k]) => k === S.hoyFiltro)) S.hoyFiltro = 'todos';
-  const visibles = FILTROS.filter(([k]) => k !== 'aus' || nF.aus || S.hoyFiltro === 'aus');
-  const DOTF = { trabajando:'trabajando', almuerzo:'almuerzo', salio:'fuera', sin:'sin' };
+  const visibles = FILTROS.filter(([k]) => (k !== 'aus' && k !== 'libre' && k !== 'tarde') || nF[k] || S.hoyFiltro === k);
+  const DOTF = { trabajando:'trabajando', almuerzo:'almuerzo', salio:'fuera', sin:'sin', libre:'libre', tarde:'tarde' };
   const etqF = (k, txt) => k === 'alerta' ? '<span class="st">' + icono('alerta') + txt + '</span>'
     : DOTF[k] ? '<span class="st st-' + DOTF[k] + '"><i></i>' + txt + '</span>' : '<span class="st">' + txt + '</span>';
   $('hoyResumen').innerHTML = visibles.map(([k, txt]) =>
@@ -7684,7 +7706,7 @@ function pintarHoy(){
   const fnF = FILTROS.find(([k]) => k === S.hoyFiltro)[2], lista = filas.filter(fnF);
   if(!lista.length){
     const nada = { trabajando:'Nobody is working right now.', almuerzo:'Nobody is on lunch right now.', salio:'Nobody has clocked out yet today.',
-      sin:'Everyone has clocked in today.', aus:'Nobody is on time off today.', alerta:'No alerts today.' }[S.hoyFiltro] || 'Nothing to show.';
+      sin:'Everyone has clocked in today.', aus:'Nobody is on time off today.', libre:'Nobody has the day off.', tarde:'Nobody is late.', alerta:'No alerts today.' }[S.hoyFiltro] || 'Nothing to show.';
     $('hoyLista').innerHTML = '<div class="vacio"><p>' + nada + '</p></div>';
     return;
   }
@@ -7722,6 +7744,7 @@ const vacioC = '<span class="vacio-c">—</span>';
 const avIni = n => String(n || '').normalize('NFD').replace(/[^A-Za-z\s]/g, '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
 const COLS_HOY = [
   { k:'estado', t:'Status', def:true, cls:'c-est', h:x => { const d = x.d, ent = d && d.marcas.find(m => m.tipo === 'entrada');
+      if(x.sin) return estadoHTML(x.sin.k, x.sin.t);   // (v374)
       const txt = !d ? 'Not clocked in' : (d.ausencia && !d.marcas.length) ? 'Off · ' + ausEtq(d.ausencia) : d.estado === 'trabajando' ? 'Working'
         : d.estado === 'almuerzo' ? 'On lunch' : d.marcas.length ? 'Clocked out' : 'Not clocked in';
       return estadoHTML(x.estado, txt); } },
@@ -9613,6 +9636,11 @@ async function cargarHorarios(){
 }
 const hoMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; };
 // (v373) desde la hora de inicio, dando la vuelta a medianoche: un turno puede terminar al día siguiente (nocturno)
+// (v374) turno pedido por el agente (puede pasar la medianoche, hasta 16 h): error o ''
+const turnoMal = (hi, hf, ai, af) => { const d = hoDesde(hf, hi);
+  if(d === 0) return 'The end time must be different from the start time.'; if(d > 960) return 'A shift can\'t be longer than 16 hours.';
+  if(ai && af){ const a = hoDesde(ai, hi), b = hoDesde(af, hi); if(!(a > 0 && a < b && b < d)) return 'Lunch must be inside the shift.'; }
+  return ''; };
 const hoDesde = (t, base) => { const a = hoMin(t), b = hoMin(base); return a == null || b == null ? null : ((a - b) % 1440 + 1440) % 1440; };
 function hoMinDia(d){
   if(!d) return null; const a = hoMin(d.i), b = hoMin(d.f); if(a == null || b == null || b === a) return null;
@@ -10167,7 +10195,8 @@ function pintarRoles(){
   const go = () => {
     const emps = (S.emps && S.emps.empleados) || [];
     const act = emps.filter(e => e.activo !== false).sort((a, b) => a.nombre.localeCompare(b.nombre, 'en'));
-    const gmSel = $('ajGM'); if(gmSel) gmSel.innerHTML = '<option value="">\u2014 None \u2014</option>' + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.gm || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
+    const gmFuera = S.gm && !act.some(e => e.usuario === S.gm) ? '<option value="' + esc(S.gm) + '" selected>' + esc(nombreDeUsuario(S.gm)) + '</option>' : '';   // (v374) el GM puede ser un administrador (no está en la lista de personas)
+    const gmSel = $('ajGM'); if(gmSel) gmSel.innerHTML = '<option value="">\u2014 None \u2014</option>' + gmFuera + act.map(e => '<option value="' + esc(e.usuario) + '"' + (e.usuario === (S.gm || '') ? ' selected' : '') + '>' + esc(e.nombre) + '</option>').join('');
     if($('ajGMEstado')) $('ajGMEstado').textContent = '';
     const nomU = {}; emps.forEach(x => { nomU[x.usuario] = x.nombre; });
     const mgrs = emps.filter(e => e.esManager).sort((a, b) => (b.gestiona || []).length - (a.gestiona || []).length || a.nombre.localeCompare(b.nombre, 'en'));
@@ -10604,7 +10633,7 @@ function ajResumen(k){
         return [['Accounts', n ? String(n) : ajPill('None yet', 'w')], ['Paid approval', ov ? ov + ' with their own rule' : 'General rule']]; }
       case 'listas': { const L = S.listas || (typeof LISTAS_BASE !== 'undefined' ? LISTAS_BASE : {}); const ks = Object.keys(L).filter(x => x !== 'cuentas' && Array.isArray(L[x]));
         return [['Fields', String(ks.length)], ['Options', String(ks.reduce((t, x) => t + L[x].length, 0))]]; }
-      case 'equipo': return [['General Manager', S.gm ? esc(nom(S.gm)) : ajPill('Not set', 'w')], ['Managers & supervisors', String(emps.filter(e => e.esManager).length)]];
+      case 'equipo': return [['General Manager', S.gm ? esc(nom(S.gm)) : ajPill('Not set', 'w')], ['Managers & supervisors', S.emps ? String(emps.filter(e => e.esManager).length) : '\u2026']];
       case 'tiempo': return [['Rounding', red === 1 ? 'Exact' : 'Every ' + red + ' min'], ['Location', S.ubicObligatoria !== false ? 'Required' : 'Not asked'],
         ['Auto clock out', as.activo ? ajPill('On · ' + (as.margen != null ? as.margen : 30) + ' min', 'ok') : ajPill('Off')], ['Absence check', ad.activo ? ajPill('On · ' + (ad.dias || 3) + ' days', 'ok') : ajPill('Off')]];
       case 'ausencias': { const pr = typeof pagoRolesCfg === 'function' ? pagoRolesCfg() : {}; const n = Object.keys(pr).filter(x => pr[x]).length;
@@ -10650,6 +10679,7 @@ function ajPasos(){
 }
 function ajPintarResumen(){
   if(!AJ.montado) return;
+  if(!S.emps && !AJ.cargandoEmps){ AJ.cargandoEmps = true; api('empleados').then(r => { S.emps = S.emps || r; AJ.cargandoEmps = false; ajPintarResumen(); }).catch(() => { AJ.cargandoEmps = false; }); }   // (v374) sin la lista, «managers» salía en 0
   const P = ajPasos(), hechos = P.filter(p => p.ok).length, falta = P.filter(p => !p.ok);
   $('ajProg').innerHTML = '<div class="aj-prog-cab"><b>' + (falta.length ? 'Setup' : 'Setup complete') + '</b><span>' + hechos + ' of ' + P.length + ' done</span></div>' +
     '<div class="aj-prog-bar"><i style="width:' + Math.round(hechos * 100 / P.length) + '%"></i></div>' +
@@ -13912,11 +13942,10 @@ $('sEnviar').addEventListener('click', async () => {
   else { sol.fecha = $('sFecha').value; sol.horaIni = $('sIni').value; sol.horaFin = $('sFin').value; }
   if(t === 'turno'){ sol.almIni = $('sAlmIni').value; sol.almFin = $('sAlmFin').value; }
   const almMal = t === 'turno' && (!!sol.almIni !== !!sol.almFin) ? 'Fill in both lunch times or leave both empty.'
-    : t === 'turno' && sol.almIni && !(sol.horaIni < sol.almIni && sol.almIni < sol.almFin && sol.almFin < sol.horaFin) ? 'Lunch must be inside the shift.' : '';
+    : t !== 'ausencia' && sol.horaIni && sol.horaFin ? turnoMal(sol.horaIni, sol.horaFin, t === 'turno' ? sol.almIni : null, t === 'turno' ? sol.almFin : null) : '';   // (v374) turnos nocturnos
   const err = t === 'ausencia' && !sol.clase ? 'Choose the absence type.'
     : !sol.fecha ? 'Choose the date.'
     : t !== 'ausencia' && (!sol.horaIni || !sol.horaFin) ? 'Fill in both times.'
-    : t !== 'ausencia' && sol.horaFin <= sol.horaIni ? 'The end time must be after the start time.'
     : almMal ? almMal
     : t === 'ausencia' && sol.fechaFin < sol.fecha ? 'The end date can\'t be before the start date.'
     : sol.motivo.length < 3 ? 'Enter the reason for the request.' : '';
@@ -14035,13 +14064,14 @@ function minutosLista(l){
 // que caiga en el mismo minuto (o antes) que la anterior, dejando orden estricto.
 // La lista ya debe venir ORDENADA como la deja el servidor.
 function separarMarcasCli(l){
-  let prev = -1;
+  let prev = -1, primero = -1, noche = false;
   return (l || []).map(m => { let cur = aMin(m.hora);
     if(cur == null) return { tipo:m.tipo, hora:m.hora };
+    if(primero < 0) primero = cur; else if(cur < primero && cur + 1440 - primero <= 960){ cur += 1440; noche = true; }   // (v374) como el servidor (paso 149)
     if(prev >= 0 && cur <= prev) cur = prev + 1;
-    if(cur > 1439) cur = 1439;
+    if(cur > 1439 && !noche) cur = 1439;
     prev = cur;
-    return { tipo:m.tipo, hora:hhmm2(cur) };
+    return { tipo:m.tipo, hora:hhmm2(cur % 1440) };
   });
 }
 // Antes y después de aprobar, como listas de marcas.
@@ -14061,7 +14091,8 @@ function ladosSol(s, r){
   // separan +1 min las pegadas. Asi el total y el pareo coinciden con lo que se guardara.
   const mezcla = hoy.map(m => ({ tipo:m.tipo, hora:m.hora, _o:0 }))
     .concat(nuevas.map(m => ({ tipo:m.tipo, hora:m.hora, _o:1 })));
-  mezcla.sort((a, b) => (aMin(a.hora) - aMin(b.hora)) || (a._o - b._o) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo]));
+  const kT = minTurno(mezcla);   // (v374) igual que el servidor: lo de después de medianoche va al final
+  mezcla.sort((a, b) => (kT(a.hora) - kT(b.hora)) || (a._o - b._o) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo]));
   return { antes:ordenarMarcas(hoy), despues:separarMarcasCli(mezcla) };
 }
 function cuentaV(emp){
@@ -14503,9 +14534,9 @@ async function guardarCambioAprobada(){
     } else {
       sol.fecha = $('eFecha').value; sol.horaIni = $('eIni').value; sol.horaFin = $('eFin').value;
       if(s.tipo === 'turno'){ sol.almIni = $('eAlmIni').value; sol.almFin = $('eAlmFin').value; }
-      const e = !sol.fecha ? 'Choose the date.' : (!sol.horaIni || !sol.horaFin) ? 'Fill in both times.' : sol.horaFin <= sol.horaIni ? 'The end time must be after the start time.'
+      const e = !sol.fecha ? 'Choose the date.' : (!sol.horaIni || !sol.horaFin) ? 'Fill in both times.'
         : s.tipo === 'turno' && (!!sol.almIni !== !!sol.almFin) ? 'Fill in both lunch times or leave both empty.'
-        : s.tipo === 'turno' && sol.almIni && !(sol.horaIni < sol.almIni && sol.almIni < sol.almFin && sol.almFin < sol.horaFin) ? 'Lunch must be inside the shift.' : '';
+        : turnoMal(sol.horaIni, sol.horaFin, s.tipo === 'turno' ? sol.almIni : null, s.tipo === 'turno' ? sol.almFin : null);   // (v374) turnos nocturnos
       if(e){ $('xErr').textContent = e; return; }
     }
     p = { id:s.id, sol, respuesta:nota };
@@ -16797,6 +16828,7 @@ function demoHorarios(action, p){
   const efDia = (u, f) => { const b = baseDia(u, f); if(!b.hay) return b; const c = DM.horTmp.filter(x => x.usuario === u && x.estado === 'aprobada' && x.desde <= f && x.hasta >= f).pop();
     if(!c) return b; return c.clase === 'libre' ? { hay:true, libre:true, cambio:{ id:c.id, motivo:c.motivo } } : { hay:true, libre:false, inicio:c.horaIni, fin:c.horaFin, almIni:c.almIni, almFin:c.almFin, cambio:{ id:c.id, motivo:c.motivo } }; };
   if(action === 'horarioDe') return efDia(p.usuario, p.fecha);
+  if(action === 'horariosDia'){ const o = {}; DM.emps.filter(e => e.activo).forEach(e => { const b = efDia(e.usuario, p.fecha); if(b.hay) o[e.usuario] = { libre:!!b.libre || !b.inicio, inicio:b.inicio || null, fin:b.fin || null }; }); return o; }
   if(action === 'horarioTemporales') return DM.horTmp.filter(x => x.estado === 'aprobada' && (!p.usuario || x.usuario === p.usuario)).map(x => Object.assign({ nombre:x.usuario }, x));
   if(action === 'horarioTemporalQuitar'){ const x = DM.horTmp.find(z => z.id === p.id); if(!x || x.estado !== 'aprobada') throw new Error('That change was already removed.'); x.estado = 'cancelada'; return { ok:true }; }
   if(action === 'horarioTemporal'){ const q = p.p || {}, nid = () => (DM.horTmp.length ? Math.max(...DM.horTmp.map(x => x.id)) : 0) + 1;
