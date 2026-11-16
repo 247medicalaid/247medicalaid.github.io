@@ -22,10 +22,11 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v373: turnos nocturnos (horarios y correcciones que pasan la medianoche, hasta 16 h); Settings «Early clock in» (limitar la entrada antes del horario); Settings «What managers can do» (aprueban las solicitudes de su equipo / ven sus horas) y panel «My team»; fines de semana con fondo suave en Timesheet; opción B del correo: un correo, una empresa activa (aviso al reactivar) -->
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v372-202611152000">
+<meta name="app-build" content="v373-202611160200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -866,7 +867,7 @@ table.ph{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .ph th{font-size:12px;color:var(--text-muted);font-weight:600;text-align:left;padding:7px 6px;background:var(--sand);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
 .ph td{padding:3px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
 .ph td.phdia{font-weight:600;min-width:78px}
-.ph td.fin{color:#9AAAB5}
+.ph td.fin{color:#9AAAB5;background:#F5F8FB}
 .ph input[type=time]{padding:5px 4px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;width:112px;background:var(--paper)}
 .ph input[type=time]:focus{border-color:var(--brand-500);outline:2px solid var(--brand-100)}
 .ph td.hrs{font-weight:700;text-align:right;min-width:52px}
@@ -1642,7 +1643,7 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .per th:first-child,.per td:first-child{text-align:left}
 .per td{padding:5px 6px;border-bottom:1px solid var(--sand-2);text-align:right;white-space:nowrap}
 .per td.d{font-weight:600}
-.per tr.fin td{color:#9AAAB5}
+.per tr.fin td{color:#9AAAB5;background:#F5F8FB}
 .per tr.fin td.d{font-weight:500}
 .per tr.hoy td{background:var(--brand-50)}
 .per tr.hoy td.d{box-shadow:inset 3px 0 0 var(--ink-900)}
@@ -1888,6 +1889,9 @@ table.hoja{border-collapse:separate;border-spacing:0;font-size:13.5px;width:100%
 .hoja thead th{position:sticky;top:0;background:var(--sand);font-weight:600;font-size:12px;color:var(--text-muted);
   padding:8px 4px;text-align:center;z-index:1}
 .hoja thead th.fin{color:#9AAAB5}
+/* (v373) fines de semana con fondo suave en la hoja */
+.hoja thead th.fin,.hoja td.finde{background:#F2F5F9}
+.hoja td.finde .celda:hover{background:var(--brand-50)}
 .hoja .nombre{position:sticky;left:0;background:var(--paper);z-index:2;text-align:left;padding:8px 14px;font-weight:600;
   min-width:150px;max-width:210px;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line)}
 .hoja thead .nombre{background:var(--sand);z-index:3}
@@ -2316,6 +2320,7 @@ body.aw .aw-menu > .g1{order:1}
 body.aw .aw-menu > [data-awi="dia"]{order:2}
 body.aw .aw-menu > [data-awi="per"]{order:3}
 body.aw .aw-menu > [data-awi="sol"]{order:4}
+body.aw .aw-menu > [data-awi="equipo"]{order:4}
 body.aw .aw-menu > .g2{order:5}
 body.aw .aw-menu > [data-awi="upd"]{order:6}
 body.aw .aw-menu > [data-awi="chat"]{order:7}
@@ -2772,6 +2777,40 @@ body.aw .aw-panel #updAvisoAg:not(:empty){margin-top:14px;max-width:900px}
 body.aw:not([data-aw="dia"]) #updAvisoAg{display:none}
 #updAvisoAg:empty{display:none}
 body.aw[data-aw="upd"] .aw-panel > [data-aw="upd"]{display:block}
+/* (v373) «My team»: lo que ve un manager de su equipo (si la empresa lo permite) */
+body.aw[data-aw="equipo"] .aw-panel > [data-aw="equipo"]{display:block}
+.eq-seg{display:inline-flex;gap:4px;padding:4px;background:var(--sand-2);border-radius:999px;margin:0 0 14px}
+.eq-seg button{border:0;background:none;font:600 14px var(--font-body);color:var(--text-muted);padding:7px 16px;border-radius:999px;cursor:pointer}
+.eq-seg button.on{background:var(--paper);color:var(--text);box-shadow:var(--shadow-sm)}
+.eq-seg button:focus-visible{outline:2px solid var(--brand-500);outline-offset:1px}
+.eq-h{font-size:15px;margin:18px 0 8px;color:var(--text)}
+.eq-h:first-child{margin-top:4px}
+.eq-sol{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;margin:0 0 8px}
+.eq-sol-t{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.eq-sol-t span{font-size:13px;color:var(--text-muted)}
+.eq-sol-c{font-size:14px;margin-top:2px}
+.eq-sol-m{font-size:13px;color:var(--text-muted);margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.eq-sol-b{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.eq-sol-e{font-size:13px;margin-top:6px;color:var(--text-muted)}
+.eq-sol-e b{color:var(--text)}
+.eq-sol-e.aprobada b{color:#1B7A43}.eq-sol-e.rechazada b{color:var(--accent-600)}
+.eq-sol-err{font-size:13px;color:var(--accent-600);background:var(--accent-50);border-radius:8px;padding:8px 10px;margin-top:10px}
+.eq-nada,.eq-nota{font-size:14px;color:var(--text-muted);margin:4px 0 8px}
+.eq-nota{margin-top:14px;font-size:13px}
+.eq-sem{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.eq-sem b{font-size:15px;min-width:0;flex:1}
+.eq-tabla-w{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.eq-tabla{border-collapse:collapse;width:100%;min-width:620px;font-size:14px;font-variant-numeric:tabular-nums}
+.eq-tabla th,.eq-tabla td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.eq-tabla tr:last-child th,.eq-tabla tr:last-child td{border-bottom:0}
+.eq-tabla thead th{font-size:12px;font-weight:600;color:var(--text-muted)}
+.eq-tabla tbody th{text-align:left;font-weight:600}
+.eq-tabla tbody th small{display:block;font-weight:400;color:var(--text-muted);font-size:12px}
+.eq-tabla td small{display:block;font-size:11px;color:var(--st-trab)}
+.eq-tabla .finde{background:#F5F8FB}
+.eq-tabla .hoy{box-shadow:inset 0 -2px 0 var(--brand-500)}
+.eq-tabla .tot{font-weight:700}
+.eq-tabla .tag{font-size:11px}
 .upd-ag-t{font-size:20px;margin:0 0 12px}
 @media (max-width:700px){ .upd-fila{grid-template-columns:1fr} .upd-fila-n{text-align:left} .ue-cols{grid-template-columns:1fr} .ue-gente-fila{grid-template-columns:1fr} .upd-card{padding:14px} }
 /* Users: columnas, ordenar y grupos (v61) */
@@ -3346,6 +3385,15 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <div class="aj-cuerpo-card"><div id="ajRolesLista" class="roles-lista"></div></div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajGMGuardar" type="button">Save</button><span class="nota" id="ajGMEstado"></span></div>
           </div>
+          <div class="ajuste aj-card" id="ajMgrBox" data-guardar="ajMgrGuardar">
+            <div class="aj-ct"><h2>What managers can do</h2><span class="aj-pill" id="ajPillMgr"></span></div>
+            <p class="aj-desc">For supervisors and account managers, with the people in the accounts they manage. Administrators can always do everything.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajMgrAprueban"><b>Approve their team&rsquo;s requests</b><span>Time off, missed punches and corrections. They approve or decline as sent: changing the punches or making time off paid stays with administrators. Schedule changes stay with administrators.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrAprueban" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMgrVerHoras"><b>See their team&rsquo;s hours</b><span>A read-only view of each person&rsquo;s punches and hours by day. They can&rsquo;t change them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrVerHoras" role="switch"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMgrGuardar" type="button">Save</button><span class="nota" id="ajMgrEstado"></span></div>
+          </div>
         </div>
 
         <!-- TIME · Time tracking -->
@@ -3371,6 +3419,15 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
               <div class="aj-fila"><label class="aj-fl" for="ajUbic"><b>Ask for location to clock in and out</b><span>On: each punch saves where it was made (GPS on phones, Wi&#8209;Fi on computers), and a punch isn&rsquo;t recorded until the person shares their location. Off: the Time Clock never asks for location.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajUbic" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajUbicGuardar" type="button">Save</button><span class="nota" id="ajUbicEstado"></span></div>
+          </div>
+          <div class="ajuste aj-card" id="ajTempBox" data-guardar="ajTempGuardar">
+            <div class="aj-ct"><h2>Early clock in</h2><span class="aj-pill" id="ajPillTemp"></span></div>
+            <div class="aj-filas">
+              <div class="aj-fila"><label class="aj-fl" for="ajTempLim"><b>Limit clocking in before the scheduled start</b><span>On: people can clock in only from the minutes below before the start time in their schedule. Off: they can clock in at any time. Days without a schedule are never limited.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajTempLim" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajTempMin"><b>How early they can clock in</b><span>Minutes before the scheduled start. 0 = not before the start time.</span></label><div class="aj-fr"><input type="number" id="ajTempMin" class="aj-num" min="0" max="240" step="5" inputmode="numeric"><span class="aj-uni">min</span></div></div>
+            </div>
+            <div class="ejemplo" id="ajTempEjemplo"></div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajTempGuardar" type="button">Save</button><span class="nota" id="ajTempEstado"></span></div>
           </div>
           <div class="ajuste aj-card" id="ajAutoSal" data-guardar="ajAutoGuardar">
             <div class="aj-ct"><h2>Automatic clock out</h2><span class="aj-pill" id="ajPillAuto"></span></div>
@@ -4240,6 +4297,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 <!-- Updates del agente (se mueve al panel de la app) -->
 <div id="updAvisoAg"></div>
 <section class="upd-ag hidden" id="updAg"><div class="upd-ag-top"><h2 class="upd-ag-t">Updates</h2><button class="btn btn-brand btn-sm hidden" id="updAgNuevo" type="button">New update</button></div><div id="updAgLista" class="upd-lista"></div></section>
+<section class="upd-ag eq-ag hidden" id="eqAg"><div class="upd-ag-top"><h2 class="upd-ag-t">My team</h2></div><div class="eq-seg hidden" id="eqSeg" role="tablist" aria-label="My team"><button type="button" role="tab" data-eq="sol">Requests</button><button type="button" role="tab" data-eq="horas">Hours</button></div><div id="eqCuerpo"></div></section>
 
 <div id="popCaja" class="pop-caja" aria-live="assertive"></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -5090,8 +5148,13 @@ const SERVIDOR_EN = [
   [/^Regla de overtime no válida\.$/, 'Invalid overtime rule.'],
   [/^Horas de overtime no válidas\.$/, 'Invalid overtime hours.'],
   [/^Pago de overtime no válido\.$/, 'Invalid overtime pay.'],
+  // (v373, paso 148)
+  [/^Todavía no puedes marcar tu entrada: tu turno empieza a las (.+)\. Puedes marcar desde las (.+)\.$/, 'It\'s too early to clock in: your shift starts at $1. You can clock in from $2.'],
+  [/reloj_guardar_regla/, TEC('This setting isn\'t working right now.', 148)],
   // (v372) mensajes encontrados en las pruebas del 16 nov
   [/^Ese correo ya lo usa otra persona en 247Punch.*$/, 'That email is already used by another person on 247Punch (it may be in another company). Use a different email.'],
+  [/reloj_mgr_equipo/, TEC('Your team view isn\'t working right now.', 148)],
+  [/^Esta persona ya usa ese correo en otra empresa de 247Punch.*$/, 'This person already uses that email in another company on 247Punch. To let them sign in here, give them a different email in their profile.'],
   [/reloj_empleados_horas_dia_check/, ENT('Hours per day must be between 1 and 12.')],
   // Errores crudos de la base (no deberían llegar): mensaje normal y el detalle a la consola
   [/violates (check|foreign key|not-null) constraint|null value in column|duplicate key value|invalid input syntax|out of range/i, ENT('Some of the information isn\'t valid. Check the form and try again.', true)]
@@ -5113,6 +5176,8 @@ const COLS_M = 'usuario,fecha,tipo,ts,origen,autor,motivo,ts_real';
 
 async function cargarConfig(){
   try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
+    if(x.clave === 'entrada_temprana' && x.valor && typeof x.valor === 'object') S.entradaTemprana = x.valor;   // (v373)
+    if(x.clave === 'managers' && x.valor && typeof x.valor === 'object') S.mgrReglas = x.valor;
     if(x.clave === 'auto_eval_ausencias') (S.ausDiaria = S.ausDiaria || {}).activo = x.valor === true || x.valor === 'true';   // (v299, paso 129)
     if(x.clave === 'auto_eval_dias') (S.ausDiaria = S.ausDiaria || {}).dias = Number(x.valor) || 3;
     if(x.clave === 'auto_cierre_hora') (S.ausDiaria = S.ausDiaria || {}).hora = x.valor == null ? 21 : Number(x.valor);
@@ -5433,6 +5498,7 @@ async function api(action, p){
   if(action === 'setReporta') return q(sb.rpc('reloj_set_reporta', { p_usuario:p.usuario, p_jefe:p.jefe || null }));
   if(action === 'setMonitorea') return q(sb.rpc('reloj_set_monitorea', { p_usuario:p.usuario, p_cuentas:(p.cuentas === undefined ? null : p.cuentas) }));
   if(action === 'mgrConsola') return q(sb.rpc('reloj_mgr_consola'));
+  if(action === 'mgrEquipo') return q(sb.rpc('reloj_mgr_equipo', { p_desde:p.desde || null, p_hasta:p.hasta || null }));   // (v373)
   if(action === 'importarUsuarios') return q(sb.rpc('reloj_importar_usuarios', { p:{ archivo:p.archivo, filas:p.filas } }));
   if(action === 'guardarEmpleado'){ const res = await q(sb.rpc('reloj_guardar_empleado', { p:p.empleado })); return Object.assign(await empleadosSB(), { res }); }
   if(action === 'miFicha'){
@@ -5452,6 +5518,7 @@ async function api(action, p){
   if(action === 'borrarEmpleado'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('borrar', { usuario:p.usuario }, ses.access_token)); }
   if(action === 'invitar'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('cuenta', { usuario:p.usuario, enviar:p.enviar !== false, forzar:p.forzar === true }, ses.access_token)); }
   if(action === 'resetClave'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('clave', { usuario:p.usuario }, ses.access_token)); }
+  if(action === 'revisarCorreo'){ if(!INST.compartimentos || INST.destino) return { ok:true, otra:false }; const ses = await sesionSB(); return cuentasOk(await cuentasFn('revisar', { usuario:p.usuario }, ses.access_token)); }   // (v373) opción B: ¿ese correo ya lo usa en otra empresa?
   if(action === 'solicitar'){ const r = await q(sb.rpc('reloj_solicitar', { p:p.sol })); avisarSolicitud(r.id); return r; }
   if(action === 'solicitarHorario'){ const r = await q(sb.rpc('reloj_solicitar_horario', { p:p.sol })); try{ await avisarSolicitud(r.id); }catch(e){} return r; }
   if(action === 'miSemana') return q(sb.rpc('reloj_mi_semana', { p_lunes:p.lunes }));
@@ -5623,6 +5690,7 @@ async function api(action, p){
   if(action === 'guardarCuentas') return q(sb.rpc('reloj_guardar_cuentas', { p:p.valor }));
   if(action === 'renombrarCuenta') return q(sb.rpc('reloj_renombrar_cuenta', { p_origen:p.origen, p_destino:p.destino, p_aplicar:!!p.aplicar }));
   if(action === 'guardarConfig') return q(sb.rpc('reloj_guardar_config', { p_clave:p.clave, p_valor:p.valor }));
+  if(action === 'guardarRegla') return q(sb.rpc('reloj_guardar_regla', { p_clave:p.clave, p_valor:p.valor }));   // (v373, paso 148)
   if(action === 'borrarTodo') return q(sb.rpc('reloj_borrar_todo', { p_confirmacion:p.conf }));
   if(action === 'apagarPruebas') return q(sb.rpc('reloj_desactivar_pruebas'));
   if(action === 'impExistentes') return q(sb.rpc('reloj_importados', { p_desde:p.desde, p_hasta:p.hasta }));
@@ -6400,7 +6468,7 @@ async function inicio(){
     $('quienRol').textContent = yo.esAdmin ? 'Administrator' : (yo.empleado ? 'Agent' : '');
     // (v372) Un agente que maneja cuentas se ve como Supervisor / Account Manager (antes decía «Agent»)
     if(!yo.esAdmin && yo.empleado && !DEMO) api('mgrConsola').then(m => { if(S.mgr === undefined) S.mgr = m; if(!m || !m.esManager) return;
-      const t = m.rol || ((m.cuentas || []).length > 1 ? 'Account Manager' : 'Supervisor'); $('quienRol').textContent = t; if($('awRol')) $('awRol').textContent = t; }).catch(() => {});
+      const t = m.rol || ((m.cuentas || []).length > 1 ? 'Account Manager' : 'Supervisor'); $('quienRol').textContent = t; if($('awRol')) $('awRol').textContent = t; eqMenu(); }).catch(() => {});
     $('btnPerfil').classList.toggle('hidden', yo.esAdmin || !yo.empleado);
     $('btnDocs').classList.toggle('hidden', yo.esAdmin || !yo.empleado);
     if(!yo.esAdmin && yo.empleado) docsAvisoAgente();
@@ -6470,6 +6538,7 @@ const AW_MENU = [
   ['chat', 'Chat', '<svg viewBox="0 0 24 24"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>'],
   ['per', 'Pay period', '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'],
   ['sol', 'Requests', '<svg viewBox="0 0 24 24"><path d="M21 12h-5l-2 3h-4l-2-3H3"/><path d="M5.5 5.5 3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6l-2.5-6.5A2 2 0 0 0 16.6 4H7.4a2 2 0 0 0-1.9 1.5z"/></svg>'],
+  ['equipo', 'My team', '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-.5A5.5 5.5 0 0 1 8 14h2a5.5 5.5 0 0 1 5.5 5.5v.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a5.5 5.5 0 0 1 3.5 5.1v.9"/></svg>'],   // (v373) solo managers, si la empresa lo permite
   ['docs', 'Documents', '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>'],
   ['perfil', 'My profile', '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>']
 ];
@@ -6486,18 +6555,20 @@ function appLayout(){
   const perfil = $('ovPerfil').querySelector('.ventana'); perfil.dataset.aw = 'perfil';
   const docs = $('ovDocs').querySelector('.ventana'); docs.dataset.aw = 'docs';
   const upd = $('updAg'); upd.dataset.aw = 'upd'; upd.classList.remove('hidden');
+  const eqp = $('eqAg'); eqp.dataset.aw = 'equipo'; eqp.classList.remove('hidden');   // (v373)
   const chat = $('chatAg'); chat.append($('chatApp')); chat.dataset.aw = 'chat'; chat.classList.remove('hidden');
-  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), dia, ...(hor ? [hor] : []), upd, chat, per, sol, docs, perfil);
+  panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), dia, ...(hor ? [hor] : []), upd, chat, per, sol, eqp, docs, perfil);
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
   nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
       '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
       '<div>' + esc(MARCA.appName) + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '') + '</div></div>' +
-    AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
+    AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'equipo' ? '<b class="hidden" id="awEqN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<button class="aw-item" type="button" id="awRefrescar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh</span></button>' +
     '<div class="aw-sep"></div><div class="aw-yo"><b id="awNom"></b><span id="awRol">Agent</span>' +
     '<button class="aw-item" type="button" id="awSalir"><svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span>Sign out</span></button></div>';
   // (v91) títulos de grupo como en el menú del administrador (app y web)
+  nav.querySelector('[data-awi="equipo"]').classList.add('hidden');   // (v373) aparece solo para managers, si la empresa lo permite (eqMenu)
   [['g1', 'My day'], ['g2', 'Communication'], ['g3', 'Me']].forEach(([c, tx]) => { const g = document.createElement('div'); g.className = 'aw-grupo ' + c; g.textContent = tx; nav.querySelector('.aw-sep').before(g); });
   const main = document.createElement('div'); main.className = 'aw-main';
   main.append(fijo, panel);
@@ -6575,6 +6646,7 @@ function appPanel(k){
   if(!document.body.classList.contains('solochat-ag')){ try{ localStorage.setItem('aw_panel', k); }catch(e){} }
   if(k === 'perfil') abrirPerfil();   // se carga cada vez que se abre (datos al día)
   if(k === 'docs') cargarMisDocs();
+  if(k === 'equipo') cargarEq();   // (v373)
   if(k === 'upd') cargarUpdAg(); else if(S.updObs) S.updObs.disconnect();
   if(k === 'chat'){ cargarChat(); setTimeout(chatAjustar, 0); } else if(!document.body.classList.contains('aw-chatlado')) document.body.classList.remove('chat-dentro');
   if(k === 'upd') popQuitar('upd|');
@@ -7075,7 +7147,7 @@ function pintarReloj(){
       (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + IMP_DE + '">' + (INST_SOLO247 ? 'Connecteam' : 'imported') + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta(); pintarHorario();
-  if(!S.awListo && !yo.esAdmin) appLayout();   // agentes: menú lateral en la app y en el navegador
+  if(!S.awListo && !yo.esAdmin) { appLayout(); eqMenu(); }   // agentes: menú lateral en la app y en el navegador
 
   const hoy = yo.hoy;
   if(!S.contadas){ S.contadas = true; contarMias(); }
@@ -7381,11 +7453,11 @@ function cintaEn(el, eje, fecha, marcas, monitor, vivo){
   if(monitor && monitor.p != null) puntos.push(monitor.p, monitor.u);
   if(puntos.length){
     ini = base + Math.floor((Math.min(...puntos) - base) / H) * H - H; fin = base + Math.ceil((Math.max(...puntos) - base) / H) * H + H;
-    ini = Math.max(ini, base); fin = Math.min(fin, base + 24 * H);
-    while(fin - ini < 4 * H){ if(fin < base + 24 * H) fin += H; else ini -= H; }
+    ini = Math.max(ini, base); fin = Math.min(fin, base + 40 * H);   // (v373) un turno nocturno sigue después de medianoche
+    while(fin - ini < 4 * H){ if(fin < base + 40 * H) fin += H; else ini -= H; }
   }
   const nH = Math.round((fin - ini) / H), cada = [1, 2, 3, 4, 6].find(s => nH / s <= 6) || 6;
-  while(Math.round((fin - ini) / H) % cada){ if(fin < base + 24 * H) fin += H; else ini -= H; }   // las horas del eje caen parejas
+  while(Math.round((fin - ini) / H) % cada){ if(fin < base + 40 * H) fin += H; else ini -= H; }   // las horas del eje caen parejas
   const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
   let h = tramos.map(x => '<div class="seg ' + x[0] + '" title="' + (x[0].startsWith('alm') ? 'Lunch ' : 'Work ') + esc(hora(x[1]) + ' – ' + hora(x[2])) + '" style="left:' + pct(x[1]) + '%;width:' + Math.max(.6, pct(x[2]) - pct(x[1])) + '%"></div>').join('');
   if(monitor && monitor.p != null){
@@ -7425,7 +7497,8 @@ function cintaDia(fecha, d, marcas, e){
   const au = d.ausencia, ausP = au && esParcial(au) ? [wall(fecha, au.horaIni.slice(0, 5)), wall(fecha, au.horaFin.slice(0, 5))] : null;
   const pr = S.horDia[clave];
   const progOk = pr && pr.hay && !pr.libre && pr.inicio && pr.fin;
-  const pIni = progOk ? wall(fecha, pr.inicio) : null, pFin = progOk ? wall(fecha, pr.fin) : null;
+  const pIni = progOk ? wall(fecha, pr.inicio) : null, pFin0 = progOk ? wall(fecha, pr.fin) : null;
+  const pFin = progOk && pFin0 <= pIni ? pFin0 + 864e5 : pFin0;   // (v373) turno nocturno: termina al día siguiente
   const ausTodo = au && !ausP ? (progOk ? [pIni, pFin] : [wall(fecha, '08:00'), wall(fecha, '17:00')]) : null;
   // escala: de la primera a la última cosa del día, con margen, en horas en punto (mínimo 8 a. m. – 6 p. m.)
   const puntos = [wall(fecha, '08:00'), wall(fecha, '18:00')];
@@ -7434,7 +7507,7 @@ function cintaDia(fecha, d, marcas, e){
   if(d.monitor && d.monitor.p != null) puntos.push(d.monitor.p, d.monitor.u);
   const H = 3600000, base = wall(fecha, '00:00');
   let ini = base + Math.floor((Math.min(...puntos) - base) / H) * H - H, fin = base + Math.ceil((Math.max(...puntos) - base) / H) * H + H;
-  ini = Math.max(ini, base); fin = Math.min(fin, base + 24 * H);
+  ini = Math.max(ini, base); fin = Math.min(fin, base + 40 * H);   // (v373) un turno nocturno sigue después de medianoche
   const pct = ms => Math.max(0, Math.min(100, (ms - ini) / (fin - ini) * 100));
   const ancho = (el.clientWidth || 600) - (window.innerWidth <= 560 ? 58 : 250);   // (v350) pista entre el rótulo y el resumen
   const etq = (a, b, txt) => ((pct(b) - pct(a)) / 100 * ancho) >= txt.length * 6.3 + 10 ? '<span>' + esc(txt) + '</span>' : '';
@@ -7451,7 +7524,8 @@ function cintaDia(fecha, d, marcas, e){
   let hProg = '', vProg = '', vMar = '', vPc = '';
   if(progOk){
     ley.add('prog');
-    const aI = pr.almIni ? wall(fecha, pr.almIni) : null, aF = pr.almFin ? wall(fecha, pr.almFin) : null;
+    const sig = x => x != null && x < pIni ? x + 864e5 : x;   // (v373) almuerzo después de medianoche
+    const aI = pr.almIni ? sig(wall(fecha, pr.almIni)) : null, aF = pr.almFin ? sig(wall(fecha, pr.almFin)) : null;
     hProg = seg('prog' + (pr.cambio ? ' tmp' : ''), pIni, pFin, (pr.cambio ? 'Temporary change: ' + (pr.cambio.motivo || '') + ' · ' : 'Scheduled ') + hora(pIni) + ' – ' + hora(pFin) + (aI ? ' · lunch ' + hora(aI) + ' – ' + hora(aF) : ''));
     if(pr.cambio) ley.add('tmp');
     if(aI && aF){ hProg += seg('progalm', aI, aF, 'Scheduled lunch ' + hora(aI) + ' – ' + hora(aF)); ley.add('progalm'); }
@@ -8213,6 +8287,11 @@ function pintarHoja(){
   });
   t += '</tbody></table>';
   $('hojaTabla').innerHTML = t;
+  { // (v373) marca las columnas de sábado y domingo (fondo suave)
+    const tabla = $('hojaTabla').querySelector('table'), cab = tabla && tabla.querySelector('thead tr:last-child');
+    if(cab){ const cols = []; let i = 0; [].forEach.call(cab.children, th => { const n = th.colSpan || 1; if(th.classList.contains('fin')) for(let k = 0; k < n; k++) cols.push(i + k); i += n; });
+      if(cols.length) tabla.querySelectorAll('tbody tr').forEach(tr => { let j = 0; [].forEach.call(tr.children, td => { const n = td.colSpan || 1; if(n === 1 && cols.indexOf(j) >= 0) td.classList.add('finde'); j += n; }); }); }
+  }
   $('hojaTabla').querySelectorAll('.celda[data-u]').forEach(b => b.addEventListener('click', () => abrirDia(b.dataset.u, b.dataset.f, S.hoja)));
   $('hojaTabla').querySelectorAll('[data-apf]').forEach(b => b.addEventListener('click', () => aprobarFecha(b.dataset.apf)));
   $('hojaTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrirPeriodo(b.dataset.editar)));
@@ -8556,11 +8635,15 @@ function editarDia(foco){
 }
 // Filas del editor: lo que se va a guardar, en orden de hora (sin tocar = con sus segundos).
 function leerEdicion(){
-  return Array.from($('dFilas').querySelectorAll('.edit-fila')).map((f, i) => {
+  const l = Array.from($('dFilas').querySelectorAll('.edit-fila')).map((f, i) => {
     const tipo = f.querySelector('select').value, hora = f.querySelector('input').value;
     const igual = f.dataset.orig && f.dataset.orig.slice(0, 5) === hora;
     return { f, i, tipo, hora, envio:igual ? f.dataset.orig : hora, cambio:!f.dataset.orig || !igual || f.dataset.otipo !== tipo };
-  }).sort((a, b) => ((segDe(a.envio) ?? 1e9) - (segDe(b.envio) ?? 1e9)) || (ORD_TIPO[a.tipo] - ORD_TIPO[b.tipo]) || a.i - b.i);
+  });
+  // (v373) turno nocturno: una hora antes de la primera entrada (y a no más de 16 h) es del día siguiente
+  const es = l.filter(x => x.tipo === 'entrada' && segDe(x.envio) != null).map(x => segDe(x.envio)), E = es.length ? Math.min.apply(null, es) : null;
+  l.forEach(x => { const sg = segDe(x.envio); x.sig = E != null && sg != null && sg < E && sg + 86400 - E <= 57600; x.sg = sg == null ? null : sg + (x.sig ? 86400 : 0); });
+  return l.sort((a, b) => ((a.sg ?? 1e9) - (b.sg ?? 1e9)) || (ORD_TIPO[a.tipo] - ORD_TIPO[b.tipo]) || a.i - b.i);
 }
 // Revisa como lo hará el servidor; pinta lo cambiado, la cinta y las horas.
 function revisarEdicion(){
@@ -8569,7 +8652,7 @@ function revisarEdicion(){
   l.forEach(x => { x.f.classList.toggle('cambio', x.cambio); x.f.classList.remove('malo'); });
   for(const x of l){
     if(!x.hora){ err = 'Fill in the time of every punch (or remove it with ×).'; x.f.classList.add('malo'); break; }
-    const sg = segDe(x.envio);
+    const sg = x.sg;
     if(prev != null && sg <= prev.sg){ err = NOMBRE_TIPO[x.tipo] + ' at ' + h12(x.hora) + ' must be after ' + NOMBRE_TIPO[prev.tipo].toLowerCase() + ' at ' + h12(prev.hora) + '.'; x.f.classList.add('malo'); break; }
     const ok = { fuera:['entrada'], trab:['almuerzo_ini', 'salida'], alm:['almuerzo_fin'] }[estado];
     if(ok.indexOf(x.tipo) < 0){
@@ -8579,14 +8662,14 @@ function revisarEdicion(){
       x.f.classList.add('malo'); break;
     }
     estado = x.tipo === 'entrada' || x.tipo === 'almuerzo_fin' ? 'trab' : x.tipo === 'almuerzo_ini' ? 'alm' : 'fuera';
-    if(fecha === hoy && wall(fecha, x.hora) > ahora()){ err = h12(x.hora) + ' hasn\'t happened yet.'; x.f.classList.add('malo'); break; }
+    if((fecha === hoy || x.sig) && wall(x.sig ? sumarDias(fecha, 1) : fecha, x.hora) > ahora()){ err = h12(x.hora) + ' hasn\'t happened yet.'; x.f.classList.add('malo'); break; }
     prev = { sg, tipo:x.tipo, hora:x.hora };
   }
   if(!err && estado !== 'fuera' && fecha < hoy) err = 'A past day must end with a Clock out.';
-  const lista = l.filter(x => x.hora).map(x => ({ tipo:x.tipo, hora:x.envio }));
+  const lista = l.filter(x => x.hora).map(x => ({ tipo:x.tipo, hora:x.envio, sig:x.sig }));
   // cinta y totales en vivo
-  if($('dCinta') && !err) cintaDia(fecha, d, lista.map(m => ({ tipo:m.tipo, ms:wall(fecha, m.hora.slice(0, 5)) + (segDe(m.hora) % 60) * 1000 })), S.dia.e);   // (v316)
-  let alm = 0, ini = null; ordenarMarcas(lista).forEach(m => { if(m.tipo === 'almuerzo_ini') ini = aMin(m.hora); else if(m.tipo === 'almuerzo_fin' && ini != null){ alm += aMin(m.hora) - ini; ini = null; } });
+  if($('dCinta') && !err) cintaDia(fecha, d, lista.map(m => ({ tipo:m.tipo, ms:wall(m.sig ? sumarDias(fecha, 1) : fecha, m.hora.slice(0, 5)) + (segDe(m.hora) % 60) * 1000 })), S.dia.e);   // (v316) · (v373) nocturno
+  const kT = minTurno(lista); let alm = 0, ini = null; ordenarMarcas(lista).forEach(m => { if(m.tipo === 'almuerzo_ini') ini = kT(m.hora); else if(m.tipo === 'almuerzo_fin' && ini != null){ alm += kT(m.hora) - ini; ini = null; } });
   const trab = minutosLista(lista), cambio = l.some(x => x.cambio) || S.dia.ed.quitadas > 0;
   $('dEdTot').innerHTML = err ? '' : '<span>Worked <b' + (trab !== d.min ? ' class="dif"' : '') + '>' + dur(trab) + '</b>' + (trab !== d.min && !d.incompleto ? ' <span class="nota" style="margin:0">(was ' + dur(d.min) + ')</span>' : '') + '</span>' +
     '<span>Lunch <b' + (alm !== d.alm ? ' class="dif"' : '') + '>' + dur(alm) + '</b></span>';
@@ -9217,10 +9300,10 @@ function pintarAccesoEmp(e){
     }catch(x){ $('eErr').textContent = x.message; b.disabled = false; b.textContent = 'Resend invitation'; }
   });
 }
-function confirmar(titulo, texto, boton, peligro){
+function confirmar(titulo, texto, boton, peligro, soloOk){   // (v373) soloOk: aviso con un solo botón
   return new Promise(res => {
     $('cTitulo').textContent = titulo; $('cTexto').innerHTML = texto; $('cSi').textContent = boton;
-    $('cSi').className = 'btn ' + (peligro ? 'btn-peligro' : 'btn-ink'); $('cSi').style.display = '';
+    $('cSi').className = 'btn ' + (peligro ? 'btn-peligro' : 'btn-ink'); $('cSi').style.display = ''; $('cNo').style.display = soloOk ? 'none' : '';
     $('cSi').onclick = () => { cerrar('ovConf'); res(true); };
     $('cNo').onclick = () => { cerrar('ovConf'); res(false); };
     abrir('ovConf');
@@ -9244,6 +9327,10 @@ $('eActivar').addEventListener('click', async () => {
     else if(e.agenteMonitor){ try{ const _ayer = new Date(Date.now()-864e5).toLocaleDateString('en-CA',{ timeZone:'America/New_York' }); await monAccionSB({ accion:'baja', agente:e.agenteMonitor, activo: desact ? '0' : '1', fecha: desact ? _ayer : '', motivo: desact ? 'Archivado en el Time Clock' : '' }); }catch(_e){} }
     S.emps = await api('empleados'); pintarEmps(); cerrar('ovEmp');
     toast(desact ? e.nombre + ' was archived.' : e.nombre + ' was reactivated.');
+    // (v373) opción B de Carlos: se reactiva igual, pero si ese correo ya lo usa en otra empresa activa, se avisa que hace falta otro correo.
+    if(!desact){ try{ const rv = await api('revisarCorreo', { usuario:e.usuario });
+      if(rv && rv.otra) confirmar('Give ' + e.nombre + ' a different email', esc(e.nombre) + ' was reactivated, but <b>' + esc(e.email || 'their email') + '</b> is already used by this person in another company on 247Punch. They can\'t sign in here with it. Open their profile, enter a different email and send the invitation again.', 'OK', false, true);
+    }catch(_x){} }
     S.hoja = null; S.hojaHoy = null;
     // (v203) Si cambio el agente del Monitor, refresca el panel del Monitor (iframe) para que no muestre datos viejos.
     if(e.agenteMonitor){ const _mf = $('monFrame'); if(_mf && _mf.dataset.cargado){ try{ _mf.contentWindow.location.reload(); }catch(_e){ _mf.dataset.cargado = ''; } } }
@@ -9525,9 +9612,12 @@ async function cargarHorarios(){
   try{ S.horarios = await api('horariosResumen') || {}; }catch(e){ S.horarios = null; }
 }
 const hoMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+// (v373) desde la hora de inicio, dando la vuelta a medianoche: un turno puede terminar al día siguiente (nocturno)
+const hoDesde = (t, base) => { const a = hoMin(t), b = hoMin(base); return a == null || b == null ? null : ((a - b) % 1440 + 1440) % 1440; };
 function hoMinDia(d){
-  if(!d) return null; const a = hoMin(d.i), b = hoMin(d.f); if(a == null || b == null || b <= a) return null;
-  let t = b - a; const x = hoMin(d.aa), y = hoMin(d.ab); if(x != null && y != null && y > x) t -= (y - x); return t;
+  if(!d) return null; const a = hoMin(d.i), b = hoMin(d.f); if(a == null || b == null || b === a) return null;
+  let t = hoDesde(d.f, d.i); if(t > 960) return null;
+  const x = hoDesde(d.aa, d.i), y = hoDesde(d.ab, d.i); if(x != null && y != null && y > x) t -= (y - x); return t;
 }
 const hoRango = d => h12(d.i) + ' – ' + h12(d.f);
 const hoAlm = d => d && d.aa && d.ab ? (d.aa < '12:00' === d.ab < '12:00' ? h12(d.aa).replace(/ (AM|PM)$/, '') : h12(d.aa)) + ' – ' + h12(d.ab) : '';
@@ -9750,10 +9840,11 @@ function hoValidar(sem){
   for(const [k, n] of HO_DIAS){
     const d = sem[k]; if(!d) continue;
     if(!d.i || !d.f) return n + ': missing start or end time';
-    if(d.f <= d.i) return n + ': end must be after start';
+    if(d.f === d.i) return n + ': end must be different from start';
+    if(hoDesde(d.f, d.i) > 960) return n + ': a shift can\'t be longer than 16 hours';   // (v373) nocturno: termina al día siguiente
     if((d.aa && !d.ab) || (!d.aa && d.ab)) return n + ': fill both lunch times or leave them blank';
-    if(d.aa && d.ab <= d.aa) return n + ': lunch must end after it starts';
-    if(d.aa && (d.aa < d.i || d.ab > d.f)) return n + ': lunch must be within the workday';
+    if(d.aa && hoDesde(d.ab, d.i) <= hoDesde(d.aa, d.i)) return n + ': lunch must end after it starts';
+    if(d.aa && hoDesde(d.ab, d.i) > hoDesde(d.f, d.i)) return n + ': lunch must be within the workday';
   }
   if(!HO_DIAS.some(([k]) => sem[k])) return 'The person must work at least one day.';
   return '';
@@ -10452,6 +10543,8 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
+  { const mr = S.mgrReglas || {}; $('ajMgrAprueban').checked = mr.aprueban === true; $('ajMgrVerHoras').checked = mr.verHoras === true; $('ajMgrEstado').textContent = ''; }   // (v373)
+  { const et = S.entradaTemprana || {}; $('ajTempLim').checked = et.limitar === true; $('ajTempMin').value = et.minutos != null ? et.minutos : 15; $('ajTempEstado').textContent = ''; ejemploTemprana(); }   // (v373)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
   pintarAusDiaria();   // (v299)
@@ -10570,6 +10663,8 @@ function ajPintarResumen(){
 function ajPills(){
   const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
   set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Not asked');
+  set('ajPillTemp', !!(S.entradaTemprana && S.entradaTemprana.limitar), 'Limited', 'Any time');   // (v373)
+  { const mr = S.mgrReglas || {}; set('ajPillMgr', !!(mr.aprueban || mr.verHoras), mr.aprueban && mr.verHoras ? 'Approve · See hours' : mr.aprueban ? 'Approve requests' : 'See hours', 'Admins only'); }
   { const oc = cfgOT(); set('ajPillOT', oc.regla !== 'ninguna', oc.regla === 'semanal' ? 'Weekly · ' + oc.mult + '×' : 'Daily · ' + oc.mult + '×', 'Off'); }
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
@@ -10802,6 +10897,28 @@ $('ajAusAhora').addEventListener('click', async () => {
     const msg = n ? 'Created ' + n + (n === 1 ? ' request.' : ' requests.') + ' Review them in Requests.' : 'No new requests: nothing missing in those days.';
     $('ajAusEstado').textContent = msg; toast(msg); $('ajAusPrevia').innerHTML = '';
   }catch(e){ $('ajAusEstado').textContent = e.message; }
+  b.disabled = false;
+});
+// (v373) Settings → Early clock in (paso 148)
+function ejemploTemprana(){
+  const lim = $('ajTempLim').checked, m = Math.max(0, Math.min(240, Math.round(+$('ajTempMin').value || 0)));
+  $('ajTempMin').disabled = !lim;
+  $('ajTempEjemplo').innerHTML = lim ? 'Example: with a schedule that starts at 8:00 AM, they can clock in from <b>' + h12(String(Math.floor((480 - m) / 60)).padStart(2, '0') + ':' + String((480 - m) % 60).padStart(2, '0')) + '</b>.'
+    : 'People can clock in at any time.';
+}
+$('ajMgrGuardar').addEventListener('click', async () => {   // (v373) qué pueden hacer los managers
+  const v = { aprueban:$('ajMgrAprueban').checked, verHoras:$('ajMgrVerHoras').checked }, b = $('ajMgrGuardar'); b.disabled = true;
+  try{ await api('guardarRegla', { clave:'managers', valor:v }); S.mgrReglas = v;
+    $('ajMgrEstado').textContent = 'Saved. ' + (v.aprueban || v.verHoras ? 'Managers can ' + [v.aprueban ? 'approve their team\u2019s requests' : '', v.verHoras ? 'see their team\u2019s hours' : ''].filter(Boolean).join(' and ') + '.' : 'Only administrators approve requests and see hours.'); toast('Settings saved.'); ajPills(); }
+  catch(e){ $('ajMgrEstado').textContent = e.message; }
+  b.disabled = false;
+});
+$('ajTempLim').addEventListener('change', ejemploTemprana); $('ajTempMin').addEventListener('input', ejemploTemprana);
+$('ajTempGuardar').addEventListener('click', async () => {
+  const v = { limitar:$('ajTempLim').checked, minutos:Math.max(0, Math.min(240, Math.round(+$('ajTempMin').value || 0))) }, b = $('ajTempGuardar'); b.disabled = true;
+  try{ await api('guardarRegla', { clave:'entrada_temprana', valor:v }); S.entradaTemprana = v; $('ajTempMin').value = v.minutos;
+    $('ajTempEstado').textContent = v.limitar ? 'Saved. People can clock in from ' + v.minutos + ' min before their scheduled start.' : 'Saved. People can clock in at any time.'; toast('Settings saved.'); }
+  catch(e){ $('ajTempEstado').textContent = e.message; }
   b.disabled = false;
 });
 $('ajUbicGuardar').addEventListener('click', async () => {
@@ -12770,6 +12887,95 @@ function updContar(){
     esc(S.updPend[0].titulo) + (n > 1 ? ' and ' + (n - 1) + ' more' : '') + '</span><button class="btn btn-sm btn-ink" type="button" id="updAvisoIr">Read</button></div>';
   if($('updAvisoIr')) $('updAvisoIr').onclick = () => appPanel('upd');
 }
+/* ── (v373) AGENTE manager: panel «My team» ──
+   Lo que la empresa permita en Settings → Roles & managers: decidir las solicitudes de su equipo (tal como llegan)
+   y ver sus horas por día (solo lectura). El servidor (paso 148) vuelve a revisar todo. */
+const EQ = { pest:'sol', desde:null, t:null };
+async function eqMenu(){
+  if(!S.awListo || !S.mgr || !S.mgr.esManager || DEMO || document.body.classList.contains('solochat-ag')) return;
+  try{ const r = await api('mgrEquipo', { desde:fechaHoy(), hasta:fechaHoy() });
+    const on = !!(r.aprueban || r.verHoras), b = document.querySelector('.aw-menu [data-awi="equipo"]');
+    if(b) b.classList.toggle('hidden', !on);
+    eqContar(r);
+    if(on && !EQ.t) EQ.t = setInterval(() => { if(document.hidden) return; if(document.body.dataset.aw === 'equipo') cargarEq(true); else eqMenu(); }, 3 * 60000);
+  }catch(e){}
+}
+function eqContar(r){ const n = r && r.aprueban ? (r.sols || []).filter(s => s.estado === 'pendiente').length : 0, b = $('awEqN');
+  if(b){ b.textContent = n; b.classList.toggle('hidden', !n); } }
+const eqSol = x => ({ id:x.id, usuario:x.usuario, tipo:x.tipo, fecha:x.fecha, fechaFin:x.fecha_fin || x.fecha, horaIni:x.hora_ini || null, horaFin:x.hora_fin || null,
+  almIni:x.alm_ini || null, almFin:x.alm_fin || null, clase:x.clase, motivo:x.motivo || '', estado:x.estado, respuesta:x.respuesta || '', decididaPor:x.decidida_por || '',
+  marcas:x.marcas || [], conceptoNombre:x.concepto_nombre || null });
+async function cargarEq(callado){
+  const c = $('eqCuerpo'); if(!c) return;
+  if(!EQ.desde) EQ.desde = lunesDe(fechaHoy());
+  if(!callado && !S.eq) c.innerHTML = '<div style="padding:24px"><span class="spin dark"></span> Loading…</div>';
+  try{ const r = await api('mgrEquipo', { desde:EQ.desde, hasta:sumarDias(EQ.desde, 6) }); S.eq = r; eqContar(r); pintarEq(); }
+  catch(e){ c.innerHTML = '<div class="err" style="padding:18px">' + esc(e.message) + '</div>'; }
+}
+const eqNomA = a => !a ? '' : a.apellidos && (a.nombre || '').indexOf(a.apellidos) < 0 ? a.nombre + ' ' + a.apellidos : (a.nombre || a.usuario);   // sin repetir el apellido
+function eqNombre(u){ return eqNomA(((S.eq && S.eq.agentes) || []).find(x => x.usuario === u)); }
+function pintarEq(){
+  const r = S.eq || {}, c = $('eqCuerpo'), seg = $('eqSeg');
+  const pests = [r.aprueban && 'sol', r.verHoras && 'horas'].filter(Boolean);
+  if(!pests.length){ seg.classList.add('hidden');
+    c.innerHTML = '<div class="vacio"><h2>Nothing to show</h2><p>Your company hasn’t turned on team requests or team hours for managers.</p></div>'; return; }
+  if(pests.indexOf(EQ.pest) < 0) EQ.pest = pests[0];
+  seg.classList.toggle('hidden', pests.length < 2);
+  seg.querySelectorAll('[data-eq]').forEach(b => { const on = b.dataset.eq === EQ.pest; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  if(!(r.agentes || []).length){ c.innerHTML = '<div class="vacio"><h2>No one on your team yet</h2><p>People show up here when they work on an account you manage.</p></div>'; return; }
+  c.innerHTML = EQ.pest === 'sol' ? eqSolsHTML(r) : eqHorasHTML(r);
+}
+function eqSolsHTML(r){
+  const yo = S.yo && S.yo.usuario && S.yo.usuario.username, l = (r.sols || []).map(eqSol);
+  const pend = l.filter(s => s.estado === 'pendiente'), resto = l.filter(s => s.estado !== 'pendiente');
+  const EST = { aprobada:'Approved', rechazada:'Declined', cancelada:'Canceled' };
+  const tarjeta = s => '<article class="eq-sol" data-id="' + s.id + '"><div class="eq-sol-t"><b>' + esc(eqNombre(s.usuario) || s.usuario) + '</b><span>' + esc(SOL_TIPO[s.tipo] || s.tipo) + '</span></div>' +
+    '<div class="eq-sol-c">' + esc(solCuando(s)) + '</div>' + (s.motivo ? '<div class="eq-sol-m">' + esc(s.motivo) + '</div>' : '') +
+    (s.estado === 'pendiente'
+      ? '<div class="eq-sol-b"><button class="btn btn-ghost btn-sm" type="button" data-eqd="0">Decline</button><button class="btn btn-ink btn-sm" type="button" data-eqd="1">Approve</button></div>'
+      : '<div class="eq-sol-e ' + esc(s.estado) + '"><b>' + esc(EST[s.estado] || s.estado) + '</b>' + (s.decididaPor ? ' by ' + esc(s.decididaPor === yo ? 'you' : (eqNombre(s.decididaPor) || 'an administrator')) : '') +
+        (s.respuesta ? ' · ' + esc(s.respuesta) : '') + '</div>') + '</article>';
+  return '<h3 class="eq-h">Waiting for a decision</h3>' + (pend.length ? pend.map(tarjeta).join('') : '<p class="eq-nada">No pending requests from your team.</p>') +
+    (resto.length ? '<h3 class="eq-h">Last 30 days</h3>' + resto.map(tarjeta).join('') : '') +
+    '<p class="eq-nota">You approve or decline requests as they were sent. To change the punches or make time off paid, ask an administrator.</p>';
+}
+function eqHorasHTML(r){
+  const dias = rango(r.desde, r.hasta), hoy = fechaHoy(), R = S.redondeo || 1, por = {};
+  (r.marcas || []).forEach(m => { const k = m.usuario + '|' + m.fecha; (por[k] = por[k] || []).push(m); });
+  const ausDe = (u, f) => (r.aus || []).find(a => a.usuario === u && a.fecha <= f && (a.fechaFin || a.fecha) >= f);
+  const finde = f => { const g = new Date(f + 'T12:00:00Z').getUTCDay(); return g === 0 || g === 6; };
+  const filas = (r.agentes || []).map(a => { let tot = 0;
+    const celdas = dias.map(f => { const l = por[a.usuario + '|' + f] || []; let min = 0, ini = null, abierto = false;
+      l.forEach(m => { const x = Math.round(Date.parse(m.ts) / 60000 / R) * R;
+        if(m.tipo === 'entrada' || m.tipo === 'almuerzo_fin'){ if(ini == null) ini = x; } else if(ini != null){ min += Math.max(0, x - ini); ini = null; } });
+      if(ini != null && f === hoy){ min += Math.max(0, Math.round(ahora() / 60000) - ini); abierto = true; }
+      tot += min;
+      const au = ausDe(a.usuario, f), zz = au ? { clase:au.clase, conceptoNombre:au.concepto } : null;
+      const tit = l.length ? l.map(m => (NOMBRE_TIPO[m.tipo] || m.tipo) + ' ' + hora(Date.parse(m.ts))).join(' · ') : zz ? 'Time off: ' + ausEtq(zz) : '';
+      return '<td class="' + (finde(f) ? 'finde' : '') + (f === hoy ? ' hoy' : '') + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' +
+        (l.length ? hm(min) + (abierto ? '<small>clocked in</small>' : '') : zz ? '<span class="tag">' + esc(ausCorta(zz)) + '</span>' : '') + '</td>'; });
+    return '<tr><th scope="row">' + esc(eqNomA(a)) + (a.cuenta ? '<small>' + esc(a.cuenta) + '</small>' : '') + '</th>' + celdas.join('') + '<td class="tot">' + hm(tot) + '</td></tr>'; });
+  return '<div class="eq-sem"><button class="btn btn-ghost btn-sm" type="button" data-eqsem="-1" aria-label="Previous week">&lsaquo;</button><b>' + esc(diaS(r.desde) + ' – ' + diaS(r.hasta)) + '</b>' +
+      '<button class="btn btn-ghost btn-sm" type="button" data-eqsem="1" aria-label="Next week"' + (r.hasta >= hoy ? ' disabled' : '') + '>&rsaquo;</button></div>' +
+    '<div class="eq-tabla-w"><table class="eq-tabla"><thead><tr><th scope="col">Person</th>' + dias.map(f => '<th scope="col" class="' + (finde(f) ? 'finde' : '') + '">' + esc(diaC(f)) + ' ' + diaN(f) + '</th>').join('') + '<th scope="col">Total</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div>' +
+    '<p class="eq-nota">Hours worked by day (lunch not included), as punched. Hover a day to see the punches. Approvals and pay are handled by administrators.</p>';
+}
+$('eqSeg').addEventListener('click', ev => { const b = ev.target.closest('[data-eq]'); if(!b) return; EQ.pest = b.dataset.eq; pintarEq(); });
+$('eqCuerpo').addEventListener('click', async ev => {
+  const sem = ev.target.closest('[data-eqsem]');
+  if(sem){ EQ.desde = sumarDias(EQ.desde, 7 * Number(sem.dataset.eqsem)); return cargarEq(); }
+  const b = ev.target.closest('[data-eqd]'); if(!b) return;
+  const card = b.closest('.eq-sol'), id = Number(card.dataset.id), aprobar = b.dataset.eqd === '1';
+  const s = ((S.eq && S.eq.sols) || []).map(eqSol).find(x => x.id === id); if(!s) return;
+  if(!aprobar && !(await confirmar('Decline this request?', esc(eqNombre(s.usuario) || s.usuario) + ' · ' + esc(SOL_TIPO[s.tipo] || s.tipo) + ' · ' + esc(solCuando(s)) +
+      '<br><br>They’ll see it as declined.', 'Decline', true))) return;
+  card.querySelectorAll('button').forEach(x => { x.disabled = true; });
+  try{ await api('decidir', { id, aprobar, respuesta:'' });
+    toast(aprobar ? 'Request approved.' : 'Request declined.'); await cargarEq(true); }
+  catch(e){ card.querySelectorAll('button').forEach(x => { x.disabled = false; });
+    const m = /punch order isn.t valid|must be clock in/i.test(e.message) ? 'This overlaps the punches already on that day, so it can\u2019t be approved as sent. Decline it, or ask an administrator to adjust it.' : e.message;
+    let er = card.querySelector('.eq-sol-err'); if(!er){ er = document.createElement('div'); er.className = 'eq-sol-err'; er.setAttribute('role', 'alert'); card.append(er); } er.textContent = m; }
+});
 // cada minuto: los no leídos (número del menú, aviso en Today y notificación de Windows)
 async function actualizarUpdAg(){
   try{ const antes = (S.updPend || []).map(x => x.id).join(); S.updPend = await api('updPend'); updContar(); popUpd();
@@ -13811,12 +14017,16 @@ function solItemHTML(s, r){
 const IC_NOTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 10h11M4 14h6"/><path d="M13 20l1-3.5 5.5-5.5 2.5 2.5-5.5 5.5z"/></svg>';
 const IC_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12.5 17.5l.5-2 3.5-3.5 1.5 1.5-3.5 3.5z"/></svg>';
 const ORDEN_T = { entrada:0, almuerzo_ini:1, almuerzo_fin:2, salida:3 };
-const ordenarMarcas = l => l.slice().sort((a, b) => (aMin(a.hora) - aMin(b.hora)) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo]));
+// (v373) Turno nocturno: en la lista de un día, una hora antes de la primera entrada es del día siguiente (si el turno no pasa de 16 h)
+function minTurno(l){ const es = (l || []).filter(m => m.tipo === 'entrada' && m.hora).map(m => aMin(m.hora)); const E = es.length ? Math.min.apply(null, es) : null;
+  return h => { const x = aMin(h); return E != null && x != null && x < E && x + 1440 - E <= 960 ? x + 1440 : x; }; }
+const ordenarMarcas = l => { const k = minTurno(l); return l.slice().sort((a, b) => (k(a.hora) - k(b.hora)) || (ORDEN_T[a.tipo] - ORDEN_T[b.tipo])); };
 // Minutos trabajados de una lista de marcas {tipo, hora} (varios turnos incluidos), con el redondeo de Settings.
 function minutosLista(l){
   const R = S.redondeo || 1, rr = x => Math.round(x / R) * R;
   let t = 0, ini = null;
-  ordenarMarcas(l || []).forEach(m => { const x = rr(aMin(m.hora));
+  const k = minTurno(l || []);
+  ordenarMarcas(l || []).forEach(m => { const x = rr(k(m.hora));
     if(m.tipo === 'entrada' || m.tipo === 'almuerzo_fin'){ if(ini == null) ini = x; }
     else if(ini != null){ t += Math.max(0, x - ini); ini = null; } });
   return t;
@@ -16911,6 +17121,7 @@ async function demoApi(action, p){
   if(action === 'guardarPagoRoles'){ S.pagoRoles = p.valor; return { ok:true }; }
   if(action === 'guardarOvertime'){ S.overtime = p.valor; return { ok:true }; }
   if(action === 'guardarCuentas'){ S.cuentas = p.valor; return { ok:true }; }
+  if(action === 'guardarRegla'){ return { ok:true }; }   // (v373) demo
   if(action === 'guardarConfig' && p.clave === 'pago'){ S.reglasPago = p.valor; return { ok:true }; }
   if(action === 'guardarAutoSalida'){ S.autoSalida = { activo:!!p.activo, margen:p.margen }; return { ok:true }; }   // (v92)
   if(action === 'copiarAPrueba'){   // (v93) imita al paso 55
@@ -16999,6 +17210,8 @@ async function demoApi(action, p){
   }
   if(action === 'invitar') return cuentasOk(await demoCuentas('cuenta', p));
   if(action === 'resetClave') return cuentasOk(await demoCuentas('clave', p));
+  if(action === 'revisarCorreo') return { ok:true, otra:false };
+  if(action === 'mgrEquipo') return { aprueban:false, verHoras:false, desde:p.desde, hasta:p.hasta, agentes:[], sols:[], marcas:[], aus:[] };
   if(action === 'activarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = p.activo; if(p.activo) e.archivadoEn = null; return { ok:true }; }
   if(action === 'archivarEmpleado'){ const e = DM.emps.find(x => x.usuario === p.usuario); if(!e) throw new Error('That employee doesn\'t exist in the Time Clock.'); e.activo = false; e.archivadoEn = e.archivadoEn || fechaHoy(); return { ok:true, archivadoEn:e.archivadoEn }; }
   if(action === 'borrarEmpleado'){
