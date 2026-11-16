@@ -22,6 +22,7 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v377: nombres en vez de usuarios en «Approved by / Saved by / Corrected by» · el archivo de payroll ya no dice PAYROLL_247 fuera de 24/7 (paso 152 en el servidor: cambios por fecha sin horario semanal) -->
 <!-- v376: aprobar días con la huella de las marcas en pantalla (paso 151: no aprueba si cambiaron mientras tanto) · «Corrected by» muestra el nombre · My team aparece sin recargar cuando el admin lo enciende -->
 <!-- v375: Settings «Correct their team's hours»: los supervisores / account managers pueden corregir las marcas de su equipo desde My team → Hours (no las suyas, no días aprobados) -->
 <!-- v374: Daily dice «Day off», «Starts at», «Late» o «Absent» según el horario (en vez de «Not clocked in»); el agente puede pedir turnos y almuerzos que pasan la medianoche; Settings: conteo de managers y GM administrador en el selector -->
@@ -29,7 +30,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v376-202611160600">
+<meta name="app-build" content="v377-202611160700">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -8974,7 +8975,7 @@ $('hExpNomina').addEventListener('click', async () => {
   const filas = filasPayroll(h);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(xlsxPayroll(filas, h.desde, h.hasta));
-  a.download = 'PAYROLL_247 - CONSOLIDATED_' + (S.cuentaFiltro ? S.cuentaFiltro.replace(/[^\w]+/g, '-') + '_' : '') + h.desde + '_' + h.hasta + '.xlsx';
+  a.download = (INST_SOLO247 ? 'PAYROLL_247 - CONSOLIDATED_' : 'Payroll_') + (S.cuentaFiltro ? S.cuentaFiltro.replace(/[^\w]+/g, '-') + '_' : '') + h.desde + '_' + h.hasta + '.xlsx';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('Payroll exported: ' + filas.length + ' employees.');
 });
@@ -12059,9 +12060,9 @@ function pintarDoc(){
   if(d){
     if(!esVigente && est.doc) h += '<p class="od-aviso">This is an older file from the history. The one that counts is from ' + esc(docEnMs(est.doc.subidoEn)) + '.</p>';
     h += '<div class="od-dato"><small>File</small><b>' + esc(d.nombre) + '</b>' + (d.bytes ? ' <span class="nota">' + tamTxt(d.bytes) + '</span>' : '') + '</div>' +
-      '<div class="od-dato"><small>Uploaded</small>' + esc(docEnMs(d.subidoEn)) + ' by ' + esc(d.subidoPor === a.u ? e.nombre : d.subidoPor) + '</div>' +
+      '<div class="od-dato"><small>Uploaded</small>' + esc(docEnMs(d.subidoEn)) + ' by ' + esc(d.subidoPor === a.u ? e.nombre : quienCorrigio(d.subidoPor)) + '</div>' +
       (d.fechaDoc ? '<div class="od-dato"><small>Date on the document</small>' + esc(fechaUS(d.fechaDoc)) + '</div>' : '') +
-      (d.revisadoEn ? '<div class="od-dato"><small>' + (d.estado === 'rechazado' ? 'Rejected' : 'Approved') + '</small>' + esc(docEnMs(d.revisadoEn)) + ' by ' + esc(d.revisadoPor) + '</div>' : '') +
+      (d.revisadoEn ? '<div class="od-dato"><small>' + (d.estado === 'rechazado' ? 'Rejected' : 'Approved') + '</small>' + esc(docEnMs(d.revisadoEn)) + ' by ' + esc(quienCorrigio(d.revisadoPor)) + '</div>' : '') +
       (d.nota ? '<div class="od-dato"><small>Note</small>' + esc(d.nota) + '</div>' : '') +
       '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odBajar">' + DOC_IC.bajar + 'Download</button></div>';
     if(d && d.estado === 'pendiente'){
@@ -12291,7 +12292,7 @@ async function cargarNotifHist(){
         const ms = d.revisadoEn || d.subidoEn; if(!(ms >= desde)) return;
         const chip = d.estado === 'aprobado' ? { k:'ok', t:'Approved' } : d.estado === 'rechazado' ? { k:'no', t:'Rejected' } : { k:'pend', t:'Pending' };
         ev.push({ ms, clase:'id', txt:nom(d.usuario) + ' · ID photo',
-          chip, sub: d.estado === 'rechazado' && d.nota ? esc(d.nota) : (d.revisadoEn ? (d.estado === 'aprobado' ? 'Approved' : 'Reviewed') + ' by ' + (d.revisadoPor || '—') + ' · ' + docEnMs(d.revisadoEn) : 'Sent for approval') });
+          chip, sub: d.estado === 'rechazado' && d.nota ? esc(d.nota) : (d.revisadoEn ? (d.estado === 'aprobado' ? 'Approved' : 'Reviewed') + ' by ' + esc(d.revisadoPor ? quienCorrigio(d.revisadoPor) : '—') + ' · ' + docEnMs(d.revisadoEn) : 'Sent for approval') });
       });
     }
   }catch(e){}
@@ -14133,7 +14134,7 @@ function solItemHTML(s, r){
     '<div class="t3">“' + esc(s.motivo) + '”</div>' +
     '<div class="t3">Sent ' + cuando(s.creada) +
     (s.tipo === 'ausencia' ? ' · Time off this year: ' + resumenAnio((r.ausAnio || {})[s.usuario], fechaHoy().slice(0, 4)) : '') + '</div>' +
-    (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor || '') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + (s.editada ? ' · edited' : '') +
+    (s.estado !== 'pendiente' && s.estado !== 'cancelada' ? '<div class="t3">' + SOL_ESTADO[s.estado] + ' by ' + esc(s.decididaPor ? quienCorrigio(s.decididaPor) : '') + (s.decidida ? ' · ' + cuando(s.decidida) : '') + (s.editada ? ' · edited' : '') +
       (s.estado === 'aprobada' && s.tipo === 'ausencia' ? ' · ' + pagoTxt(s) : '') +
       (s.respuesta ? ' · “' + esc(s.respuesta) + '”' : '') + '</div>' : '') +
     (s.estado === 'aprobada' && s.editada && s.marcasAprobadas ? '<div class="t3">✎ Adjusted to: ' + esc(marcasTxt(s.marcasAprobadas)) + '</div>' : '') +
@@ -14672,7 +14673,7 @@ const aMin = x => { if(!x) return null; const [h, m] = x.split(':').map(Number);
 function phTipPH(m, exacta){
   if(!m) return '';
   if(m.origen === 'auto') return (m.motivo || 'Automatic clock-out') + ' · ' + exacta;
-  if(m.origen === 'admin') return 'Corrected' + (m.autor ? ' by ' + m.autor : '') + (m.motivo ? ': ' + m.motivo : '') + ' · ' + exacta;
+  if(m.origen === 'admin') return 'Corrected' + (m.autor ? ' by ' + quienCorrigio(m.autor) : '') + (m.motivo ? ': ' + m.motivo : '') + ' · ' + exacta;
   if(m.origen === 'importado') return 'Imported · ' + exacta;
   return 'Exact punch: ' + exacta;   // agente (marca normal)
 }
@@ -15354,7 +15355,7 @@ function pintarPago(){
   const pr = S.pr, P = pr.P, cerr = cerradaPago(), run = pr.run;
   $('pyEstado').innerHTML = '<span class="pill ' + (cerr ? 'pr-cerr' : run ? 'pr-borr' : '') + '">' + (cerr ? 'Closed' : run ? 'Draft' : 'Not saved') + '</span>' +
     '<span class="nota">' + (cerr ? 'Closed by ' + esc(nombreDeUsuario(run.cerrado_por || '')) + ' on ' + fmt(Date.parse(run.cerrado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + '. Reopen it to change anything.'
-      : run ? 'Saved ' + fmt(Date.parse(run.actualizado_en || run.creado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + ' by ' + esc(run.actualizado_por || run.creado_por || '') + '.'
+      : run ? 'Saved ' + fmt(Date.parse(run.actualizado_en || run.creado_en), { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) + ' by ' + esc(quienCorrigio(run.actualizado_por || run.creado_por || '')) + '.'
       : 'Nothing saved for this pay period yet.') + (pr.sucio ? ' <b class="pr-sucio">Unsaved changes.</b>' : '') + '</span>';
   const R = P.reglas, dis = cerr ? ' disabled' : '';
   const asum = cerr ? diasPorAsumir(P.asumeDesde && P.asumeDesde <= pr.hasta ? P.asumeDesde : '', pr.hasta) : pr.asumidos;
