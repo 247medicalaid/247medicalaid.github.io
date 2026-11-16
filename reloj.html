@@ -22,12 +22,13 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v375: Settings «Correct their team's hours»: los supervisores / account managers pueden corregir las marcas de su equipo desde My team → Hours (no las suyas, no días aprobados) -->
 <!-- v374: Daily dice «Day off», «Starts at», «Late» o «Absent» según el horario (en vez de «Not clocked in»); el agente puede pedir turnos y almuerzos que pasan la medianoche; Settings: conteo de managers y GM administrador en el selector -->
 <!-- v373: turnos nocturnos (horarios y correcciones que pasan la medianoche, hasta 16 h); Settings «Early clock in» (limitar la entrada antes del horario); Settings «What managers can do» (aprueban las solicitudes de su equipo / ven sus horas) y panel «My team»; fines de semana con fondo suave en Timesheet; opción B del correo: un correo, una empresa activa (aviso al reactivar) -->
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v374-202611160330">
+<meta name="app-build" content="v375-202611160430">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -2814,6 +2815,27 @@ body.aw[data-aw="equipo"] .aw-panel > [data-aw="equipo"]{display:block}
 .eq-tabla .hoy{box-shadow:inset 0 -2px 0 var(--brand-500)}
 .eq-tabla .tot{font-weight:700}
 .eq-tabla .tag{font-size:11px}
+/* (v375) el manager corrige un día de su equipo */
+.eq-cel{all:unset;box-sizing:border-box;display:block;width:100%;min-height:22px;padding:2px 4px;border-radius:6px;cursor:pointer;text-align:center}
+.eq-cel:hover{background:var(--brand-50)}
+.eq-cel:focus-visible{outline:2px solid var(--brand-500);outline-offset:1px}
+.eq-cel.sel{background:var(--brand-100)}
+.eq-cel .vacio-c{color:var(--line)}
+.eq-tabla td small.ok{color:#1B7A43}
+.eq-ed{background:var(--paper);border:1px solid var(--brand-500);border-radius:var(--radius-sm);padding:14px;margin-top:12px}
+.eq-ed-cab{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin-bottom:10px}
+.eq-ed-cab span{color:var(--text-muted);font-size:14px}
+.eq-ed-fila{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.eq-ed-fila select,.eq-ed-fila input,.eq-ed-mot input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--text)}
+.eq-ed-fila select{flex:1;min-width:0}
+.eq-ed-fila input{width:130px}
+.eq-ed-fila button{all:unset;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--text-muted)}
+.eq-ed-fila button:hover{background:var(--accent-50);color:var(--accent-600)}
+.eq-ed-fila button:focus-visible{outline:2px solid var(--brand-500)}
+.eq-ed-tot{font-size:14px;margin:6px 0 10px}
+.eq-ed-mot{display:block;margin-bottom:6px}
+.eq-ed-mot span{display:block;font-size:13px;color:var(--text-muted);margin-bottom:4px}
+.eq-ed-mot input{width:100%;box-sizing:border-box}
 .upd-ag-t{font-size:20px;margin:0 0 12px}
 @media (max-width:700px){ .upd-fila{grid-template-columns:1fr} .upd-fila-n{text-align:left} .ue-cols{grid-template-columns:1fr} .ue-gente-fila{grid-template-columns:1fr} .upd-card{padding:14px} }
 /* Users: columnas, ordenar y grupos (v61) */
@@ -3393,7 +3415,8 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <p class="aj-desc">For supervisors and account managers, with the people in the accounts they manage. Administrators can always do everything.</p>
             <div class="aj-filas">
               <div class="aj-fila"><label class="aj-fl" for="ajMgrAprueban"><b>Approve their team&rsquo;s requests</b><span>Time off, missed punches and corrections. They approve or decline as sent: changing the punches or making time off paid stays with administrators. Schedule changes stay with administrators.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrAprueban" role="switch"></div></div>
-              <div class="aj-fila"><label class="aj-fl" for="ajMgrVerHoras"><b>See their team&rsquo;s hours</b><span>A read-only view of each person&rsquo;s punches and hours by day. They can&rsquo;t change them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrVerHoras" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMgrVerHoras"><b>See their team&rsquo;s hours</b><span>A view of each person&rsquo;s punches and hours by day. Only to look, unless they can also correct hours (below).</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrVerHoras" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajMgrEditan"><b>Correct their team&rsquo;s hours</b><span>They can fix the punches of the people in their accounts (for example, a missed clock out). Not their own, not approved days. Each change keeps their name and the reason, and the day is checked again before pay. Approving days for pay stays with administrators.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajMgrEditan" role="switch"></div></div>
             </div>
             <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajMgrGuardar" type="button">Save</button><span class="nota" id="ajMgrEstado"></span></div>
           </div>
@@ -10572,7 +10595,7 @@ function pintarAjustes(){
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
-  { const mr = S.mgrReglas || {}; $('ajMgrAprueban').checked = mr.aprueban === true; $('ajMgrVerHoras').checked = mr.verHoras === true; $('ajMgrEstado').textContent = ''; }   // (v373)
+  { const mr = S.mgrReglas || {}; $('ajMgrAprueban').checked = mr.aprueban === true; $('ajMgrVerHoras').checked = mr.verHoras === true; $('ajMgrEditan').checked = mr.editan === true; $('ajMgrEstado').textContent = ''; }   // (v373)
   { const et = S.entradaTemprana || {}; $('ajTempLim').checked = et.limitar === true; $('ajTempMin').value = et.minutos != null ? et.minutos : 15; $('ajTempEstado').textContent = ''; ejemploTemprana(); }   // (v373)
   const as = S.autoSalida || {}; $('ajAuto').checked = as.activo === true;   // (v92)
   $('ajAutoMargen').value = as.margen != null ? as.margen : 30; $('ajAutoEstado').textContent = ''; ejemploAutoSalida();
@@ -10694,7 +10717,7 @@ function ajPills(){
   const set = (id, on, si, no) => { const e = $(id); if(e){ e.className = 'aj-pill' + (on ? ' ok' : ''); e.textContent = on ? si : no; } };
   set('ajPillUbic', S.ubicObligatoria !== false, 'Required', 'Not asked');
   set('ajPillTemp', !!(S.entradaTemprana && S.entradaTemprana.limitar), 'Limited', 'Any time');   // (v373)
-  { const mr = S.mgrReglas || {}; set('ajPillMgr', !!(mr.aprueban || mr.verHoras), mr.aprueban && mr.verHoras ? 'Approve · See hours' : mr.aprueban ? 'Approve requests' : 'See hours', 'Admins only'); }
+  { const mr = S.mgrReglas || {}, l = [mr.aprueban && 'Approve', mr.editan ? 'Correct hours' : mr.verHoras && 'See hours'].filter(Boolean); set('ajPillMgr', l.length > 0, l.join(' · '), 'Admins only'); }   // (v375)
   { const oc = cfgOT(); set('ajPillOT', oc.regla !== 'ninguna', oc.regla === 'semanal' ? 'Weekly · ' + oc.mult + '×' : 'Daily · ' + oc.mult + '×', 'Off'); }
   set('ajPillAuto', !!(S.autoSalida && S.autoSalida.activo), 'On', 'Off');
   set('ajPillAus', !!(S.ausDiaria && S.ausDiaria.activo), 'On', 'Off');
@@ -10937,9 +10960,10 @@ function ejemploTemprana(){
     : 'People can clock in at any time.';
 }
 $('ajMgrGuardar').addEventListener('click', async () => {   // (v373) qué pueden hacer los managers
-  const v = { aprueban:$('ajMgrAprueban').checked, verHoras:$('ajMgrVerHoras').checked }, b = $('ajMgrGuardar'); b.disabled = true;
+  const v = { aprueban:$('ajMgrAprueban').checked, verHoras:$('ajMgrVerHoras').checked, editan:$('ajMgrEditan').checked }, b = $('ajMgrGuardar'); b.disabled = true;
   try{ await api('guardarRegla', { clave:'managers', valor:v }); S.mgrReglas = v;
-    $('ajMgrEstado').textContent = 'Saved. ' + (v.aprueban || v.verHoras ? 'Managers can ' + [v.aprueban ? 'approve their team\u2019s requests' : '', v.verHoras ? 'see their team\u2019s hours' : ''].filter(Boolean).join(' and ') + '.' : 'Only administrators approve requests and see hours.'); toast('Settings saved.'); ajPills(); }
+    const l = [v.aprueban ? 'approve their team\u2019s requests' : '', v.editan ? 'see and correct their team\u2019s hours' : v.verHoras ? 'see their team\u2019s hours' : ''].filter(Boolean);
+    $('ajMgrEstado').textContent = 'Saved. ' + (l.length ? 'Managers can ' + l.join(' and ') + '.' : 'Only administrators approve requests and see hours.'); toast('Settings saved.'); ajPills(); }
   catch(e){ $('ajMgrEstado').textContent = e.message; }
   b.disabled = false;
 });
@@ -12927,7 +12951,7 @@ async function eqMenu(){
     const on = !!(r.aprueban || r.verHoras), b = document.querySelector('.aw-menu [data-awi="equipo"]');
     if(b) b.classList.toggle('hidden', !on);
     eqContar(r);
-    if(on && !EQ.t) EQ.t = setInterval(() => { if(document.hidden) return; if(document.body.dataset.aw === 'equipo') cargarEq(true); else eqMenu(); }, 3 * 60000);
+    if(on && !EQ.t) EQ.t = setInterval(() => { if(document.hidden) return; if(document.body.dataset.aw === 'equipo'){ if(!EQ.ed) cargarEq(true); } else eqMenu(); }, 3 * 60000);   // (v375) no se recarga mientras corrige un día
   }catch(e){}
 }
 function eqContar(r){ const n = r && r.aprueban ? (r.sols || []).filter(s => s.estado === 'pendiente').length : 0, b = $('awEqN');
@@ -12982,18 +13006,73 @@ function eqHorasHTML(r){
       tot += min;
       const au = ausDe(a.usuario, f), zz = au ? { clase:au.clase, conceptoNombre:au.concepto } : null;
       const tit = l.length ? l.map(m => (NOMBRE_TIPO[m.tipo] || m.tipo) + ' ' + hora(Date.parse(m.ts))).join(' · ') : zz ? 'Time off: ' + ausEtq(zz) : '';
+      const ok = (r.aprob || []).some(x => x.usuario === a.usuario && x.fecha === f);
+      const dentro = (l.length ? hm(min) + (abierto ? '<small>clocked in</small>' : '') : zz ? '<span class="tag">' + esc(ausCorta(zz)) + '</span>' : '') + (ok ? '<small class="ok">approved</small>' : '');
+      const sel = EQ.ed && EQ.ed.usuario === a.usuario && EQ.ed.fecha === f;
       return '<td class="' + (finde(f) ? 'finde' : '') + (f === hoy ? ' hoy' : '') + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' +
-        (l.length ? hm(min) + (abierto ? '<small>clocked in</small>' : '') : zz ? '<span class="tag">' + esc(ausCorta(zz)) + '</span>' : '') + '</td>'; });
+        (r.editan && f <= hoy ? '<button type="button" class="eq-cel' + (sel ? ' sel' : '') + '" data-eqcel="' + esc(a.usuario) + '|' + f + '" aria-label="' + esc(eqNomA(a) + ', ' + diaS(f) + (l.length ? ', ' + hm(min) : ', no punches') + (r.editan ? '. Correct punches' : '')) + '">' + (dentro || '<span class="vacio-c">+</span>') + '</button>' : dentro) + '</td>'; });   // (v375)
     return '<tr><th scope="row">' + esc(eqNomA(a)) + (a.cuenta ? '<small>' + esc(a.cuenta) + '</small>' : '') + '</th>' + celdas.join('') + '<td class="tot">' + hm(tot) + '</td></tr>'; });
   return '<div class="eq-sem"><button class="btn btn-ghost btn-sm" type="button" data-eqsem="-1" aria-label="Previous week">&lsaquo;</button><b>' + esc(diaS(r.desde) + ' – ' + diaS(r.hasta)) + '</b>' +
       '<button class="btn btn-ghost btn-sm" type="button" data-eqsem="1" aria-label="Next week"' + (r.hasta >= hoy ? ' disabled' : '') + '>&rsaquo;</button></div>' +
     '<div class="eq-tabla-w"><table class="eq-tabla"><thead><tr><th scope="col">Person</th>' + dias.map(f => '<th scope="col" class="' + (finde(f) ? 'finde' : '') + '">' + esc(diaC(f)) + ' ' + diaN(f) + '</th>').join('') + '<th scope="col">Total</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div>' +
-    '<p class="eq-nota">Hours worked by day (lunch not included), as punched. Hover a day to see the punches. Approvals and pay are handled by administrators.</p>';
+    (r.editan ? eqEdHTML(r) : '') +
+    '<p class="eq-nota">Hours worked by day (lunch not included), as punched. ' + (r.editan ? 'Select a day to correct its punches.' : 'Hover a day to see the punches.') + ' Approvals and pay are handled by administrators.</p>';
 }
+// (v375) corregir un día del equipo (paso 150; el servidor revisa todo otra vez)
+const EQ_TIPOS = [['entrada', 'Clock in'], ['almuerzo_ini', 'Lunch start'], ['almuerzo_fin', 'Lunch end'], ['salida', 'Clock out']];
+function eqAbrir(u, f){
+  const r = S.eq || {}, l = (r.marcas || []).filter(m => m.usuario === u && m.fecha === f).map(m => ({ tipo:m.tipo, hora:hhmm(Date.parse(m.ts)) }));
+  EQ.ed = { usuario:u, fecha:f, filas:l.length ? l : [{ tipo:'entrada', hora:'' }, { tipo:'salida', hora:'' }], motivo:'', err:'' };
+  pintarEq(); const p = $('eqEd'); if(p){ p.scrollIntoView({ block:'nearest', behavior:'smooth' }); const i = p.querySelector('input[type=time]'); if(i) i.focus(); }
+}
+function eqEdTot(){ const v = EQ.ed.filas.filter(x => x.hora); return v.length ? 'Worked <b>' + hm(minutosLista(v)) + '</b>' : 'No punches'; }
+function eqEdHTML(r){
+  const e = EQ.ed; if(!e || !(e.fecha >= r.desde && e.fecha <= r.hasta)) return '';
+  const ok = (r.aprob || []).some(x => x.usuario === e.usuario && x.fecha === e.fecha);
+  const cab = '<div class="eq-ed-cab"><b>' + esc(eqNombre(e.usuario) || e.usuario) + '</b><span>' + esc(fechaL(e.fecha)) + '</span></div>';
+  if(ok) return '<section class="eq-ed" id="eqEd">' + cab + '<p class="eq-nada">This day is already approved for pay. Ask an administrator to remove the approval to change it.</p>' +
+    '<div class="eq-sol-b"><button class="btn btn-ghost btn-sm" type="button" data-eqcancel>Close</button></div></section>';
+  return '<section class="eq-ed" id="eqEd" aria-label="Correct punches">' + cab +
+    e.filas.map((x, i) => '<div class="eq-ed-fila"><select data-eqi="' + i + '" aria-label="Punch type">' + EQ_TIPOS.map(([k, t]) => '<option value="' + k + '"' + (k === x.tipo ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+      '<input type="time" data-eqh="' + i + '" value="' + esc(x.hora) + '" aria-label="Time">' +
+      '<button type="button" data-eqq="' + i + '" aria-label="Remove this punch"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>').join('') +
+    '<button class="btn-link" type="button" data-eqadd>+ Add punch</button>' +
+    '<div class="eq-ed-tot" id="eqEdTot">' + eqEdTot() + '</div>' +
+    '<label class="eq-ed-mot"><span>Reason</span><input id="eqEdMot" maxlength="200" value="' + esc(e.motivo) + '" placeholder="E.g. forgot to clock out, confirmed by phone"></label>' +
+    (e.err ? '<div class="eq-sol-err" role="alert">' + esc(e.err) + '</div>' : '') +
+    '<div class="eq-sol-b"><button class="btn btn-ghost btn-sm" type="button" data-eqcancel>Cancel</button><button class="btn btn-ink btn-sm" type="button" data-eqsave>Save changes</button></div>' +
+    '<p class="eq-nota">The old punches are kept as voided, with your name. A shift that ends after midnight stays on the day it started.</p></section>';
+}
+async function eqGuardar(b){
+  const e = EQ.ed; e.motivo = ($('eqEdMot') && $('eqEdMot').value.trim()) || '';
+  if(e.filas.some(x => !x.hora)){ e.err = 'Fill in every time, or remove the empty punches.'; return pintarEq(); }
+  const l = ordenarMarcas(e.filas.map(x => ({ tipo:x.tipo, hora:x.hora })));
+  b.disabled = true;
+  try{ await api('corregir', { usuario:e.usuario, fecha:e.fecha, marcas:l, motivo:e.motivo || 'Corrected by supervisor' });
+    toast('Punches saved for ' + (eqNombre(e.usuario) || e.usuario) + ' · ' + diaS(e.fecha) + '.'); EQ.ed = null; await cargarEq(true); }
+  catch(x){ e.err = x.message; b.disabled = false; pintarEq(); }
+}
+
+$('eqCuerpo').addEventListener('input', ev => {   // (v375) cambios en el editor del día
+  if(!EQ.ed) return; const t = ev.target;
+  if(t.id === 'eqEdMot'){ EQ.ed.motivo = t.value; return; }
+  if(t.dataset.eqh != null){ EQ.ed.filas[Number(t.dataset.eqh)].hora = t.value; }
+  else if(t.dataset.eqi != null){ EQ.ed.filas[Number(t.dataset.eqi)].tipo = t.value; }
+  else return;
+  EQ.ed.err = ''; const tot = $('eqEdTot'); if(tot) tot.innerHTML = eqEdTot();
+});
+$('eqCuerpo').addEventListener('change', ev => { if(EQ.ed && ev.target.dataset.eqi != null){ EQ.ed.filas[Number(ev.target.dataset.eqi)].tipo = ev.target.value; const tot = $('eqEdTot'); if(tot) tot.innerHTML = eqEdTot(); } });
 $('eqSeg').addEventListener('click', ev => { const b = ev.target.closest('[data-eq]'); if(!b) return; EQ.pest = b.dataset.eq; pintarEq(); });
 $('eqCuerpo').addEventListener('click', async ev => {
+  const cel = ev.target.closest('[data-eqcel]');   // (v375) corregir un día
+  if(cel){ const [u, f] = cel.dataset.eqcel.split('|'); return eqAbrir(u, f); }
+  if(EQ.ed && ev.target.closest('[data-eqcancel]')){ EQ.ed = null; return pintarEq(); }
+  if(EQ.ed && ev.target.closest('[data-eqadd]')){ const ult = EQ.ed.filas[EQ.ed.filas.length - 1], ix = ult ? EQ_TIPOS.findIndex(t => t[0] === ult.tipo) : -1;
+    EQ.ed.motivo = ($('eqEdMot') && $('eqEdMot').value) || EQ.ed.motivo; EQ.ed.filas.push({ tipo:EQ_TIPOS[(ix + 1) % 4][0], hora:'' }); return pintarEq(); }
+  const q = ev.target.closest('[data-eqq]'); if(EQ.ed && q){ EQ.ed.motivo = ($('eqEdMot') && $('eqEdMot').value) || EQ.ed.motivo; EQ.ed.filas.splice(Number(q.dataset.eqq), 1); return pintarEq(); }
+  const sv = ev.target.closest('[data-eqsave]'); if(EQ.ed && sv) return eqGuardar(sv);
   const sem = ev.target.closest('[data-eqsem]');
-  if(sem){ EQ.desde = sumarDias(EQ.desde, 7 * Number(sem.dataset.eqsem)); return cargarEq(); }
+  if(sem){ EQ.desde = sumarDias(EQ.desde, 7 * Number(sem.dataset.eqsem)); EQ.ed = null; return cargarEq(); }
   const b = ev.target.closest('[data-eqd]'); if(!b) return;
   const card = b.closest('.eq-sol'), id = Number(card.dataset.id), aprobar = b.dataset.eqd === '1';
   const s = ((S.eq && S.eq.sols) || []).map(eqSol).find(x => x.id === id); if(!s) return;
