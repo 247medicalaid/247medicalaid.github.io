@@ -22,6 +22,7 @@
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
+<!-- v382: la foto del documento de identidad sigue la regla de Private information: sin permiso el administrador ve el estado pero no abre, descarga, revisa ni borra el archivo (paso 158). -->
 <!-- v381: el historial de cambios bancarios (campana) ya no muestra el ID ni la cuenta completos a quien no puede verlos: salen como ••••1234 (paso 157). -->
 <!-- v380: moneda con el país de la empresa primero · ID genérico y privado (Settings → Roles & managers → Private information, paso 156) · aviso de solicitudes por correo (247Punch) · el administrador también puede marcar -->
 <!-- v379: 247Punch — un usuario nuevo con un correo que ya usa otra persona no se queda a medias (el formulario sigue abierto con el error) · sin aviso «No account» si la empresa no tiene cuentas · botón «Add your team» en el Daily vacío -->
@@ -34,7 +35,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v381-202611162130">
+<meta name="app-build" content="v382-202611162215">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3429,9 +3430,9 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           <!-- (v380, paso 156) quién ve el ID y la cuenta bancaria -->
           <div class="ajuste aj-card" id="ajSensBox" data-guardar="ajSensGuardar">
             <div class="aj-ct"><h2>Private information</h2><span class="aj-pill" id="ajPillSens"></span></div>
-            <p class="aj-desc">The ID and the bank account number in each profile. Each person always sees their own; choose who else can.</p>
+            <p class="aj-desc">The ID and the bank account number in each profile, and the photo of the ID document in Documents. Each person always sees their own; choose who else can.</p>
             <div class="aj-filas">
-              <div class="aj-fila"><label class="aj-fl" for="ajSensAdmin"><b>Administrators</b><span>Everyone&rsquo;s, in Users. Off: they can&rsquo;t see or change them.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensAdmin" role="switch"></div></div>
+              <div class="aj-fila"><label class="aj-fl" for="ajSensAdmin"><b>Administrators</b><span>Everyone&rsquo;s, in Users and Documents. Off: they can&rsquo;t see or change them, and ID documents don&rsquo;t need their review.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensAdmin" role="switch"></div></div>
               <div class="aj-fila"><label class="aj-fl" for="ajSensMgr"><b>Account managers</b><span>The people in the accounts they manage, in My team.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensMgr" role="switch"></div></div>
               <div class="aj-fila"><label class="aj-fl" for="ajSensSup"><b>Supervisors</b><span>The people in the account they supervise, in My team.</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSensSup" role="switch"></div></div>
             </div>
@@ -5262,6 +5263,8 @@ const COLS_E = 'usuario,nombre,agente_monitor,nombre_nomina,horas_dia,activo,act
 // Sin ajuste guardado: los administradores (como siempre). Igual que reloj__sens_ver() del servidor.
 const sensVer = () => Array.isArray(S.sensVer) ? S.sensVer : ['admin'];
 const adminVeSens = () => sensVer().includes('admin');
+// (v382, paso 158) la foto del documento de identidad sigue la misma regla: sin permiso, el administrador no la abre
+const docPrivado = (t, u) => !!(t && t.clave === 'identificacion' && !adminVeSens() && !(S.yo && S.yo.usuario === u));
 async function sensiblesSB(){
   try{ return (await q(sb.rpc('reloj_sensibles'))) || {}; }
   catch(e){   // base sin el paso 156: la tabla todavía los entrega a quien los podía leer
@@ -12172,8 +12175,9 @@ function pintarDoc(){
   const lista = docsDe(dc.docs, a.u, a.tid, a.per), est = docEstado(t, lista, a.per), d = (a.ver && lista.find(x => x.id === a.ver)) || est.doc || lista[0];
   $('odTitulo').textContent = (a.per ? t.nombre + ' — ' + mesTxt(a.per) : t.nombre);
   $('odSub').innerHTML = esc(e.nombre) + (e.cuenta ? ' · ' + esc(e.cuenta) : '') + ' &nbsp; ' + docChip(est.k, est.k === 'rechazado' ? '' : est.sub);
-  const prev = $('odPrevia');
-  if(!d){ prev.innerHTML = '<div class="dc-previa-msg">' + DOC_IC.doc + '<b>Nothing uploaded yet</b><span>' + (t.agenteSube ? esc(e.nombre) + ' can upload it from My documents, or you can upload it here.' : 'Upload it here.') + '</span></div>'; }
+  const prev = $('odPrevia'), priv = docPrivado(t, a.u);
+  if(d && priv) prev.innerHTML = '<div class="dc-previa-msg">' + DOC_IC.doc + '<b>Private</b><span>Only ' + esc(e.nombre) + ' can see this file. Choose who else can in Settings → Roles &amp; managers → Private information.</span></div>';
+  else if(!d){ prev.innerHTML = '<div class="dc-previa-msg">' + DOC_IC.doc + '<b>Nothing uploaded yet</b><span>' + (t.agenteSube ? esc(e.nombre) + ' can upload it from My documents, or you can upload it here.' : 'Upload it here.') + '</span></div>'; }
   else docPrevia(prev, d);
   const esVigente = d && d === est.doc;
   let h = '';
@@ -12184,8 +12188,9 @@ function pintarDoc(){
       (d.fechaDoc ? '<div class="od-dato"><small>Date on the document</small>' + esc(fechaUS(d.fechaDoc)) + '</div>' : '') +
       (d.revisadoEn ? '<div class="od-dato"><small>' + (d.estado === 'rechazado' ? 'Rejected' : 'Approved') + '</small>' + esc(docEnMs(d.revisadoEn)) + ' by ' + esc(quienCorrigio(d.revisadoPor)) + '</div>' : '') +
       (d.nota ? '<div class="od-dato"><small>Note</small>' + esc(d.nota) + '</div>' : '') +
-      '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odBajar">' + DOC_IC.bajar + 'Download</button></div>';
-    if(d && d.estado === 'pendiente'){
+      (priv ? '' : '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odBajar">' + DOC_IC.bajar + 'Download</button></div>');
+    if(priv){ /* privado: sin revisión, vencimiento ni borrar (paso 158) */ }
+    else if(d && d.estado === 'pendiente'){
       h += '<div class="od-rev"><h4>Review</h4>' + (t.vence !== 'nunca' && !t.mensual ? '<label class="campo"><span>Expires on</span><input type="date" id="odVence" value="' + docVenceDefecto(t, d.fechaDoc) + '"></label>' : '') +
         '<div class="od-btns"><button class="btn btn-brand btn-sm" type="button" id="odAprobar">Approve</button><button class="btn btn-peligro btn-sm" type="button" id="odRechazarAbrir">Reject…</button></div>' +
         '<div class="hidden" id="odRechCaja"><label class="campo"><span>Why? (the agent will see this)</span><textarea id="odMotivo" rows="2" maxlength="500"></textarea></label>' +
@@ -12204,7 +12209,7 @@ function pintarDoc(){
     '<div class="od-btns"><button class="btn btn-ghost btn-sm" type="button" id="odSubir">' + DOC_IC.subir + 'Choose file…</button></div></div>';
   if(lista.length > 1) h += '<div class="od-hist"><h4>History</h4>' + lista.map(x => '<button type="button" class="od-h' + (d && x.id === d.id ? ' activo' : '') + '" data-ver="' + x.id + '"><span>' + esc(docEnMs(x.subidoEn)) + '</span>' +
     docChip(x.estado === 'aprobado' ? (x.vence && x.vence < fechaHoy() ? 'vencido' : 'ok') : x.estado === 'pendiente' ? 'pendiente' : 'rechazado', '') + '<small>' + esc(x.nombre) + (x === est.doc ? ' · <b>this one counts</b>' : '') + '</small></button>').join('') + '</div>';
-  if(d) h += '<div class="od-borrar"><button class="btn-link od-peligro" type="button" id="odBorrar">Delete this file</button></div>';
+  if(d && !priv) h += '<div class="od-borrar"><button class="btn-link od-peligro" type="button" id="odBorrar">Delete this file</button></div>';
   $('odLado').innerHTML = h + '<div class="err" id="odErr" role="alert"></div>';
   const err = m => { $('odErr').textContent = m || ''; };
   const hecho = async (msg) => { toast(msg); await cargarDocs(true); if(!$('ovDoc').classList.contains('hidden')) pintarDoc(); };
