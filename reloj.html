@@ -35,7 +35,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v382-202611162235">
+<meta name="app-build" content="v383-202611170930">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -235,6 +235,15 @@ button,input,select{font:inherit;color:inherit}
 .cp-per tr.cp-pagado td{background:#E9F7EF}
 .cp-per tr.cp-pagado td.cp-chk{box-shadow:inset 3px 0 0 #1E9E5A}
 .cp-pagados{color:#1E7A45;font-weight:600}
+.cp-pago-conf.cp-cerrado{background:var(--sand);color:var(--text-muted);cursor:default;border-style:dashed}
+.cp-edit{margin-left:6px;padding:3px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;font:inherit;font-size:12.5px;color:var(--brand-700);cursor:pointer}
+.cp-edit:hover{background:var(--brand-50)}.cp-edit:focus-visible{outline:2px solid var(--brand-500);outline-offset:1px}
+.cp-nota{margin-top:10px;font-size:12.5px;color:var(--text-muted)}
+#cpOvHist{z-index:55}
+.cp-hist-filtros{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:12px;font-size:13px}
+.cp-hist-filtros label{display:flex;gap:6px;align-items:center;color:var(--text-muted)}
+.cp-hist-filtros select,.cp-hist-filtros input[type=search]{padding:5px 8px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px;color:var(--text)}
+.cp-hist-filtros .esp{flex:1}
 .btn-brand:hover:not(:disabled){background:var(--brand-700)}
 .btn-sm{padding:7px 13px;font-size:13px}
 .btn-link{border:0;background:none;color:var(--brand-700);font-weight:700;cursor:pointer;padding:4px 2px;font-size:14px}
@@ -326,9 +335,9 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-docs-sub{font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);opacity:.85}
 .py-docs-b{display:flex;flex-wrap:wrap;gap:6px}
 @media(max-width:860px){.py-docs-g{border-left:0;padding:2px 0;flex-basis:100%}}
-#cpOvPersonal .cp-per-v{position:relative;max-width:1100px}
-#cpOvPersonal .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
-#cpOvPersonal .cp-x:hover{color:var(--text)}
+#cpOvPersonal .cp-per-v,#cpOvHist .cp-per-v{position:relative;max-width:1100px}
+#cpOvPersonal .cp-x,#cpOvHist .cp-x{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-muted)}
+#cpOvPersonal .cp-x:hover,#cpOvHist .cp-x:hover{color:var(--text)}
 .cp-per-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px;margin-top:10px}
 .cp-per{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
 .cp-per th,.cp-per td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
@@ -4966,6 +4975,7 @@ const SERVIDOR_EN = [
   [/^Ese archivo ya está registrado\.$/, 'That file is already saved.'],
   [/^Solo un administrador puede revisar documentos\.$/, 'Only an administrator can review documents.'],
   [/^Este documento es privado: solo la persona lo puede ver\.$/, 'This document is private: only the person can see it.'],   // (v382, paso 158)
+  [/^Este pago ya está marcado con su número de confirmación\. Para cambiarlo usa «Edit»\.$/, 'This payment is already marked as paid with its confirmation number. Use Edit to change it.'],   // (v383, paso 160)
   [/^Solo un administrador puede ver este historial\.$/, 'Only an administrator can see this history.'],   // (v382, paso 157)
   [/^Escribe por qué se rechaza\.$/, 'Write why it is rejected.'],
   [/^Solo un administrador puede cambiar los documentos\.$/, 'Only an administrator can change the documents.'],
@@ -5592,9 +5602,15 @@ async function api(action, p){
   if(action === 'empleados') return empleadosSB();
   // (v133) pagos desde la cuenta personal: estado guardado por persona y quincena (paso 62)
   if(action === 'pagoPersonalPeriodo'){ await sesionSB();
-    const r = await q(sb.from('reloj_pago_personal').select('usuario,pagado,confirmacion,pagado_en').eq('periodo_fin', p.periodoFin));
+    const r = await q(sb.from('reloj_pago_personal').select('*').eq('periodo_fin', p.periodoFin));   // (v383) * : con paso 160 trae también valor y nombre
     return r || []; }
-  if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '' } }));
+  // (v383, paso 160) corregir = el admin confirmó «Edit»; valor y nombre quedan guardados con el pago y en el historial
+  if(action === 'pagoPersonalSet') return q(sb.rpc('reloj_pago_personal_set', { p:{ usuario:p.usuario, periodoFin:p.periodoFin, pagado:!!p.pagado, confirmacion:p.confirmacion || '',
+    corregir:!!p.corregir, valor:(p.valor == null ? null : p.valor), nombre:p.nombre || '' } }));
+  if(action === 'pagoPersonalHist'){ await sesionSB();   // (v383, paso 160) todos los pagos personales guardados + los cambios
+    const pagos = await q(sb.from('reloj_pago_personal').select('*').order('periodo_fin', { ascending:false }).limit(5000));
+    const cambios = await q(sb.from('reloj_pago_personal_hist').select('*').order('id', { ascending:false }).limit(5000));
+    return { pagos:pagos || [], cambios:cambios || [] }; }
   // (v139) marcar/desmarcar a un usuario como manager (paso 63)
   if(action === 'setManager') return q(sb.rpc('reloj_set_manager', { p:{ usuario:p.usuario, esManager:!!p.esManager } }));
   if(action === 'setCuentaManager') return q(sb.rpc('reloj_set_cuenta_manager', { p_cuenta:p.cuenta || '', p_usuario:p.usuario || null }));
@@ -17139,7 +17155,16 @@ async function demoApi(action, p){
   if(action.startsWith('pagoPersonal')){ await new Promise(r => setTimeout(r, 120));
     window.__demoPagos = window.__demoPagos || {};
     if(action === 'pagoPersonalPeriodo'){ const per = window.__demoPagos[p.periodoFin] || {}; return Object.keys(per).map(u => Object.assign({ usuario:u }, per[u])); }
-    const per = window.__demoPagos[p.periodoFin] = (window.__demoPagos[p.periodoFin] || {}); per[p.usuario] = { pagado:!!p.pagado, confirmacion:p.confirmacion || '' }; return { ok:true }; }
+    window.__demoCambios = window.__demoCambios || [];
+    if(action === 'pagoPersonalHist'){ const pagos = []; Object.keys(window.__demoPagos).forEach(pf => Object.keys(window.__demoPagos[pf]).forEach(u => pagos.push(Object.assign({ usuario:u, periodo_fin:pf }, window.__demoPagos[pf][u]))));
+      return { pagos, cambios:window.__demoCambios.slice().reverse() }; }
+    const per = window.__demoPagos[p.periodoFin] = (window.__demoPagos[p.periodoFin] || {}); const a = per[p.usuario] || {};
+    if(a.pagado && a.confirmacion && !p.corregir && (!p.pagado || (p.confirmacion || '') !== a.confirmacion)) throw new Error('This payment is already marked as paid with its confirmation number. Use Edit to change it.');
+    const nuevo = { pagado:!!p.pagado, confirmacion:p.confirmacion || '', pagado_en: p.pagado ? (a.pagado_en || new Date().toISOString()) : null, valor: p.valor != null ? p.valor : a.valor, nombre:p.nombre || a.nombre, actualizado_por:'demo' };
+    const anota = acc => window.__demoCambios.push({ id:window.__demoCambios.length + 1, usuario:p.usuario, periodo_fin:p.periodoFin, accion:acc, confirmacion_antes:a.confirmacion || null, confirmacion:nuevo.confirmacion || null, valor:nuevo.valor, nombre:nuevo.nombre, cuando:new Date().toISOString(), quien:'demo' });
+    if(nuevo.pagado && !a.pagado) anota('pagado'); else if(!nuevo.pagado && a.pagado) anota('desmarcado');
+    if((nuevo.confirmacion || '') !== (a.confirmacion || '')) anota(a.confirmacion ? 'corregido' : 'confirmacion');
+    per[p.usuario] = nuevo; return { ok:true }; }
   if(/^upd[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 150)); return demoUpd(action, p || {}); }
   if(/^chat[A-Z]/.test(action)){ await new Promise(r => setTimeout(r, 80)); return demoChat2(action, p || {}); }
   if(action.startsWith('doc')){ await new Promise(r => setTimeout(r, 200)); return demoDocs(action, p || {}); }
@@ -18549,32 +18574,69 @@ function cpModalPersonal(rows){
   const total = rows.reduce((s, r) => s + r.valor, 0);
   const periodoFin = (S.pr && S.pr.hasta) || '';
   const trDe = u => ov.querySelector('tr[data-u="' + String(u).replace(/"/g, '\\"') + '"]');
+  const rowDe = u => rows.find(r => r.usuario === u) || {};
   const fila = r => '<tr data-u="' + esc(r.usuario || '') + '">' +
       '<td class="cp-chk"><input type="checkbox" class="cp-pago-chk"' + (r.usuario ? '' : ' disabled') + ' aria-label="Mark ' + esc(r.nombre) + ' as paid"></td>' +
       '<td>' + esc(r.tipoId) + '</td><td>' + esc(String(r.numId)) + '</td><td>' + esc(r.nombre) + '</td><td>' + esc(r.banco) +
       '</td><td>' + esc(String(r.cuenta)) + '</td><td class="num">' + money(r.valor) + '</td>' +
-      '<td class="cp-conf"><input type="text" class="cp-pago-conf" placeholder="Confirmation #" autocomplete="off"' + (r.usuario ? '' : ' disabled') + '></td></tr>';
+      '<td class="cp-conf"><input type="text" class="cp-pago-conf" placeholder="Confirmation #" autocomplete="off"' + (r.usuario ? '' : ' disabled') + '>' +
+      '<button type="button" class="cp-edit" hidden aria-label="Edit the confirmation number of ' + esc(r.nombre) + '">Edit</button></td></tr>';
   const cuerpo = rows.length ? rows.map(fila).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:18px">No personal-account payments in this pay run.</td></tr>';
   ov.innerHTML = '<div class="ventana ventana-ancha cp-per-v"><button class="cp-x" id="cpPerX" type="button" aria-label="Close">×</button>' +
     '<h2>Personal account payments</h2><div class="sub">Agents paid directly from the personal account (not in the bank template). ' + rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' · ' + money(total) + ' total.<span id="cpPagados" class="cp-pagados"></span></div>' +
     '<div class="cp-per-wrap"><table class="cp-per"><thead><tr><th class="cp-chk" title="Mark as paid">✓ Paid</th><th>ID type</th><th>ID number</th><th>Name</th><th>Bank</th><th>Account #</th><th class="num">Amount to pay (COP)</th><th>Confirmation #</th></tr></thead><tbody>' + cuerpo +
     '</tbody>' + (rows.length ? '<tfoot><tr><td colspan="6">Total</td><td class="num">' + money(total) + '</td><td></td></tr></tfoot>' : '') + '</table></div>' +
-    '<div class="barra-acc" style="margin-top:14px"><span class="esp"></span>' + (rows.length ? '<button class="btn btn-ink btn-sm" id="cpPerXls" type="button">Download Excel</button>' : '') + '</div></div>';
+    '<div class="cp-nota">Once a payment is marked as paid and has its confirmation #, it\'s locked. Use <b>Edit</b> to change it; every change is kept in the payment history.</div>' +
+    '<div class="barra-acc" style="margin-top:14px"><button class="btn btn-ghost btn-sm" id="cpPerHist" type="button">Payment history</button><span class="esp"></span>' + (rows.length ? '<button class="btn btn-ink btn-sm" id="cpPerXls" type="button">Download Excel</button>' : '') + '</div></div>';
   ov.classList.remove('hidden');
   $('cpPerX').addEventListener('click', () => ov.classList.add('hidden'));
+  $('cpPerHist').addEventListener('click', () => cpHistorialPersonal());
   const contar = () => { const el = $('cpPagados'); if(!el) return; const n = ov.querySelectorAll('.cp-pago-chk:checked').length; el.textContent = n ? ' · ' + n + ' of ' + rows.length + ' paid' : ''; };
-  const guardar = async (u, el) => { if(!u) return; const tr = trDe(u); if(!tr) return;
-    const pagado = tr.querySelector('.cp-pago-chk').checked, confirmacion = tr.querySelector('.cp-pago-conf').value.trim();
+  // (v383) estado guardado de cada fila; pagado + número de confirmación = cerrado
+  const guardado = {};
+  const pintarFila = u => { const tr = trDe(u); if(!tr) return; const g = guardado[u] || {};
+    const chk = tr.querySelector('.cp-pago-chk'), inp = tr.querySelector('.cp-pago-conf'), ed = tr.querySelector('.cp-edit');
+    chk.checked = !!g.pagado; inp.value = g.confirmacion || '';
+    const cerrado = !!(g.pagado && g.confirmacion);
+    inp.readOnly = cerrado; inp.classList.toggle('cp-cerrado', cerrado); ed.hidden = !cerrado; delete tr.dataset.corrige;
+    inp.title = cerrado ? 'Locked. Use Edit to change it.' : '';
+    tr.classList.toggle('cp-pagado', !!g.pagado); contar(); };
+  const guardar = async (u, el, corregir) => { if(!u) return; const tr = trDe(u); if(!tr) return;
+    const pagado = tr.querySelector('.cp-pago-chk').checked, confirmacion = tr.querySelector('.cp-pago-conf').value.trim(), r = rowDe(u);
     tr.classList.toggle('cp-pagado', pagado); contar();
-    try{ await api('pagoPersonalSet', { usuario:u, periodoFin, pagado, confirmacion });
+    try{ await api('pagoPersonalSet', { usuario:u, periodoFin, pagado, confirmacion, corregir:!!corregir, valor:r.valor, nombre:r.nombre });
+      guardado[u] = { pagado, confirmacion }; pintarFila(u);
       if(el){ el.classList.add('cp-ok'); setTimeout(() => el.classList.remove('cp-ok'), 800); } }
     catch(e){ const m = (e && e.message) || '';
+      pintarFila(u);   // vuelve a lo guardado
       toast(/reloj_pago_personal|does not exist|could not find|schema cache/i.test(m) ? tec('Saving personal payments isn\'t working right now.', 'Falta el paso SQL 62: ' + m) : (m || 'Could not save the payment.'), 'err'); } };
-  ov.addEventListener('change', e => { const c = e.target.closest('.cp-pago-chk, .cp-pago-conf'); if(!c) return; const tr = c.closest('tr'); if(tr) guardar(tr.dataset.u, c); });
+  ov.addEventListener('change', async e => { const c = e.target.closest('.cp-pago-chk, .cp-pago-conf'); if(!c) return; const tr = c.closest('tr'); if(!tr) return;
+    const u = tr.dataset.u, g = guardado[u] || {}, r = rowDe(u);
+    // (v383) desmarcar un pago cerrado: pedir confirmación
+    if(c.classList.contains('cp-pago-chk') && !c.checked && g.pagado && g.confirmacion){
+      const ok = await confirmar('Mark ' + r.nombre + ' as not paid?', 'This payment is marked as paid with confirmation # <b>' + esc(g.confirmacion) + '</b>. The change will be saved in the payment history.', 'Mark as not paid', true);
+      if(!ok){ pintarFila(u); return; }
+      return guardar(u, c, true);
+    }
+    guardar(u, c, tr.dataset.corrige === '1');
+  });
+  // (v383) «Edit»: abre el número de un pago cerrado (con confirmación); si no se cambia, se vuelve a cerrar
+  ov.addEventListener('click', async e => { const b = e.target.closest('.cp-edit'); if(!b) return; const tr = b.closest('tr'); if(!tr) return;
+    const u = tr.dataset.u, g = guardado[u] || {}, r = rowDe(u);
+    const ok = await confirmar('Change the confirmation # for ' + r.nombre + '?', 'This payment is already marked as paid with confirmation # <b>' + esc(g.confirmacion || '') + '</b>. If you change it, the old and new numbers are saved in the payment history.', 'Edit');
+    if(!ok) return;
+    const inp = tr.querySelector('.cp-pago-conf'); tr.dataset.corrige = '1'; inp.readOnly = false; inp.classList.remove('cp-cerrado'); b.hidden = true; inp.focus(); inp.select();
+  });
+  ov.addEventListener('focusout', e => { const inp = e.target.closest('.cp-pago-conf'); if(!inp) return; const tr = inp.closest('tr');
+    if(tr && tr.dataset.corrige === '1') setTimeout(() => { if(tr.dataset.corrige === '1' && inp.value.trim() === ((guardado[tr.dataset.u] || {}).confirmacion || '')) pintarFila(tr.dataset.u); }, 150); });
+  ov.addEventListener('keydown', e => { const inp = e.target.closest('.cp-pago-conf'); if(inp && e.key === 'Enter') inp.blur(); });
   (async () => { try{ const prev = await api('pagoPersonalPeriodo', { periodoFin });
-    (prev || []).forEach(x => { const tr = trDe(x.usuario); if(!tr) return;
-      tr.querySelector('.cp-pago-chk').checked = !!x.pagado; tr.querySelector('.cp-pago-conf').value = x.confirmacion || ''; tr.classList.toggle('cp-pagado', !!x.pagado); });
+    (prev || []).forEach(x => { guardado[x.usuario] = { pagado:!!x.pagado, confirmacion:x.confirmacion || '' }; pintarFila(x.usuario);
+      // (v383) pagos guardados antes de esta versión: se completa el monto y el nombre (no cambia nada más ni anota historial)
+      const r = rowDe(x.usuario);
+      if('valor' in x && x.valor == null && (x.pagado || x.confirmacion) && r.valor != null)
+        api('pagoPersonalSet', { usuario:x.usuario, periodoFin, pagado:!!x.pagado, confirmacion:x.confirmacion || '', valor:r.valor, nombre:r.nombre }).catch(() => {}); });
     contar();
   }catch(e){} })();
   if($('cpPerXls')) $('cpPerXls').addEventListener('click', () => {
@@ -18582,6 +18644,73 @@ function cpModalPersonal(rows){
     const filas = rows.map(r => [r.tipoId, String(r.numId), r.nombre, r.banco, String(r.cuenta), r.valor]);
     cpBajarXls(cpXlsxSimple('Personal', cab, filas, [12,18,26,18,20,16]), 'Pagos-Personal_' + cpFecha() + '.xlsx');
   });
+}
+
+// (v383, paso 160) Historial de los pagos desde la cuenta personal: todos los pay runs + cada cambio (quién y cuándo)
+async function cpHistorialPersonal(){
+  let ov = document.getElementById('cpOvHist');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'cpOvHist'; ov.className = 'overlay'; document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.add('hidden'); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && !ov.classList.contains('hidden')){ e.stopImmediatePropagation(); ov.classList.add('hidden'); } }, true); }
+  ov.innerHTML = '<div class="ventana ventana-ancha cp-per-v"><button class="cp-x" type="button" aria-label="Close" data-cerrar>×</button><h2>Payment history</h2><div class="sub">Loading…</div></div>';
+  ov.classList.remove('hidden');
+  ov.querySelector('[data-cerrar]').addEventListener('click', () => ov.classList.add('hidden'));
+  let d;
+  try{ d = await api('pagoPersonalHist', {}); }
+  catch(e){ const m = (e && e.message) || '';
+    ov.querySelector('.sub').textContent = /reloj_pago_personal_hist|does not exist|could not find|schema cache/i.test(m) ? tec('The payment history isn\'t available yet.', 'Falta el paso SQL 160: ' + m) : (m || 'Could not load the history.');
+    return; }
+  const m = await cpFichas().catch(() => ({ porU:{} }));
+  const nom = x => x.nombre || ((m.porU[x.usuario] || {}).nombre ? ((m.porU[x.usuario].nombre || '') + ' ' + (m.porU[x.usuario].apellidos || '')).trim() : x.usuario);
+  const money = n => n == null || n === '' ? '—' : '$ ' + Number(n).toLocaleString('es-CO');
+  const fecha = f => f ? new Intl.DateTimeFormat('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }).format(new Date(String(f).slice(0, 10) + 'T12:00:00Z')) : '';
+  const cuando = t => { if(!t) return ''; const x = new Date(t); return x.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:S.zona || 'America/New_York' }) + ' ' + x.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:S.zona || 'America/New_York' }); };
+  const pagos = (d.pagos || []).filter(x => x.pagado || x.confirmacion);
+  const cambios = d.cambios || [];
+  const periodos = [...new Set(pagos.map(x => x.periodo_fin).concat(cambios.map(x => x.periodo_fin)))].sort().reverse();
+  const QUE = { pagado:'Marked as paid', desmarcado:'Marked as not paid', confirmacion:'Confirmation # added', corregido:'Confirmation # changed' };
+  ov.querySelector('.ventana').innerHTML = '<button class="cp-x" type="button" aria-label="Close" data-cerrar>×</button><h2>Payment history</h2>' +
+    '<div class="sub">Personal-account payments of every pay run, and every change made to them.</div>' +
+    '<div class="cp-hist-filtros"><label>Pay run <select id="cpHPer"><option value="">All</option>' + periodos.map(p => '<option value="' + esc(p) + '">' + esc(fecha(p)) + '</option>').join('') + '</select></label>' +
+    '<label>Name <input type="search" id="cpHNom" placeholder="Search a name" autocomplete="off"></label>' +
+    '<label class="cp-hist-ver"><input type="checkbox" id="cpHCambios"> Show changes</label><span class="esp"></span><button class="btn btn-ink btn-sm" id="cpHXls" type="button">Download Excel</button></div>' +
+    '<div class="cp-per-wrap" id="cpHTabla"></div><div class="cp-nota" id="cpHNota"></div>';
+  ov.querySelector('[data-cerrar]').addEventListener('click', () => ov.classList.add('hidden'));
+  const filtrar = lista => { const per = $('cpHPer').value, t = cpNorm($('cpHNom').value || '');
+    return lista.filter(x => (!per || x.periodo_fin === per) && (!t || cpNorm(nom(x)).includes(t))); };
+  let vista = [];
+  const pintar = () => {
+    const verCambios = $('cpHCambios').checked;
+    if(verCambios){
+      vista = filtrar(cambios);
+      $('cpHTabla').innerHTML = '<table class="cp-per"><thead><tr><th>When</th><th>Pay run</th><th>Name</th><th>Change</th><th>Confirmation #</th><th class="num">Amount (COP)</th><th>By</th></tr></thead><tbody>' +
+        (vista.length ? vista.map(x => '<tr><td>' + esc(cuando(x.cuando)) + '</td><td>' + esc(fecha(x.periodo_fin)) + '</td><td>' + esc(nom(x)) + '</td><td>' + esc(QUE[x.accion] || x.accion) + '</td><td>' +
+          (x.accion === 'corregido' ? '<s>' + esc(x.confirmacion_antes || '') + '</s> → ' + esc(x.confirmacion || '(empty)') : esc(x.confirmacion || x.confirmacion_antes || '')) + '</td><td class="num">' + money(x.valor) + '</td><td>' + esc(x.quien || '') + '</td></tr>').join('')
+          : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px">No changes recorded yet. Changes are recorded from today on.</td></tr>') + '</tbody></table>';
+      $('cpHNota').textContent = '';
+    } else {
+      vista = filtrar(pagos).sort((a, b) => a.periodo_fin < b.periodo_fin ? 1 : a.periodo_fin > b.periodo_fin ? -1 : nom(a).localeCompare(nom(b)));
+      const tot = vista.reduce((s, x) => s + (x.pagado && x.valor != null ? Number(x.valor) : 0), 0);
+      $('cpHTabla').innerHTML = '<table class="cp-per"><thead><tr><th>Pay run</th><th>Name</th><th class="num">Amount (COP)</th><th>Status</th><th>Paid on</th><th>Confirmation #</th><th>By</th></tr></thead><tbody>' +
+        (vista.length ? vista.map(x => '<tr' + (x.pagado ? ' class="cp-pagado"' : '') + '><td>' + esc(fecha(x.periodo_fin)) + '</td><td>' + esc(nom(x)) + '</td><td class="num">' + money(x.valor) + '</td><td>' + (x.pagado ? 'Paid' : 'Not paid') +
+          '</td><td>' + esc(x.pagado ? cuando(x.pagado_en) : '') + '</td><td>' + esc(x.confirmacion || '') + '</td><td>' + esc(x.actualizado_por || '') + '</td></tr>').join('')
+          : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px">No payments found.</td></tr>') + '</tbody>' +
+        (vista.length ? '<tfoot><tr><td colspan="2">Total paid</td><td class="num">' + money(tot) + '</td><td colspan="4"></td></tr></tfoot>' : '') + '</table>';
+      $('cpHNota').textContent = pagos.some(x => x.valor == null) ? 'Amounts are saved from Nov 17, 2026 on; older payments show “—”.' : '';
+    }
+  };
+  ['cpHPer', 'cpHNom', 'cpHCambios'].forEach(id => $(id).addEventListener('input', pintar));
+  $('cpHCambios').addEventListener('change', pintar);
+  $('cpHXls').addEventListener('click', () => {
+    if($('cpHCambios').checked){
+      cpBajarXls(cpXlsxSimple('Changes', ['When','Pay run','Name','Change','Before','After','Amount (COP)','By'],
+        vista.map(x => [cuando(x.cuando), x.periodo_fin, nom(x), QUE[x.accion] || x.accion, x.confirmacion_antes || '', x.confirmacion || '', x.valor == null ? '' : Number(x.valor), x.quien || '']), [20,12,26,22,16,16,14,14]), 'Pagos-Personal-Cambios.xlsx');
+    } else {
+      cpBajarXls(cpXlsxSimple('History', ['Pay run','Name','Amount (COP)','Status','Paid on','Confirmation #','By'],
+        vista.map(x => [x.periodo_fin, nom(x), x.valor == null ? '' : Number(x.valor), x.pagado ? 'Paid' : 'Not paid', x.pagado ? cuando(x.pagado_en) : '', x.confirmacion || '', x.actualizado_por || '']), [12,26,14,10,20,18,14]), 'Pagos-Personal-Historial.xlsx');
+    }
+  });
+  pintar();
 }
 // listeners nuevos
 (function(){
