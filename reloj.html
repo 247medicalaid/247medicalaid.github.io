@@ -35,7 +35,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v383-202611170930">
+<meta name="app-build" content="v384-202611171300">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3611,28 +3611,17 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 
         </div>
 
-        <!-- MORE · 24/7 only (v338): lo que solo usa 24/7 Medical Aid; apagado = como la app independiente -->
-        <div class="aj-pag" data-pag="solo247">
-          <div class="ajuste aj-card" id="ajSoloBox" data-guardar="ajSoloGuardar">
-            <div class="aj-ct"><h2>24/7 features</h2><span class="aj-pill" id="ajPillSolo"></span></div>
-            <p class="aj-desc">Things only 24/7 Medical Aid uses; the standalone product won&rsquo;t have them. Turn them off to test the Time Clock as the product. Nothing is deleted, and turning one back on brings it back as it was. It applies to everyone.</p>
-            <div class="aj-filas" id="ajSoloFilas"></div>
-            <div class="cx-efectos" style="grid-template-columns:1fr"><div class="cx-ef"><b>While a payroll item is off</b><ul>
-              <li>Pay runs show what the product would calculate, but they <b>can&rsquo;t be saved or closed</b>: a real pay run never goes out without them.</li>
-              <li>Closed pay runs keep showing what was paid.</li>
-              <li>The amounts stay in each person&rsquo;s settings (aportes, fixed pay, Nómina 247 / Personal) and come back when you turn it on.</li></ul></div></div>
-            <div class="aj-pie"><button class="btn btn-ink btn-sm hidden" id="ajSoloGuardar" type="button">Save</button><span class="nota" id="ajSoloEstado"></span></div>
+        <!-- MORE · Custom features (v384): lo que 247Punch encendió para esta empresa; solo lectura -->
+        <div class="aj-pag" data-pag="custom">
+          <div class="ajuste aj-card" id="ajCustomBox">
+            <div class="aj-ct"><h2>Custom features</h2><span class="aj-pill" id="ajPillCustom"></span></div>
+            <p class="aj-desc">Features turned on for your company. To add or remove one, contact 247Punch support.</p>
+            <div class="aj-filas" id="ajCustomFilas"></div>
           </div>
-
-          <div class="ajuste aj-card" id="ajConxFijas">
-            <div class="aj-ct"><h2>Always on for 24/7</h2><span class="aj-pill">Outside the Time Clock</span></div>
-            <p class="aj-desc">These run outside the Time Clock and can&rsquo;t be turned off from here. In the product each one is replaced.</p>
-            <div class="aj-filas">
-              <div class="aj-fila"><span class="aj-fl"><b>Admin sign-in through the portal</b><span>Product: admins sign in with their email, like everyone else.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
-              <div class="aj-fila"><span class="aj-fl"><b>Nightly backup to Google Drive</b><span>Product: encrypted backup for each company.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
-              <div class="aj-fila"><span class="aj-fl"><b>The Payroll app reads the account names</b><span>N&oacute;mina doesn&rsquo;t go into the product.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
-              <div class="aj-fila"><span class="aj-fl"><b>The Monitor installs the Windows app</b><span>Product: its own signed installer.</span></span><div class="aj-fr"><span class="cx-lock">Always on</span></div></div>
-            </div>
+          <div class="ajuste aj-card hidden" id="ajCustomApps">
+            <div class="aj-ct"><h2>Portal apps</h2></div>
+            <p class="aj-desc">The other apps of your company portal. They open with the portal sign-in.</p>
+            <div class="aj-filas" id="ajCustomAppsFilas"></div>
           </div>
         </div>
 
@@ -3738,7 +3727,7 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 </div>
 
 <!-- importar de Connecteam (administrador) -->
-<button type="button" class="solo-aviso hidden" id="soloAviso" title="Settings → 24/7 only"></button>
+
 
 <div class="overlay hidden" id="ovConf" role="dialog" aria-modal="true" aria-labelledby="cTitulo">
   <div class="ventana" style="max-width:420px">
@@ -4385,7 +4374,36 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
 // (v353) Valores de la instalación (bloque INSTALACION del <head>): 24/7 o el producto.
 const INST = window.INSTALACION || {};
 const PORTAL = INST.portal || '';
-const INST_SOLO247 = INST.solo247 !== false;
+// (v384) Catálogo de funciones (unificación, 17 nov 2026): un solo código para todas las empresas, incluida 24/7.
+// Lo que tiene encendido cada empresa vive en su base: reloj_config 'funciones' = { clave:true, … } (más unos textos).
+// Solo 247Punch lo cambia (reloj_funciones_poner, service_role); la empresa no puede. Las funciones «opcionales» siguen
+// siendo los ajustes de Settings. Tipos: incluida · opcional · personalizada · modulo · plan.
+const FUNCIONES = [
+  { k:'tope', tipo:'personalizada', pago:true, t:'Maximum per dollar', d:'A ceiling on the exchange rate (Settings → Payroll).' },
+  { k:'ica', tipo:'personalizada', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays.' },
+  { k:'fuentes', tipo:'personalizada', pago:true, t:'Two payment sources', d:'Nómina 247 or Personal, each with its totals, plus the Bank template and Personal payments with their history.' },
+  { k:'aportes', tipo:'personalizada', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours.' },
+  { k:'cpr', tipo:'personalizada', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format and import pay periods already paid from it.' },
+  { k:'comprobantes', tipo:'personalizada', t:'Pay stubs and payment files (PDF)', d:'Bilingual pay stubs, the accountant’s summary and Send to profiles.' },
+  { k:'monitor', tipo:'modulo', t:'Agent Monitor', d:'Computer activity, schedules from the Monitor, automatic clock out when a computer goes off, and Inventory.' },
+  { k:'tipo_id', tipo:'personalizada', t:'ID type', d:'An ID type (CC, CE, passport…) next to the ID number.' },
+  { k:'chat_phi', tipo:'personalizada', t:'Patient information reminder in Chat', d:'The chat reminds people not to share patient information.' },
+  { k:'enlaces_portal', tipo:'personalizada', t:'Portal apps', d:'Links to the other apps of your company portal.' },
+  { k:'aviso_247', tipo:'personalizada', oculta:true, t:'Request alerts through the company service', d:'' }
+];
+const FUNC_PAGO = FUNCIONES.filter(x => x.pago).map(x => x.k);
+// Sin la fila 'funciones' en la base (antes del paso 161): 24/7 con lo de siempre (respetando lo que apagó en «24/7 only»); el producto, nada
+const FUNC_247 = Object.assign(Object.fromEntries(FUNCIONES.map(x => [x.k, true])), { importado_de:'Connecteam', archivo_payroll:'PAYROLL_247 - CONSOLIDATED_' });
+function funcActivas(){
+  if(S.funciones) return S.funciones;
+  if(INST.solo247 === false) return {};
+  const o = Object.assign({}, FUNC_247), off = (S.reglasPago && S.reglasPago.solo247) || {};
+  Object.keys(off).forEach(k => { if(off[k] === false) o[k] = false; });
+  return o;
+}
+function tiene(k){ return funcActivas()[k] === true; }
+function fval(k, def){ const v = funcActivas()[k]; return typeof v === 'string' && v ? v : def; }
+const pagoCustom = () => FUNC_PAGO.some(tiene);
 const CHAT_NOMBRE = INST.chatNombre || 'Team chat';
 // (v305) App de Chat (su propio dominio) o ?solochat=1: solo el chat, para admins y agentes.
 const HOST_CHAT = !!INST.chatHost && location.hostname === INST.chatHost;
@@ -4452,7 +4470,6 @@ aplicarMarca();
   if(mn) mn.href = INST.monitorUrl || '#';
   // (v356) sin portal no hay «personal administrativo del portal»; fuera de 24/7 el aviso del chat es genérico
   if(!PORTAL){ const np = document.getElementById('notaPortalAdm'); if(np) np.remove(); }
-  if(!INST_SOLO247){ const cq = document.getElementById('chatAvisoQue'); if(cq) cq.textContent = 'sensitive'; }
 }catch(e){} })();
 
 const NOMBRE_TIPO = { entrada:'Clock in', almuerzo_ini:'Lunch start', almuerzo_fin:'Lunch end', salida:'Clock out' };
@@ -4629,7 +4646,7 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   if(!marcas.length) return f;
   if(marcas.every(m => m.origen === 'importado')){
     const mo = (marcas.find(m => /^Connecteam: /.test(m.motivo || '')) || {}).motivo;
-    f.push({ c:'IMPORTADO', n:'info', t:'Imported from ' + IMP_DE + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
+    f.push({ c:'IMPORTADO', n:'info', t:'Imported from ' + impDe() + (mo ? ' · Notes: ' + mo.slice(12) : '') + '.' }); return f;
   }
   if(!monOn()) return f;   // (v312) Monitor apagado: sin verificación de PC
   if(mon === MON_OFF) return f;   // (v326) ese día el Monitor no estaba activo: no hay nada que verificar
@@ -5240,8 +5257,8 @@ const SERVIDOR_EN = [
   // Errores crudos de la base (no deberían llegar): mensaje normal y el detalle a la consola
   [/violates (check|foreign key|not-null) constraint|null value in column|duplicate key value|invalid input syntax|out of range/i, ENT('Some of the information isn\'t valid. Check the form and try again.', true)]
 ];
-// (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico.
-const IMP_DE = INST_SOLO247 ? 'Connecteam' : 'another system';
+// (v355) De dónde vinieron los datos importados: Connecteam solo en 24/7; en el producto, genérico. (v384) texto de la empresa
+const impDe = () => fval('importado_de', 'another system');
 function enIngles(m){ m = String(m || '');
   const md = /^Día (\d{4}-\d{2}-\d{2}): ([\s\S]*)$/.exec(m); if(md) return diaS(md[1]) + ': ' + enIngles(md[2]); for(const [re, t] of SERVIDOR_EN) if(re.test(m)) return t.entero ? t(m) : m.replace(re, t); return m; }
 // Supabase entrega hasta 1000 filas por pedido: se piden por páginas.
@@ -5298,6 +5315,7 @@ async function cargarConfig(){
     if(x.clave === 'listas' && x.valor && typeof x.valor === 'object') S.listas = Object.assign({}, LISTAS_BASE, x.valor);
     if(x.clave === 'marca' && x.valor && typeof x.valor === 'object') setMarca(x.valor);
     if(x.clave === 'monitor_sync' && x.valor && typeof x.valor === 'object') S.monitorSync = x.valor;
+    if(x.clave === 'funciones' && x.valor && typeof x.valor === 'object') S.funciones = x.valor;   // (v384, paso 161) catálogo de funciones
     if(x.clave === 'conexiones' && x.valor && typeof x.valor === 'object') S.conexiones = x.valor;   // (v312)
     if(x.clave === 'monitor_pendientes') S.monPend = Array.isArray(x.valor) ? x.valor : [];
     if(x.clave === 'horarios' && x.valor && typeof x.valor === 'object') S.horFuente = x.valor.fuente || '';   // (v314, paso 139)
@@ -5835,9 +5853,6 @@ async function api(action, p){
   if(action === 'borrarNomina') return q(sb.rpc('reloj_nomina_borrar', { p_id:p.id }));
   if(action === 'pagoDefaults') return q(sb.rpc('reloj_pago_defaults', { p:p.lista }));
   if(action === 'impLista') return q(sb.from('reloj_importaciones').select('*').order('id', { ascending:false }).limit(50));
-  if(action === 'impInicio') return q(sb.rpc('reloj_importar_inicio', { p:p.datos }));
-  if(action === 'impLote') return q(sb.rpc('reloj_importar_lote', { p_id:p.id, p_dias:p.dias }));
-  if(action === 'impFin') return q(sb.rpc('reloj_importar_fin', { p_id:p.id, p_resumen:p.resumen }));
   if(action === 'impDeshacer') return q(sb.rpc('reloj_deshacer_importacion', { p_id:p.id }));
   if(action === 'primerLatido') return q(sb.rpc('reloj_primer_latido', { p_dias:p.dias }));
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
@@ -6333,8 +6348,8 @@ function pintarPerfil(){
   $('mpTel').value = f.telefono; $('mpCumple').value = f.cumpleanos; $('mpCiudad').value = f.ciudad; $('mpDir').value = f.direccion;
   $('mpNumId').value = f.numId; $('mpCta').value = f.cuentaBanco;
   llenarSelect('mpTipoId', L.tiposId || [], f.tipoId); llenarSelect('mpBanco', L.bancos || [], f.banco);
-  $('mpTipoId').closest('.campo').classList.toggle('hidden', !INST_SOLO247);   // (v380) fuera de 24/7: un solo campo «ID»
-  $('mpNumId').closest('.campo').querySelector('span').textContent = INST_SOLO247 ? 'ID number' : 'ID';
+  $('mpTipoId').closest('.campo').classList.toggle('hidden', !tiene('tipo_id'));   // (v380) fuera de 24/7: un solo campo «ID»
+  $('mpNumId').closest('.campo').querySelector('span').textContent = tiene('tipo_id') ? 'ID number' : 'ID';
   $('mpCumple').max = fechaHoy();
   if($('mpClaveAbrir')){
     $('mpClaveAbrir').addEventListener('click', () => { $('mpClaveCaja').classList.toggle('hidden'); if(!$('mpClaveCaja').classList.contains('hidden')) $('mpClave').focus(); });
@@ -7000,7 +7015,7 @@ function abrirWeb(){
 
 function irA(v, salirSinGuardar){
   try{ aplicarSolo247(); }catch(e){}
-  if(v === 'mon' && typeof monOn === 'function' && !monOn()) v = 'hoy';   // (v312) Monitor apagado
+  if((v === 'mon' || v === 'inv') && typeof monOn === 'function' && (!monOn() || !tiene('monitor'))) v = 'hoy';   // (v384) módulo Monitor   // (v312) Monitor apagado
   // (v371) Cambios sin guardar: se pregunta con la ventana de la app (antes era el aviso gris del navegador)
   const sucio = S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio ? 'the Pay run'
     : S.vista === 'ajustes' && v !== 'ajustes' && typeof AJ !== 'undefined' && AJ.sucios.size ? 'Settings' : '';   // (v306)
@@ -7279,7 +7294,7 @@ function pintarReloj(){
   $('rMarcas').innerHTML = r.marcas.length ? r.marcas.map((m, i) => { let corr = '';
       if(_dc[i] && _dc[i].corrected){ const antesTxt = _dc[i].beforeMs != null ? 'Was ' + hora(_dc[i].beforeMs) + (_dc[i].beforeAuto ? ' (Auto Clock)' : '') + ' · ' : ''; corr = antesTxt + 'Corrected by ' + quienCorrigio(m.autor) + (m.motivo ? ': ' + m.motivo : ''); }
       return '<li' + (corr ? ' title="' + esc(corr) + '"' : '') + '><span>' + NOMBRE_TIPO[m.tipo] +
-      (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + IMP_DE + '">' + (INST_SOLO247 ? 'Connecteam' : 'imported') + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
+      (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + impDe() + '">' + esc(fval('importado_de', 'imported')) + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') + '</span><span class="h num">' + hora(m.ms) + '</span></li>'; }).join('')
     : '<li class="muted">No punches yet today.</li>';
   pintarCinta(); pintarHorario();
   if(!S.awListo && !yo.esAdmin) { appLayout(); eqMenu(); }   // agentes: menú lateral en la app y en el navegador
@@ -7319,7 +7334,7 @@ function pintarPagoAg(){
   const m = num('m'), y = num('y'), n = num('n'), v = num('v'), w = num('w'), x = num('x'), tar = num('tarifa'), fijo = num('fijo');
   const es247 = pg.de === '247';
   // (v358) nómina local (sin cambio de moneda): todo en la moneda de la empresa, sin «Exchange rate» ni pesos
-  const local = !INST_SOLO247 && (y == null || Math.abs(y - 1) < 1e-9), bm = cfgMoneda().base, enB = v => bm + ' ' + (v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(2);
+  const local = !pagoCustom() && (y == null || Math.abs(y - 1) < 1e-9), bm = cfgMoneda().base, enB = v => bm + ' ' + (v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(2);
   const cel = (et, va, cls) => '<div class="pay-cel' + (cls ? ' ' + cls : '') + '"><span class="et">' + et + '</span><span class="va">' + va + '</span></div>';
   const celdas = [];
   if(fijo == null){
@@ -7347,7 +7362,7 @@ function pintarPagoAg(){
                     : cel('Net pay (COP)', copCO(x != null ? x : (n || 0) - totDed), 'neto'));
   let h = '<div class="pay-cab"><span>Payment</span><small>' + esc(diaS(pg.desde).replace(/^\w+, /, '') + ' – ' + diaS(pg.hasta).replace(/^\w+, /, '')) + '</small></div>';
   h += '<div class="pay-grid">' + celdas.join('') + '</div>';
-  if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from ' + IMP_DE : '') + '</div>';
+  if(pg.fechaPago) h += '<div class="pay-pie">Paid on ' + esc(diaS(pg.fechaPago).replace(/^\w+, /, '')) + (pg.origen === 'importada' ? ' · from ' + impDe() : '') + '</div>';
   caja.className = 'pay-res'; caja.innerHTML = h;
   const dcel = caja.querySelector('.pay-cel.ded');
   if(dcel && dcel.querySelector('.pay-ded-pop')) dcel.addEventListener('click', () => { const ab = dcel.classList.toggle('abierto'); dcel.setAttribute('aria-expanded', ab); });
@@ -8550,7 +8565,7 @@ function vistaDia(){
     h += '<div id="dZona"><div class="marcas-cab"><h3>Punches</h3>' + (d.aprobado ? '<span class="candado" title="Remove the approval to edit this day">' + IC_CANDADO + 'Approved · locked</span>'
       : '<button class="btn btn-ghost" type="button" id="dEditar">' + LAPIZ + 'Edit punches</button>') + '</div>' +
       (d.ubic && d.ubic.puntos.some(x => (x.lejos || x.pcLejos) && !x.anulada) ? '<div class="aviso warn" style="margin:6px 0 0">' + IC.aviso + '<span>An unusual punch location was detected. Check Punch locations below.</span></div>' : '') +
-      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc('Exact punch: ' + hora(m.msReal || m.ms)) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + IMP_DE + '">' + (INST_SOLO247 ? 'Connecteam' : 'imported') + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
+      '<ul class="marcas' + (d.aprobado ? '' : ' editable') + '" id="dMarcas"' + (d.aprobado ? '' : ' title="Click a punch to edit the day"') + '>' + d.marcas.map((m, i) => '<li data-i="' + i + '" title="' + esc('Exact punch: ' + hora(m.msReal || m.ms)) + '"><span>' + NOMBRE_TIPO[m.tipo] + (m.origen === 'importado' ? '<span class="corr imp" title="Imported from ' + impDe() + '">' + esc(fval('importado_de', 'imported')) + '</span>' : m.origen === 'auto' ? '<span class="corr auto" title="' + esc(m.motivo || 'Automatic clock out: they were still clocked in after their hours per day') + '">auto</span>' : '') +
       '</span><span class="h num">' + hora(m.ms) + '</span></li>').join('') + '</ul>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:14.5px">' +
       '<span>Worked <b class="num">' + (d.incompleto ? 'not calculated' : dur(d.min)) + '</b></span>' +
@@ -9061,7 +9076,7 @@ $('hExpNomina').addEventListener('click', async () => {
   const filas = filasPayroll(h);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(xlsxPayroll(filas, h.desde, h.hasta));
-  a.download = (INST_SOLO247 ? 'PAYROLL_247 - CONSOLIDATED_' : 'Payroll_') + (S.cuentaFiltro ? S.cuentaFiltro.replace(/[^\w]+/g, '-') + '_' : '') + h.desde + '_' + h.hasta + '.xlsx';
+  a.download = fval('archivo_payroll', 'Payroll_') + (S.cuentaFiltro ? S.cuentaFiltro.replace(/[^\w]+/g, '-') + '_' : '') + h.desde + '_' + h.hasta + '.xlsx';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('Payroll exported: ' + filas.length + ' employees.');
 });
@@ -9598,10 +9613,10 @@ function abrirEmp(usuario){
   });
   { const ve = adminVeSens() && (!e || e.verSens);   // (v380) ID y cuenta: solo si Settings deja verlos
     $('eNumId').closest('.campo').classList.toggle('hidden', !ve); $('eCtaBanco').closest('.campo').classList.toggle('hidden', !ve);
-    $('eTipoId').closest('.campo').classList.toggle('hidden', !INST_SOLO247);   // fuera de 24/7: un solo campo «ID», sin tipo
-    $('eNumId').closest('.campo').querySelector('span').textContent = INST_SOLO247 ? 'ID number' : 'ID';
+    $('eTipoId').closest('.campo').classList.toggle('hidden', !tiene('tipo_id'));   // fuera de 24/7: un solo campo «ID», sin tipo
+    $('eNumId').closest('.campo').querySelector('span').textContent = tiene('tipo_id') ? 'ID number' : 'ID';
     $('eSensNota').classList.toggle('hidden', ve);
-    $('eListasNota').innerHTML = INST_SOLO247 ? 'Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.'
+    $('eListasNota').innerHTML = tiene('tipo_id') ? 'Edit the Department, ID type and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.'
       : 'Edit the Department and Bank name options in <b>Settings → Profile options</b>; accounts in <b>Settings → Accounts</b>.'; }
   S.mgrSel = new Set(e ? (e.gestiona || []) : []);
   S.reportaSel = e ? (e.reportaA || '') : '';
@@ -9735,7 +9750,7 @@ function verEmp(usuario){
     row('Home address', t(e.direccion)) +
     row('City', t(e.ciudad));
   const privado = '<span class="ve-nada">Private</span>';   // (v380) el ID y la cuenta solo los ve quien Settings permite
-  const bank = row('ID', e.verSens ? copiable((INST_SOLO247 ? [e.tipoId, e.numId] : [e.numId]).filter(Boolean).join(' '), 'ID', e.numId) : privado) +
+  const bank = row('ID', e.verSens ? copiable((tiene('tipo_id') ? [e.tipoId, e.numId] : [e.numId]).filter(Boolean).join(' '), 'ID', e.numId) : privado) +
     row('Bank', t(e.banco)) +
     row('Account number', e.verSens ? copiable(e.cuentaBanco, 'account number') : privado);
   const app = (monOn() ? row('Monitor agent', e.agenteMonitor ? esc(e.agenteMonitor) : '<span class="ve-nada">Not linked</span>') : '') +
@@ -10131,7 +10146,7 @@ $('eGuardar').addEventListener('click', async () => {
   Object.keys(CAMPOS_FICHA).forEach(k => { datos[k] = $(CAMPOS_FICHA[k]).value.trim(); });
   { const _eS = S.empEdit && ((S.emps && S.emps.empleados) || []).find(x => x.usuario === S.empEdit);   // (v380) lo que no se ve no se manda (y no se borra)
     if(!adminVeSens() || (_eS && !_eS.verSens)){ delete datos.numId; delete datos.cuentaBanco; }
-    if(!INST_SOLO247) delete datos.tipoId; }
+    if(!tiene('tipo_id')) delete datos.tipoId; }
   datos.email = datos.email.toLowerCase();
   const antes = S.empEdit ? S.emps.empleados.find(x => x.usuario === S.empEdit) : null, acc = accesoDe(antes);
   if(!datos.email && (!antes || acc.k !== 'portal')) return $('eErr').textContent = 'Enter the email. They\'ll use it to sign in.';
@@ -10372,7 +10387,7 @@ if($('ajGMGuardar')) $('ajGMGuardar').addEventListener('click', async () => {
 // (v312) Settings → Connections: interruptores reales (el del Monitor = monitor_sync.activo; los demás en reloj_config('conexiones')).
 function monOn(){ return !(S.monitorSync && S.monitorSync.activo === false); }
 function conx(k){ const c = S.conexiones || {}; return c[k] !== false; }
-function aplicarConexiones(){ document.body.classList.toggle('sin-monitor', !monOn()); if(!monOn() && (S.vista === 'mon' || S.vista === 'inv')) irA('hoy'); }   // (v356) Inventory también depende del Monitor
+function aplicarConexiones(){ const no = !monOn() || !tiene('monitor'); document.body.classList.toggle('sin-monitor', no); if(no && (S.vista === 'mon' || S.vista === 'inv')) irA('hoy'); }   // (v384) módulo Monitor   // (v356) Inventory también depende del Monitor
 function monSyncCfg(){ const c = S.monitorSync || {}; const pg = c.pago || {}; return { activo: c.activo !== false, pago:{ vacaciones: pg.vacaciones === true, enfermedad: pg.enfermedad === true, personal: pg.personal === true } }; }
 // (v326) Historial de activación del Monitor (Settings → Connections)
 function pintarMonTramos(){
@@ -10728,7 +10743,7 @@ function pintarAjustes(){
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
   $('ajUbic').checked = S.ubicObligatoria !== false; $('ajUbicEstado').textContent = '';
   { const sv = sensVer(); $('ajSensAdmin').checked = sv.includes('admin'); $('ajSensMgr').checked = sv.includes('manager'); $('ajSensSup').checked = sv.includes('supervisor'); $('ajSensEstado').textContent = '';   // (v380)
-    $('ajAvisoBox').classList.toggle('hidden', INST_SOLO247); $('ajAvisoCorreo').checked = !!(S.avisosCfg && S.avisosCfg.correo); $('ajAvisoEstado').textContent = '';
+    $('ajAvisoBox').classList.toggle('hidden', tiene('aviso_247')); $('ajAvisoCorreo').checked = !!(S.avisosCfg && S.avisosCfg.correo); $('ajAvisoEstado').textContent = '';
     $('ajAdmReloj').checked = !!(S.yo && S.yo.empleado); $('ajAdmRelojEstado').textContent = ''; }
   { const mr = S.mgrReglas || {}; $('ajMgrAprueban').checked = mr.aprueban === true; $('ajMgrVerHoras').checked = mr.verHoras === true; $('ajMgrEditan').checked = mr.editan === true; $('ajMgrEstado').textContent = ''; }   // (v373)
   { const et = S.entradaTemprana || {}; $('ajTempLim').checked = et.limitar === true; $('ajTempMin').value = et.minutos != null ? et.minutos : 15; $('ajTempEstado').textContent = ''; ejemploTemprana(); }   // (v373)
@@ -10752,7 +10767,7 @@ const AJ_IC = {
   ausencias:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M9 15l2 2 4-4"/>',
   nomina:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   integ:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
-  solo247:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/>',
+  custom:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/>',
   avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>',
   plan:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'
 };
@@ -10766,13 +10781,15 @@ const AJ_SEC = [
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
   { k:'integ',     g:'More',    t:'Connections',       d:'Turn on or off the Agent Monitor.', tono:'s' },
-  { k:'solo247',   g:'More',    t:'24/7 only',         d:'What only 24/7 Medical Aid uses. Turn it off to test the Time Clock as the standalone product.', tono:'a' },
+  { k:'custom',    g:'More',    t:'Custom features',   d:'Features turned on for your company.', tono:'a' },   // (v384) antes «24/7 only»
   { k:'plan',      g:'More',    t:'Plan & billing',    d:'Your plan and what each plan includes.', tono:'s' }
-].filter(s => (s.k !== 'solo247' || INST_SOLO247) && (s.k !== 'integ' || INST_SOLO247) && (s.k !== 'plan' || INST.compartimentos));   // (v378) el Agent Monitor es de 24/7: el producto no muestra «Connections»   // (v353) el producto no tiene «24/7 only»; (v364) solo el producto tiene «Plan»
+];
+// (v384) las secciones dependen de lo que tiene la empresa (se calcula cada vez: las funciones llegan al entrar)
+const ajSecciones = () => AJ_SEC.filter(s => (s.k !== 'custom' || funcVisibles().length > 0) && (s.k !== 'integ' || tiene('monitor')) && (s.k !== 'plan' || INST.compartimentos));
 const AJ = { montado:false, sucios:new Set(), guardando:false, sec:'inicio', pintando:false };
 const AJ_NO_SUCIO = ['ajAutoAhora', 'ajAusVer', 'ajAusAhora', 'ajMarcaLogoBtn'];   // botones que hacen una acción, no un cambio
 function ajIco(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (AJ_IC[k] || AJ_IC.inicio) + '</svg>'; }
-function ajSec(k){ return AJ_SEC.find(s => s.k === k) || AJ_SEC[0]; }
+function ajSec(k){ return ajSecciones().find(s => s.k === k) || AJ_SEC[0]; }
 function ajMovil(){ return window.matchMedia && matchMedia('(max-width: 819px)').matches; }
 function ajTituloCard(c){ const h = c.querySelector('.aj-ct h2'); return h ? h.textContent.trim() : ''; }
 function ajSinTildes(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -10798,11 +10815,10 @@ function ajResumen(k){
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R), oc = cfgOT();
         const otR = oc.regla === 'ninguna' ? 'None' : (oc.regla === 'semanal' ? 'Weekly · ' + (oc.horas || 40) + ' h' : 'Daily · ' + (oc.horas ? oc.horas + ' h' : 'hours per day')) + ' · ' + oc.mult + '×';
-        return [['Company', !S.reglasPago && !INST_SOLO247 ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
+        return [['Company', !S.reglasPago && !pagoCustom() ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
       case 'plan': return planResumen();
-      case 'solo247': { const m = SOLO247.filter(x => solo247(x.k)).length;
-        return [['24/7 features', m === SOLO247.length ? m + ' of ' + m + ' on' : ajPill(m + ' of ' + SOLO247.length + ' on', 'w')]]; }
+      case 'custom': return [['Custom features', funcVisibles().length + ' on']];
     }
   }catch(e){}
   return [];
@@ -10818,7 +10834,7 @@ function ajSub(k){
     case 'tiempo': return 'Rounding ' + v(0).toLowerCase() + ' · auto clock out ' + v(2).toLowerCase();
     case 'ausencias': return v(0) + ' types · paid by ' + v(1);
     case 'nomina': return v(0) + ' · ' + v(1);
-    case 'solo247': return v(0);
+    case 'custom': return v(0);
     default: return v(0);
   }
 }
@@ -10842,10 +10858,10 @@ function ajPintarResumen(){
   $('ajProg').innerHTML = '<div class="aj-prog-cab"><b>' + (falta.length ? 'Setup' : 'Setup complete') + '</b><span>' + hechos + ' of ' + P.length + ' done</span></div>' +
     '<div class="aj-prog-bar"><i style="width:' + Math.round(hechos * 100 / P.length) + '%"></i></div>' +
     (falta.length ? '<div class="aj-prog-falta">' + falta.map(p => '<button type="button" class="aj-chip" data-ir="' + p.k + '">' + esc(p.t) + ' &rsaquo;</button>').join('') + '</div>' : '');
-  $('ajTiles').innerHTML = AJ_SEC.filter(s => s.k !== 'inicio').map(s => '<button type="button" class="aj-tile t-' + s.tono + '" data-ir="' + s.k + '"><span class="aj-ic">' + ajIco(s.k) + '</span>' +
+  $('ajTiles').innerHTML = ajSecciones().filter(s => s.k !== 'inicio').map(s => '<button type="button" class="aj-tile t-' + s.tono + '" data-ir="' + s.k + '"><span class="aj-ic">' + ajIco(s.k) + '</span>' +
     '<b>' + esc(s.t) + '</b><p>' + esc(s.d) + '</p><dl>' + ajResumen(s.k).map(r => '<div><dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd></div>').join('') + '</dl></button>').join('');
   // Sub-línea de cada sección en el menú (se ve en el celular)
-  AJ_SEC.forEach(s => { const sm = document.querySelector('#ajNavLista [data-ir="' + s.k + '"] small'); if(sm) sm.textContent = ajSub(s.k); });
+  ajSecciones().forEach(s => { const sm = document.querySelector('#ajNavLista [data-ir="' + s.k + '"] small'); if(sm) sm.textContent = ajSub(s.k); });
   ajPills();
 }
 function ajPills(){
@@ -10952,7 +10968,7 @@ function ajMontar(){
   AJ.montado = true;
   // Menú
   let g = null, html = '';
-  AJ_SEC.forEach(s => {
+  ajSecciones().forEach(s => {
     if(s.g !== g){ if(s.g) html += '<div class="aj-nav-g">' + esc(s.g) + '</div>'; g = s.g; }
     html += '<button type="button" class="aj-nav-a t-' + s.tono + '" data-ir="' + s.k + '"><span class="aj-ic">' + ajIco(s.k) + '</span><span class="aj-nav-t">' + esc(s.t) + '<small></small></span><span class="aj-flecha" aria-hidden="true">&rsaquo;</span></button>';
   });
@@ -11231,7 +11247,7 @@ $('bSi') && $('bSi').addEventListener('click', async () => {
       $('bCuerpo').innerHTML = '<p><span class="spin dark"></span> Removing agent sign-ins… ' + (i + 1) + ' of ' + cc.length + '</p>';
       try{ await api('borrarEmpleado', { usuario:cc[i] }); }catch(e){ fallos.push(cc[i] + ': ' + e.message); }
     }
-    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.sensVer = undefined; S.avisosCfg = undefined; S.altaWeb = undefined; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null; S.overtime = null;
+    S.hoja = null; S.hojaHoy = null; S.emps = null; S.yoEn = 0; S.redondeo = 1; S.ubicObligatoria = true; S.listas = null; S.reglasPago = null; S.funciones = undefined; S.sensVer = undefined; S.avisosCfg = undefined; S.altaWeb = undefined; S.pr = null; S.monitorSync = null; S.monTramos = undefined; S.conceptos = null; S.pagoRoles = null; S.cuentas = null; S.overtime = null;
     if(!DEMO) await cargarConfig().catch(() => {});
     $('bCuerpo').innerHTML = '<p><b>The Time Clock was erased.</b></p><ul class="borrar-lista"><li>' + Number(r.marcas || 0).toLocaleString('en-US') + ' punches</li><li>' +
       Number(r.aprobaciones || 0).toLocaleString('en-US') + ' approvals</li><li>' + Number(r.solicitudes || 0).toLocaleString('en-US') + ' requests and time off</li><li>' +
@@ -11424,7 +11440,7 @@ async function avisarSolicitud(id){
   try{
     const ses = await sesionSB();
     // (v380) 247Punch: lo manda reloj-cuentas, solo si Settings → Roles & managers → New requests lo pide
-    if(!INST_SOLO247){ if(S.avisosCfg && S.avisosCfg.correo === false) return; await cuentasFn('aviso', { id }, ses.access_token); return; }
+    if(!tiene('aviso_247')){ if(S.avisosCfg && S.avisosCfg.correo === false) return; await cuentasFn('aviso', { id }, ses.access_token); return; }
     await fetch(window.SB_URL + '/functions/v1/reloj-aviso', { method:'POST',
       headers:{ 'Content-Type':'application/json', apikey:window.SB_KEY, Authorization:'Bearer ' + ses.access_token }, body:JSON.stringify({ id }) });
   }catch(e){ /* el aviso por correo es opcional: el contador del menú igual lo muestra */ }
@@ -15127,49 +15143,41 @@ $('phCerrar').addEventListener('click', () => {
    (tarifa × horas por día × días) + bono + ajuste de los días asumidos la quincena anterior
    = total en dólares. Dólar a TRM + 400, máximo 4.000 (Ajustes → Pay run). Pesos = total × tasa,
    o el valor fijo de la persona. Nómina 247 paga Rete ICA (9,5 por mil); personal no. − aportes = neto. */
-/* (v338) Lo que solo usa 24/7 Medical Aid. Se guarda para toda la empresa en reloj_config 'pago'.solo247 = {k:false} (sin dato = encendido).
-   Apagado = como la app independiente. Mientras algo de la nómina esté apagado, las nóminas no se guardan ni se cierran. */
-const SOLO247 = [
-  { k:'tope', pago:true, t:'Maximum per dollar', d:'A ceiling on the exchange rate (Settings → Payroll). Off: the rate is never capped.' },
-  { k:'ica', pago:true, t:'Rete ICA', d:'Withholding per thousand on what Nómina 247 pays. Off: no withholding, no Rete ICA column or total.' },
-  { k:'fuentes', pago:true, t:'Paid from Nómina 247 or Personal', d:'Two payment sources with their own totals, plus the Bank template (247) and Personal payments files. Off: everyone is paid from one place.' },
-  { k:'aportes', pago:true, t:'Aportes and fixed pay', d:'Aportes planilla taken off each pay period, and a fixed amount instead of hours. Off: everyone is paid by hours and nothing is taken off.' },
-  { k:'cpr', t:'CALL CENTER PAY ROLL workbook', d:'Export the pay run in that format and import pay periods already paid from it.' },
-  { k:'comprobantes', t:'Pay stubs and payment files (PDF)', d:'Bilingual pay stubs in pesos with 24/7\u2019s company names, the accountant\u2019s summary and Send to profiles. Off: the Payroll documents panel is hidden.' }
-];
-const solo247 = k => { if(!INST_SOLO247) return false; const o = (S.reglasPago && S.reglasPago.solo247) || {}; return o[k] !== false; };   // (v353) el producto no tiene nada de esto
-const pagoComoProducto = () => INST_SOLO247 && SOLO247.some(x => x.pago && !solo247(x.k));
-const soloPago = k => INST_SOLO247 && (cerradaPago() || solo247(k));   // una nómina cerrada se ve como se pagó · (v358) fuera de 24/7 nunca
+/* (v338) Lo que solo usa 24/7 Medical Aid. (v384) Ahora son funciones personalizadas del catálogo (FUNCIONES): cada empresa
+   tiene las suyas encendidas en su base; ya no se apagan desde Settings. Una nómina cerrada se ve como se pagó. */
+const SOLO247 = FUNCIONES.filter(x => x.pago || x.k === 'cpr' || x.k === 'comprobantes');
+const solo247 = k => tiene(k);
+const pagoComoProducto = () => false;
+const soloPago = k => tiene(k) || (cerradaPago() && pagoCustom());
+const funcVisibles = () => FUNCIONES.filter(x => !x.oculta && tiene(x.k));
 function aplicarSolo247(){
-  const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !solo247(k)); };
+  const t = (id, k) => { const el = $(id); if(el) el.classList.toggle('solo-off', !tiene(k)); };
   t('pyExportar', 'cpr'); t('pyImpElegir', 'cpr'); t('cpBanco', 'fuentes'); t('cpPersonal', 'fuentes');
   t('ajFilaTope', 'tope'); t('ajFilaIca', 'ica'); t('pyDocs', 'comprobantes');
-  const off = SOLO247.filter(x => !solo247(x.k)).length, a = $('soloAviso'), adm = !!(S.yo && S.yo.esAdmin) && !S.agente;
-  if(a){ a.classList.toggle('hidden', !(adm && off && INST_SOLO247)); a.textContent = 'Product preview · ' + off + (off === 1 ? ' 24/7 feature' : ' 24/7 features') + ' off'; }
+  const cq = $('chatAvisoQue'); if(cq){ if(!cq.dataset.orig) cq.dataset.orig = cq.textContent; cq.textContent = tiene('chat_phi') ? cq.dataset.orig : 'sensitive'; }
+  try{ document.body.classList.toggle('sin-monitor', !monOn() || !tiene('monitor')); }catch(e){}   // (v384) solo la clase: irA ya evita entrar al Monitor
 }
+// Settings → Custom features: lo que 247Punch encendió para esta empresa (solo lectura) y los enlaces a las apps del portal
 function pintarSolo247(){
-  const el = $('ajSoloFilas'); if(!el) return;
-  el.innerHTML = SOLO247.map(x => '<div class="aj-fila"><label class="aj-fl" for="ajSolo_' + x.k + '"><b>' + esc(x.t) + '</b><span>' + esc(x.d) + '</span></label><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajSolo_' + x.k + '" role="switch"' + (solo247(x.k) ? ' checked' : '') + '></div></div>').join('');
-  const m = SOLO247.filter(x => solo247(x.k)).length;
-  $('ajPillSolo').textContent = m + ' of ' + SOLO247.length + ' on'; $('ajSoloEstado').textContent = '';
+  const el = $('ajCustomFilas'); if(!el) return;
+  const l = funcVisibles();
+  el.innerHTML = l.length ? l.map(x => '<div class="aj-fila"><span class="aj-fl"><b>' + esc(x.t) + '</b><span>' + esc(x.d) + '</span></span><div class="aj-fr"><span class="cx-lock">' + (x.tipo === 'modulo' ? 'Module' : 'On') + '</span></div></div>').join('')
+    : '<p class="nota">Your company has no custom features.</p>';
+  $('ajPillCustom').textContent = l.length + ' on';
+  const pu = fval('portal_url', PORTAL), apps = $('ajCustomApps'), ver = tiene('enlaces_portal') && !!pu;
+  apps.classList.toggle('hidden', !ver);
+  if(ver){
+    const u = n => pu.replace(/\/?$/, '/') + n;
+    const lista = [['Portal', pu, 'Home page of the company portal.'], ['Payroll', u('nomina.html'), 'Payroll calculation.'], ['Agent Monitor', INST.monitorUrl || u('monitor.html'), 'Activity of each computer.'],
+      ['Prospects', u('prospectos/'), 'Prospects and visits.'], ['Call analyzer', u('analyzer.html'), 'Call reports by agent.'], ['Cash flow', u('proyeccion.html'), 'Cash flow projection.']];
+    $('ajCustomAppsFilas').innerHTML = lista.map(x => '<div class="aj-fila"><span class="aj-fl"><b>' + esc(x[0]) + '</b><span>' + esc(x[2]) + '</span></span><div class="aj-fr"><a class="btn btn-ghost btn-sm" href="' + esc(x[1]) + '" target="_blank" rel="noopener">Open</a></div></div>').join('');
+  }
 }
 async function leerPagoGuardado(){
   let base = S.reglasPago || {};
   if(!DEMO){ try{ const d = await q(sb.from('reloj_config').select('valor').eq('clave', 'pago')); if(d && d[0] && d[0].valor && typeof d[0].valor === 'object') base = d[0].valor; }catch(e){} }
   return Object.assign({}, REGLAS_BASE, base);
 }
-$('ajSoloGuardar').addEventListener('click', async () => {
-  const o = {}; SOLO247.forEach(x => { if(!$('ajSolo_' + x.k).checked) o[x.k] = false; });
-  const b = $('ajSoloGuardar'); b.disabled = true;
-  try{ const v = Object.assign(await leerPagoGuardado(), { solo247:o });
-    await api('guardarConfig', { clave:'pago', valor:v }); S.reglasPago = v; if(S.pr && !cerradaPago()) S.pr = null;
-    const off = Object.keys(o).length; pintarSolo247();
-    $('ajSoloEstado').textContent = off ? 'Saved. ' + off + ' off: the Time Clock works as the product for those.' : 'Saved. Everything 24/7 uses is on.';
-    toast('Settings saved.'); aplicarSolo247(); if(AJM.v){ pintarMonedaAj(); aplicarSolo247(); } }
-  catch(e){ $('ajSoloEstado').textContent = e.message; }
-  b.disabled = false;
-});
-$('soloAviso').addEventListener('click', () => { irA('ajustes'); setTimeout(() => { try{ ajIr('solo247'); }catch(e){} }, 50); });
 // (v335) modo/pais/paisPago: sin configurar se comporta como hasta ahora (empresa en EE. UU., pago internacional a Colombia).
 const REGLAS_BASE = Object.assign({ extra:0, tope:0, ica:0, pais:'US', modo:'local', paisPago:'US' }, INST.reglasPago || {}, { cuentasPais:{}, empPais:{}, reglasTasa:{} });
 const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
@@ -15949,7 +15957,7 @@ async function pintarHistorialPago(){
     const anios = Array.from(new Set(l.filter(x => x.estado === 'cerrada').map(x => x.desde.slice(0, 4)))).sort().reverse();
     $('pyAnios').innerHTML = anios.map(a => '<button class="btn btn-ghost btn-sm" type="button" data-anio="' + a + '">Export ' + a + ' (Excel)</button>').join('');
     // (v358) TRM / tasa / total en pesos solo si alguna nómina se pagó en otra moneda (24/7); en una nómina local, solo el total
-    const cmH = cfgMoneda(), conCambio = INST_SOLO247 || l.some(x => x.tasa != null && Math.abs(Number(x.tasa) - 1) > 1e-9);
+    const cmH = cfgMoneda(), conCambio = pagoCustom() || l.some(x => x.tasa != null && Math.abs(Number(x.tasa) - 1) > 1e-9);
     caja.innerHTML = '<div class="tabla-wrap"><table class="hoja pr-hist"><thead><tr><th class="nombre">Pay period</th><th>Status</th><th>Payment date</th>' + (conCambio ? '<th>TRM</th><th>Dollar at</th>' : '') + '<th>People</th><th class="tot">Total ' + cmH.base + '</th>' + (conCambio ? '<th class="tot">To pay (COP)</th>' : '') + '</tr></thead><tbody>' +
       l.map(x => { const t = x.totales || {};
         return '<tr class="' + (S.pr && x.desde === S.pr.desde ? 'sel' : '') + '"><td class="nombre"><button class="nom-btn" type="button" data-pq="' + x.desde + '"><span>' + esc(nomQuin(x.desde)) + '</span></button></td>' +
