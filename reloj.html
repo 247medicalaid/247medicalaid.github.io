@@ -19,6 +19,10 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v390: 247Punch — el nombre del ZIP de «Download my data» conserva las letras con tilde sin la tilde («Panaderia», no «Panadera») -->
+<!-- v389: Común — la sesión se cierra sola tras un tiempo sin usar la app: agentes 8 h (decisión de Carlos: un turno dura ~9 h y dentro de 8 h siempre hay una marca), administradores 60 min. Al volver, pantalla de entrada con el motivo -->
+<!-- v388: Común — al marcar justo después de que el PC despierta, la sesión aún no se renovó y la base respondía «permission denied for function reloj_marcar»: ahora renueva la sesión y reintenta una vez; si no hay sesión, mensaje claro -->
+<!-- v387: 247Punch — «Download my data»: el administrador baja los datos de su empresa (ZIP con CSV + JSON + archivos; paso 171); Solo 247Punch -->
 <!-- v386: 247Punch — si Storage rechaza un archivo durante la pausa de una mudanza (paso 166), sale el aviso de la pausa; Solo 247Punch -->
 <!-- v385: 247Punch — mudanza con copia previa: después del Upgrade la empresa sigue trabajando (la pausa de ~2 min aparece sola al final); Solo 247Punch -->
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
@@ -37,7 +41,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v386-202611172215">
+<meta name="app-build" content="v390-202611181530">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -3635,6 +3639,15 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
             <div class="pl-grid" id="ajPlanes"></div>
             <div class="aj-pie"><span class="nota" id="ajPlanEstado"></span><span class="nota">Prices per person who clocks in. Administrators are free.</span></div>
           </div>
+          <!-- (v387, paso 171) Your data: el administrador baja todo lo de su empresa -->
+          <div class="ajuste aj-card" id="ajDatosBox">
+            <div class="aj-ct"><h2>Your data</h2></div>
+            <p class="aj-desc">Download a copy of everything your company has here: people, time, time off, payroll, documents and messages. You get a ZIP file with one spreadsheet (CSV) per table and the same data in one JSON file.</p>
+            <div class="aj-filas">
+              <div class="aj-fila"><div class="aj-fl"><b>Include files</b><span>Photos, documents and chat attachments. This can make the download much larger.</span></div><div class="aj-fr"><input type="checkbox" class="aj-sw" id="ajDatosArch" role="switch" checked aria-label="Include files"></div></div>
+            </div>
+            <div class="aj-pie"><button class="btn btn-ink btn-sm" id="ajDatosBajar" type="button">Download my data</button><span class="nota" id="ajDatosEstado" role="status" aria-live="polite"></span></div>
+          </div>
         </div>
 
         <div class="aj-barra hidden" id="ajBarra" role="status" aria-live="polite">
@@ -5346,6 +5359,25 @@ async function sesionSB(){
 /* Documentos en Supabase: tablas reloj_doc_tipos / reloj_docs y los archivos en Storage («reloj-docs», privada). */
 /* (v370) Subir un archivo a Storage. Si falla por algo pasajero (sesión que se estaba renovando: Storage a veces lo
    reporta como «bucket not found»), se renueva la sesión y se intenta UNA vez más antes de mostrar el error. */
+/* (v388) Llamada a la base que necesita la sesión de la persona. Justo después de que el PC despierta, la sesión puede no
+   haberse renovado todavía (la red aún no está lista) y el pedido sale sin ella: la base responde «permission denied» o
+   «JWT expired». Se renueva la sesión y se intenta UNA vez más; si de verdad no hay sesión, se pide entrar otra vez.
+   (Si el primer intento fue rechazado, no guardó nada: reintentar no duplica la marca.) */
+const ERR_SESION = /permission denied for function|jwt expired|invalid jwt|jwt.*(expired|invalid)|not authenticated/i;
+async function rpcConSesion(fn, args){
+  let r = await sb.rpc(fn, args);
+  if(r.error && (r.error.code === '42501' || r.error.code === 'PGRST301' || r.error.code === 'PGRST303' || ERR_SESION.test(r.error.message || ''))){
+    let ok = false;
+    for(let i = 0; i < 2 && !ok; i++){
+      if(i) await new Promise(z => setTimeout(z, 1500));
+      try{ const { data } = await sb.auth.refreshSession(); ok = !!(data && data.session); }catch(e){}
+    }
+    if(!ok){ try{ const { data } = await sb.auth.getSession(); ok = !!(data && data.session); }catch(e){} }
+    if(!ok) return { data:null, error:{ message:'Your session ended. Sign out and sign in again, then try once more.', code:'SIN_SESION' } };
+    r = await sb.rpc(fn, args);
+  }
+  return r;
+}
 async function subirSB(bucket, ruta, cuerpo, opts){
   let r = await sb.storage.from(bucket).upload(ruta, cuerpo, opts);
   if(r.error && /bucket not found|jwt|token|expired|unauthori[sz]ed|fetch|network/i.test(r.error.message || '')){
@@ -5621,7 +5653,7 @@ async function api(action, p){
   if(action === 'appUso') return todas(() => sb.from('reloj_app_win').select('usuario,primera,visto,veces').order('usuario'));
   if(action === 'marcar'){
     const t0 = performance.now();
-    const r = await q(sb.rpc('reloj_marcar', { p_tipo: p.tipo, p_ubic: p.ubic || null }));
+    const r = await q(rpcConSesion('reloj_marcar', { p_tipo: p.tipo, p_ubic: p.ubic || null }));
     const ms = tiempo('marcar', t0);
     const yo = await yoSB();
     yo.marcada = { tipo:r.tipo, nombre:NOMBRE_TIPO[r.tipo], ms:Date.parse(r.ts), fecha:r.fecha, minTurno:r.minTurno, seg:ms };
@@ -6595,6 +6627,165 @@ document.addEventListener('click', async ev => {
     vigilarCuenta();
   }catch(e){ $('ajPlanEstado').textContent = e.message; document.querySelectorAll('.pl-sube').forEach(x => { x.disabled = false; }); }
 });
+/* ══ (v387, paso 171) «Download my data» ══
+   El administrador baja todo lo de su empresa en un ZIP: data/<tabla>.csv (Excel lo abre), all-data.json y, si quiere, los
+   archivos. La base lo entrega con los permisos de quien pide (punch_mis_datos, security invoker): solo un administrador y solo
+   lo que ya puede ver en la app. El ID y la cuenta bancaria salen solo si el ajuste «quién ve datos sensibles» lo permite. */
+const DATOS_NOMBRE = { perfiles:'sign-in-accounts', reloj_empleados:'people', reloj_marcas:'time-punches', reloj_solicitudes:'time-off-and-requests',
+  reloj_horarios:'schedules', reloj_nominas:'pay-runs', reloj_paystubs:'paystubs', reloj_pago_personal:'payments', reloj_pago_personal_hist:'payments-history',
+  reloj_docs:'documents', reloj_doc_tipos:'document-types', reloj_doc_personas:'document-assignments', reloj_chat:'chats', reloj_chat_miembro:'chat-members',
+  reloj_chat_msg:'chat-messages', reloj_chat_msg_borrado:'chat-messages-deleted', reloj_upd:'updates', reloj_upd_com:'update-comments', reloj_upd_reac:'update-reactions',
+  reloj_upd_dest:'update-audience', reloj_upd_watchers:'update-watchers', reloj_upd_monitorea:'update-monitoring', reloj_config:'settings', auditoria:'activity-log',
+  reloj_aprobaciones:'approvals', reloj_inv_equipos:'equipment', reloj_inv_cambios:'equipment-changes', reloj_inv_mant:'equipment-maintenance',
+  reloj_banco_historial:'bank-and-id-changes', reloj_cuenta_manager:'account-managers', reloj_reporta:'reports-to', reloj_importaciones:'imports',
+  reloj_ocultos:'hidden-people', reloj_app_win:'desktop-app-usage' };
+// (crc32 y CRC_T ya existen: los usa también el export a Excel)
+// ZIP sin compresión (los archivos ya vienen comprimidos y así no se traba el navegador). Hasta 4 GB.
+function zipArmar(items){
+  const te = new TextEncoder(), partes = [], central = []; let off = 0;
+  const d = new Date(), hora = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), dia = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for(const it of items){
+    const nom = te.encode(it.nombre), dat = it.datos, crc = crc32(dat);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, hora, true); h.setUint16(12, dia, true); h.setUint32(14, crc, true); h.setUint32(18, dat.length, true); h.setUint32(22, dat.length, true);
+    h.setUint16(26, nom.length, true); h.setUint16(28, 0, true);
+    partes.push(h.buffer, nom, dat);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, hora, true); c.setUint16(14, dia, true); c.setUint32(16, crc, true); c.setUint32(20, dat.length, true); c.setUint32(24, dat.length, true);
+    c.setUint16(28, nom.length, true); c.setUint32(42, off, true);
+    central.push(c.buffer, nom);
+    off += 30 + nom.length + dat.length;
+    if(off > 0xFFFFFFFF) throw new Error('The download is too large (over 4 GB). Turn off “Include files” and try again.');
+  }
+  const tam = central.reduce((t, x) => t + (x.byteLength || x.length), 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, items.length, true); e.setUint16(10, items.length, true); e.setUint32(12, tam, true); e.setUint32(16, off, true);
+  return new Blob([...partes, ...central, e.buffer], { type:'application/zip' });
+}
+function csvDe(filas){
+  const cols = []; const vistas = new Set();
+  filas.forEach(f => Object.keys(f).forEach(k => { if(!vistas.has(k)){ vistas.add(k); cols.push(k); } }));
+  // un texto que empieza como fórmula (=, +, @, -x) se guarda con ' delante: Excel no lo ejecuta
+  const cel = v => { if(v == null) return ''; let t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    if(typeof v === 'string' && /^[=+@\t\r]|^-[^\d.]/.test(t)) t = "'" + t;
+    return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  return '﻿' + [cols.join(','), ...filas.map(f => cols.map(k => cel(f[k])).join(','))].join('\r\n');
+}
+const datosFmt = n => Number(n || 0).toLocaleString('en-US');
+const datosMB = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : Math.max(0.1, b / 1048576).toFixed(1) + ' MB';
+async function descargarMisDatos(){
+  const est = $('ajDatosEstado'), btn = $('ajDatosBajar'), conArch = $('ajDatosArch').checked;
+  const decir = t => { est.textContent = t; };
+  btn.disabled = true;
+  try{
+    decir('Getting ready…');
+    const lista = await q(sb.rpc('punch_mis_datos', {}));
+    const tablas = (lista && lista.tablas) || [], todo = {}, te = new TextEncoder(), items = [];
+    for(const t of tablas){
+      const filas = [];
+      for(let desde = 0; desde < t.filas; desde += 2000){
+        decir('Reading ' + (DATOS_NOMBRE[t.tabla] || t.tabla).replace(/-/g, ' ') + '… ' + datosFmt(Math.min(desde + 2000, t.filas)) + ' of ' + datosFmt(t.filas));
+        const pag = await q(sb.rpc('punch_mis_datos', { p_tabla:t.tabla, p_desde:desde, p_limite:2000 })) || [];
+        filas.push(...pag); if(pag.length < 2000) break;
+      }
+      todo[t.tabla] = filas;
+    }
+    // El ID y la cuenta bancaria: solo los que quien descarga puede ver (la misma regla de la pantalla de Users)
+    const sens = await sensiblesSB().catch(() => ({}));
+    (todo.reloj_empleados || []).forEach(e => { const x = sens[e.usuario]; if(x){ e.num_id = x.numId || ''; e.cuenta_banco = x.cuentaBanco || ''; } });
+    for(const [t, filas] of Object.entries(todo)) if(filas.length) items.push({ nombre:'data/' + (DATOS_NOMBRE[t] || t) + '.csv', datos:te.encode(csvDe(filas)) });
+    const hoy = new Date().toISOString().slice(0, 10);
+    let archivos = [], fallaron = [];
+    if(conArch && lista.archivos > 0){
+      for(let desde = 0; desde < lista.archivos; desde += 1000){
+        const pag = await q(sb.rpc('punch_mis_datos', { p_tabla:'_archivos', p_desde:desde, p_limite:1000 })) || [];
+        archivos.push(...pag); if(pag.length < 1000) break;
+      }
+      const total = archivos.reduce((t, a) => t + (Number(a.bytes) || 0), 0);
+      if(total > 1073741824 && !(await confirmar('Download ' + datosMB(total) + ' of files?', 'Your files add up to about ' + datosMB(total) +
+          '. Keep this window open until the download starts. You can also turn off “Include files” to get only the data.', 'Download'))){ decir(''); return; }
+      let i = 0, hechos = 0;
+      await Promise.all(Array.from({ length:4 }, async () => {
+        while(i < archivos.length){
+          const a = archivos[i++];
+          try{
+            const { data, error } = await sb.storage.from(a.carpeta).download(a.ruta);
+            if(error || !data) throw new Error(error ? error.message : 'empty');
+            items.push({ nombre:'files/' + a.carpeta.replace(/^.*-/, '') + '/' + a.ruta, datos:new Uint8Array(await data.arrayBuffer()) });
+          }catch(e){ fallaron.push({ folder:a.carpeta, path:a.ruta, error:String(e.message || e) }); }
+          hechos++; if(hechos % 5 === 0 || hechos === archivos.length) decir('Downloading files… ' + datosFmt(hechos) + ' of ' + datosFmt(archivos.length));
+        }
+      }));
+      if(fallaron.length) items.push({ nombre:'files-not-downloaded.csv', datos:te.encode(csvDe(fallaron)) });
+    }
+    decir('Making the ZIP file…');
+    const info = { company:MARCA.nombre || '', app:MARCA.appName || '', downloaded:new Date().toISOString(), by:(S.yo && S.yo.usuario) || '',
+      tables:Object.fromEntries(Object.entries(todo).map(([t, f]) => [DATOS_NOMBRE[t] || t, f.length])), files:archivos.length - fallaron.length };
+    items.push({ nombre:'all-data.json', datos:te.encode(JSON.stringify({ info, tables:todo }, null, 1)) });
+    items.push({ nombre:'README.txt', datos:te.encode([
+      'Your company data from ' + (MARCA.appName || 'the Time Clock') + (MARCA.nombre ? ' — ' + MARCA.nombre : ''), 'Downloaded ' + new Date().toLocaleString('en-US') + ' by ' + info.by, '',
+      'data/       One spreadsheet (CSV, UTF-8) per table. Excel and Google Sheets open them directly.',
+      'all-data.json  The same data in one file, for importing into another system.',
+      conArch ? 'files/      Photos, documents and chat attachments, in the same folders the app uses.' : 'files/      Not included (you turned off “Include files”).',
+      '', 'Rows per table:', ...Object.entries(info.tables).map(([t, n]) => '  ' + t + ': ' + n),
+      fallaron.length ? '\n' + fallaron.length + ' file(s) could not be downloaded: see files-not-downloaded.csv.' : '',
+      '', 'ID numbers and bank accounts are included only if your settings let administrators see them (Settings → Roles & managers).'].join('\r\n')) });
+    const zip = zipArmar(items), url = URL.createObjectURL(zip), a = document.createElement('a');
+    a.href = url; a.download = ((MARCA.nombre || 'company').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'company') + '-data-' + hoy + '.zip';   // (v390) «Panadería» → «Panaderia»
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    decir('Done: ' + datosMB(zip.size) + ' · ' + datosFmt(Object.values(todo).reduce((t, f) => t + f.length, 0)) + ' rows' +
+      (conArch ? ' · ' + datosFmt(archivos.length - fallaron.length) + (archivos.length - fallaron.length === 1 ? ' file' : ' files') +
+        (fallaron.length ? ' (' + fallaron.length + ' couldn’t be downloaded)' : '') : '') + '.');
+  }catch(e){ decir(/function|does not exist|schema cache/i.test(e.message || '') ? 'This isn’t available for your company yet. Contact support.' : (e.message || 'Couldn’t download. Try again.')); }
+  finally{ btn.disabled = false; }
+}
+document.addEventListener('click', ev => { if(ev.target && ev.target.id === 'ajDatosBajar') descargarMisDatos(); });
+function pintarDatos(){ const b = $('ajDatosBox'); if(b) b.classList.toggle('hidden', !(INST.compartimentos && S.yo && S.yo.esAdmin)); }
+/* ══ (v389) Cerrar la sesión tras un tiempo sin usar la app ══
+   Decisión de Carlos (18 nov): por inactividad, no por hora fija (si llegan turnos nocturnos, una hora fija sacaría a
+   quien está trabajando). Agentes: 8 h sin usar la app (un turno dura ~9 h y dentro de 8 h siempre hay una marca).
+   Administradores: 60 min (ven nómina, ID y cuentas). «Usar» = tocar la app: clic, tecla, toque o desplazar, en cualquier
+   pestaña o ventana de este equipo (se comparte por localStorage). Abrir la app NO cuenta como uso: si venció mientras el
+   equipo estaba apagado, al abrirla pide entrar. Se cuenta desde lo último entre el último uso y la hora en que la persona
+   inició sesión (así, entrar de nuevo nunca choca con un registro viejo).
+   Solo la sesión del Time Clock (correo y contraseña). La sesión del PORTAL de 24/7 es compartida con Nómina y las demás
+   apps: cerrarla aquí sacaría a alguien que está trabajando en otra app; esa regla va en el portal. */
+const INACT_MS = { agente: 8 * 3600e3, admin: 60 * 60e3 };
+const INACT_CLAVE = (INST.id || 'tc') + '.actividad', INACT_SALIDA = (INST.id || 'tc') + '.salida';
+function inactLeer(){ try{ const x = JSON.parse(localStorage.getItem(INACT_CLAVE) || 'null'); return x && typeof x.t === 'number' ? x : null; }catch(e){ return null; } }
+function inactAnotar(forzar){
+  const ahora = Date.now(), x = inactLeer(), admin = x && !S.yo ? !!x.admin : !!(S.yo && S.yo.esAdmin);
+  if(!forzar && x && ahora - x.t < 30e3 && x.admin === admin) return;   // se escribe a lo más cada 30 s
+  try{ localStorage.setItem(INACT_CLAVE, JSON.stringify({ t:ahora, admin })); }catch(e){}
+}
+const inactEntro = ses => (ses && ses.user && Date.parse(ses.user.last_sign_in_at || '')) || 0;
+function inactVencida(entro){ const x = inactLeer(); return !!x && Date.now() - Math.max(x.t, entro || 0) > (x.admin ? INACT_MS.admin : INACT_MS.agente); }
+async function inactCerrar(){   // solo la sesión del Time Clock, solo en este equipo
+  const x = inactLeer();
+  try{ localStorage.setItem(INACT_SALIDA, x && x.admin ? '60 minutes' : '8 hours'); }catch(e){}
+  try{ const ag = clienteAgente(); if(ag) await ag.auth.signOut({ scope:'local' }); }catch(e){}
+  try{ localStorage.removeItem(INACT_CLAVE); }catch(e){}
+}
+function inactMotivo(){ let m = ''; try{ m = localStorage.getItem(INACT_SALIDA) || ''; localStorage.removeItem(INACT_SALIDA); }catch(e){}
+  return m ? 'You were signed out after ' + esc(m) + ' without using the Time Clock. Sign in again.' : ''; }
+function inactVigilar(ses){
+  if(DEMO || inactVigilar.ya || !S.agente) return; inactVigilar.ya = true;   // solo sesión de correo y contraseña
+  const entro = inactEntro(ses);
+  inactAnotar(!inactLeer() || inactVencida(entro));   // primera vez en este equipo, o recién entró: empieza a contar ahora
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev => document.addEventListener(ev, () => inactAnotar(false), { passive:true, capture:true }));
+  const revisar = async () => {
+    if(!inactVencida(entro) || inactVigilar.saliendo) return;
+    inactVigilar.saliendo = true;
+    await inactCerrar();
+    const qs = new URLSearchParams(location.search), q2 = new URLSearchParams();
+    ['app', 'solochat'].forEach(k => { if(qs.get(k)) q2.set(k, qs.get(k)); });   // la app de Windows y la de Chat siguen siendo esas
+    location.replace(location.pathname + (q2.toString() ? '?' + q2 : ''));
+  };
+  setInterval(revisar, 60e3);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') revisar(); });
+  window.addEventListener('focus', revisar);
+}
 async function inicio(){
   await asegurarSupabase();   // (v311) respaldo si jsdelivr no cargó
   const qs = new URLSearchParams(location.search), tok = qs.get('invite') || qs.get('reset');
@@ -6613,15 +6804,17 @@ async function inicio(){
       // Sin sesión del portal: ¿es un agente con su propia sesión (email y contraseña)?
       let sa = null;
       try{ const ag = clienteAgente(); sa = ag ? (await ag.auth.getSession()).data.session : null; }catch(e){}
-      if(sa){ window.sb = clienteAgente(); S.agente = true; }
+      if(sa && inactVencida(inactEntro(sa))){ await inactCerrar(); sa = null; }   // (v389) venció mientras la app estaba cerrada
+      if(sa){ window.sb = clienteAgente(); S.agente = true; S.inactSes = sa; }
       else if(ses) return alPortal('entra');
-      else return pantallaLogin();
+      else return pantallaLogin(inactMotivo());   // (v389) dice por qué, si se cerró por inactividad
     }
   }
   { const c = await entrarCompartimento().catch(() => 'public');   // (v362)
     if(String(c).startsWith('vencida:')) return pantallaVencida(String(c).slice(8));
     vigilarCuenta(); }   // (v366)
   if(S.agente || S.demoAgente) modoAgente();
+  inactVigilar(S.inactSes);   // (v389)
   S.token = s && s.token;
   if(DEMO) $('demoTag').classList.remove('hidden');
   try{
@@ -10753,7 +10946,7 @@ if($('ajOTGuardar')) $('ajOTGuardar').addEventListener('click', async () => {
 });
 function pintarAjustes(){
   pintarRoles(); pintarOT();
-  pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas(); pintarPlan();
+  pintarListas(); pintarReglasPago(); pintarMarcaAjuste(); pintarMonitorSync(); pintarConexiones(); pintarSolo247(); pintarConceptos(); pintarPagoRoles(); pintarCuentas(); pintarPlan(); pintarDatos();
   const r = S.redondeo || 1;
   document.querySelectorAll('input[name=redondeo]').forEach(x => { x.checked = Number(x.value) === r; });
   $('ajEjemplo').innerHTML = ejemploRedondeo(r); $('ajEstado').textContent = '';
