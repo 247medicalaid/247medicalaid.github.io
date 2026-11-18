@@ -19,6 +19,8 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v386: 247Punch — si Storage rechaza un archivo durante la pausa de una mudanza (paso 166), sale el aviso de la pausa; Solo 247Punch -->
+<!-- v385: 247Punch — mudanza con copia previa: después del Upgrade la empresa sigue trabajando (la pausa de ~2 min aparece sola al final); Solo 247Punch -->
 <!-- v367: 247Punch — en un equipo que ya entró a una empresa con base propia, el enlace de invitación de otra empresa (base compartida) se abre en la base correcta -->
 <!-- v368: 247Punch — «Email me a sign-in link» (EN PRUEBA) para entrar sin contraseña; las vistas previas <nombre>.247punch.pages.dev funcionan como la app -->
 <!-- v369: con la ubicación opcional, el reloj espera la ubicación 6 s como máximo (antes 25 s); el formulario «sign-in link» ya no repite IDs del formulario de usuarios -->
@@ -35,7 +37,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v384-202611171300">
+<meta name="app-build" content="v386-202611172215">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4935,7 +4937,15 @@ function reducirMonitor(j){
 /* ── conexión: leer, marcar y medir ── */
 function tiempo(nombre, t0){ const ms = Math.round(performance.now() - t0); TIEMPOS.push({ nombre, ms, en: Date.now() }); if(TIEMPOS.length > 60) TIEMPOS.shift(); window.__tiempos = TIEMPOS; return ms; }
 const seg = ms => (ms / 1000).toFixed(1) + ' s';
-async function q(p){ const { data, error } = await p; if(error){ const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
+async function q(p){ const { data, error } = await p; if(error){ if(/No tienes acceso a esta empresa/.test(error.message || '')) revisarPausa(); const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
+// (v385) 247Punch: si la base deja de atender a la empresa (empieza la pausa de la mudanza), se muestra el aviso al momento
+function revisarPausa(){
+  if(!INST.compartimentos || INST.destino || !S.comp || DEMO || S.revisandoPausa || (typeof $ === 'function' && $('actAviso'))) return;
+  S.revisandoPausa = true;
+  Promise.resolve(window.sb.schema('public').rpc('punch_mi_compartimento')).then(r => { const data = r && r.data;
+    if(data && (data.estado === 'mudando' || data.estado === 'mudada')){ S.compInfo = data; pantallaVencida(data.estado); } })
+    .catch(() => {}).finally(() => { S.revisandoPausa = false; });
+}
 /* (v371) Errores que solo pasan si a la base le falta algo instalado (antes decían «needs SQL step N in Supabase»):
    la persona ve un mensaje normal y el detalle técnico queda en la consola del navegador para quien da soporte. */
 const PRONTO = ' Try again in a few minutes. If it keeps happening, contact support.';
@@ -4945,6 +4955,7 @@ const ENT = (txt, log) => { const f = m => { if(log) try{ console.warn('[' + MAR
 const TEC = (amable, paso) => { const f = m => tec(amable, 'Falta el paso SQL ' + paso + ' (' + String(m || '').slice(0, 200) + ')'); f.entero = true; return f; };
 /* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
 const SERVIDOR_EN = [
+  [/^No tienes acceso a esta empresa\.?$/, 'You can’t make changes right now. If your company is being updated, try again in a couple of minutes.'],   // (v385)
   [/^Tu sesión no es válida.*/, PORTAL ? 'Your session is not valid. Sign in to the portal again.' : 'Your session is not valid. Sign in again.'],
   [/^Tu usuario aún no tiene reloj.*/, 'Your user doesn\'t have a time clock yet. Ask the administrator to add you.'],
   [/^Tipo de marca no válido\.$/, 'Invalid punch type.'],
@@ -5342,6 +5353,8 @@ async function subirSB(bucket, ruta, cuerpo, opts){
     await new Promise(z => setTimeout(z, 800));
     r = await sb.storage.from(bucket).upload(ruta, cuerpo, opts);
   }
+  // (v386, paso 166) en la pausa de una mudanza Storage rechaza archivos: si es eso, sale el aviso de la pausa
+  if(r.error && /row-level|policy/i.test(r.error.message || '')) revisarPausa();
   return r;
 }
 let BUCKET_DOCS = 'reloj-docs';   // (v362) en un compartimento: e-<codigo>-docs
@@ -6521,7 +6534,7 @@ function vigilarCuenta(){
       const { data } = await window.sb.schema('public').rpc('punch_mi_compartimento');
       if(data && (data.estado === 'mudando' || data.estado === 'mudada')){ S.compInfo = data; pantallaVencida(data.estado); }
     }catch(e){}
-  }, 30000);
+  }, 15000);   // (v385) antes 30 s
 }
 /* Settings → Plan & billing */
 const PLANES = [
@@ -6567,8 +6580,8 @@ function pintarPlan(){
 document.addEventListener('click', async ev => {
   const b = ev.target.closest && ev.target.closest('.pl-sube'); if(!b) return;
   const plan = b.dataset.plan, nombre = PLAN_NOMBRE[plan] || plan;
-  const ok = await confirmar('Upgrade to ' + nombre + '?', 'Your new plan starts right away. While we set it up, ' + esc(MARCA.appName) +
-    ' is paused for everyone in your company for a couple of minutes. Nobody needs to sign in again.', 'Upgrade');
+  const ok = await confirmar('Upgrade to ' + nombre + '?', 'Your new plan starts right away. Everyone keeps working while we set it up; at the end, ' + esc(MARCA.appName) +
+    ' pauses for about two minutes. Nobody needs to sign in again.', 'Upgrade');
   if(!ok) return;
   document.querySelectorAll('.pl-sube').forEach(x => { x.disabled = true; });
   $('ajPlanEstado').textContent = 'Processing…';
@@ -6576,7 +6589,10 @@ document.addEventListener('click', async ev => {
     const j = await mudarFn('mejorar', { plan });
     if(j.codigo === 'SIN_PAGOS') throw new Error('Online payments aren’t available yet. Contact us to upgrade.');
     if(!j.ok) throw new Error(enIngles(j.msg) || 'Couldn’t upgrade. Try again.');
-    pantallaActualizando();
+    // (v385) La empresa sigue trabajando mientras se copian sus archivos; la pausa la muestra vigilarCuenta cuando empieza
+    $('ajPlanEstado').textContent = 'Your ' + nombre + ' plan is active. We’re setting it up in the background — keep working. ' +
+      esc(MARCA.appName) + ' will pause for about two minutes near the end.';
+    vigilarCuenta();
   }catch(e){ $('ajPlanEstado').textContent = e.message; document.querySelectorAll('.pl-sube').forEach(x => { x.disabled = false; }); }
 });
 async function inicio(){
