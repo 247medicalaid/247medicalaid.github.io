@@ -5330,6 +5330,7 @@ function renderAgentes(){
 }
 
 function recalcAll(){
+  aplicarColoresPublicados();   // (19 nov 2026) color de cada cuenta = el que publica el Time Clock
   renderKPIs();
   try { renderResumenTransferencias(); } catch(e) { console.error('[transferencias]', e); }
   renderCuadroDr();
@@ -11485,15 +11486,33 @@ function nombreCanonicoPorCodigo(codigo){ if(!codigo) return null; return OVERRI
 // Nombre a MOSTRAR de una cuenta: canonico por codigo (igual que Invoices);
 // si no hay match cae al nombre guardado. Solo display, no toca la clave interna.
 function displayCuenta(c){ try{ var canon=nombreCanonicoPorCodigo(codigoDeCuenta(c)); return canon || (c&&c.nombre) || ''; }catch(e){ return (c&&c.nombre)||''; } }
+// (19 nov 2026 · Solo 24/7) Cuentas publicadas por el Time Clock (paso 174): nombre y COLOR por código.
+// Nómina solo las lee; ya no se mete en la configuración interna del Time Clock. Una cuenta de Nómina
+// sin código (cuentas viejas) conserva su propio color.
+var TC_COLOR = {};
+function aplicarColoresPublicados(){
+  try{ (cuentas || []).forEach(function(c){ var k = codigoDeCuenta(c); if(k && TC_COLOR[k]) c.color = TC_COLOR[k]; }); }catch(e){}
+}
 async function cargarNombresTimeClock(){
   try{
     if(!window.sb) return;
-    var r = await window.sb.from('reloj_config').select('valor').eq('clave','cuentas').maybeSingle();
-    var arr = (r && r.data && Array.isArray(r.data.valor)) ? r.data.valor : null;
+    var arr = null;
+    try{
+      var p = await window.sb.rpc('reloj_leer_cuentas_publicadas');
+      if(p && !p.error && Array.isArray(p.data)) arr = p.data;
+    }catch(e){}
+    if(!arr){   // respaldo mientras el paso 174 no esté en la base
+      var r = await window.sb.from('reloj_config').select('valor').eq('clave','cuentas').maybeSingle();
+      arr = (r && r.data && Array.isArray(r.data.valor)) ? r.data.valor : null;
+    }
     if(!arr) return;
-    var m = {};
-    arr.forEach(function(e){ if(e && e.codigo && e.nombre) m[e.codigo] = e.nombre; });
+    var m = {}, col = {};
+    arr.forEach(function(e){
+      if(e && e.codigo && e.nombre) m[e.codigo] = e.nombre;
+      if(e && e.codigo && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(String(e.color || ''))) col[e.codigo] = e.color;
+    });
     TC_NOMBRE = m;
+    TC_COLOR = col;
     try{ if(typeof iv2Render==='function' && document.getElementById('page-invoices')) iv2Render(); }catch(e){}
     // Re-pintar vistas que muestran nombre de cuenta por display (resumen,
     // editores de quincena, cuentas) una vez llegan los nombres canonicos.
