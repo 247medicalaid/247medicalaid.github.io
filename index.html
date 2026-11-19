@@ -694,7 +694,9 @@ const AREAS = [
 const CATALOGO = [
   /* Reloj: piloto, solo Carlos. Que ve cada uno (su reloj o la hoja de horas) lo decide el propio Reloj. */
   { key:'reloj', titulo:'Time Track & Payroll', corto:'Time & Payroll', area:'ops', kicker:'Time & attendance',
-    color:'#0E86B4', color2:'#4CC2EC', url:'./reloj.html', soloUsuarios:['carloshtl75'],   // Al abrirlo a todos: todos:true
+    color:'#0E86B4', color2:'#4CC2EC', url:'https://timeclock.247medical-aid.com/', nueva:true, soloUsuarios:['carloshtl75'],   // Al abrirlo a todos: todos:true
+    // (19 nov 2026 · Solo 24/7 · desvincular el portal de 247Punch) Abre el Time Clock en timeclock, en pestaña nueva (allí se entra con el correo).
+    // La app del celular (?goto=reloj) y el Chat siguen abriendo ./reloj.html por ahora.
     desc:'Clock in, lunch and clock out, verified with PC activity. Timesheets by pay period.',
     icon:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/>' },
   { key:'monitor', titulo:'Agent Pulse', corto:'Pulse', area:'ops', kicker:'Live activity',
@@ -983,7 +985,7 @@ $('btnLogout').addEventListener('click', salir);
    abre una app, se espera a que termine: salir de la página la cortaría. */
 document.addEventListener('click', async ev => {
   const a = ev.target.closest && ev.target.closest('a.app-card');
-  if(!a || !window.sbPendiente || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+  if(!a || a.target === '_blank' || !window.sbPendiente || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
   ev.preventDefault();
   toast('Getting your account ready… one moment.');
   await Promise.race([window.sbPendiente, new Promise(r => setTimeout(r, 10000))]);
@@ -1069,7 +1071,7 @@ function pintarApps(){
   grid.classList.toggle('hidden', permitidas.length === 0);
   const flecha = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   const tarjeta = a => `
-      <a class="app-card" style="--c:${a.color};--c2:${a.color2 || a.color};--sombra:${sombraDe(a.color)}" href="${esc(a.url)}" data-app="${esc(a.key)}">
+      <a class="app-card" style="--c:${a.color};--c2:${a.color2 || a.color};--sombra:${sombraDe(a.color)}" href="${esc(a.url)}"${a.nueva ? ' target="_blank" rel="noopener"' : ''} data-app="${esc(a.key)}">
         <div class="row">
           <div class="app-icon"><svg viewBox="0 0 24 24">${a.icon}</svg></div>
           <div class="app-tit"><div class="app-kicker">${esc(a.kicker || '')}</div><h3>${esc(a.titulo)}</h3></div>
