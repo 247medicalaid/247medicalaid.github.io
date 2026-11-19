@@ -19,6 +19,8 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v392: Común — antes de marcar con ubicación obligatoria, si el navegador no la permite aún sale un aviso «Allow your location to clock in» (Allow location / Exit): sin ubicación la marca no se guarda; si no la permite el aviso vuelve a salir (o explica cómo desbloquearla). El contador «worked so far» ya no muestra minutos negativos cuando el redondeo deja la marca adelante -->
+<!-- v391: Común (preparación 24/7 → 247Punch) — empresa fija por dominio (INST.empresaFija: entra directo a su base y no se desvía al iniciar sesión); Monitor, colores por cuenta desde los datos de la empresa (funciones monitor_url / cuenta_claves); el Monitor de otro dominio abre en pestaña aparte -->
 <!-- v390: 247Punch — el nombre del ZIP de «Download my data» conserva las letras con tilde sin la tilde («Panaderia», no «Panadera») -->
 <!-- v389: Común — la sesión se cierra sola tras un tiempo sin usar la app: agentes 8 h (decisión de Carlos: un turno dura ~9 h y dentro de 8 h siempre hay una marca), administradores 60 min. Al volver, pantalla de entrada con el motivo -->
 <!-- v388: Común — al marcar justo después de que el PC despierta, la sesión aún no se renovó y la base respondía «permission denied for function reloj_marcar»: ahora renueva la sesión y reintenta una vez; si no hay sesión, mensaje claro -->
@@ -41,7 +43,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v390-202611181530">
+<meta name="app-build" content="v392-202611182200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4685,11 +4687,13 @@ function banderas(dia, marcas, emp, mon, ahora, ub){
   return f;
 }
 
+// (v391) las claves que agrupan cuentas (colores) son datos de la empresa (funciones.cuenta_claves); si no, las de la instalación
+function cuentaClaves(){ try{ const v = funcActivas().cuenta_claves; if(Array.isArray(v)) return v.map(x => String(x).toUpperCase()); }catch(e){} return INST.cuentaClaves || []; }
 /* ── Colores de las cuentas: los de Settings → Accounts del Time Clock (v341: ya no se leen de la Nómina) ──
    Los nombres se emparejan por nombre normalizado y, si no, por prefijo («CARDIO» ↔ «CARDIOVASCULAR») o por palabras. */
 function normCuenta(n){
   const x = String(n || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  for(const k of (INST.cuentaClaves || [])) if(x.indexOf(k) >= 0) return k;
+  for(const k of cuentaClaves()) if(x.indexOf(k) >= 0) return k;
   return x.replace(/[^A-Z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function tintaDe(hex){   // la misma regla de la Nómina (ivTintaTexto)
@@ -4800,7 +4804,37 @@ const AYUDA_UBIC = {
   tarde:'<p>Finding your location took too long. Make sure Wi‑Fi (or GPS on a phone) is on and try again.</p>',
   sin_soporte:'<p>This browser can\'t share your location. Use an up‑to‑date Chrome, Edge or Safari.</p>'
 };
+/* (v392) Antes de marcar con ubicación obligatoria: si el navegador aún no tiene permiso, se avisa que sin ubicación la marca no se
+   guarda, y la persona elige «Allow location» (el navegador pregunta) o «Exit». Si no la permite, el aviso vuelve a salir. */
+async function permisoUbic(){
+  try{ if(!navigator.permissions || !navigator.permissions.query) return ''; return (await navigator.permissions.query({ name:'geolocation' })).state || ''; }
+  catch(e){ return ''; }
+}
+function avisoUbic(estado, tipo){
+  const accion = { entrada:'clock in', salida:'clock out', almuerzo_ini:'start lunch', almuerzo_fin:'end lunch' }[tipo] || 'clock in';
+  return new Promise(res => {
+    const bloqueada = estado === 'denied';
+    let listo = false;
+    const fin = v => { if(listo) return; listo = true; obs.disconnect(); cerrar('ovUbic'); res(v); };
+    $('uTitulo').textContent = bloqueada ? 'Location is blocked' : 'Allow your location to ' + accion;
+    $('uTexto').innerHTML = bloqueada
+      ? '<p><b>Your punch can\'t be recorded without your location.</b> Your browser is blocking it for the Time Clock.</p>' +
+        '<ol><li>Click the icon at the left of the address bar (the lock or the ⓘ).</li><li>Set <b>Location</b> to <b>Allow</b>.</li><li>Come back here and choose <b>Try again</b>.</li></ol>' +
+        '<p style="margin-top:8px">On a phone, also allow location for your browser in the phone\'s settings.</p>'
+      : '<p>To record your punch, the Time Clock needs your location.</p>' +
+        '<p>When your browser asks, choose <b>Allow</b>. <b>If you don\'t allow it, your punch won\'t be recorded.</b></p>' +
+        '<p class="nota" style="margin-top:8px">Your location is saved only when you clock in, start or end lunch, and clock out.</p>';
+    $('uOtra').textContent = bloqueada ? 'Try again' : 'Allow location';
+    $('uCerrar').textContent = 'Exit';
+    $('uOtra').onclick = () => fin(true);
+    $('uCerrar').onclick = () => fin(false);
+    const obs = new MutationObserver(() => { if($('ovUbic').classList.contains('hidden')) fin(false); });   // Esc o clic fuera = Exit
+    abrir('ovUbic');
+    obs.observe($('ovUbic'), { attributes:true, attributeFilter:['class'] });
+  });
+}
 function ayudaUbicacion(cod, tipo){
+  $('uTitulo').textContent = 'Location needed'; $('uCerrar').textContent = 'Close'; $('uOtra').textContent = 'Try again';   // (v392) el aviso de permiso usa la misma ventana
   $('uTexto').innerHTML = (AYUDA_UBIC[cod] || AYUDA_UBIC.sin_dato) +
     '<p class="nota" style="margin-top:10px">Nothing was recorded. If it still doesn\'t work, tell your supervisor and send a request with the right time from your pay period.</p>';
   $('uOtra').onclick = () => { cerrar('ovUbic'); marcar(tipo); };
@@ -6227,7 +6261,7 @@ function pantallaLogin(aviso, email){
       // (v364) 247Punch: si el correo es de una empresa con su propia base, se entra ahí
       if(INST.compartimentos && !INST.destino){ const d = await dondeEntra(email); if(d) ponerBase(d); }
       let { error } = await clienteAgente().auth.signInWithPassword({ email, password:clave });
-      if(error && INST.compartimentos && INST.destino && /invalid login|invalid credentials/i.test(error.message)){
+      if(error && INST.compartimentos && INST.destino && !INST.empresaFija && /invalid login|invalid credentials/i.test(error.message)){   // (v391) con empresa fija por dominio, no se cambia de base
         const d = await dondeEntra(email);   // este equipo entraba a otra base: ¿a cuál va este correo?
         if(!d || d.ref !== INST.destino){ ponerBase(d); ({ error } = await clienteAgente().auth.signInWithPassword({ email, password:clave })); }
       }
@@ -6741,7 +6775,7 @@ async function descargarMisDatos(){
   finally{ btn.disabled = false; }
 }
 document.addEventListener('click', ev => { if(ev.target && ev.target.id === 'ajDatosBajar') descargarMisDatos(); });
-function pintarDatos(){ const b = $('ajDatosBox'); if(b) b.classList.toggle('hidden', !(INST.compartimentos && S.yo && S.yo.esAdmin)); }
+function pintarDatos(){ const b = $('ajDatosBox'); if(b) b.classList.toggle('hidden', !(INST.compartimentos && S.yo && S.yo.esAdmin && !(INST.empresaFija && !INST.empresaFija.misDatos))); }
 /* ══ (v389) Cerrar la sesión tras un tiempo sin usar la app ══
    Decisión de Carlos (18 nov): por inactividad, no por hora fija (si llegan turnos nocturnos, una hora fija sacaría a
    quien está trabajando). Agentes: 8 h sin usar la app (un turno dura ~9 h y dentro de 8 h siempre hay una marca).
@@ -7296,8 +7330,8 @@ function tic(){
     // minutos que van, contados aquí desde la última marca
     const extra = (t - r.desde) / 60000;
     const min = r.estado === 'trabajando' ? r.minBase + extra : r.minBase;
-    $('rAcum').innerHTML = '<b class="num">' + dur(Math.floor(min)) + '</b> worked so far' +
-      (r.estado === 'almuerzo' ? ' · lunch <b class="num">' + dur(Math.floor(r.almBase + extra)) + '</b>' : '');
+    $('rAcum').innerHTML = '<b class="num">' + dur(Math.max(0, Math.floor(min))) + '</b> worked so far' +   // (v392) el redondeo puede dejar la marca unos minutos adelante: nunca negativo
+      (r.estado === 'almuerzo' ? ' · lunch <b class="num">' + dur(Math.max(0, Math.floor(r.almBase + extra))) + '</b>' : '');
   }
   if(t % 60000 < 1000) pintarCinta();
 }
@@ -7949,8 +7983,13 @@ function pedirMarca(tipo){
   }
   marcar(tipo);
 }
-async function marcar(tipo){
+async function marcar(tipo, yaAvisado){
   if(tipo === 'salida' && asCfg()){ const _i = asInfo(); if(_i && asContinuado(_i)){ cerrarAutoSal(); asCerrarConExtra(ahora()); return; } }
+  // (v392) ubicación obligatoria y el navegador aún no la permite: aviso con «Allow location» / «Exit» antes de marcar
+  if(S.ubicObligatoria !== false && !appWin() && !yaAvisado){
+    const st = await permisoUbic();
+    if(st === 'prompt' || st === 'denied'){ if(!(await avisoUbic(st, tipo))) return; }
+  }
   S.ocupado = true;
   // (v158) evita ponches duplicados entre la web y la app: revalida el estado real antes de enviar
   try{ const yo0 = await api('yo'); aplicarYo(yo0); if(S.vista === 'reloj') pintarReloj(); }catch(e){}
@@ -7967,6 +8006,11 @@ async function marcar(tipo){
     catch(e){
       if(S.ubicObligatoria !== false){
         if(boton) boton.textContent = txt; botones.forEach(b => { b.disabled = false; }); S.ocupado = false;
+        if(e.cod === 'denegada' && !appWin()){   // (v392) no la permitió: el aviso vuelve a salir (permitir o salir)
+          const st = await permisoUbic();
+          if(await avisoUbic(st === 'prompt' ? 'prompt' : 'denied', tipo)) return marcar(tipo, true);
+          return;
+        }
         return ayudaUbicacion(e.cod, tipo);
       }
     }
@@ -14334,13 +14378,22 @@ if('serviceWorker' in navigator){
 }
 
 /* ── Monitor dentro del Time Clock (v68) ── */
+// (v391) la dirección del Monitor es dato de la empresa (funciones.monitor_url); si no, la de la instalación
+const monitorUrl = () => fval('monitor_url', INST.monitorUrl || '') || 'monitor.html';
 function abrirMonitor(){
-  const f = $('monFrame');
+  const f = $('monFrame'), url = monitorUrl();
+  let otro = false; try{ otro = new URL(url, location.href).origin !== location.origin; }catch(e){}
+  if($('monNueva')) $('monNueva').href = url + (DEMO ? '?demo=1' : '');
+  if(otro && !DEMO){
+    // El Monitor vive en otro dominio: dentro de un marco el navegador no le pasa la sesión. Se abre en su propia pestaña.
+    if(!f.dataset.cargado){ f.dataset.cargado = 'fuera'; f.classList.add('hidden');
+      $('monCargando').innerHTML = 'The Agent Monitor opens in its own tab. <a class="btn btn-brand btn-sm" target="_blank" rel="noopener" href="' + esc(url) + '">Open the Monitor</a>'; }
+    return;
+  }
   if(!f.dataset.cargado){
     f.dataset.cargado = '1';
     f.addEventListener('load', () => { $('monCargando').classList.add('hidden'); });
-    f.src = (INST.monitorUrl || 'monitor.html') + '?embed=1' + (DEMO ? '&demo=1' : '');
-    if(DEMO) $('monNueva').href = (INST.monitorUrl || 'monitor.html') + '?demo=1';
+    f.src = url + '?embed=1' + (DEMO ? '&demo=1' : '');
   }
   setTimeout(monAjustar, 0);
 }
@@ -15377,7 +15430,7 @@ function pintarSolo247(){
   apps.classList.toggle('hidden', !ver);
   if(ver){
     const u = n => pu.replace(/\/?$/, '/') + n;
-    const lista = [['Portal', pu, 'Home page of the company portal.'], ['Payroll', u('nomina.html'), 'Payroll calculation.'], ['Agent Monitor', INST.monitorUrl || u('monitor.html'), 'Activity of each computer.'],
+    const lista = [['Portal', pu, 'Home page of the company portal.'], ['Payroll', u('nomina.html'), 'Payroll calculation.'], ['Agent Monitor', fval('monitor_url', INST.monitorUrl || '') || u('monitor.html'), 'Activity of each computer.'],
       ['Prospects', u('prospectos/'), 'Prospects and visits.'], ['Call analyzer', u('analyzer.html'), 'Call reports by agent.'], ['Cash flow', u('proyeccion.html'), 'Cash flow projection.']];
     $('ajCustomAppsFilas').innerHTML = lista.map(x => '<div class="aj-fila"><span class="aj-fl"><b>' + esc(x[0]) + '</b><span>' + esc(x[2]) + '</span></span><div class="aj-fr"><a class="btn btn-ghost btn-sm" href="' + esc(x[1]) + '" target="_blank" rel="noopener">Open</a></div></div>').join('');
   }
