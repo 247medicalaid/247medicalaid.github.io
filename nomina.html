@@ -2237,24 +2237,31 @@
    ══════════════════════════════════════════════════════════════════════════ */
 (function () {
   var GS = 'https://script.google.com/macros/s/AKfycbz4W-BjgYS1kASUpb6qTp61YiNTfGDgdLcOc-RpWm4OEIfWD6Nh-e9wYodyBycXIpPk/exec';
-  var CLAVE_FUENTE = 'nomina.fuente';      // 'sheets' = este navegador lee de Google
+  var CLAVE_PEND = 'nomina.pendientes';     // cola de guardados que Supabase aun no confirmo (por navegador)
   var LECTURAS = { historial: 1, config: 1, borradores: 1, borrador: 1, invoiceRates: 1, invoiceOv: 1, gastosUtil: 1 };
   var ESCRITURAS = { save: 1, 'delete': 1, clear: 1, saveConfig: 1, saveBorrador: 1, deleteBorrador: 1, saveInvoiceRates: 1, saveInvoiceOv: 1, saveGastosUtil: 1 };
-  var previo = window.fetch;                // el del bloque de acceso (agrega el token para Google)
-  var N = window.__nomSB = { tiempos: [], fallos: 0, leyoDeGoogle: false };
-  // ?fuente=supabase en la dirección: volver a leer de Supabase (tras resincronizar).
-  try { if (/[?&]fuente=supabase\b/.test(location.search)) localStorage.removeItem(CLAVE_FUENTE); } catch (e) {}
-
-  function enGoogle() { try { return localStorage.getItem(CLAVE_FUENTE) === 'sheets'; } catch (e) { return false; } }
+  var previo = window.fetch;                // fetch original (ya NO se usa para escribir en Google)
+  var N = window.__nomSB = { tiempos: [], fallos: 0 };
+  // (10 nov 2026) Solo Supabase: se retira la copia/lectura de Google. Limpia restos del modo doble.
+  try { localStorage.removeItem('nomina.fuente'); } catch (e) {}
+  function pasajero(m) { return /fetch|network|timeout|timed out|load failed|abort|50[234]|econn|gateway|sin conexi/i.test(String(m || '')); }
   function medir(que, t0) { var ms = Math.round(performance.now() - t0); N.tiempos.push({ que: que, ms: ms, en: Date.now() }); if (N.tiempos.length > 80) N.tiempos.shift(); insignia(ms); return ms; }
   function respuesta(texto) { return new Response(texto, { status: 200, headers: { 'Content-Type': 'application/json' } }); }
   async function rpc(fn, args) {
     if (!window.sb) throw new Error('sin librería');
     var s = await window.sb.auth.getSession();
     if (!s.data.session) throw new Error('sin sesión de Supabase');
-    var r = await window.sb.rpc(fn, args);
-    if (r.error) throw new Error(r.error.message);
-    return r.data;
+    var ultimo = null;
+    for (var i = 0; i < 3; i++) {
+      if (i) await new Promise(function (res) { setTimeout(res, 900 * i); });
+      var r;
+      try { r = await window.sb.rpc(fn, args); }
+      catch (e) { ultimo = new Error('sin conexión'); continue; }
+      if (!r.error) return r.data;
+      if (!pasajero(r.error.message)) throw new Error(r.error.message);   // error real (permiso/datos): no reintentar
+      ultimo = new Error(r.error.message);
+    }
+    throw ultimo || new Error('sin respuesta');
   }
 
   /* Gastos de Utilidad (oct 2026): Google nunca los guardó (su Apps Script no
@@ -2296,10 +2303,28 @@
     return txt;
   }
 
-  async function escribir(c) {
+  // Guarda un periodo sin pisar una version mas nueva del servidor. Solo se usa al
+  // VACIAR LA COLA (un guardado pendiente viejo podria llegar tarde); el guardado en
+  // vivo no paga esta lectura extra.
+  async function guardarHistorialSeguro(registro) {
+    // Si NO se puede leer para verificar, propaga el error: el pendiente se
+    // reintenta (no se pisa a ciegas una posible version mas nueva del servidor).
+    var lista = JSON.parse(await rpc('nomina_leer', { p_tipo: 'historial' }));
+    var remoto = Array.isArray(lista) ? lista.filter(function (h) { return h && h.key === registro.key; })[0] : null;
+    if (remoto && remoto.fechaEdicion && registro.fechaEdicion && String(remoto.fechaEdicion) > String(registro.fechaEdicion)) {
+      return { conflicto: true, remoto: remoto };
+    }
+    await rpc('nomina_guardar', { p_tipo: 'historial', p_clave: registro.key, p_texto: JSON.stringify(registro) });
+    return { ok: true };
+  }
+
+  async function escribir(c, conGuardia) {
     var t0 = performance.now(), g = function (t, k, d) { return rpc('nomina_guardar', { p_tipo: t, p_clave: k, p_texto: JSON.stringify(d) }); };
     switch (c.action) {
-      case 'save':             await g('historial', c.registro.key, c.registro); break;
+      case 'save':
+        if (conGuardia) { var res = await guardarHistorialSeguro(c.registro); if (res && res.conflicto) { medir('guardar ' + c.action, t0); return res; } }
+        else await g('historial', c.registro.key, c.registro);
+        break;
       case 'delete':           await rpc('nomina_borrar', { p_tipo: 'historial', p_clave: c.key }); break;
       case 'clear':            await rpc('nomina_vaciar', { p_tipo: 'historial' }); break;
       case 'saveConfig':       await g('config', '_', { agentes: c.agentes, cuentas: c.cuentas, updatedAt: new Date().toISOString() }); break;
@@ -2313,26 +2338,69 @@
         break;
     }
     medir('guardar ' + c.action, t0);
+    return { ok: true };
   }
 
-  function pasarAGoogle(motivo) {
-    try { localStorage.setItem(CLAVE_FUENTE, 'sheets'); } catch (e) {}
-    N.fallos++;
-    console.warn('Nómina → Google:', motivo);
-    var a = document.getElementById('nom-sb-aviso');
-    if (!a) {
-      a = document.createElement('div'); a.id = 'nom-sb-aviso';
-      a.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483646;background:#FFF4E5;color:#6B3A00;border:1px solid #F0C68A;border-radius:12px;padding:12px 16px;font:14px/1.45 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.12)';
-      document.body.appendChild(a);
+  // ── Cola de guardados pendientes (si Supabase no confirmo) ───────────────────
+  function leerPend() { try { return JSON.parse(localStorage.getItem(CLAVE_PEND) || '[]') || []; } catch (e) { return []; } }
+  function guardarPend(q) { try { localStorage.setItem(CLAVE_PEND, JSON.stringify(q)); } catch (e) {} pintarAviso(); }
+  function reMarcar(c) { if (c && c.action === 'save' && c.registro && window.marcarEscrituraLocal) { try { window.marcarEscrituraLocal(c.registro); } catch (e) {} } }
+  function encolar(c) { var q = leerPend(); c.__t = Date.now(); c.__intentos = 0; q.push(c); reMarcar(c); N.fallos++; guardarPend(q); procesarPend(); }
+
+  var _procesando = false, _verde = null;
+  async function procesarPend(forzar) {
+    if (_procesando) return;
+    if (!leerPend().length) { pintarAviso(); return; }
+    try { var l = Number(localStorage.getItem(CLAVE_PEND + '_lock') || 0); if (!forzar && Date.now() - l < 15000) return; localStorage.setItem(CLAVE_PEND + '_lock', String(Date.now())); } catch (e) {}
+    _procesando = true;
+    try {
+      var q = leerPend();
+      while (q.length) {
+        var c = q[0];
+        reMarcar(c);
+        var res;
+        try { res = await escribir(c, true); }
+        catch (e) {
+          c.__intentos = (c.__intentos || 0) + 1; c.__error = String((e && e.message) || e);
+          guardarPend(q);
+          setTimeout(function () { procesarPend(); }, Math.min(300000, 15000 * c.__intentos));
+          return;
+        }
+        if (res && res.conflicto) avisarConflicto(c);   // no se piso algo mas nuevo: se descarta
+        q.shift(); guardarPend(q);
+      }
+    } finally { _procesando = false; try { localStorage.removeItem(CLAVE_PEND + '_lock'); } catch (e) {} pintarAviso(); }
+  }
+
+  function avisarConflicto(c) {
+    try {
+      var f = JSON.parse(localStorage.getItem(CLAVE_PEND + '_conflictos') || '[]');
+      f.push({ key: c && c.registro && c.registro.key, t: Date.now() });
+      localStorage.setItem(CLAVE_PEND + '_conflictos', JSON.stringify(f.slice(-20)));
+    } catch (e) {}
+    try { alert('Un cambio mas nuevo de ese periodo ya estaba guardado, asi que tu cambio pendiente NO se aplico (para no pisarlo). Revisa el periodo ' + (c && c.registro && c.registro.key || '') + '.'); } catch (e) {}
+  }
+
+  function avisoCss(bg, fg) { return 'position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483646;background:' + bg + ';color:' + fg + ';border-radius:12px;padding:12px 16px;font:14px/1.45 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:space-between;gap:10px'; }
+  // Aviso ROJO fijo mientras haya pendientes; VERDE breve al llegar a cero.
+  function pintarAviso() {
+    var q = leerPend(), el = document.getElementById('nom-pend');
+    if (!q.length) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (N.fallos && !_verde && document.body) { _verde = document.createElement('div'); _verde.style.cssText = avisoCss('#1E7F4F', '#fff'); _verde.textContent = '\u2713 Guardado'; document.body.appendChild(_verde); setTimeout(function () { if (_verde && _verde.parentNode) _verde.parentNode.removeChild(_verde); _verde = null; }, 3500); }
+      insignia(); return;
     }
-    var sinSesion = /^sin (sesión|librería)/.test(String(motivo));
-    a.innerHTML = sinSesion
-      ? '<b>Lo que guardaste quedó en Google.</b> Para usar la Nómina rápida, sal del portal y vuelve a entrar una vez con tu usuario y contraseña.'
-      : '<b>Supabase no confirmó un guardado.</b> Lo que guardaste sí quedó en Google. ' +
-      'Para no mostrarte datos viejos, esta Nómina vuelve a leer de Google en este navegador hasta que se resincronice. ' +
-      '<span style="opacity:.75">(' + String(motivo).slice(0, 120).replace(/</g, '&lt;') + ')</span>';
+    if (!document.body) return;
+    if (_verde && _verde.parentNode) { _verde.parentNode.removeChild(_verde); _verde = null; }
+    if (!el) { el = document.createElement('div'); el.id = 'nom-pend'; el.style.cssText = avisoCss('#B4231F', '#fff'); document.body.appendChild(el); }
+    el.innerHTML = '<span><b>' + q.length + ' cambio' + (q.length > 1 ? 's' : '') + ' sin guardar</b> \u2014 reintentando\u2026</span><button id="nom-pend-btn" style="border:0;border-radius:8px;padding:6px 12px;background:#fff;color:#B4231F;font:700 13px system-ui,sans-serif;cursor:pointer;white-space:nowrap">Reintentar</button>';
+    var b = document.getElementById('nom-pend-btn'); if (b) b.onclick = function () { procesarPend(true); };
     insignia();
   }
+
+  window.addEventListener('online', function () { procesarPend(); });
+  window.addEventListener('beforeunload', function (e) { if (leerPend().length) { e.preventDefault(); e.returnValue = ''; return ''; } });
+  setInterval(function () { if (leerPend().length) procesarPend(); }, 20000);
 
   // Indicador discreto de la fuente de datos y el último tiempo (piloto).
   function insignia(ms) {
@@ -2349,33 +2417,35 @@
         document.body.appendChild(el);
       }
     }
-    el.textContent = enGoogle() ? 'Datos: Google (respaldo)' : N.leyoDeGoogle ? 'Datos: Google · Supabase no respondió' : 'Datos: Supabase' + (ms != null ? ' · ' + (ms / 1000).toFixed(1).replace('.', ',') + ' s' : '');
+    el.textContent = 'Datos: Supabase' + (ms != null ? ' \u00b7 ' + (ms / 1000).toFixed(1).replace('.', ',') + ' s' : '') + (leerPend().length ? ' \u00b7 ' + leerPend().length + ' sin guardar' : '');
   }
-  document.addEventListener('DOMContentLoaded', function () { insignia(); });
+  document.addEventListener('DOMContentLoaded', function () { insignia(); pintarAviso(); procesarPend(); });
 
   window.fetch = function (entrada, opciones) {
     var url = typeof entrada === 'string' ? entrada : (entrada && entrada.url) || '';
-    if (url.indexOf(GS) !== 0 || enGoogle()) return previo.apply(this, arguments);
+    if (url.indexOf(GS) !== 0) return previo.apply(this, arguments);   // solo se desvian las llamadas a la API de Nomina
     var self = this, args = arguments, metodo = String((opciones && opciones.method) || 'GET').toUpperCase();
 
     if (metodo === 'GET') {
       var q = new URL(url).searchParams, tipo = q.get('tipo');
       if (!LECTURAS[tipo]) return previo.apply(self, args);
       return leer(tipo, q.get('key')).then(respuesta, function (e) {
-        console.warn('Nómina: Supabase no respondió al leer ' + tipo + '; leo de Google.', e && e.message);
-        N.leyoDeGoogle = true; insignia();
-        return previo.apply(self, args);
+        // Supabase no respondio al leer: NO se va a Google. Se responde algo inofensivo
+        // (no es una lista) para que la app conserve su cache local y no borre nada.
+        console.warn('Nomina: Supabase no respondio al leer ' + tipo + '. Se mantiene el cache.', e && e.message);
+        return respuesta(JSON.stringify({ ok: false, offline: true }));
       });
     }
 
     if (metodo === 'POST') {
       var c; try { c = JSON.parse(opciones.body); } catch (e) { return previo.apply(self, args); }
       if (!c || !ESCRITURAS[c.action]) return previo.apply(self, args);
-      var aGoogle = previo.apply(self, args);          // la hoja sigue recibiendo todo, como hoy
-      aGoogle.catch(function () {});
-      return escribir(c).then(function () { return respuesta('{"ok":true}'); }, function (e) {
-        pasarAGoogle(e && e.message);
-        return aGoogle;                                 // lo de Google decide si la app ve éxito o error
+      reMarcar(c);
+      return escribir(c, false).then(function () { return respuesta('{"ok":true}'); }, function () {
+        // No se pudo guardar tras los reintentos: queda PENDIENTE en este navegador,
+        // sale el aviso rojo y la cola lo reintenta. La app sigue; el dato esta en su cache.
+        encolar(c);
+        return respuesta('{"ok":true}');
       });
     }
     return previo.apply(self, args);
