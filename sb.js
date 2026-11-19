@@ -104,6 +104,44 @@
       return { ok: false, codigo: 'SB_RED' };
     }
   };
+  /* ── Cuenta con correo propio (19 nov 2026 · Solo 24/7) ─────────────────
+     Una cuenta del portal cuyo correo NO es @usuarios (p. ej. el administrador
+     con callcenter@…) la maneja Supabase, igual que en 247Punch: correo +
+     contraseña tal cual (sin la llave derivada). El portal sigue pidiendo
+     usuario y contraseña: con el usuario busca ese correo.
+     sbCorreoPropio(usuario) → correo o null (null también si no hay red).
+     sbEntrarPropio(correo, clave) → { ok:true, token, user } o { ok:false, codigo }. */
+  window.sbCorreoPropio = async function (usuario) {
+    if (!window.sb) await window.sbListo;
+    if (!window.sb) return null;
+    try {
+      var r = await window.sb.rpc('portal_correo_propio', { p_usuario: String(usuario || '').trim().toLowerCase() });
+      return (!r.error && typeof r.data === 'string' && r.data) ? r.data : null;
+    } catch (e) { return null; }
+  };
+  window.sbEntrarPropio = async function (correo, clave) {
+    if (!window.sb) await window.sbListo;
+    if (!window.sb) return { ok: false, codigo: 'SIN_SUPABASE' };
+    try {
+      var r = await window.sb.auth.signInWithPassword({ email: String(correo).trim().toLowerCase(), password: clave });
+      if (r.error || !r.data.session) return { ok: false, codigo: /invalid/i.test((r.error && r.error.message) || '') ? 'SB_CLAVE' : 'SB_ERROR' };
+      var j = await window.sbCuentas('llave', {}, r.data.session.access_token);
+      if (j && j.ok && j.token) return j;
+      try { await window.sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+      return { ok: false, codigo: (j && j.codigo) || 'SIN_LLAVE', msg: j && j.msg };
+    } catch (e) {
+      return { ok: false, codigo: 'SB_RED' };
+    }
+  };
+  /* Correo propio de la sesión de Supabase abierta (o null si es cuenta interna o no hay sesión). */
+  window.sbCorreoDeSesion = async function () {
+    try {
+      var ses = window.sb ? (await window.sb.auth.getSession()).data.session : null;
+      var em = ses && ses.user && String(ses.user.email || '').toLowerCase();
+      return (em && em.slice(-(DOMINIO.length + 1)) !== '@' + DOMINIO) ? em : null;
+    } catch (e) { return null; }
+  };
+
   /* Le pasa a Supabase la época de un token real de Google (la necesita para
      firmar llaves que Google acepte después de «cerrar todas las sesiones»). */
   window.sbRegistrarEpoca = function (token) {

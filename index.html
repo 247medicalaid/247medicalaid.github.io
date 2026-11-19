@@ -667,7 +667,7 @@ tbody tr:hover td{background:var(--brand-50)}
 <div id="toast"></div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script defer src="https://247medicalaid.github.io/sb.js?v=5"></script>
+<script defer src="https://247medicalaid.github.io/sb.js?v=6"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
    PORTAL 24/7 MEDICAL AID — control de acceso central
@@ -864,6 +864,22 @@ $('loginForm').addEventListener('submit', async ev => {
   const btn = $('btnLogin');
   cargando(btn, 'Checking…');
   try{
+    // (19 nov 2026 · Solo 24/7) Cuenta con correo propio (no @usuarios): la maneja Supabase, igual que en 247Punch.
+    // Se entra con el usuario (o el correo) y la contraseña tal cual; Google ya no revisa esa contraseña.
+    const correo = u.indexOf('@') > 0 ? u : (window.sbCorreoPropio ? await window.sbCorreoPropio(u) : null);
+    if(correo){
+      const r = await window.sbEntrarPropio(correo, p);
+      if(!r.ok) throw new Error(r.codigo === 'SB_CLAVE' ? 'Wrong username or password.'
+        : r.codigo === 'DISABLED' ? (r.msg || 'Your user is disabled. Contact the administrator.')
+        : 'We couldn\'t sign you in right now. Try again in a moment.');
+      S.token = r.token;
+      S.user  = r.user;
+      guardarSesion(r.token, r.user);
+      $('lp').value = '';
+      entrar();
+      listo(btn);
+      return;
+    }
     const dk = await derivar(u, p);
     // Google (Portal.gs) arranca ya; tarda de 1 a 9 s y es quien manda.
     const google = api('login', { username: u, dk });
@@ -1346,6 +1362,18 @@ $('formPass').addEventListener('submit', async ev => {
   const btn = $('btnPass');
   cargando(btn, 'Saving…');
   try{
+    // (19 nov 2026 · Solo 24/7) Cuenta con correo propio: la contraseña vive solo en Supabase (la misma del Time Clock).
+    const correoPropio = window.sbCorreoDeSesion ? await window.sbCorreoDeSesion() : null;
+    if(correoPropio){
+      const chk = await window.sb.auth.signInWithPassword({ email: correoPropio, password: act });
+      if(chk.error) throw new Error('Your current password isn\'t correct.');
+      const up = await window.sb.auth.updateUser({ password: nue });
+      if(up.error) throw new Error(up.error.message);
+      $('formPass').reset();
+      aviso('cpMsg', 'Password updated. Use it next time you sign in here and in the Time Clock.', 'ok');
+      listo(btn);
+      return;
+    }
     const dkActual = await derivar(S.user.username, act);
     const dkNueva  = await derivar(S.user.username, nue);
     await apiAuth('changePassword', { dkActual, dkNueva });
