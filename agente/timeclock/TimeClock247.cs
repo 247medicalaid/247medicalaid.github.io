@@ -1,4 +1,4 @@
-﻿// 247 Time Clock para Windows (versión 1.0.7: abre timeclock.247medical-aid.com en vez de github.io — desvincular del portal)
+﻿// 247 Time Clock para Windows (versión 1.0.8: abre timeclock.247medical-aid.com en vez de github.io — desvincular del portal; 1.0.8 conserva la versión &tcv al recargar)
 // ------------------------------------------------------------------------------------------------
 // Muestra la versión web del Reloj (https://timeclock.247medical-aid.com/reloj.html) dentro de una ventana
 // propia (WebView2, el motor de Edge que ya trae Windows) y le agrega lo que el navegador no puede:
@@ -36,26 +36,30 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: System.Reflection.AssemblyDescription("Time Clock de 24/7 Medical Aid para Windows")]
 [assembly: System.Reflection.AssemblyCompany("24/7 Medical Aid - Call Center")]
 [assembly: System.Reflection.AssemblyProduct("247 Time Clock")]
-[assembly: System.Reflection.AssemblyVersion("1.0.7.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.7.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.8.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.8.0")]
 
 namespace TimeClock247
 {
     static class Programa
     {
-        public const string Version = "1.0.7";
+        public const string Version = "1.0.8";
         // (1.0.7, 19 nov 2026) Antes: https://247medicalaid.github.io/reloj.html?app=win. Ahora la misma página desde timeclock
         // (Cloudflare, empresa fija 24/7). La sesión guardada era de github.io: cada agente inicia sesión una vez.
         public const string Url = "https://timeclock.247medical-aid.com/reloj.html?app=win";
         // La versión realmente instalada la escribe el actualizador en version.txt; si no, usa la constante.
-        public static string UrlReloj()
+        public static string VersionInstalada()
         {
             string v = Version;
             try {
                 string f = System.IO.Path.Combine(Carpeta.Programa, "version.txt");
                 if (System.IO.File.Exists(f)) { string s = System.IO.File.ReadAllText(f).Trim(); if (s.Length > 0) v = s; }
             } catch { }
-            return Url + "&tcv=" + Uri.EscapeDataString(v);
+            return v;
+        }
+        public static string UrlReloj()
+        {
+            return Url + "&tcv=" + Uri.EscapeDataString(VersionInstalada());
         }
         public const string Sitio = "timeclock.247medical-aid.com";
         public const string Nombre = "247 Time Clock";
@@ -876,7 +880,9 @@ namespace TimeClock247
                 if (u.Scheme == "https" && u.Query.IndexOf("app=win", StringComparison.OrdinalIgnoreCase) < 0 && EsPaginaReloj(u))
                 {
                     e.Cancel = true;
-                    string q = u.Query.Length > 1 ? u.Query + "&app=win" : "?app=win";
+                    // (1.0.7) también la versión (&tcv): al iniciar sesión la página se recarga sin nada y la versión no se reportaba
+                    string extra = "app=win" + (u.Query.IndexOf("tcv=", StringComparison.OrdinalIgnoreCase) < 0 ? "&tcv=" + Uri.EscapeDataString(Programa.VersionInstalada()) : "");
+                    string q = u.Query.Length > 1 ? u.Query + "&" + extra : "?" + extra;
                     string nueva = u.GetLeftPart(UriPartial.Path) + q + u.Fragment;
                     BeginInvoke(new MethodInvoker(delegate { try { web.CoreWebView2.Navigate(nueva); } catch (Exception ex) { Registro.Escribir("Navegar: " + ex.Message); } }));
                     return;
