@@ -1432,6 +1432,20 @@ document.querySelectorAll('[data-eye]').forEach(b => b.addEventListener('click',
   // mismo usuario en este equipo; si Google dice que la sesión ya no vale, sale.
   const yaVisible = !!(s.user && s.user.nombre);
   if(yaVisible){ S.user = s.user; entrar(); }
+  // (19 nov 2026 · Solo 24/7) Sin la sesión de Supabase las apps (Nómina, Monitor, Time Clock…) no tienen datos:
+  // si Supabase cargó y no hay sesión, se sale y se pide entrar de nuevo. Si Supabase no cargó (sin red), no se toca nada.
+  try{
+    for(let i = 0; i < 50 && !window.sbListo; i++) await new Promise(r => setTimeout(r, 200));   // sb.js carga con defer
+    if(window.sbListo && await window.sbListo && window.sb){
+      const { data } = await window.sb.auth.getSession();
+      if(S.token !== s.token) return;
+      if(!data || !data.session){
+        salir();
+        aviso('loginErr', 'Please sign in again to reconnect your apps.', 'warn');
+        return;
+      }
+    }
+  }catch(e){}
   try{
     const r = await apiAuth('validate');   // el servidor decide si el token sigue vivo
     if(S.token !== s.token) return;        // salió o entró de nuevo mientras tanto
