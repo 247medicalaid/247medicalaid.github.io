@@ -1,6 +1,6 @@
-﻿// 247 Time Clock para Windows (versión 1.0.5: aviso al frente + sonido cuando la página pide la salida interactiva)
+﻿// 247 Time Clock para Windows (versión 1.0.7: abre timeclock.247medical-aid.com en vez de github.io — desvincular del portal)
 // ------------------------------------------------------------------------------------------------
-// Muestra la versión web del Reloj (https://247medicalaid.github.io/reloj.html) dentro de una ventana
+// Muestra la versión web del Reloj (https://timeclock.247medical-aid.com/reloj.html) dentro de una ventana
 // propia (WebView2, el motor de Edge que ya trae Windows) y le agrega lo que el navegador no puede:
 //   · icono en la bandeja (junto al reloj de Windows) con el estado por color:
 //       gris = sin entrada · verde = trabajando · amarillo = almuerzo · azul = falta iniciar sesión
@@ -36,15 +36,17 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: System.Reflection.AssemblyDescription("Time Clock de 24/7 Medical Aid para Windows")]
 [assembly: System.Reflection.AssemblyCompany("24/7 Medical Aid - Call Center")]
 [assembly: System.Reflection.AssemblyProduct("247 Time Clock")]
-[assembly: System.Reflection.AssemblyVersion("1.0.5.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.5.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.7.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.7.0")]
 
 namespace TimeClock247
 {
     static class Programa
     {
-        public const string Version = "1.0.5";
-        public const string Url = "https://247medicalaid.github.io/reloj.html?app=win";
+        public const string Version = "1.0.7";
+        // (1.0.7, 19 nov 2026) Antes: https://247medicalaid.github.io/reloj.html?app=win. Ahora la misma página desde timeclock
+        // (Cloudflare, empresa fija 24/7). La sesión guardada era de github.io: cada agente inicia sesión una vez.
+        public const string Url = "https://timeclock.247medical-aid.com/reloj.html?app=win";
         // La versión realmente instalada la escribe el actualizador en version.txt; si no, usa la constante.
         public static string UrlReloj()
         {
@@ -55,7 +57,7 @@ namespace TimeClock247
             } catch { }
             return Url + "&tcv=" + Uri.EscapeDataString(v);
         }
-        public const string Sitio = "247medicalaid.github.io";
+        public const string Sitio = "timeclock.247medical-aid.com";
         public const string Nombre = "247 Time Clock";
         public const string MutexNombre = "Local\\TimeClock247_App";
         public const string EventoMostrar = "Local\\TimeClock247_Mostrar";
@@ -852,7 +854,15 @@ namespace TimeClock247
             if (u == null) return false;
             if (u.Scheme == "about" || u.Scheme == "data") return true;
             return u.Scheme == "https" && string.Equals(u.Host, Programa.Sitio, StringComparison.OrdinalIgnoreCase)
-                && u.AbsolutePath.StartsWith("/reloj", StringComparison.OrdinalIgnoreCase);
+                && EsPaginaReloj(u);
+        }
+
+        // (1.0.7) En timeclock el reloj se sirve en «/», «/index.html» y «/reloj.html»
+        static bool EsPaginaReloj(Uri u)
+        {
+            string p = u.AbsolutePath;
+            return p == "/" || p.StartsWith("/reloj", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(p, "/index.html", StringComparison.OrdinalIgnoreCase);
         }
 
         // Dentro de la ventana solo se abre el Reloj; cualquier otro enlace (portal, correo, etc.) va al navegador normal.
@@ -863,7 +873,7 @@ namespace TimeClock247
             if (Permitida(u))
             {
                 // la página a veces recarga sin ?app=win (por ejemplo al cerrar sesión): se le vuelve a poner
-                if (u.Scheme == "https" && u.Query.IndexOf("app=win", StringComparison.OrdinalIgnoreCase) < 0 && u.AbsolutePath.EndsWith("reloj.html", StringComparison.OrdinalIgnoreCase))
+                if (u.Scheme == "https" && u.Query.IndexOf("app=win", StringComparison.OrdinalIgnoreCase) < 0 && EsPaginaReloj(u))
                 {
                     e.Cancel = true;
                     string q = u.Query.Length > 1 ? u.Query + "&app=win" : "?app=win";
@@ -880,7 +890,7 @@ namespace TimeClock247
 
         void AlPermiso(object s, CoreWebView2PermissionRequestedEventArgs e)
         {
-            // (el Uri de un permiso es el origen —https://247medicalaid.github.io/—, sin la ruta)
+            // (el Uri de un permiso es el origen —https://timeclock.247medical-aid.com/—, sin la ruta)
             Uri u;
             bool nuestro = Uri.TryCreate(e.Uri, UriKind.Absolute, out u) && u.Scheme == "https" && string.Equals(u.Host, Programa.Sitio, StringComparison.OrdinalIgnoreCase);
             Registro.Escribir("Permiso " + e.PermissionKind + " de " + e.Uri + ": " + (nuestro ? "sí" : "no"));
