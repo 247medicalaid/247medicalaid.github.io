@@ -19,6 +19,7 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v394: Común — menú lateral: Ctrl/⌘/Shift + clic o clic con la rueda abre la vista en una pestaña nueva (admins); el Monitor de otro dominio se abre directo en pestaña nueva, con aviso «Opens the Agent Monitor in a new tab» al pasar el mouse y ↗ -->
 <!-- v393: Común — al abrir el Time Clock desde el portal, una cuenta de administrador con su propio correo (sin @usuarios) ya no se cierra: se mira que la sesión de Supabase sea del mismo usuario que el portal (antes solo se aceptaban las cuentas internas @usuarios) -->
 <!-- v392: Común — antes de marcar con ubicación obligatoria, si el navegador no la permite aún sale un aviso «Allow your location to clock in» (Allow location / Exit): sin ubicación la marca no se guarda; si no la permite el aviso vuelve a salir (o explica cómo desbloquearla). El contador «worked so far» ya no muestra minutos negativos cuando el redondeo deja la marca adelante -->
 <!-- v391: Común (preparación 24/7 → 247Punch) — empresa fija por dominio (INST.empresaFija: entra directo a su base y no se desvía al iniciar sesión); Monitor, colores por cuenta desde los datos de la empresa (funciones monitor_url / cuenta_claves); el Monitor de otro dominio abre en pestaña aparte -->
@@ -44,7 +45,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v393-202611182330">
+<meta name="app-build" content="v394-202611190900">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -273,6 +274,7 @@ button,input,select{font:inherit;color:inherit}
   text-align:left;white-space:nowrap;transition:background .15s,color .15s}
 .tab svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .tab:hover{background:rgba(255,255,255,.07);color:#fff}
+.tab .ext{font-style:normal;font-size:.8em;opacity:.7;margin-left:3px}   /* (v394) se abre en pestaña nueva */
 .tab[aria-selected="true"]{background:rgba(23,169,222,.18);color:#fff;box-shadow:inset 3px 0 0 var(--accent-500)}
 .lateral .pie-lat{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
 .lateral .pie-lat a{text-decoration:none}
@@ -7261,6 +7263,7 @@ function abrirWeb(){
 
 function irA(v, salirSinGuardar){
   try{ aplicarSolo247(); }catch(e){}
+  try{ marcarMonExterno(); }catch(e){}   // (v394)
   if((v === 'mon' || v === 'inv') && typeof monOn === 'function' && (!monOn() || !tiene('monitor'))) v = 'hoy';   // (v384) módulo Monitor   // (v312) Monitor apagado
   // (v371) Cambios sin guardar: se pregunta con la ventana de la app (antes era el aviso gris del navegador)
   const sucio = S.vista === 'pago' && v !== 'pago' && S.pr && S.pr.sucio ? 'the Pay run'
@@ -7290,7 +7293,27 @@ function irA(v, salirSinGuardar){
   setTimeout(chatAjustar, 0);   // (v64) alto del chat y lugar de los avisos
   if(v === 'pago') cargarPago(S.periodo ? quinDe(S.periodo.desde) : S.pr ? S.pr.desde : null);
 }
-document.querySelectorAll('.tab[data-v]').forEach(t => t.addEventListener('click', () => { irA(t.dataset.v); menuLateral(false); }));
+// (v394) Menú lateral: Ctrl / ⌘ / Shift + clic o clic con la rueda abre esa vista en una pestaña nueva (solo admins: la dirección
+// ya lleva la vista, #hoy, #hoja, #pago…). El Monitor de otro dominio se abre directo en su pestaña, sin la página intermedia.
+function pestanaNuevaOk(){ return !!(S.yo && S.yo.esAdmin) && !appWin(); }
+function abrirEnPestana(v){
+  const ext = v === 'mon' ? monExterno() : null;
+  try{ window.open(ext || (location.pathname + location.search + '#' + v), '_blank', 'noopener'); }catch(e){}
+}
+document.querySelectorAll('.tab[data-v]').forEach(t => {
+  t.addEventListener('click', e => {
+    const v = t.dataset.v;
+    if(v === 'mon' && monExterno()){ e.preventDefault(); abrirEnPestana('mon'); menuLateral(false); return; }
+    if((e.ctrlKey || e.metaKey || e.shiftKey) && pestanaNuevaOk()){ e.preventDefault(); abrirEnPestana(v); return; }
+    irA(v); menuLateral(false);
+  });
+  t.addEventListener('auxclick', e => {
+    if(e.button !== 1) return;
+    if(t.dataset.v === 'mon' && monExterno()){ e.preventDefault(); abrirEnPestana('mon'); return; }
+    if(pestanaNuevaOk()){ e.preventDefault(); abrirEnPestana(t.dataset.v); }
+  });
+  t.addEventListener('mousedown', e => { if(e.button === 1 && pestanaNuevaOk()) e.preventDefault(); });   // sin el desplazamiento automático de la rueda
+});
 window.addEventListener('beforeunload', e => { if(S.vista === 'pago' && S.pr && S.pr.sucio){ e.preventDefault(); e.returnValue = ''; } });
 
 /* Menú lateral: en celular se abre con ☰ y se cierra al elegir, al tocar fuera o con Esc. */
@@ -14383,6 +14406,17 @@ if('serviceWorker' in navigator){
 /* ── Monitor dentro del Time Clock (v68) ── */
 // (v391) la dirección del Monitor es dato de la empresa (funciones.monitor_url); si no, la de la instalación
 const monitorUrl = () => fval('monitor_url', INST.monitorUrl || '') || 'monitor.html';
+// (v394) ¿El Monitor vive en otro dominio? Entonces se abre en su propia pestaña (en un marco no tendría la sesión).
+function monExterno(){
+  if(DEMO) return null;
+  try{ const url = monitorUrl(); return new URL(url, location.href).origin !== location.origin ? url : null; }catch(e){ return null; }
+}
+function marcarMonExterno(){
+  const t = document.querySelector('.tab[data-v="mon"]'); if(!t) return;
+  const ext = !!monExterno(), i = t.querySelector('.ext');
+  if(ext){ t.title = 'Opens the Agent Monitor in a new tab'; if(!i) t.querySelector('span').insertAdjacentHTML('beforeend', '<i class="ext" aria-hidden="true">\u2197</i>'); }
+  else { t.removeAttribute('title'); if(i) i.remove(); }
+}
 function abrirMonitor(){
   const f = $('monFrame'), url = monitorUrl();
   let otro = false; try{ otro = new URL(url, location.href).origin !== location.origin; }catch(e){}
