@@ -48,7 +48,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v395-202611191140">
+<meta name="app-build" content="v396-202611192200">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5943,6 +5943,7 @@ async function api(action, p){
   if(action === 'corregirLote') return q(sb.rpc('reloj_corregir_lote', { p_usuario:p.usuario, p_dias:p.dias, p_motivo:p.motivo || '' }));
   if(action === 'revertir') return q(sb.rpc('reloj_revertir_solicitud', { p_id:p.id, p_respuesta:p.respuesta || '' }));
   if(action === 'ajustarAusencia') return q(sb.rpc('reloj_ajustar_ausencia', { p_id:p.id, p:p.sol }));   // (v316, paso 140)
+  if(action === 'ajustarHorario') return q(sb.rpc('reloj_ajustar_horario', { p_id:p.id, p:p.sol }));   // (v396, paso 179)
   if(action === 'modificarSolicitud') return q(sb.rpc('reloj_modificar_solicitud', { p_id:p.id, p:p.sol,
     p_pagada: p.pagada == null ? null : p.pagada, p_horas: p.horas == null ? null : p.horas, p_respuesta: p.respuesta == null ? null : p.respuesta,
     p_concepto_id: p.conceptoId == null ? null : p.conceptoId, p_concepto_nombre: p.conceptoNombre == null ? null : p.conceptoNombre }));
@@ -11724,6 +11725,21 @@ function tlLeer(pre){
 }
 const DOW_NOM = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function horCambioTxt(s){ return s.clase === 'libre' ? 'Day off' : h12(s.horaIni) + ' \u2013 ' + h12(s.horaFin) + (s.almIni ? ' \u00b7 lunch ' + h12(s.almIni) + ' \u2013 ' + h12(s.almFin) : ''); }
+// (v396) Minutos de trabajo de un cambio de horario: turno menos almuerzo (día libre = 0)
+function minHorario(x){
+  if(!x || x.clase === 'libre') return 0;
+  const a = aMinH(x.horaIni), b = aMinH(x.horaFin); if(a == null || b == null || b <= a) return null;
+  const la = aMinH(x.almIni), lb = aMinH(x.almFin);
+  return (b - a) - (la != null && lb != null && lb > la ? lb - la : 0);
+}
+function aMinH(x){ const m = /^(\d{1,2}):(\d{2})/.exec(String(x || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+function horTotalHTML(s){
+  const min = minHorario(s), nd = s.permanente ? 1 : diasEntre(s.fecha, s.fechaFin || s.fecha);
+  if(min == null) return '';
+  const izq = s.clase === 'libre' ? 'Total hours · day off' : 'Total hours' + (s.permanente ? ' · every ' + (DOW_NOM[s.diaSemana] || '') : nd > 1 ? ' · ' + nd + ' days' : '');
+  const der = s.permanente ? hm(min) + ' h/day' : nd > 1 ? hm(min) + ' h/day · ' + hm(min * nd) + ' h' : hm(min) + ' h';
+  return '<div class="rq-tot"><span>' + esc(izq) + '</span><span>' + esc(der) + '</span></div>';
+}
 function horAlcanceTxt(s){ return s.permanente ? 'Permanent \u00b7 every ' + (DOW_NOM[s.diaSemana] || '') : (s.fecha === s.fechaFin ? diaS(s.fecha) : diaS(s.fecha) + ' \u2013 ' + diaS(s.fechaFin)); }
 function solCuando(s){
   if(s.tipo === 'horario') return horAlcanceTxt(s) + ' \u00b7 ' + horCambioTxt(s);
@@ -14751,6 +14767,7 @@ function rqHTML(s, r){
     '<div class="rq-tit"><div class="t1">' + esc(titulo.replace(/ · $/, '')) + '</div><div class="t2">Requested on ' + esc(pedida) + '</div></div>' +
     '<div class="rq-acc">' +
       (s.tipo === 'ausencia' ? '<button type="button" class="rq-edit" data-aed="' + s.id + '" title="Adjust the dates or times before approving"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>' : '') +   // (v316)
+      (s.tipo === 'horario' && s.estado === 'pendiente' ? '<button type="button" class="rq-edit" data-hed="' + s.id + '" title="Change the requested times before approving"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>' : '') +   // (v396)
       (s.tipo === 'turno' || s.tipo === 'almuerzo' || s.tipo === 'correccion' ? '<button type="button" class="rq-edit" data-sed="' + s.id + '" title="Edit the punches, then approve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>' : '') +
       '<span class="rq-par no"><button type="button" data-rapido="no" data-id="' + s.id + '">Decline</button><button type="button" data-dec="no" data-id="' + s.id + '" title="Decline with a note" aria-label="Decline with a note">' + IC_NOTA + '</button></span>' +
       '<span class="rq-par si"><button type="button" data-rapido="si" data-id="' + s.id + '">Approve</button><button type="button" data-dec="si" data-id="' + s.id + '" title="' + (s.tipo === 'ausencia' ? 'Approve with a note or choose if it\'s paid' : 'Approve with a note') + '" aria-label="Approve with a note">' + IC_NOTA + '</button></span>' +
@@ -14761,6 +14778,7 @@ function rqHTML(s, r){
       '<div class="rq-fila"><span>Account</span>' + cuentaV(emp) + '</div>' +
       '<div class="rq-fila"><span>When</span><div class="rq-v cambio">' + esc(horAlcanceTxt(s)) + '</div></div>' +
       '<div class="rq-fila"><span>New schedule</span><div class="rq-v cambio">' + esc(horCambioTxt(s)) + '</div></div>' +
+      horTotalHTML(s) +
       '<div class="rq-nota">If approved, the Monitor updates the schedule. Nothing is applied until then.</div></section></div>';
   } else if(s.tipo === 'ausencia'){
     const n = diasEntre(s.fecha, s.fechaFin), pag = false, parc = esParcial(s);
@@ -14877,6 +14895,7 @@ function pintarSols(){
   $('solsLista').querySelectorAll('[data-rapido]').forEach(b => b.addEventListener('click', () => decidirRapido(Number(b.dataset.id), b.dataset.rapido === 'si', b)));
   $('solsLista').querySelectorAll('[data-sed]').forEach(b => b.addEventListener('click', () => abrirSolEd(Number(b.dataset.sed))));
   $('solsLista').querySelectorAll('[data-aed]').forEach(b => b.addEventListener('click', () => abrirAjusteAus(Number(b.dataset.aed))));   // (v316)
+  $('solsLista').querySelectorAll('[data-hed]').forEach(b => b.addEventListener('click', () => abrirAjusteHor(Number(b.dataset.hed))));   // (v396)
   asegurarColores(() => { if(S.vista === 'sols') pintarSols(); });
 }
 function abrirDecision(id, modo){
@@ -14963,6 +14982,56 @@ function abrirAjusteAus(id){
   const b = $('xSi'); b.textContent = 'Save changes'; b.className = 'btn btn-brand'; b.disabled = false;
   $('ovDec').querySelector('.ventana').style.maxWidth = '520px';
   abrir('ovDec');
+}
+// (v396, paso 179) Editar un cambio de horario antes de aprobarlo: horas del turno, almuerzo o día libre.
+// La solicitud sigue pendiente; se aprueba después. Las fechas y el alcance no se cambian aquí.
+function abrirAjusteHor(id){
+  const r = S.sols, s = r && r.sols.find(x => x.id === id); if(!s) return;
+  const emp = r.emps.find(e => e.usuario === s.usuario) || {}, libre = s.clase === 'libre', v = x => esc(String(x || '').slice(0, 5));
+  S.dec = { s, modo:'ajustarHor', emp };
+  $('xTitulo').textContent = 'Edit schedule change';
+  $('xSub').textContent = (emp.nombre || s.usuario) + ' · ' + horAlcanceTxt(s);
+  $('xErr').textContent = '';
+  $('xCuerpo').innerHTML = '<p class="muted" style="font-size:14px;margin-bottom:10px">“' + esc(s.motivo) + '”</p>' +
+    '<label class="chk" style="margin-bottom:10px"><input type="checkbox" id="ahLibre"' + (libre ? ' checked' : '') + '> Day off (no hours)</label>' +
+    '<div id="ahHoras"' + (libre ? ' style="display:none"' : '') + '>' +
+      '<div class="dos-col"><label class="campo"><span>Start</span><input type="time" id="ahIni" value="' + v(s.horaIni) + '"></label>' +
+      '<label class="campo"><span>End</span><input type="time" id="ahFin" value="' + v(s.horaFin) + '"></label></div>' +
+      '<div class="dos-col"><label class="campo"><span>Lunch start (optional)</span><input type="time" id="ahAlmIni" value="' + v(s.almIni) + '"></label>' +
+      '<label class="campo"><span>Lunch end</span><input type="time" id="ahAlmFin" value="' + v(s.almFin) + '"></label></div></div>' +
+    '<div class="rq-tot" id="ahTot" style="margin:2px 0 12px"></div>' +
+    '<p class="nota" style="margin:0 0 4px">The request stays <b>Pending</b>; approve it after saving. The dates (' + esc(horAlcanceTxt(s)) + ') don\'t change.</p>';
+  const tot = () => { const x = leerAjusteHor(), min = minHorario(x);
+    $('ahTot').innerHTML = '<span>Total hours</span><span>' + (min == null ? '—' : hm(min) + ' h') + '</span>'; };
+  $('ahLibre').addEventListener('change', () => { $('ahHoras').style.display = $('ahLibre').checked ? 'none' : ''; tot(); });
+  ['ahIni', 'ahFin', 'ahAlmIni', 'ahAlmFin'].forEach(k => $(k).addEventListener('input', tot));
+  tot();
+  const b = $('xSi'); b.textContent = 'Save changes'; b.className = 'btn btn-brand'; b.disabled = false;
+  $('ovDec').querySelector('.ventana').style.maxWidth = '480px';
+  abrir('ovDec');
+}
+function leerAjusteHor(){
+  if($('ahLibre').checked) return { clase:'libre', horaIni:'', horaFin:'', almIni:'', almFin:'' };
+  return { clase:'cambio', horaIni:$('ahIni').value, horaFin:$('ahFin').value, almIni:$('ahAlmIni').value, almFin:$('ahAlmFin').value };
+}
+async function guardarAjusteHor(){
+  const { s } = S.dec, b = $('xSi'), sol = leerAjusteHor();
+  if(sol.clase === 'cambio'){
+    if(!sol.horaIni || !sol.horaFin){ $('xErr').textContent = 'Fill the start and end times.'; return; }
+    if(sol.horaFin <= sol.horaIni){ $('xErr').textContent = 'The end time must be after the start time.'; return; }
+    if(!!sol.almIni !== !!sol.almFin){ $('xErr').textContent = 'Fill both lunch times, or leave both blank.'; return; }
+    if(sol.almIni && !(sol.horaIni < sol.almIni && sol.almIni < sol.almFin && sol.almFin < sol.horaFin)){ $('xErr').textContent = 'Lunch must be inside the shift.'; return; }
+  }
+  const igual = (sol.clase === 'libre') === (s.clase === 'libre') && (sol.clase === 'libre' || (sol.horaIni === String(s.horaIni || '').slice(0, 5) && sol.horaFin === String(s.horaFin || '').slice(0, 5) &&
+    sol.almIni === String(s.almIni || '').slice(0, 5) && sol.almFin === String(s.almFin || '').slice(0, 5)));
+  if(igual){ $('xErr').textContent = 'Nothing changed.'; return; }
+  b.disabled = true;
+  try{
+    await api('ajustarHorario', { id:s.id, sol });
+    cerrar('ovDec');
+    toast('Schedule change updated (' + (sol.clase === 'libre' ? 'day off' : hm(minHorario(sol)) + ' h') + '). It\'s still pending: approve it when ready.');
+    cargarSols();
+  }catch(e){ $('xErr').textContent = /function|does not exist|no existe/i.test(e.message) ? 'The server isn\'t updated yet for this (step 179).' : e.message; b.disabled = false; }
 }
 async function guardarAjusteAus(){
   const { s } = S.dec, b = $('xSi'), parc = $('aaParc').checked;
@@ -15051,6 +15120,7 @@ function ajustarMarcasAusencia(l, a0, a1){
 }
 $('xSi').addEventListener('click', async () => {
   if(S.dec.modo === 'ajustar') return guardarAjusteAus();   // (v316)
+  if(S.dec.modo === 'ajustarHor') return guardarAjusteHor();   // (v396)
   if(S.dec.modo === 'editar' || S.dec.modo === 'deshacer') return guardarCambioAprobada();
   const { s, aprobar } = S.dec, b = $('xSi');
   const p = { id:s.id, aprobar, respuesta:$('xNota').value.trim() };
@@ -17473,6 +17543,12 @@ function demoHorarios(action, p){
 }
 async function demoApi(action, p){
   demoInit();
+  if(action === 'ajustarHorario'){ const x = DM.sols.find(z => z.id === p.id); if(!x) throw new Error('That request no longer exists.');   // (v396)
+    if(x.estado !== 'pendiente') throw new Error('This request was already decided; refresh the page.');
+    const libre = p.sol.clase === 'libre';
+    Object.assign(x, { clase:libre ? 'libre' : 'cambio', horaIni:libre ? null : p.sol.horaIni, horaFin:libre ? null : p.sol.horaFin,
+      almIni:libre ? null : (p.sol.almIni || null), almFin:libre ? null : (p.sol.almFin || null), editada:true });
+    return { ok:true }; }
   if(action === 'ajustarAusencia'){ const x = DM.sols.find(z => z.id === p.id); if(!x) throw new Error('That request no longer exists.');
     if(x.estado !== 'pendiente') throw new Error('This request was already decided; refresh the page.');
     const antes = { fecha:x.fecha, fechaFin:x.fechaFin, horaIni:x.horaIni || null, horaFin:x.horaFin || null };
