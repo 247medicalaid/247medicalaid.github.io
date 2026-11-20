@@ -2056,6 +2056,8 @@
 <div id="pg-velo"><div class="pg-sp"></div><small>Verificando tu acceso…</small></div>
 
 <script>
+// (20 nov 2026) Protección: nombres, notas y textos guardados se escapan antes de pintarlos (escH es global; algunas funciones tienen su propio «esc»).
+function escH(s){ return String(s == null ? '' : s).replace(/[&<>"'`]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '`':'&#96;' })[ch]); }
 /* Control de acceso del portal. Esta app no tiene contraseña propia: quien
    entra lo hace con su usuario del portal y con los permisos que tenga ahí.
    La comprobación de aquí evita mostrar la interfaz a quien no debe verla;
@@ -3950,7 +3952,7 @@ function renderCuadroDr(){
       <div class="cuadro-header" style="background:#0E86B4;color:#fff">CALLCENTER CHECK</div>
       ${rows.map(r=>`
         <div class="cuadro-row" style="background:#e8f0fb;color:#1a0000">
-          <span class="c-name">${r.label}</span>
+          <span class="c-name">${escH(r.label)}</span>
           <span class="c-val">$ ${r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>`).join('')}
       <div class="cuadro-total" style="background:#0E86B4;color:#fff">
@@ -3974,7 +3976,7 @@ function renderCuadroReal(){
       <div class="cuadro-header" style="background:#ED3237;color:#fff">CALLCENTER PAYROLL</div>
       ${rows.map(r=>`
         <div class="cuadro-row" style="background:#fce8e6;color:#051c0e">
-          <span class="c-name">${r.label}</span>
+          <span class="c-name">${escH(r.label)}</span>
           <span class="c-val">$ ${r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>`).join('')}
       <div class="cuadro-total" style="background:#ED3237;color:#fff">
@@ -3998,7 +4000,7 @@ function renderCuadroOwn(){
       <div class="cuadro-header" style="background:#ED3237;color:#fff">24/7 CALLCENTER PAYROLL</div>
       ${rows.length ? rows.map(r=>`
         <div class="cuadro-row" style="background:#fce8e6;color:#061523">
-          <span class="c-name">${r.label}</span>
+          <span class="c-name">${escH(r.label)}</span>
           <span class="c-val">$ ${r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>`).join('') : `<div class="cuadro-row" style="background:#fce8e6;color:#888;font-size:12px"><span>Sin cuentas propias</span></div>`}
       <div class="cuadro-total" style="background:#ED3237;color:#fff">
@@ -4022,7 +4024,7 @@ function renderCuadroPendiente(){
       <div class="cuadro-header" style="background:#0E86B4;color:#fff">24/7 CALLCENTER INVOICE PENDING</div>
       ${rows.length ? rows.map(r=>`
         <div class="cuadro-row" style="background:#e8f0fb;color:#1a1200">
-          <span class="c-name">${r.label}</span>
+          <span class="c-name">${escH(r.label)}</span>
           <span class="c-val">$ ${r.val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>`).join('') : `<div class="cuadro-row" style="background:#e8f0fb;color:#888;font-size:12px"><span>Sin cuentas propias</span></div>`}
       <div class="cuadro-total" style="background:#0E86B4;color:#fff">
@@ -4041,7 +4043,7 @@ function renderResumenDr(){
     return `
     <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
-        <strong class="nomcuenta">${displayCuenta(c)}</strong>
+        <strong class="nomcuenta">${escH(displayCuenta(c))}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
@@ -4063,7 +4065,7 @@ function renderResumenOwn(){
     return `
     <div class="account-summary papel">
       <div class="account-summary-header cab-color" style="${cabEstilo(c.color)}">
-        <strong class="nomcuenta">${displayCuenta(c)}</strong>
+        <strong class="nomcuenta">${escH(displayCuenta(c))}</strong>
         <span class="cab-pill" style="margin-left:auto">${(r.ags||r.agentes||[]).length} agentes</span>
       </div>
       <div class="account-summary-body">
@@ -4813,7 +4815,7 @@ function renderCuentasDr(){
     <div class="table-wrap papel" style="margin-bottom:24px">
       <div class="table-header cab-color" style="${cabEstilo(c.color)}">
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="nomcuenta">${displayCuenta(c)}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
+          <span class="nomcuenta">${escH(displayCuenta(c))}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">Callcenter</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4884,7 +4886,7 @@ function renderCuentasDr(){
             })()).forEach((a, i) => {
               rows += `
           <tr>
-            <td>${a.nombre}</td>
+            <td>${escH(a.nombre)}</td>
             <td class="mono">${a.horas}</td>
             <td>
               <input type="number" value="${a.valor}" min="1" max="50" step="0.5"
@@ -5132,7 +5134,7 @@ function renderCuentasOwn(){
              derecha encima de "Dias:". Su minimo es ahora la palabra mas larga
              del nombre; si no cabe, la banda pasa de renglon (flex-wrap). -->
         <div style="display:flex;align-items:center;gap:10px;flex:1">
-          <span class="nomcuenta">${displayCuenta(c)}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
+          <span class="nomcuenta">${escH(displayCuenta(c))}</span>${c.activo === false ? '<span class="cab-pill" title="Cuenta desactivada: se ve porque estaba en esta quincena aprobada.">Desactivada</span>' : ''}
           <span class="cab-pill">24/7</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -5187,7 +5189,7 @@ function renderCuentasOwn(){
               const cobroVal = (cobroDeAgenteOwn(_vivaAg, cobroEfectivo) / 2) * (snapQdays > 0 ? diasCobrarVal / snapQdays : 0);
               rows += `
           <tr>
-            <td>${a.nombre}</td>
+            <td>${escH(a.nombre)}</td>
             <td class="mono">${a.horas}</td>
             <td>
               ${/* Valor/Hr se queda FUERA del recorrido del Tab a proposito: es
@@ -5292,11 +5294,11 @@ function renderAgentes(){
     const isOwn = c && c.tipo === 'own';
     return `<tr class="${isOwn ? 'row-real' : ''}">
       <td><span class="status-dot ${a.estado}" style="display:inline-block"></span></td>
-      <td>${a.nombre}</td>
+      <td>${escH(a.nombre)}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
           ${c ? colorDot(c.color, 8) : ''}
-          <span style="font-size:12px">${c ? c.nombre : '—'}</span>
+          <span style="font-size:12px">${c ? escH(c.nombre) : '—'}</span>
         </div>
       </td>
       <td class="mono">${a.horas}</td>
@@ -5427,7 +5429,7 @@ function openModal(id, tipo){
   if(id==='modal-agente'){
     switchAgTab('nuevo');
     const sel = $('ag-cuenta');
-    sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${displayCuenta(c)}</option>`).join('');
+    sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${escH(displayCuenta(c))}</option>`).join('');
     const std = getDiasHabilesActual();
     $('agente-edit-id').value = '';
     $('ag-nombre').value   = '';
@@ -5574,7 +5576,7 @@ function editAgente(id){
   if(!ag) return;
   switchAgTab('nuevo'); // always show the edit form, not the assign tab
   const sel = $('ag-cuenta');
-  sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${displayCuenta(c)}</option>`).join('');
+  sel.innerHTML = [...cuentas.filter(c => c.activo !== false)].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${escH(displayCuenta(c))}</option>`).join('');
   $('agente-edit-id').value = id;
   $('ag-nombre').value   = ag.nombre;
   $('ag-cuenta').value   = ag.cuenta;
@@ -5970,7 +5972,7 @@ function renderResumenTransferencias(){
 
   const agRow = (ag, color) =>
     `<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span>${ag.nombre}</span>
+      <span>${escH(ag.nombre)}</span>
       <span style="font-family:'DM Mono',monospace;color:${color};font-weight:600">${fmtN(ag.nom)}</span>
     </div>`;
 
@@ -6009,7 +6011,7 @@ function renderResumenTransferencias(){
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px">No suman en la nómina. Están activos pero su cuenta no existe o está inactiva — cámbialos de cuenta, inactívalos, o reactiva la cuenta.</div>
       ${detalleSinCuenta.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(a => `
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-          <span>${a.nombre} <span style="color:var(--text3)">· ${a.cuenta ? a.cuenta + ' (inactiva)' : 'sin cuenta'}</span></span>
+          <span>${escH(a.nombre)} <span style="color:var(--text3)">· ${a.cuenta ? escH(a.cuenta) + ' (inactiva)' : 'sin cuenta'}</span></span>
           <span style="font-family:'DM Mono',monospace;color:var(--danger);font-weight:600">${fmtN(a.nom)}</span>
         </div>`).join('')}
       <div style="border-top:1px solid var(--danger);margin-top:8px;padding-top:6px;text-align:right;font-size:11px;color:var(--text3)">${detalleSinCuenta.length} agente${detalleSinCuenta.length!==1?'s':''} fuera del total</div>
@@ -7950,7 +7952,7 @@ function actualizarBadgePendiente(){
           border:1px solid rgba(76,194,236,.3);color:var(--accent2);padding:5px 14px;
           border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.04em;
           animation:pulse-badge 2s infinite">
-          💾 EN CURSO · guardado ${b.savedAt || ''}
+          💾 EN CURSO · guardado ${escH(b.savedAt || '')}
         </span>`;
     } else {
       badge.innerHTML = `
@@ -8143,7 +8145,7 @@ function renderNqPreview(){
       ${agActivos.map(a=>{
         const c = getCuenta(a.cuenta);
         return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
-          <span>${a.nombre} <span style="color:var(--text3);font-size:11px">${c?'· '+c.nombre:''}</span></span>
+          <span>${escH(a.nombre)} <span style="color:var(--text3);font-size:11px">${c?'· '+escH(c.nombre):''}</span></span>
           <span style="font-family:'DM Mono',monospace;color:var(--accent2)">${a.dias} → ${dias} días</span>
         </div>`;
       }).join('')}
@@ -8204,8 +8206,8 @@ function renderApPreview(){
   const drs  = cuentas.filter(c=>c.tipo==='dr' && cuentaVisible(c));
   const owns = cuentas.filter(c=>c.tipo==='own' && cuentaVisible(c));
 
-  const drRows  = drs.map(c=>{ const r=getResultadoDr(c);   return `<tr><td>${displayCuenta(c)}</td><td class="mono" style="color:var(--accent3)">${fmt(r.totalDrCheck)}</td><td class="mono">${fmt(r.totalReal)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
-  const ownRows = owns.map(c=>{ const r=getResultadoOwn(c);  return `<tr><td>${displayCuenta(c)}</td><td class="mono" style="color:var(--accent2)">${fmt(r.totalCobro)}</td><td class="mono">${fmt(r.totalCosto)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
+  const drRows  = drs.map(c=>{ const r=getResultadoDr(c);   return `<tr><td>${escH(displayCuenta(c))}</td><td class="mono" style="color:var(--accent3)">${fmt(r.totalDrCheck)}</td><td class="mono">${fmt(r.totalReal)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
+  const ownRows = owns.map(c=>{ const r=getResultadoOwn(c);  return `<tr><td>${escH(displayCuenta(c))}</td><td class="mono" style="color:var(--accent2)">${fmt(r.totalCobro)}</td><td class="mono">${fmt(r.totalCosto)}</td><td class="mono" style="color:var(--accent)">${fmt(r.utilidad)}</td></tr>`; }).join('');
 
   const totalDrCheck = drs.reduce((s,c)=>s+getResultadoDr(c).totalDrCheck, 0);
   const totalReal    = drs.reduce((s,c)=>s+getResultadoDr(c).totalReal, 0);
@@ -8372,9 +8374,9 @@ function renderHistorial(){
     <div class="hist-card">
       <div class="hist-card-header" onclick="toggleHistDetalle('${h.key}')">
         <div>
-          <div class="hist-period">${h.periodo}</div>
-          <div class="hist-meta">Aprobado: ${h.fechaAprobacion} · ${h.resumen.agentesActivos} agentes activos</div>
-          ${h.notas ? `<div class="hist-meta" style="font-style:italic;margin-top:2px">"${h.notas}"</div>` : ''}
+          <div class="hist-period">${escH(h.periodo)}</div>
+          <div class="hist-meta">Aprobado: ${escH(h.fechaAprobacion)} · ${h.resumen.agentesActivos} agentes activos</div>
+          ${h.notas ? `<div class="hist-meta" style="font-style:italic;margin-top:2px">"${escH(h.notas)}"</div>` : ''}
         </div>
         <span class="hist-badge-approved">Aprobado</span>
         <div class="hist-kpis">
@@ -8414,7 +8416,7 @@ function toggleHistDetalle(key){
 function renderHistDetalleInline(h){
   const drRows  = h.cuentas.filter(c=>c.tipo==='dr' && c.activo!==false).map(c=>`
     <div class="hist-row">
-      <span class="lbl">${displayCuenta(c)}</span>
+      <span class="lbl">${escH(displayCuenta(c))}</span>
       <span style="display:flex;gap:20px">
         <span class="val" style="color:var(--accent3)">${fmt(c.totalDrCheck)}</span>
         <span class="val">${fmt(c.totalReal)}</span>
@@ -8423,7 +8425,7 @@ function renderHistDetalleInline(h){
     </div>`).join('');
   const ownRows = h.cuentas.filter(c=>c.tipo==='own' && c.activo!==false).map(c=>`
     <div class="hist-row">
-      <span class="lbl">${displayCuenta(c)}</span>
+      <span class="lbl">${escH(displayCuenta(c))}</span>
       <span style="display:flex;gap:20px">
         <span class="val" style="color:var(--accent2)">${fmt(c.totalCobro)}</span>
         <span class="val">${fmt(c.totalCosto)}</span>
@@ -8451,7 +8453,7 @@ function verDetalleCompleto(key){
 
   const agRows = (cuenta) => cuenta.agentes.map(a=>`
     <tr>
-      <td>${a.nombre}</td>
+      <td>${escH(a.nombre)}</td>
       <td class="mono">${a.horas}</td>
       <td class="mono">${fmt(a.valor)}</td>
       ${cuenta.tipo==='dr' ? `<td class="mono">${a.diasStd||'—'}</td><td class="mono" style="color:var(--accent3)">${fmt(a.drCheck)}</td>` : ''}
@@ -8462,7 +8464,7 @@ function verDetalleCompleto(key){
 
   const cuentaDetalle = h.cuentas.map(c=>`
     <div style="margin-bottom:20px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--text)">${displayCuenta(c)} <span class="tag ${c.tipo==='dr'?'joint':'own'}">${c.tipo==='dr'?'Callcenter':'24/7'}</span></div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--text)">${escH(displayCuenta(c))} <span class="tag ${c.tipo==='dr'?'joint':'own'}">${c.tipo==='dr'?'Callcenter':'24/7'}</span></div>
       <table class="ap-preview-table">
         <thead><tr>
           <th>Agente</th><th>Hrs</th><th>Valor/Hr</th>
@@ -8486,13 +8488,13 @@ function verDetalleCompleto(key){
   $('detalle-title').textContent = `📋 ${h.periodo}`;
   $('detalle-body').innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Aprobado</div><div style="font-size:13px">${h.fechaAprobacion}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Aprobado</div><div style="font-size:13px">${escH(h.fechaAprobacion)}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Días hábiles</div><div style="font-family:'DM Mono',monospace">${h.config.dias}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Transfer Fee</div><div style="font-family:'DM Mono',monospace">${(h.config.transferPct*100).toFixed(1)}%</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Dollar Comp Dr</div><div style="font-family:'DM Mono',monospace">${(h.config.dollarPct*100).toFixed(1)}%</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">Mgmt Fee</div><div style="font-family:'DM Mono',monospace">$${h.config.mgmt}/hr</div></div>
     </div>
-    ${h.notas ? `<div class="hist-nota">📝 ${h.notas}</div><br>` : ''}
+    ${h.notas ? `<div class="hist-nota">📝 ${escH(h.notas)}</div><br>` : ''}
     ${cuentaDetalle}`;
   $('modal-detalle').classList.add('open');
 }
@@ -9472,7 +9474,7 @@ function showOverlapWarning(mkid, nombre, iid){
     <div style="display:flex;align-items:flex-start;gap:8px">
       <span style="font-size:16px;flex-shrink:0">⚠️</span>
       <div>
-        <b>Posible cobro doble con ${o.invnum}</b>
+        <b>Posible cobro doble con ${escH(o.invnum)}</b>
         (período ${fmtD(o.periodoStart)} – ${fmtD(o.periodoEnd)})<br>
         Solapamiento: <b style="color:var(--danger)">${fmtD(o.overlapStart)} – ${fmtD(o.overlapEnd)} (${o.days} día${o.days!==1?'s':''})</b>
       </div>
@@ -10669,7 +10671,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
       <div style="flex:1;min-width:140px">
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Billed To</div>
         <input type="text" placeholder="Nombre contacto"
-          value="${data.contact}"
+          value="${escH(data.contact)}"
           ${locked ? 'readonly' : ''}
           onchange="setOv('${mk}','${esc(cuNombre)}',{contact:this.value})"
           style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'Inter',sans-serif">
@@ -10678,7 +10680,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:700;font-size:11px;color:var(--accent2)">Invoice #</div>
         <input type="text" placeholder="${data.proximoNum}"
           title="${data.invnum ? 'Numero del invoice.' : 'Todavia sin numero: se asigna al cerrar el invoice. Si estas recreando uno viejo, escribe aqui su numero real.'}"
-          value="${data.invnum}"
+          value="${escH(data.invnum)}"
           ${locked ? 'readonly' : ''}
           onchange="this.value=fijarNumInvoice('${mk}','${esc(cuNombre)}',this.value)"
           style="width:130px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'DM Mono',monospace">
@@ -10717,7 +10719,7 @@ function renderInvAccountInline(mkid, cu, diasMes, alwaysOpen){
         ${data.agentes.map(a => `
         <div class="iv-agente">
           <div class="quien">
-            <b>${a.nombre}</b>
+            <b>${escH(a.nombre)}</b>
             <span>Q1:${fmtDias(a.diasQ1)} · Q2:${fmtDias(a.diasQ2)} · base:${fmtDias(a.totalBase)}</span>
           </div>
           ${/* Como se le factura: la regla acierta sola en el caso normal, pero
@@ -10956,10 +10958,10 @@ function buildInvSummaryHTML(data, locked, iid){
   const filaDet = (titulo, quienes, cuenta, importe) => `
     <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:200px;font-size:13px">
-        <b style="color:var(--text)">${titulo}</b>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${quienes}</div>
+        <b style="color:var(--text)">${escH(titulo)}</b>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${escH(quienes)}</div>
       </div>
-      <div style="font-size:11px;color:var(--text2);white-space:nowrap">${cuenta}</div>
+      <div style="font-size:11px;color:var(--text2);white-space:nowrap">${escH(cuenta)}</div>
       <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--accent2);min-width:90px;text-align:right">
         ${importe}
       </div>
@@ -11017,7 +11019,7 @@ function buildInvSummaryHTML(data, locked, iid){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div style="background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:10px 12px">
           <div style="font-size:10px;color:var(--inv-247,#2dd4bf);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">🏢 24/7 Medical Aid</div>
-          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${ags247.map(a=>a.nombre).join(', ')}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escH(ags247.map(a=>a.nombre).join(', '))}</div>
           <div style="display:flex;justify-content:space-between;align-items:baseline">
             <div style="font-size:11px;color:var(--text3)">${fmtDias(dias247)} días · ${pct247}% del invoice</div>
             <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--inv-247,#2dd4bf)">${fmt(monto247)}</div>
@@ -11025,7 +11027,7 @@ function buildInvSummaryHTML(data, locked, iid){
         </div>
         <div style="background:rgba(168,139,250,.08);border:1px solid rgba(168,139,250,.2);border-radius:8px;padding:10px 12px">
           <div style="font-size:10px;color:var(--inv-sigma,#a78bfa);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">🏦 Cheque a Sigma</div>
-          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${agsDr.map(a=>a.nombre).join(', ')}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escH(agsDr.map(a=>a.nombre).join(', '))}</div>
           <div style="display:flex;justify-content:space-between;align-items:baseline">
             <div style="font-size:11px;color:var(--text3)">${fmtDias(diasDr)} días · ${pctDr}% del invoice</div>
             <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--inv-sigma,#a78bfa)">${fmt(montoDr)}</div>
@@ -11080,7 +11082,7 @@ function buildInvSummaryHTML(data, locked, iid){
               en particular y vuelve a salir como una linea aparte. */''}
         ${desc.porFalta
           ? `<span style="flex-basis:100%;font-size:10.5px;color:var(--text3);line-height:1.5">
-               Ya va restado en la línea de ${desc.gruposFalta.map(g => g.nombres.join(', ')).join(' · ')}.
+               Ya va restado en la línea de ${escH(desc.gruposFalta.map(g => g.nombres.join(', ')).join(' · '))}.
                Si escribes un número aquí, el descuento pasa a ser una línea aparte.</span>`
           : ''}
       </div>
@@ -11386,7 +11388,7 @@ function renderInvResumenCuentas(){
           const bg = i%2 ? 'background:rgba(255,255,255,.02)' : '';
           const hasSigma = a.sigmaTotal > 0;
           return `<tr style="${bg}">
-            <td style="padding:9px 14px;color:var(--text);font-weight:600;border-bottom:1px solid var(--border)">${a.nombre}
+            <td style="padding:9px 14px;color:var(--text);font-weight:600;border-bottom:1px solid var(--border)">${escH(a.nombre)}
               <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">${a.invoices.length} inv.</span>
             </td>
             <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--accent2);border-bottom:1px solid var(--border)">${fmt2(a.totalMonto)}</td>
@@ -11608,8 +11610,8 @@ function iv2Render(){
     const saldoCell=_noCob?`<span class="iv2-dim">${r.estado==='abierto'?'abierto':'en proceso'}</span>`:(r.saldo>0.005?`<button class="iv2-rowcobro" data-cobro="${ix}">Registrar cobro</button>`:`<span class="iv2-dim">—</span>`);
     return `<tr data-i="${ix}">
       <td><span class="iv2-pill ${cls}">${lab}</span></td>
-      <td><div class="iv2-acct"><span class="iv2-sw" style="background:${r.color}"></span><div><b>${r.nombre}</b><small>${iv2MesCorto(r.mk)}</small></div></div></td>
-      <td><span class="iv2-mono">${r.num||'(al cerrar)'}</span></td>
+      <td><div class="iv2-acct"><span class="iv2-sw" style="background:${r.color}"></span><div><b>${escH(r.nombre)}</b><small>${iv2MesCorto(r.mk)}</small></div></div></td>
+      <td><span class="iv2-mono">${escH(r.num||'(al cerrar)')}</span></td>
       <td>${iv2MesLargo(r.mk)}</td>
       <td>${iv2FDate(r.due)}</td>
       <td class="r iv2-amt">${iv2Money(r.monto)}${r.estado==='proceso'?' <span class="iv2-dim">prov.</span>':''}</td>
@@ -11660,7 +11662,7 @@ function iv2RenderDetail(){
     <div class="iv2-dh">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0">
         <span class="iv2-sw" style="width:10px;height:28px;border-radius:3px;background:${r.color}"></span>
-        <div style="min-width:0"><div class="iv2-dcli">${r.nombre}</div><div class="iv2-dno">${iv2MesLargo(r.mk)} · <button class="iv2-link" onclick="showPage('cuentas')">plantilla</button></div></div>
+        <div style="min-width:0"><div class="iv2-dcli">${escH(r.nombre)}</div><div class="iv2-dno">${iv2MesLargo(r.mk)} · <button class="iv2-link" onclick="showPage('cuentas')">plantilla</button></div></div>
         <span class="iv2-pill ${cerrado?cls:(proc?'proc':'info')}">${cerrado?lab:(proc?'En proceso':'Abierto · editable')}</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:18px">
@@ -11671,7 +11673,7 @@ function iv2RenderDetail(){
     </div>
     <div class="iv2-db">
       <div class="iv2-grid">
-        <div class="iv2-fld"><label>Billed to · contacto</label><input type="text" value="${(d.contact||'').replace(/"/g,'&quot;')}" ${dis} oninput="iv2SetContact(this.value)" style="max-width:260px"></div>
+        <div class="iv2-fld"><label>Billed to · contacto</label><input type="text" value="${escH(d.contact||'')}" ${dis} oninput="iv2SetContact(this.value)" style="max-width:260px"></div>
         <div class="iv2-two">
           <div class="iv2-fld"><label>Emitido</label><input type="date" value="${d.dateissue}" ${dis} onchange="iv2SetFecha('dateissue',this.value)" style="max-width:160px"></div>
           <div class="iv2-fld"><label>Vence</label><input type="date" value="${d.duedate}" ${dis} onchange="iv2SetFecha('duedate',this.value)" style="max-width:160px"></div>
@@ -11681,8 +11683,8 @@ function iv2RenderDetail(){
         <div class="iv2-col">
           <div class="iv2-sect">
             <div class="iv2-h"><span>Días por agente</span><span class="iv2-hn">${ed?'admite medios días':'bloqueado'}</span></div>
-            ${d.agentes.map((a,ix)=>{const id='iv2ag'+ix;return `<div class="iv2-row"><span class="iv2-ag"><span class="iv2-sw" style="width:7px;height:20px;border-radius:3px;background:${r.color}"></span>${a.nombre}</span>
-              ${ed?`<span class="iv2-step"><button type="button" tabindex="-1" onclick="iv2BumpAg('${a.nombre.replace(/'/g,"\\'")}',-0.5,'${id}')">−</button><input type="number" step="0.5" min="0" id="${id}" value="${a.total}" oninput="iv2SetAgente('${a.nombre.replace(/'/g,"\\'")}',this.value)"><button type="button" tabindex="-1" onclick="iv2BumpAg('${a.nombre.replace(/'/g,"\\'")}',0.5,'${id}')">+</button></span>`:`<span class="iv2-mono" style="font-weight:600">${a.total} días</span>`}
+            ${d.agentes.map((a,ix)=>{const id='iv2ag'+ix;return `<div class="iv2-row"><span class="iv2-ag"><span class="iv2-sw" style="width:7px;height:20px;border-radius:3px;background:${r.color}"></span>${escH(a.nombre)}</span>
+              ${ed?`<span class="iv2-step"><button type="button" tabindex="-1" onclick="iv2BumpAg(${escH(JSON.stringify(String(a.nombre)))},-0.5,'${id}')">−</button><input type="number" step="0.5" min="0" id="${id}" value="${a.total}" oninput="iv2SetAgente(${escH(JSON.stringify(String(a.nombre)))},this.value)"><button type="button" tabindex="-1" onclick="iv2BumpAg(${escH(JSON.stringify(String(a.nombre)))},0.5,'${id}')">+</button></span>`:`<span class="iv2-mono" style="font-weight:600">${a.total} días</span>`}
             </div>`;}).join('')}
           </div>
           <div class="iv2-sect">
@@ -11971,12 +11973,12 @@ function renderInvPerdidas(){
 
   const filas = lista.map(x => `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--border);flex-wrap:wrap">
-      <span style="font-weight:700;font-size:13.5px;min-width:150px">${x.nombre}</span>
+      <span style="font-weight:700;font-size:13.5px;min-width:150px">${escH(x.nombre)}</span>
       <span style="font-size:12px;color:var(--text2);white-space:nowrap">${MESES[x.mes-1]||''} ${x.anio}</span>
       <span style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text3);white-space:nowrap">${x.fecha || '—'}</span>
-      <span style="flex:1;min-width:60px;font-size:11.5px;color:var(--text3)">${x.nota || ''}</span>
+      <span style="flex:1;min-width:60px;font-size:11.5px;color:var(--text3)">${escH(x.nota || '')}</span>
       <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--text2);white-space:nowrap">${fmt(x.monto)}</span>
-      <button class="desc-link" onclick="deshacerInvoiceNoPago('${x.mk}','${String(x.nombre).replace(/'/g,'&#39;')}')">devolver</button>
+      <button class="desc-link" onclick="deshacerInvoiceNoPago('${x.mk}',${escH(JSON.stringify(String(x.nombre)))})">devolver</button>
     </div>`).join('');
 
   el.innerHTML = `
@@ -12059,8 +12061,8 @@ function renderPagosClientes(){
     const pagos = (x.pagos||[]).map(pg => `
         <div class="pay-item">
           <span class="f">${pg.fecha || '—'}</span>
-          <span class="m">${pg.metodo || '—'}</span>
-          <span class="n">${pg.nota || ''}</span>
+          <span class="m">${escH(pg.metodo || '—')}</span>
+          <span class="n">${escH(pg.nota || '')}</span>
           <span class="v">${fmt(pg.monto)}</span>
           <button class="x" title="Eliminar este pago"
             onclick="eliminarPagoCliente('${x.mk}','${esc2}','${pg.id}',${x.total})">✕</button>
@@ -12070,7 +12072,7 @@ function renderPagosClientes(){
     <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
-        ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
+        ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${escH(x.invnum)}</span>` : ''}
         ${estado}
         ${difPill}
         ${(x.duedate && !x.completo && !x.noPago) ? `<span style="font-size:11px;color:var(--text3)">vence ${x.duedate}</span>` : ''}
@@ -12138,7 +12140,7 @@ function renderPagosClientes(){
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePagoCuenta('${esc2}');}"
         style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${displayCuenta(c)}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${escH(displayCuenta(c))}</span>
         <span class="leve" style="font-size:11.5px">${c.meses.length} invoice${c.meses.length!==1?'s':''}</span>
         ${c.pendientes
           ? `<span class="sig-pill pend">● ${c.pendientes} por cobrar</span>`
@@ -12172,7 +12174,7 @@ function renderPagosClientes(){
         <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
                     color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
           Registrando cobros de
-          <b style="color:var(--accent);font-size:12.5px;letter-spacing:.02em">${displayCuenta(c)}</b>
+          <b style="color:var(--accent);font-size:12.5px;letter-spacing:.02em">${escH(displayCuenta(c))}</b>
         </div>
         ${c.meses.map(filaMes).join('')}
       </div>
@@ -12292,7 +12294,7 @@ function renderSigma(){
     return `
     <div class="pg-mes ${tono}" style="padding:11px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:13px;font-weight:700;min-width:120px">${MESES[x.mes-1]||''} ${x.anio}</span>
-      ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${x.invnum}</span>` : ''}
+      ${x.invnum ? `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${escH(x.invnum)}</span>` : ''}
       ${estado}
       <span style="flex:1;min-width:6px"></span>
       <span style="text-align:right;min-width:96px">
@@ -12351,7 +12353,7 @@ function renderSigma(){
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSigmaCuenta('${esc2}');}"
         style="display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;flex-wrap:wrap;${cabEstilo(colorDeCuenta(c.nombre))}">
         <span style="font-size:11px;opacity:.7;width:9px;display:inline-block;transform:rotate(${abierta?90:0}deg);transition:transform .18s">▶</span>
-        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${displayCuenta(c)}</span>
+        <span class="nomcuenta" style="font-weight:${abierta?800:700}">${escH(displayCuenta(c))}</span>
         <span class="leve" style="font-size:11.5px">${c.meses.length} mes${c.meses.length!==1?'es':''}</span>
         ${(()=>{
           // El importe pendiente ya estaba a la derecha; lo que faltaba era
@@ -12381,7 +12383,7 @@ function renderSigma(){
         <div style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;
                     color:var(--text3);text-transform:uppercase;letter-spacing:.08em">
           Registrando pagos de
-          <b style="color:var(--inv-sigma);font-size:12.5px;letter-spacing:.02em">${displayCuenta(c)}</b>
+          <b style="color:var(--inv-sigma);font-size:12.5px;letter-spacing:.02em">${escH(displayCuenta(c))}</b>
         </div>
         ${c.meses.map(filaMes).join('')}
       </div>
@@ -12832,12 +12834,12 @@ function renderInvoicesMes(){
       aria-labelledby="${iid}-nom">
       <div class="iv-pegado">
       <header class="iv-cab cab-color">
-        <span class="iv-mono">${ivMonograma(i.nombre)}</span>
-        <span class="iv-nom" id="${iid}-nom">${i.nombre}</span>
+        <span class="iv-mono">${escH(ivMonograma(i.nombre))}</span>
+        <span class="iv-nom" id="${iid}-nom">${escH(i.nombre)}</span>
         ${i.tipo==='merged'
           ? '<span class="cab-pill">Callcenter</span><span class="cab-pill">24/7</span>'
           : `<span class="cab-pill">${i.tipo==='dr'?'Callcenter':'24/7'}</span>`}
-        ${ov.invnum ? `<span class="inv-fila-num leve">${ov.invnum}</span>` : ''}
+        ${ov.invnum ? `<span class="inv-fila-num leve">${escH(ov.invnum)}</span>` : ''}
         ${(()=>{
           const tf = _invDataHdr ? _invDataHdr.tarifa : 0;
           const sin = !(tf > 0);
@@ -12887,7 +12889,7 @@ function renderInvoicesMes(){
         const iid = makeIid(mk, i.norKey, i.tipo);
         return `<button class="iv-ficha" type="button" role="tab" data-iv-ir="${iid}"
           style="${cabEstilo(i.color)}">
-          <span class="iv-mono">${ivMonograma(i.nombre)}</span>${i.nombre}</button>`;
+          <span class="iv-mono">${escH(ivMonograma(i.nombre))}</span>${escH(i.nombre)}</button>`;
       }).join('')}
     </div>` : '';
 
@@ -13303,7 +13305,7 @@ function generarPDFCuenta(mkid, cuentaNombre, cuentaTipo, plantilla, preview){
   <div class="partes">
     <div>
       <div class="pl">From:</div>
-      <div class="pn">${emisor.nombre}</div>
+      <div class="pn">${escH(emisor.nombre)}</div>
       <div class="pd">P.O. Box 780418, Orlando, FL, 32878, United States<br>
         6893394029<br>callcenter@247medical-aid.com</div>
     </div>
@@ -14170,7 +14172,7 @@ function abrirCruceUtilidad(){
       <input type="checkbox" data-cruce-mk="${p.mk}" data-cruce-nombre="${escCruce(p.nombre)}" data-cruce-monto="${p.sigmaAmt}" data-cruce-abonado="${p.yaAbonado||0}"
         onchange="_actualizarTotalCruce()" style="width:16px;height:16px;accent-color:#2dd4bf">
       <span style="flex:1;min-width:0">
-        <span style="font-weight:600">${p.nombre}</span>
+        <span style="font-weight:600">${escH(p.nombre)}</span>
         <span style="font-size:11px;color:var(--text3);display:block">${MESES_CRUCE[p.mes]} ${p.anio}${p.clientPagado ? ' · cliente pagó' : ' · cliente aún no paga'}${p.yaAbonado > 0.005 ? ' · saldo tras abonos' : ''}</span>
       </span>
       <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent3)">${fmt(p.sigmaAmt)}</span>
@@ -14432,7 +14434,7 @@ function renderUtilidad(){
           return `<tr style="border-top:1px solid var(--border)">
             <td style="padding:8px 18px;color:var(--text3)">${c.fecha}</td>
             <td style="padding:8px 12px">${MESES_CRUCE[cm]} ${ca}</td>
-            <td style="padding:8px 12px;font-weight:600">${displayCuenta(c)}</td>
+            <td style="padding:8px 12px;font-weight:600">${escH(displayCuenta(c))}</td>
             <td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:#fbbf24">${fmt(c.monto)}</td>
             <td style="padding:8px 18px;text-align:right">
               <button onclick="deshacerCruce('${c.mk}','${escCruce(c.nombre)}')"
@@ -14505,7 +14507,7 @@ function renderUtilidad(){
       <tbody>
         ${md.cuentasData.map((c,i) => `
         <tr style="${i%2?'background:rgba(255,255,255,.02)':''}">
-          <td style="padding:9px 14px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">${displayCuenta(c)}</td>
+          <td style="padding:9px 14px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">${escH(displayCuenta(c))}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--accent2);border-bottom:1px solid var(--border)">${fmt(c.ingresoSigma)}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--accent3);border-bottom:1px solid var(--border)">${fmt(c.ccCheck)}</td>
           <td style="padding:9px 14px;text-align:right;font-family:'DM Mono',monospace;color:var(--text);border-bottom:1px solid var(--border)">${c.numAgsDr}</td>
@@ -14535,7 +14537,7 @@ function renderUtilidad(){
     <!-- Gastos breakdown legend -->
     <div style="padding:8px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;gap:16px;flex-wrap:wrap;align-items:center">
       <span>📋 Gastos/agente/mes:</span>
-      ${getGastosParaMes(md.mk).map(g=>'<span>'+g.nombre+': <b style="color:var(--text)">$'+g.valor+'</b></span>').join('')}
+      ${getGastosParaMes(md.mk).map(g=>'<span>'+escH(g.nombre)+': <b style="color:var(--text)">$'+g.valor+'</b></span>').join('')}
       <span style="font-weight:600;color:var(--accent)">Total: $${getTotalGastosMes(md.mk)}/agente</span>
     </div>
   </div>
@@ -14673,7 +14675,7 @@ function generarUtilidadPDF(){
                   Pintar una fila entera del color de la cuenta romperia el
                   informe, asi que el color va donde si cabe — un filo a la
                   izquierda del nombre, que es lo que identifica la fila. */''}
-            <td style="${tdStyle('left','font-weight:600')};border-left:5px solid ${colorDeCuenta(c.nombre)}">${displayCuenta(c)}</td>
+            <td style="${tdStyle('left','font-weight:600')};border-left:5px solid ${colorDeCuenta(c.nombre)}">${escH(displayCuenta(c))}</td>
             <td style="${tdStyle()}">${fmtN(c.ingresoSigma)}</td>
             <td style="${tdStyle()}">${fmtN(c.ccCheck)}</td>
             <td style="${tdStyle()}">${c.numAgsDr}</td>
@@ -14802,7 +14804,7 @@ function renderGastosEdicion(){
   if(!el) return;
   el.innerHTML = _gastosEdicion.map((g, i) => `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <input type="text" value="${(g.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre del gasto"
+      <input type="text" value="${escH(g.nombre||'')}" placeholder="Nombre del gasto"
         onchange="_gastosEdicion[${i}].nombre=this.value"
         style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
                border-radius:7px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif">

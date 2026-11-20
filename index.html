@@ -541,28 +541,15 @@ tbody tr:hover td{background:var(--brand-50)}
   <main class="page hidden" id="viewCuenta">
     <div class="page-head">
       <h2>My account</h2>
-      <p>Change your portal password.</p>
+      <p>Change your password.</p>
     </div>
     <div class="panel" style="max-width:520px">
       <div class="panel-head"><h3>Change password</h3></div>
       <div style="padding:26px 24px">
         <div class="alert" id="cpMsg"></div>
-        <form id="formPass">
-          <div class="field">
-            <label for="cpAct">Current password</label>
-            <input class="control" id="cpAct" type="password" autocomplete="current-password" required>
-          </div>
-          <div class="field">
-            <label for="cpNue">New password</label>
-            <input class="control" id="cpNue" type="password" autocomplete="new-password" required>
-            <div class="hint">At least 10 characters.</div>
-          </div>
-          <div class="field">
-            <label for="cpRep">Repeat the new password</label>
-            <input class="control" id="cpRep" type="password" autocomplete="new-password" required>
-          </div>
-          <button class="btn btn-primary" id="btnPass" type="submit">Save password</button>
-        </form>
+        <!-- (20 nov 2026 · Solo 24/7) La contraseña se cambia solo desde el correo de la persona. -->
+        <p style="margin:0 0 16px;color:var(--ink-2,#475569);line-height:1.5">For your security, passwords are changed by email. We&rsquo;ll send a link to your sign-in email; open it to choose a new password (the link expires in 2 hours). The new password works here and in the Time Clock.</p>
+        <button class="btn btn-primary" id="btnPass" type="button">Email me the link</button>
       </div>
     </div>
   </main>
@@ -1353,39 +1340,21 @@ $('btnLog').addEventListener('click', async () => {
 });
 
 /* ── MI CUENTA ───────────────────────────────────────────────────────────── */
-$('formPass').addEventListener('submit', async ev => {
-  ev.preventDefault();
+$('btnPass').addEventListener('click', async () => {
   aviso('cpMsg', '');
-  const act = $('cpAct').value, nue = $('cpNue').value, rep = $('cpRep').value;
-  if(nue.length < 10) return aviso('cpMsg', 'The new password must have at least 10 characters.');
-  if(nue !== rep)     return aviso('cpMsg', 'The two new passwords don\'t match.');
-  if(nue === act)     return aviso('cpMsg', 'The new password must be different from the current one.');
-
   const btn = $('btnPass');
-  cargando(btn, 'Saving…');
+  cargando(btn, 'Sending…');
   try{
-    // (19 nov 2026 · Solo 24/7) Cuenta con correo propio: la contraseña vive solo en Supabase (la misma del Time Clock).
-    const correoPropio = window.sbCorreoDeSesion ? await window.sbCorreoDeSesion() : null;
-    if(correoPropio){
-      const chk = await window.sb.auth.signInWithPassword({ email: correoPropio, password: act });
-      if(chk.error) throw new Error('Your current password isn\'t correct.');
-      const up = await window.sb.auth.updateUser({ password: nue });
-      if(up.error) throw new Error(up.error.message);
-      $('formPass').reset();
-      aviso('cpMsg', 'Password updated. Use it next time you sign in here and in the Time Clock.', 'ok');
-      listo(btn);
-      return;
-    }
-    const dkActual = await derivar(S.user.username, act);
-    const dkNueva  = await derivar(S.user.username, nue);
-    await apiAuth('changePassword', { dkActual, dkNueva });
-    // Misma clave en Supabase (login rápido). Si no hay sesión allá, el próximo
-    // login la pone sola (portal-sync).
-    try{ if(window.sb) await window.sb.auth.updateUser({ password: dkNueva }); }catch(e){}
-    $('formPass').reset();
-    aviso('cpMsg', 'Password updated. Use it next time you sign in.', 'ok');
+    // (20 nov 2026 · Solo 24/7) Igual que «Forgot password?» del Time Clock: el enlace llega al correo de la cuenta.
+    const correo = window.sbCorreoDeSesion ? await window.sbCorreoDeSesion() : null;
+    if(!correo) throw new Error('Your account has no sign-in email yet. Ask the administrator to set one.');
+    const r = await fetch(window.SB_URL + '/functions/v1/reloj-cuentas', { method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey:window.SB_KEY }, body:JSON.stringify({ accion:'olvide', email:correo }) });
+    let d = null; try{ d = await r.json(); }catch(x){}
+    if(!r.ok || !d || d.ok === false) throw new Error((d && d.msg) || 'Couldn\'t send the email. Try again in a few minutes.');
+    aviso('cpMsg', 'We sent a link to ' + correo + '. Open it to choose your new password.', 'ok');
   }catch(e){
-    if(e.codigo === 'NO_SESSION') manejar(e); else aviso('cpMsg', e.message);
+    aviso('cpMsg', e.message);
   }
   listo(btn);
 });

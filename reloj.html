@@ -19,6 +19,9 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v403: Común — seguridad (paso 180): el agente ya no lee las reglas de pago ni los datos de la inscripción; lo poco que necesita
+     (país, modo, funciones 24/7) llega por reloj_config_publica(). «Change password» del agente ahora manda un enlace a su correo
+     (no se cambia la contraseña con la sesión abierta). -->
 <!-- v402: 247Punch — «Email me a sign-in link» y «Forgot password?» se ponen primero en la base del correo: si en el equipo quedó
      guardada la base de otra empresa (p. ej. 24/7), ya no falla con «Couldn't connect». Empresas fijas por dominio no cambian. -->
 <!-- v401: 247Punch — la vista de usuario muestra el logo nuevo (versión para fondo oscuro) y los fondos de la app toman los colores
@@ -62,7 +65,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v402-202611201200">
+<meta name="app-build" content="v403-202611201230">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5442,7 +5445,8 @@ async function sensiblesSB(){
 function conSens(rows, sens){ (rows || []).forEach(r => { const x = sens && sens[r.usuario]; r.num_id = x ? x.numId || '' : ''; r.cuenta_banco = x ? x.cuentaBanco || '' : ''; r._sens = !!x; }); return rows; }
 
 async function cargarConfig(){
-  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
+  let vioPago = false;   // (v403, paso 180) sin «pago» = no es administrador: lo que necesita llega por reloj_config_publica()
+  try{ (await q(sb.from('reloj_config').select('clave,valor'))).forEach(x => { if(x.clave === 'pago') vioPago = true; if(x.clave === 'redondeo') S.redondeo = Number(x.valor) || 1; if(x.clave === 'general_manager') S.gm = x.valor || ''; if(x.clave === 'ubicacion') S.ubicObligatoria = x.valor !== false; if(x.clave === 'modo_pruebas') S.modoPruebas = x.valor === true || x.valor === 'true'; if(x.clave === 'pago' && x.valor && typeof x.valor === 'object') S.reglasPago = x.valor; if(x.clave === 'auto_salida' && x.valor && typeof x.valor === 'object') S.autoSalida = x.valor;
     if(x.clave === 'entrada_temprana' && x.valor && typeof x.valor === 'object') S.entradaTemprana = x.valor;   // (v373)
     if(x.clave === 'managers' && x.valor && typeof x.valor === 'object') S.mgrReglas = x.valor;
     if(x.clave === 'alta_web' && x.valor && typeof x.valor === 'object') S.altaWeb = x.valor;
@@ -5462,6 +5466,9 @@ async function cargarConfig(){
     if(x.clave === 'conceptos_ausencia' && Array.isArray(x.valor)) S.conceptos = x.valor;
     if(x.clave === 'pago_roles' && x.valor && typeof x.valor === 'object') S.pagoRoles = x.valor;
     if(x.clave === 'cuentas' && Array.isArray(x.valor)) S.cuentas = x.valor; if(x.clave === 'overtime' && x.valor && typeof x.valor === 'object') S.overtime = x.valor; }); }catch(e){}
+  if(!vioPago && !DEMO){ try{ const pub = await q(sb.rpc('reloj_config_publica'));
+    if(pub && pub.pago && typeof pub.pago === 'object') S.reglasPago = pub.pago;
+    if(pub && pub.alta_web && typeof pub.alta_web === 'object' && !S.altaWeb) S.altaWeb = pub.alta_web; }catch(e){} }   // sin el paso 180 en la base: no hace falta
   try{ aplicarConexiones(); }catch(e){}
   try{ aplicarSolo247(); }catch(e){}
 }
@@ -5807,11 +5814,6 @@ async function api(action, p){
     return { ficha:empJS(row), email:esCuentaPortal(ses) ? (row.email || '') : ses.user.email };
   }
   if(action === 'guardarMiFicha') return q(sb.rpc('reloj_guardar_mi_ficha', { p:p.ficha }));
-  if(action === 'cambiarClave'){
-    const { error } = await sb.auth.updateUser({ password:p.clave });
-    if(error) throw new Error(/different from the old/i.test(error.message) ? 'Use a password different from your current one.' : error.message);
-    return { ok:true };
-  }
   if(action === 'activarEmpleado') return q(sb.rpc('reloj_activar_empleado', { p_usuario:p.usuario, p_activo:p.activo }));
   if(action === 'archivarEmpleado') return q(sb.rpc('reloj_archivar_empleado', { p_usuario:p.usuario }));   // (v88) paso 53
   if(action === 'borrarEmpleado'){ const ses = await sesionSB(); return cuentasOk(await cuentasFn('borrar', { usuario:p.usuario }, ses.access_token)); }
@@ -6510,10 +6512,9 @@ function pintarPerfil(){
   $('mpCuerpo').innerHTML =
     '<div class="ficha-sec mp-sec mp-cuenta"><h3>' + MP_ICO.cuenta + 'Account</h3><div class="datos-ro">' + ro('Name', f.nombre) + ro('Sign-in email', S.mp.email) + '</div>' +
       (S.agente || S.demoAgente ? '<button class="btn-link" type="button" id="mpClaveAbrir">Change password</button><div class="mp-clave hidden" id="mpClaveCaja">' +
-        '<div class="ficha-grid"><label class="campo"><span>New password</span><input id="mpClave" type="password" autocomplete="new-password"></label>' +
-        '<label class="campo"><span>Confirm password</span><input id="mpClave2" type="password" autocomplete="new-password"></label></div>' +
-        '<p class="nota" style="margin:-6px 0 10px">At least 8 characters, with letters and numbers.</p>' +
-        '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Update password</button></div></div>' : '') + '</div>' +
+        // (v403) la contraseña se cambia solo desde el correo de la persona
+        '<p class="nota" style="margin:0 0 10px">For your security, passwords are changed by email. We\'ll send a link to ' + (S.mp.email ? '<b>' + esc(S.mp.email) + '</b>' : 'your email') + '. Open it to choose a new password; it expires in 2 hours.</p>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-ink btn-sm" type="button" id="mpClaveGuardar">Email me the link</button></div></div>' : '') + '</div>' +
     '<div class="ficha-sec mp-sec mp-trabajo"><h3>' + MP_ICO.trabajo + 'Work</h3><div class="datos-ro">' + ro('Account', f.cuenta) + ro('Title', f.titulo) + ro('Department', f.departamento) + ro('Direct manager', f.jefe) +
       ro('Employment start date', fecha(f.fechaIngreso)) + ro('Hours per day', f.horasDia ? f.horasDia + ' h' : '') + '</div></div>' +
     '<div class="ficha-sec mp-sec mp-personal"><h3>' + MP_ICO.personal + 'Personal</h3><div class="ficha-grid">' +
@@ -6536,13 +6537,12 @@ function pintarPerfil(){
   $('mpNumId').closest('.campo').querySelector('span').textContent = tiene('tipo_id') ? 'ID number' : 'ID';
   $('mpCumple').max = fechaHoy();
   if($('mpClaveAbrir')){
-    $('mpClaveAbrir').addEventListener('click', () => { $('mpClaveCaja').classList.toggle('hidden'); if(!$('mpClaveCaja').classList.contains('hidden')) $('mpClave').focus(); });
+    $('mpClaveAbrir').addEventListener('click', () => { $('mpClaveCaja').classList.toggle('hidden'); });
     $('mpClaveGuardar').addEventListener('click', async () => {
-      const c = $('mpClave').value, c2 = $('mpClave2').value, b = $('mpClaveGuardar');
-      if(!claveBuena(c)) return $('mpErr').textContent = 'Use at least 8 characters, with letters and numbers.';
-      if(c !== c2) return $('mpErr').textContent = 'The two passwords don\'t match.';
+      const email = String(S.mp.email || '').trim().toLowerCase(), b = $('mpClaveGuardar');
+      if(!emailBueno(email)) return $('mpErr').textContent = 'Your account has no sign-in email. Ask your administrator.';
       b.disabled = true; $('mpErr').textContent = '';
-      try{ await api('cambiarClave', { clave:c }); $('mpClave').value = $('mpClave2').value = ''; $('mpClaveCaja').classList.add('hidden'); toast('Password updated.'); }
+      try{ cuentasOk(await cuentasFn('olvide', { email })); $('mpClaveCaja').classList.add('hidden'); toast('We sent a link to ' + email + '. Open it to choose your new password.'); }
       catch(e){ $('mpErr').textContent = e.message; }
       b.disabled = false;
     });
@@ -18082,7 +18082,6 @@ async function demoApi(action, p){
     let n = 0; Object.keys(f).forEach(k => { if(k === 'confirmaBanco' || k === 'cuentaBanco2' || k === 'bancoAntes') return; if((e[k] || '') !== f[k]){ e[k] = f[k]; n++; } });
     return { ok:true, cambios:n, banco:cb.length > 0 };
   }
-  if(action === 'cambiarClave') return { ok:true };
   throw new Error('Action not available in demo mode.');
 }
 

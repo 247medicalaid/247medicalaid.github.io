@@ -545,6 +545,8 @@ tr:hover td{background:var(--brand-50);}
 <div id="pg-velo"><div class="pg-sp"></div><small>Verificando tu acceso…</small></div>
 
 <script>
+// (20 nov 2026) Protección: todo texto que viene de archivos (nombres de agentes, cuentas) o de la IA se escapa antes de pintarlo.
+function escH(s){ return String(s == null ? '' : s).replace(/[&<>"'`]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '`':'&#96;' })[ch]); }
 /* Control de acceso del portal. Esta app no tiene contraseña propia: quien
    entra lo hace con su usuario del portal y con los permisos que tenga ahí.
    La comprobación de aquí evita mostrar la interfaz a quien no debe verla;
@@ -3485,7 +3487,7 @@ function renderAll(){
   } catch(err) {
     const errDiv = document.createElement('div');
     errDiv.style.cssText = 'padding:20px;background:#fdeaea;color:#C81F29;border-radius:5px;margin:16px 0;font-size:12px;';
-    errDiv.innerHTML = '<strong>Error en renderizado:</strong><br>' + err.message + '<br><pre style="font-size:10px;white-space:pre-wrap">' + err.stack + '</pre>';
+    errDiv.innerHTML = '<strong>Error en renderizado:</strong><br>' + escH(err.message) + '<br><pre style="font-size:10px;white-space:pre-wrap">' + escH(err.stack) + '</pre>';
     main.appendChild(errDiv);
     console.error('renderAll error:', err);
   }
@@ -3983,14 +3985,14 @@ function renderWeeklySummary(container, agents){
     const rowCls = avgTotal >= GOAL_EXCELLENT ? 'row-ideal' : avgTotal >= GOAL_GOOD ? 'row-good' : avgTotal >= GOAL_MIN ? 'row-min' : avgTotal >= GOAL_LOW ? 'row-low' : 'row-alert';
     const isCoverage = a.name.toLowerCase().includes('santiago');
     const nameCellHtml = isCoverage
-      ? `${a.name} <span style="font-size:9px;padding:1px 6px;border-radius:2px;background:var(--yellow-bg);color:var(--yellow);letter-spacing:1px;margin-left:4px;">COBERTURA</span>`
-      : a.name;
+      ? `${escH(a.name)} <span style="font-size:9px;padding:1px 6px;border-radius:2px;background:var(--yellow-bg);color:var(--yellow);letter-spacing:1px;margin-left:4px;">COBERTURA</span>`
+      : escH(a.name);
 
     const tr = document.createElement('tr');
     tr.className = rowCls;
     tr.innerHTML = `
       <td style="font-weight:600">${nameCellHtml}</td>
-      <td><span style="font-size:10px;padding:3px 9px;border-radius:3px;background:${pracColor};color:#fff;font-weight:600;">${a.practice}</span></td>
+      <td><span style="font-size:10px;padding:3px 9px;border-radius:3px;background:${pracColor};color:#fff;font-weight:600;">${escH(a.practice)}</span></td>
       <td style="text-align:right;font-weight:800;font-size:16px;color:#0A6A90;background:rgba(14,134,180,0.09);">${avgTotal.toFixed(1)} ${getDelta(avgTotal, pAvgTotal)}</td>
       ${_conSms?`<td style="text-align:right;font-weight:800;font-size:15px;color:#a34d22;background:rgba(163,77,34,0.07);">${avgSms.toFixed(1)} ${getDelta(avgSms, pAvgSms)}</td>`:''}
       <td style="text-align:right;font-weight:600;font-size:13px;color:var(--ink);">${avgAnswered.toFixed(1)} ${getDelta(avgAnswered, pAvgAns)}</td>
@@ -4038,11 +4040,11 @@ function renderWeeklySummary(container, agents){
       tr.style.cssText = 'background:var(--surface2);';
       tr.innerHTML = `
         <td style="font-style:italic;color:var(--ink2)">
-          ${na.name}
+          ${escH(na.name)}
           <span style="margin-left:6px;font-size:10px;padding:1px 6px;border-radius:2px;background:#fee2e2;color:#C81F29;">ABANDONADAS</span>
-          ${na._weekNote ? '<span style="margin-left:4px;font-size:10px;color:var(--muted);">· '+na._weekNote+'</span>' : ''}
+          ${na._weekNote ? '<span style="margin-left:4px;font-size:10px;color:var(--muted);">· '+escH(na._weekNote)+'</span>' : ''}
         </td>
-        <td><span style="font-size:10px;padding:2px 8px;border-radius:2px;background:${pracBg};color:${pracColor}">${na.practice}</span></td>
+        <td><span style="font-size:10px;padding:2px 8px;border-radius:2px;background:${pracBg};color:${pracColor}">${escH(na.practice)}</span></td>
         <td style="text-align:right;font-weight:700;font-size:14px;color:var(--red)">${avgAb}</td>
         <td style="text-align:right;color:var(--muted)">—</td>
         <td style="text-align:right;color:var(--muted)">—</td>
@@ -4070,7 +4072,7 @@ function renderWeeklySummary(container, agents){
     <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;border-radius:2px;background:#fff3e0;display:inline-block;border:1px solid #ffcc80;"></span> Necesita mejorar (${GOAL_LOW}–${GOAL_MIN-1})</span>
     <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;border-radius:2px;background:#fdeaea;display:inline-block;border:1px solid #f5a5a5;"></span> Crítico (<${GOAL_LOW})</span>
     <span style="margin-left:8px;color:var(--muted);">· Total = Contestadas + Realizadas · Perdidas = entrantes no contestadas</span>
-    ${prevAgents ? '<span style="margin-left:8px;"><span style="font-weight:600">↑↓</span> = comparativa' + compareLabel + '</span>' : ''}
+    ${prevAgents ? '<span style="margin-left:8px;"><span style="font-weight:600">↑↓</span> = comparativa' + escH(compareLabel) + '</span>' : ''}
   `;
   sec.appendChild(legend);
   container.appendChild(sec);
@@ -4344,8 +4346,8 @@ function renderPracticeSection(container,prac,agents,cls){
   const hdr=document.createElement('div');
   hdr.className=`practice-header ${cls}`;
   const schedLabel = SCHEDULES[prac]?.label||'';
-  hdr.innerHTML=`<div class="practice-dot"></div><div class="practice-name">${prac}</div>
-    <div style="font-size:11px;color:var(--muted);margin-left:8px;font-family:'Inter',sans-serif;">${schedLabel}</div>
+  hdr.innerHTML=`<div class="practice-dot"></div><div class="practice-name">${escH(prac)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-left:8px;font-family:'Inter',sans-serif;">${escH(schedLabel)}</div>
     <div class="practice-meta">${agents.length} agentes</div>`;
   sec.appendChild(hdr);
 
@@ -4420,8 +4422,8 @@ function renderPracticeSection(container,prac,agents,cls){
     (a.smsList||[]).forEach(m=>{const dk=dayKey(m.time); if(!smsByDay[dk])smsByDay[dk]={label:dayLabel(m.time),count:0}; smsByDay[dk].count++;});
     const allDayKeys=[...new Set([...Object.keys(a.byDay), ...(hasSms?Object.keys(smsByDay):[])])].sort();
     const daysArr=allDayKeys.map(dk=>[dk, a.byDay[dk]||{label:smsByDay[dk].label,count:0,in:0,out:0,missed:0}]);
-    const dayPills=daysArr.map(([,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<span class="day-pill ${c2}">${d.label}: ${dt}</span>`;}).join('');
-    const dayRows=daysArr.map(([dk,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<tr><td>${d.label}</td><td><span class="day-pill ${c2}" style="display:inline-block">${dt}</span></td><td>${d.in||0}</td><td>${d.out||0}</td>${hasSms?`<td style="color:var(--alonso);">${smsByDay[dk]?.count||0}</td>`:''}<td style="color:${(d.missed||0)>0?'var(--red)':'var(--ink2)'}">${d.missed||0}</td></tr>`;}).join('');
+    const dayPills=daysArr.map(([,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<span class="day-pill ${c2}">${escH(d.label)}: ${dt}</span>`;}).join('');
+    const dayRows=daysArr.map(([dk,d])=>{const dt=(d.in||0)+(d.out||0); const c2=dt>=GOAL_EXCELLENT?'day-ideal':dt>=GOAL_GOOD?'day-good':dt>=GOAL_MIN?'day-min':dt>=GOAL_LOW?'day-low':'day-alert'; return `<tr><td>${escH(d.label)}</td><td><span class="day-pill ${c2}" style="display:inline-block">${dt}</span></td><td>${d.in||0}</td><td>${d.out||0}</td>${hasSms?`<td style="color:var(--alonso);">${smsByDay[dk]?.count||0}</td>`:''}<td style="color:${(d.missed||0)>0?'var(--red)':'var(--ink2)'}">${d.missed||0}</td></tr>`;}).join('');
 
     // Eficiencia (uso del tiempo disponible en la semana)
     const sched=getSched(a.practice);
@@ -4433,7 +4435,7 @@ function renderPracticeSection(container,prac,agents,cls){
     tr.className='agent-row '+rowCls;
     tr.innerHTML=`
       <td class="agent-name-cell">
-        <span class="aname">${a.name}</span>${platTag}
+        <span class="aname">${escH(a.name)}</span>${platTag}
         <span class="expand-icon">▾</span>
       </td>
       <td style="text-align:right;background:rgba(14,134,180,0.06);">
@@ -4519,11 +4521,11 @@ function renderPracticeSection(container,prac,agents,cls){
       tr.innerHTML = `
         <td>
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:13px;font-weight:500;color:var(--ink2);font-style:italic">${na.name}</span>
+            <span style="font-size:13px;font-weight:500;color:var(--ink2);font-style:italic">${escH(na.name)}</span>
             <span class="aplat" style="background:#fee2e2;color:#C81F29;font-style:normal;">ABANDONADAS</span>
-            ${na._weekNote ? `<span style="font-size:10px;color:var(--muted);">· ${na._weekNote}</span>` : ''}
+            ${na._weekNote ? `<span style="font-size:10px;color:var(--muted);">· ${escH(na._weekNote)}</span>` : ''}
           </div>
-          <div class="day-row">${Object.entries(na.byDay).sort(([x],[y])=>x.localeCompare(y)).map(([,d])=>`<span class="day-pill day-low">${d.label}: ${d.missed||0}</span>`).join('')}</div>
+          <div class="day-row">${Object.entries(na.byDay).sort(([x],[y])=>x.localeCompare(y)).map(([,d])=>`<span class="day-pill day-low">${escH(d.label)}: ${d.missed||0}</span>`).join('')}</div>
         </td>
         ${dash}
         ${dash}
@@ -4552,7 +4554,7 @@ function renderPracticeSection(container,prac,agents,cls){
     <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fffbe6','#ffe58f')}${GOAL_MIN}–${GOAL_GOOD-1}</span>
     <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fff3e0','#ffcc80')}${GOAL_LOW}–${GOAL_MIN-1}</span>
     <span style="display:inline-flex;gap:5px;align-items:center;">${sw('#fdeaea','#f5a5a5')}&lt;${GOAL_LOW} <span style="opacity:.8;">(prom. llamadas/día)</span></span>
-    ${prevAgents?`<span style="margin-left:auto;"><b style="color:var(--ink2);">↑↓</b> ${compareLabel}</span>`:''}
+    ${prevAgents?`<span style="margin-left:auto;"><b style="color:var(--ink2);">↑↓</b> ${escH(compareLabel)}</span>`:''}
     <span style="color:var(--muted);">· clic en un agente para ver el detalle diario</span>
   `;
   sec.appendChild(leg);
@@ -4944,12 +4946,12 @@ function buildMonthlyAgentTable(agentsList, monthKeys, monthLabels, ab, headerCo
   let tHtml = `<div class="tm-tit">DETALLE MENSUAL POR AGENTE</div>`;
   tHtml += `<table><thead><tr>`;
   tHtml += `<th>AGENTE</th><th>MÉT.</th>`;
-  monthLabels.forEach(lbl => { tHtml += `<th>${lbl}</th>`; });
+  monthLabels.forEach(lbl => { tHtml += `<th>${escH(lbl)}</th>`; });
   tHtml += `</tr></thead><tbody>`;
 
   agentMonthData.forEach((agent, idx) => {
     tHtml += `<tr class="${idx%2===0?'tm-par':''}">`;
-    tHtml += `<td>${agent.name}</td><td class="tm-met">CONT.</td>`;
+    tHtml += `<td>${escH(agent.name)}</td><td class="tm-met">CONT.</td>`;
     monthKeys.forEach(mk => {
       tHtml += `<td class="tm-val">${agent.byMonth[mk]?.answered || 0}</td>`;
     });
@@ -5431,7 +5433,7 @@ function renderAlonsoSmsPanel(container){
   // Filas de agentes
   rowsData.forEach((r,i)=>{
     tHtml += '<tr style="background:'+(i%2?'#faf7f3':'transparent')+';">';
-    tHtml += '<td style="padding:5px 10px;font-weight:600;border-right:2px solid #12293A;">'+r.name+'</td>';
+    tHtml += '<td style="padding:5px 10px;font-weight:600;border-right:2px solid #12293A;">'+escH(r.name)+'</td>';
     r.perDayCalls.forEach(n => tHtml += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'#0E86B4':'var(--muted)')+';">'+n+'</td>');
     tHtml += '<td style="text-align:center;padding:5px 8px;font-weight:700;font-size:12px;color:#0A6A90;background:rgba(14,134,180,0.08);">'+r.weekCalls+'</td>';
     r.perDaySms.forEach(n => tHtml += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'#a34d22':'var(--muted)')+';">'+n+'</td>');
@@ -5529,8 +5531,8 @@ function renderOomaOfficePanel(container){
   h += '</tr>';
   filas.forEach((r,i) => {
     h += '<tr style="background:'+(i%2?'#faf7f3':'transparent')+';">';
-    h += '<td style="padding:5px 10px;font-weight:600;">'+r.name+'</td>';
-    h += '<td style="text-align:center;padding:5px 8px;color:var(--muted);border-right:2px solid #12293A;">'+(r.ext||'—')+'</td>';
+    h += '<td style="padding:5px 10px;font-weight:600;">'+escH(r.name)+'</td>';
+    h += '<td style="text-align:center;padding:5px 8px;color:var(--muted);border-right:2px solid #12293A;">'+escH(r.ext||'—')+'</td>';
     r.porDia.forEach(n => h += '<td style="text-align:center;padding:5px 6px;font-weight:'+(n>0?'600':'400')+';color:'+(n>0?'var(--mab)':'var(--muted)')+';">'+n+'</td>');
     if(nD) h += '<td style="text-align:center;padding:5px 8px;font-weight:700;font-size:12px;color:var(--mab);background:rgba(122,26,74,0.08);">'+r.total+'</td>';
     h += '<td style="text-align:center;padding:5px 8px;">'+r.inb+'</td>';
@@ -5589,9 +5591,9 @@ function renderDeadTime(container,agents){
     const blockHdr=document.createElement('div');
     blockHdr.className='dead-agent-header';
     blockHdr.innerHTML=`
-      <div class="dah-name">${shortName}
+      <div class="dah-name">${escH(shortName)}
         <span style="font-size:10px;padding:2px 7px;border-radius:2px;margin-left:6px;background:var(--${colorCuenta_(agent.practice)}-bg);color:var(--${colorCuenta_(agent.practice)})">
-          ${agent.practice}
+          ${escH(agent.practice)}
         </span>
       </div>
       <div class="dah-summary">${agent.dead_gaps.length} gaps · ${fmtMins(totalDead)} total</div>
@@ -5605,7 +5607,7 @@ function renderDeadTime(container,agents){
     Object.entries(byDay).sort(([a],[b])=>a.localeCompare(b)).forEach(([,dayData])=>{
       const dayBlock=document.createElement('div');
       dayBlock.className='day-dead-block';
-      dayBlock.innerHTML=`<div class="day-dead-title"><span>${dayData.label}</span><span class="day-dead-total">−${fmtMins(dayData.totalMin)} muertos</span></div>`;
+      dayBlock.innerHTML=`<div class="day-dead-title"><span>${escH(dayData.label)}</span><span class="day-dead-total">−${fmtMins(dayData.totalMin)} muertos</span></div>`;
       const gapList=document.createElement('div');
       gapList.className='gap-list';
       dayData.gaps.sort((a,b)=>a.from-b.from).forEach(g=>{
@@ -6343,7 +6345,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
 
   if(typeof reports === 'string' && reports.startsWith('error')){
     const msg = reports.replace('error:','').trim() || 'Error desconocido';
-    grid.innerHTML = `<div class="ai-error">⚠ ${msg}</div>`;
+    grid.innerHTML = `<div class="ai-error">⚠ ${escH(msg)}</div>`;
     panel.appendChild(grid);
     main.appendChild(panel);
     return;
@@ -6364,19 +6366,19 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
         <div style="background:var(--blue-bg);border-radius:6px;padding:14px 16px;border-left:3px solid var(--blue);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--blue);font-weight:700;margin-bottom:7px;">DOTACIÓN DE PERSONAL</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${ov.staffing_assessment}</div>
+          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${escH(ov.staffing_assessment)}</div>
         </div>
         <div style="background:var(--surface2);border-radius:6px;padding:14px 16px;border-left:3px solid var(--border);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);font-weight:700;margin-bottom:7px;">RENDIMIENTO GENERAL</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${ov.overall_performance}</div>
+          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${escH(ov.overall_performance)}</div>
         </div>
         <div style="background:var(--surface2);border-radius:6px;padding:14px 16px;border-left:3px solid var(--border);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);font-weight:700;margin-bottom:7px;">CALIDAD DE SERVICIO</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${ov.service_quality}</div>
+          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${escH(ov.service_quality)}</div>
         </div>
         ${ov.monthly_evolution ? `<div style="background:var(--purple-bg);border-radius:6px;padding:14px 16px;border-left:3px solid var(--purple);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--purple);font-weight:700;margin-bottom:7px;">~ EVOLUCIÓN MENSUAL DEL EQUIPO</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${ov.monthly_evolution}</div>
+          <div style="font-size:12px;color:var(--ink2);line-height:1.7">${escH(ov.monthly_evolution)}</div>
         </div>` : ''}
       </div>
       <div style="background:var(--green-bg);border-radius:6px;padding:14px 16px;border-left:3px solid var(--green);">
@@ -6408,8 +6410,8 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
     if(!reports){
       card.innerHTML = `
         <div class="ai-card-header ${pc}">
-          <div class="ai-card-name">${agent.name}</div>
-          <span class="ai-card-practice">${agent.practice}</span>
+          <div class="ai-card-name">${escH(agent.name)}</div>
+          <span class="ai-card-practice">${escH(agent.practice)}</span>
         </div>
         <div class="ai-card-loading">
           <div class="mini-spinner"></div>
@@ -6424,7 +6426,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
       ) : null;
       if(!r) console.log('No match for agent:', agent.name, 'available:', agentReports?.map(x=>x.name));
       if(!r){
-        card.innerHTML = `<div class="ai-card-header ${pc}"><div class="ai-card-name">${agent.name}</div></div><div class="ai-card-body"><em style="color:var(--muted)">Sin datos</em></div>`;
+        card.innerHTML = `<div class="ai-card-header ${pc}"><div class="ai-card-name">${escH(agent.name)}</div></div><div class="ai-card-body"><em style="color:var(--muted)">Sin datos</em></div>`;
       } else if(isExternal){
         // EXTERNAL CARD
         const ratingColor = {
@@ -6438,20 +6440,20 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
         const rc  = ratingColor[r.performance_rating] || 'var(--muted)';
         const rbg = ratingBg[r.performance_rating] || 'var(--surface2)';
         const listHTML = (items, bullet='·', color='var(--muted)') =>
-          (items||[]).map(i=>`<li style="padding:2px 0 2px 14px;position:relative;"><span style="position:absolute;left:0;color:${color}">${bullet}</span>${i}</li>`).join('');
+          (items||[]).map(i=>`<li style="padding:2px 0 2px 14px;position:relative;"><span style="position:absolute;left:0;color:${color}">${bullet}</span>${escH(i)}</li>`).join('');
 
         card.innerHTML = `
           <div class="ai-card-header ${pc}">
-            <div class="ai-card-name">${r.name}</div>
-            <span class="ai-card-practice" style="background:var(--${pc}-bg);color:var(--${pc})">${r.practice}</span>
+            <div class="ai-card-name">${escH(r.name)}</div>
+            <span class="ai-card-practice" style="background:var(--${pc}-bg);color:var(--${pc})">${escH(r.practice)}</span>
           </div>
           <div class="ai-card-body">
             ${r.performance_rating ? `<div style="margin-bottom:12px;">
-              <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:.5px;background:${rbg};color:${rc}">${r.performance_rating}</span>
+              <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:.5px;background:${rbg};color:${rc}">${escH(r.performance_rating)}</span>
             </div>` : ''}
             <div class="ai-section">
               <div class="ai-section-label summary">RESUMEN EJECUTIVO</div>
-              <div class="ai-section-content">${r.executive_summary}</div>
+              <div class="ai-section-content">${escH(r.executive_summary)}</div>
             </div>
             ${r.strengths && r.strengths.length ? `<div class="ai-section">
               <div class="ai-section-label positive">+ FORTALEZAS</div>
@@ -6463,7 +6465,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
             </div>` : ''}
             ${r.trend_assessment ? `<div class="ai-section" style="background:var(--purple-bg);border-radius:4px;padding:8px 10px;">
               <div class="ai-section-label" style="color:var(--purple)">📈 TENDENCIA Y EVOLUCIÓN MENSUAL</div>
-              <div class="ai-section-content">${r.trend_assessment}</div>
+              <div class="ai-section-content">${escH(r.trend_assessment)}</div>
             </div>` : ''}
             ${r.recommendations && r.recommendations.length ? `<div class="ai-section" style="background:var(--blue-bg);border-radius:4px;padding:8px 10px;">
               <div class="ai-section-label suggestions">RECOMENDACIONES</div>
@@ -6483,7 +6485,7 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
         const rc  = ratingColor[r.performance_rating] || 'var(--muted)';
         const rbg = ratingBg[r.performance_rating] || 'var(--surface2)';
         const listHTML = (items, bullet, color) =>
-          (items||[]).map(i=>`<li style="padding:2px 0 2px 14px;position:relative;"><span style="position:absolute;left:0;color:${color}">${bullet}</span>${i}</li>`).join('');
+          (items||[]).map(i=>`<li style="padding:2px 0 2px 14px;position:relative;"><span style="position:absolute;left:0;color:${color}">${bullet}</span>${escH(i)}</li>`).join('');
 
         const trendColor = r.trend_warning && r.trend_warning.toLowerCase().includes('declin') ? 'var(--red)'
           : r.trend_warning && (r.trend_warning.toLowerCase().includes('improv')||r.trend_warning.toLowerCase().includes('mejor')) ? 'var(--green)' : 'var(--muted)';
@@ -6493,17 +6495,17 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
 
         card.innerHTML = `
           <div class="ai-card-header ${pc}">
-            <div class="ai-card-name">${r.name}</div>
-            <span class="ai-card-practice" style="background:var(--${pc}-bg);color:var(--${pc})">${r.practice}</span>
+            <div class="ai-card-name">${escH(r.name)}</div>
+            <span class="ai-card-practice" style="background:var(--${pc}-bg);color:var(--${pc})">${escH(r.practice)}</span>
           </div>
           <div class="ai-card-body">
             ${r.performance_rating ? `<div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:.5px;background:${rbg};color:${rc}">${r.performance_rating}</span>
-              ${r.rating_justification ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${r.rating_justification}</span>` : ''}
+              <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:.5px;background:${rbg};color:${rc}">${escH(r.performance_rating)}</span>
+              ${r.rating_justification ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${escH(r.rating_justification)}</span>` : ''}
             </div>` : ''}
             <div class="ai-section">
               <div class="ai-section-label summary">EVALUACIÓN</div>
-              <div class="ai-section-content">${r.summary}</div>
+              <div class="ai-section-content">${escH(r.summary)}</div>
             </div>
             ${r.achievements && r.achievements.length ? `<div class="ai-section">
               <div class="ai-section-label positive">+ LOGROS</div>
@@ -6519,22 +6521,22 @@ function renderAIPanel(agents, reports, practiceLabel, mode){
             </div>` : ''}
             ${r.monthly_evolution ? `<div class="ai-section" style="background:var(--purple-bg);border-radius:4px;padding:8px 10px;border-left:3px solid ${monthlyColor};">
               <div class="ai-section-label" style="color:${monthlyColor}">📈 EVOLUCIÓN MENSUAL</div>
-              <div class="ai-section-content">${r.monthly_evolution}</div>
+              <div class="ai-section-content">${escH(r.monthly_evolution)}</div>
             </div>` : ''}
             ${r.trend_warning ? `<div class="ai-section">
               <div class="ai-section-label" style="color:${trendColor}">~ TENDENCIA SEMANAL</div>
-              <div class="ai-section-content" style="color:${trendColor}">${r.trend_warning}</div>
+              <div class="ai-section-content" style="color:${trendColor}">${escH(r.trend_warning)}</div>
             </div>` : ''}
             ${r.vs_team ? `<div class="ai-section">
               <div class="ai-section-label comparison">= VS EQUIPO</div>
-              <div class="ai-section-content">${r.vs_team}</div>
+              <div class="ai-section-content">${escH(r.vs_team)}</div>
             </div>` : ''}
             ${r.industry_comparison ? `<div class="ai-section" style="background:var(--surface2);border-radius:4px;padding:8px 10px;">
               <div class="ai-section-label" style="color:var(--muted)">= BENCHMARKS INDUSTRIA</div>
-              <div class="ai-section-content">${r.industry_comparison}</div>
+              <div class="ai-section-content">${escH(r.industry_comparison)}</div>
             </div>` : ''}
             ${r.motivational_close ? `<div class="ai-section" style="background:${rbg};border-radius:4px;padding:10px 12px;border-left:3px solid ${rc};">
-              <div style="font-size:11px;color:var(--ink2);font-style:italic;line-height:1.7">"${r.motivational_close}"</div>
+              <div style="font-size:11px;color:var(--ink2);font-style:italic;line-height:1.7">"${escH(r.motivational_close)}"</div>
             </div>` : ''}
           </div>`;
       }
