@@ -417,6 +417,77 @@ body.mon-off .btns-mini,body.mon-off .rechquit,body.mon-off .quitaraut,body.mon-
 .modal .hint.mal::before{content:"\26a0  "}
 .modal .lista{margin:6px 0 0 18px;padding:0;font-size:12.5px;color:var(--text-2)}
 .modal .enlace{background:none;border:0;color:var(--text-2);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0;margin-top:14px}
+/* ── (19 nov 2026) Tarjetas de agente: cada persona en su propia tarjeta, separada de las demás.
+   Un filo de color a la izquierda y el anillo de las iniciales dicen el estado de un vistazo
+   (el mismo color de la ficha de estado). Solo apariencia: los datos y las acciones no cambian. */
+.card.agentes{background:transparent;border:0;overflow:visible;border-radius:0}
+.card.agentes > h2{background:var(--surface);border:1px solid var(--border);border-radius:14px}
+#rows,#rowsInact{display:flex;flex-direction:column;gap:12px}
+#rowsInact{padding-top:12px}
+.card.agentes .grupo{background:none;border:0;padding:20px 6px 0;align-items:center;gap:10px}
+.card.agentes #rows > .grupo:first-child{padding-top:14px}
+.card.agentes .grupo .gc{font:800 17px/1.2 'Plus Jakarta Sans',Inter,sans-serif;letter-spacing:-.1px}
+.card.agentes .grupo .gn{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-weight:600;color:var(--text-2)}
+.card.agentes .row{--rail:var(--border);position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:20px 22px 18px 28px;box-shadow:0 1px 2px rgba(4,20,31,.05),0 12px 28px -20px rgba(4,20,31,.45);
+  transition:box-shadow .18s ease,transform .18s ease}
+.card.agentes .row:last-child{border-bottom:1px solid var(--border)}
+.card.agentes .row:hover{background:var(--surface);transform:translateY(-1px);
+  box-shadow:0 2px 4px rgba(4,20,31,.06),0 18px 36px -20px rgba(4,20,31,.55)}
+.card.agentes .row::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:5px;border-radius:0 5px 5px 0;background:var(--rail)}
+.card.agentes .row.est-verde{--rail:var(--st-activo)}
+.card.agentes .row.est-amarillo{--rail:var(--warning)}
+.card.agentes .row.est-rojo{--rail:var(--critical)}
+.card.agentes .row.est-gris{--rail:var(--neutral)}
+.who .idn{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.who .av{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  font:800 15px/1 'Plus Jakarta Sans',Inter,sans-serif;letter-spacing:.3px;color:var(--brand);
+  background:color-mix(in srgb,var(--rail) 14%,var(--surface));box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--rail)}
+.who .idt{min-width:0}
+.who .idt > b{display:block;font:700 16px/1.25 'Plus Jakarta Sans',Inter,sans-serif;letter-spacing:-.1px}
+.who .idt small{display:block;margin-top:1px}
+.card.agentes .tl{height:26px;border-radius:9px}
+.card.agentes .tl .seg,.card.agentes .tl .base{border-radius:7px}
+.card.agentes .tl .lunch{border-radius:4px}
+.card.agentes .tl .now{width:3px;border-radius:2px;top:-5px;bottom:-5px}
+.card.agentes .axis{margin-top:5px}
+.nums > div > b:first-child{display:inline-block;font:800 24px/1.15 'Plus Jakarta Sans',Inter,sans-serif;letter-spacing:-.4px;
+  font-variant-numeric:tabular-nums;color:var(--text);margin-top:2px}
+.card.agentes .meta .mi{border-radius:10px;background:var(--surface-2);border-color:transparent}
+.card.agentes .row:hover .meta .mi{background:var(--surface-2)}
+.card.agentes .meta .mi.warn{border-color:var(--warning);background:var(--warning-bg)}
+.card.agentes .meta .mi.rojo{border-color:#C0392B;background:#FDECEA}
+.card.agentes .meta .mi.crit{border-color:var(--critical);background:var(--critical-bg)}
+.card.agentes .btn-mini{border-radius:999px;padding:4px 12px}
+.card.agentes .btns-mini{align-items:center}
+.card.agentes .btns-mini .ver{margin-top:6px;margin-left:2px;line-height:1.3}
+.card.agentes .btns-mini .ver:empty{display:none}
+.card.agentes .meta.red{align-items:center}
+.card.agentes .meta.red .speed{margin-top:0;display:inline-flex;flex-wrap:nowrap;gap:8px;align-items:center}
+.card.agentes .meta.red .mbps{white-space:nowrap}
+@media (min-width:901px){ .card.agentes .nums .speed{justify-content:flex-end} .card.agentes .nums .speed .mbps{flex-basis:100%;text-align:right} }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .card.agentes .row{box-shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -20px rgba(0,0,0,.9)}
+  :root:not([data-theme="light"]) .who .av{color:var(--text)}
+}
+:root[data-theme="dark"] .card.agentes .row{box-shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -20px rgba(0,0,0,.9)}
+:root[data-theme="dark"] .who .av{color:var(--text)}
+@media (max-width:900px){ .card.agentes .row{padding:16px 16px 14px 22px} .nums > div > b:first-child{font-size:21px} }
+@media (prefers-reduced-motion: reduce){ .card.agentes .row{transition:none} .card.agentes .row:hover{transform:none} }
+/* (19 nov 2026) Fondo «Marino» (elegido por Carlos, opción 8): la página en el azul marino de la barra de arriba y
+   las tarjetas en blanco, para que cada agente resalte. Solo en tema claro. */
+:root[data-theme="light"]{background:#0E2231}
+:root[data-theme="light"] body{background:#0E2231;min-height:100vh}
+:root[data-theme="light"] .card.agentes .grupo .gc{color:#7FD0F5}
+:root[data-theme="light"] .card.agentes .grupo .gp,:root[data-theme="light"] .card.agentes .grupo .gp b{color:#E6EEF4}
+:root[data-theme="light"] .card.agentes .grupo .gn{background:#17344A;border-color:#24496A;color:#CFE0EC}
+:root[data-theme="light"] .card.agentes .row{border-color:#0E2231;box-shadow:0 16px 34px -18px rgba(0,0,0,.8)}
+:root[data-theme="light"] .card.agentes .row:hover{box-shadow:0 20px 40px -18px rgba(0,0,0,.95)}
+:root[data-theme="light"] .card.agentes > h2,:root[data-theme="light"] .tile,:root[data-theme="light"] .card:not(.agentes){border-color:#0E2231}
+:root[data-theme="light"] .chip[aria-pressed=true]{background:#7FD0F5;color:#04141F;border-color:#7FD0F5}
+:root[data-theme="light"] #inactivos{border-top-color:#24496A}
+:root[data-theme="light"] #inactivos>summary,:root[data-theme="light"] #rows > .empty{color:#CFE0EC}
+
 </style>
 </head>
 <body>
@@ -460,7 +531,7 @@ if (window.EMBED) { document.documentElement.classList.add('embed'); document.do
     <button class="btn" id="csv" type="button">Export report</button>
   </div>
   <div class="tiles" id="tiles"></div>
-  <section class="card">
+  <section class="card agentes">
     <h2>Agents <span class="legend" id="legend"></span></h2>
     <div id="rows"></div>
     <details id="inactivos" hidden><summary id="inactSum"></summary><div id="rowsInact"></div></details>
@@ -1497,9 +1568,12 @@ function fila(a, d){
     : (envivo && a.vivo && a.vivo.progActivo
     ? mi('Program', esc(nombreApp(a.vivo.progActivo)), '', 'Foreground program at the last signal.') : ''));
 
-  return '<div class="row">' +
-    '<div class="who"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuentaCanon || a.cuenta) + '</span>' +
-      (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small>' +
+  // (19 nov 2026) Tarjeta: el filo y el anillo de las iniciales llevan el color del estado (el mismo de la ficha).
+  const nivelTj = inact ? 'gris' : (e ? (e.nivel || 'gris') : (a.episodios.length ? 'rojo' : 'verde'));
+  const iniciales = String(nomVis(a) || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+  return '<div class="row est-' + esc(nivelTj) + '">' +
+    '<div class="who"><div class="idn"><span class="av" aria-hidden="true">' + esc(iniciales) + '</span><div class="idt"><b>' + esc(nomVis(a)) + '</b><small><span class="cuenta">' + esc(a.cuentaCanon || a.cuenta) + '</span>' +
+      (a.equipo ? '<span class="equipo"> · ' + esc(a.equipo) + '</span>' : '') + '</small></div></div>' +
       (a.usuario ? '<small class="winuser">Windows user: ' + esc(a.usuario) +
         ((a.vivo && a.vivo.email) ? ' · ' + esc(a.vivo.email) : '') +
         ((a.usuarios && a.usuarios.length > 1) ? ' <span class="sincuenta" title="Multiple users signed in to this device today: ' + esc(a.usuarios.join(', ')) + '">\u26a0 ' + a.usuarios.length + ' users today</span>' : '') + '</small>' : '') +
@@ -1513,18 +1587,21 @@ function fila(a, d){
       (inact ? '' : '<button class="btn-mini" data-turno="' + esc(a.agente) + '" type="button" title="Shift change for a day or a period">Shift change</button>') +
       '<button class="btn-mini" data-baja="' + esc(a.agente) + '" data-act="' + (conBaja ? '1' : '0') + '" type="button" title="' +
         (conBaja ? 'Returns to the agent list and clears the deactivation date' : 'Stops counting from the day after the deactivation date') + '">' +
-        (conBaja ? 'Reactivate' : 'Deactivate') + '</button></div>' +
+        (conBaja ? 'Reactivate' : 'Deactivate') + '</button>' +
+      (envivo ? '<span class="ver">' + versionHtml(a, d) + '</span>' : '') + '</div>' +   // (19 nov) la versión va en la línea de Deactivate
       (conBaja ? '<span class="bajainfo">' +
         (inact ? 'Inactive since ' + esc(a.baja || 'date not recorded')
                : 'Deactivated on ' + esc(a.baja) + ' \u00b7 moves to Inactive the next day') +
         (a.motivoBaja ? ' \u00b7 ' + esc(a.motivoBaja) : '') + '</span>' : '') +
-      (envivo ? '<div class="ver">' + versionHtml(a, d) + '</div>' : '') + '</div>' +
+      '</div>' +
     '<div class="tlwrap">' +
       avisoRech +
       (arriba ? '<div class="meta pre">' + arriba + '</div>' : '') +
       '<div class="tl" role="img" aria-label="Workday of ' + esc(nomVis(a)) + ': ' + a.episodios.length + ' issues">' + tl + '</div><div class="axis">' + axis + '</div>' +
       (tomado ? '<div class="meta post tomado">' + tomado + '</div>' : '') +
-      (abajo ? '<div class="meta post">' + abajo + '</div>' : '') + '</div>' +
+      (abajo ? '<div class="meta post">' + abajo + '</div>' : '') +
+      // (19 nov 2026) Internet, «Measure speed» y la última medición en una sola fila, bajo la barra del día (tarjeta más corta)
+      ((fNet || envivo) ? '<div class="meta post red">' + fNet + (envivo ? speedHtml(a) : '') + '</div>' : '') + '</div>' +
     '<div class="nums">' + pill +
       '<div><b>' + (dur(a.minPerdidos) || '0 min') + '</b> lost' +
       (a.minJustificado ? '<br><span class="autok">\u2713 ' + dur(a.minJustificado) + ' authorized</span>' : '') + '<br>' +
@@ -1532,8 +1609,7 @@ function fila(a, d){
       (a.minAppCerrada ? '<br>App closed ' + dur(a.minAppCerrada) : '') +
       (a.reinicios ? '<br><span style="color:var(--warning)">\u26a0 Monitor closed/restarted ' + a.reinicios + ' time(s)</span>' : '') +
       (envivo ? progsHtml(a.vivo) : '') +
-      (fNet ? '<div class="meta mini">' + fNet + '</div>' : '') +
-      (envivo ? speedHtml(a) : '') + '</div></div>' +
+      '</div></div>' +
   '</div>';
 }
 
