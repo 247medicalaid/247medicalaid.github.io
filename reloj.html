@@ -69,7 +69,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v405-202611201610">
+<meta name="app-build" content="v406-202611201700">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -5324,6 +5324,7 @@ const SERVIDOR_EN = [
   [/^Todavía no creó su contraseña: mándale la invitación\.$/, 'They haven\'t created their password yet: send them the invitation instead.'],
   [/^Ya se mandaron 3 correos para cambiar la contraseña en la última hora\..*$/, '3 password emails were already sent in the last hour. Wait a while and try again.'],
   [/^Solo un administrador puede hacer esto\.$/, 'Only an administrator can do this.'],
+  [/^Tu sesión no es válida\. Vuelve a entrar\.$/, 'Your session expired. Sign in again.'],   // (v406)
   [/^Falta configurar el envío de correos \(Brevo\)\.$/, 'Email sending isn\'t set up yet (Brevo).'],
   [/^No se pudo enviar el correo \(Brevo HTTP (\d+)\)\.$/, 'Couldn\'t send the email (Brevo HTTP $1).'],
   [/^Solo un administrador puede invitar\.$/, 'Only an administrator can send invitations.'],
@@ -7139,8 +7140,20 @@ async function mfaResetDe(e, b){
     'Their current authenticator stops working, and the next time ' + esc(nom) + ' signs in they&rsquo;ll set up two-step sign-in again before they can do anything as an administrator. Their password doesn&rsquo;t change.', 'Reset');
   if(!ok) return;
   const html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spin dark"></span> Resetting…';
-  try{ await q(sb.rpc('reloj_mfa_reset', { p_usuario:e.usuario })); toast('Done. Next time ' + nom + ' signs in, they’ll set up two-step sign-in again.'); }
-  catch(x){ if($('eErr')) $('eErr').textContent = x.message; else toast(x.message, 'err'); }
+  try{
+    // (v406, paso 183) por reloj-cuentas: hace el reset y le manda un correo de aviso. Si la función todavía no tiene
+    // esa acción (o no responde), se hace directo en la base, sin correo.
+    let j = null;
+    try{ const ses = await sesionSB(); j = await cuentasFn('mfaReset', { usuario:e.usuario }, ses && ses.access_token); }catch(x){ j = null; }
+    if(j && !j.ok && !/desconocida|unknown/i.test(String(j.msg || ''))) throw new Error(enIngles(j.msg) || 'Couldn\'t reset it.');
+    if(!j || !j.ok) await q(sb.rpc('reloj_mfa_reset', { p_usuario:e.usuario }));
+    toast('Done. Next time ' + nom + ' signs in, they’ll set up two-step sign-in again.' + (j && j.ok && j.correo ? ' We emailed them about it.' : ''));
+  }
+  catch(x){
+    // (v406) sin conexión: aviso informativo para intentarlo de nuevo (no es un error de la cuenta)
+    if(/Failed to fetch|NetworkError|Load failed|Couldn't connect/i.test(x.message || '')) toast('No connection right now. Nothing was changed. Try again in a moment.');
+    else if($('eErr')) $('eErr').textContent = x.message; else toast(x.message, 'err');
+  }
   b.disabled = false; b.innerHTML = html;
 }
 async function inicio(){
