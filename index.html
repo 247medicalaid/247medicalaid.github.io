@@ -433,8 +433,8 @@ tbody tr:hover td{background:var(--brand-50)}
 
       <form id="loginForm" autocomplete="on">
         <div class="field">
-          <label for="lu">Username</label>
-          <input class="control" id="lu" name="username" autocomplete="username"
+          <label for="lu">Email</label>
+          <input class="control" id="lu" name="username" type="email" autocomplete="username" inputmode="email"
                  spellcheck="false" autocapitalize="none" required>
         </div>
         <div class="field">
@@ -448,6 +448,17 @@ tbody tr:hover td{background:var(--brand-50)}
           </div>
         </div>
         <button class="btn btn-primary btn-block" id="btnLogin" type="submit" style="margin-top:8px">Sign in</button>
+      </form>
+      <!-- (20 nov 2026) Segundo paso: el código de la app del celular -->
+      <form id="mfaForm" class="hidden" autocomplete="off">
+        <p style="margin:0 0 14px;color:var(--ink-2,#475569);line-height:1.5">Two-step sign-in is on for your account. Open your authenticator app and type the 6-digit code.</p>
+        <div class="field">
+          <label for="lcod" id="lcodLbl">6-digit code</label>
+          <input class="control" id="lcod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+        </div>
+        <button class="btn btn-primary btn-block" id="btnMfa" type="submit" style="margin-top:8px">Verify</button>
+        <button class="btn btn-ghost btn-block" id="btnMfaResp" type="button" style="margin-top:8px">Use a backup code</button>
+        <button class="btn btn-ghost btn-block" id="btnMfaOtra" type="button" style="margin-top:8px">Use a different account</button>
       </form>
     </div>
 
@@ -654,7 +665,7 @@ tbody tr:hover td{background:var(--brand-50)}
 <div id="toast"></div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script defer src="https://247medicalaid.github.io/sb.js?v=6"></script>
+<script defer src="https://247medicalaid.github.io/sb.js?v=8"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
    PORTAL 24/7 MEDICAL AID — control de acceso central
@@ -848,17 +859,21 @@ $('loginForm').addEventListener('submit', async ev => {
   ev.preventDefault();
   aviso('loginErr', '');
   const u = $('lu').value.trim().toLowerCase(), p = $('lp').value;
-  if(!u || !p) return aviso('loginErr', 'Enter your username and password.');
+  if(!u || !p) return aviso('loginErr', 'Enter your email and password.');
+  // (20 nov 2026 · S3) Se entra con el correo: el portal ya no pregunta a la base el correo de un usuario.
+  if(u.indexOf('@') < 1) return aviso('loginErr', 'Sign in with your email address (not your username).');
 
   const btn = $('btnLogin');
   cargando(btn, 'Checking…');
   try{
     // (19 nov 2026 · Solo 24/7) Cuenta con correo propio (no @usuarios): la maneja Supabase, igual que en 247Punch.
     // Se entra con el usuario (o el correo) y la contraseña tal cual; Google ya no revisa esa contraseña.
-    const correo = u.indexOf('@') > 0 ? u : (window.sbCorreoPropio ? await window.sbCorreoPropio(u) : null);
+    const correo = u;
     if(correo){
       const r = await window.sbEntrarPropio(correo, p);
-      if(!r.ok) throw new Error(r.codigo === 'SB_CLAVE' ? 'Wrong username or password.'
+      if(r.codigo === 'MFA'){ $('lp').value = ''; mfaMostrar(true); listo(btn); return; }   // (20 nov 2026) falta el código
+      if(r.codigo === 'MFA_CONFIGURAR'){ try{ window.sbSalir(); }catch(x){} listo(btn); return mfaConfigurarAviso(); }   // (v405)
+      if(!r.ok) throw new Error(r.codigo === 'SB_CLAVE' ? 'Wrong email or password.'
         : r.codigo === 'DISABLED' ? (r.msg || 'Your user is disabled. Contact the administrator.')
         : 'We couldn\'t sign you in right now. Try again in a moment.');
       S.token = r.token;
@@ -900,6 +915,53 @@ $('loginForm').addEventListener('submit', async ev => {
   }
   listo(btn);
 });
+
+/* (20 nov 2026) Segundo paso: el código de la app (cuenta con correo propio). */
+let MFA_RESP = false;   // (v405) modo «código de respaldo»
+function mfaMostrar(si){
+  $('loginForm').classList.toggle('hidden', si); $('mfaForm').classList.toggle('hidden', !si);
+  aviso('loginErr', ''); $('lcod').value = ''; mfaModo(false); if(si) setTimeout(() => $('lcod').focus(), 30);
+}
+function mfaModo(resp){
+  MFA_RESP = resp;
+  $('lcodLbl').textContent = resp ? 'Backup code' : '6-digit code';
+  $('lcod').maxLength = resp ? 11 : 6; $('lcod').inputMode = resp ? 'text' : 'numeric'; $('lcod').value = '';
+  $('btnMfa').textContent = resp ? 'Use backup code' : 'Verify';
+  $('btnMfaResp').textContent = resp ? 'Use my authenticator app' : 'Use a backup code';
+}
+function mfaConfigurarAviso(quedan){
+  mfaMostrar(false);
+  aviso('loginErr', (quedan != null ? 'Backup code accepted (' + quedan + ' left). ' : 'Two-step sign-in was reset for your account. ') +
+    'Open the Time Clock (timeclock.247medical-aid.com), sign in and set up your authenticator app again. Then come back here.', 'warn');
+}
+$('btnMfaResp').addEventListener('click', () => { mfaModo(!MFA_RESP); aviso('loginErr', ''); $('lcod').focus(); });
+$('mfaForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  aviso('loginErr', '');
+  const btn = $('btnMfa');
+  cargando(btn, 'Checking…');
+  if(MFA_RESP){   // (v405) código de respaldo: quita el factor viejo; se configura de nuevo en el Time Clock
+    const rr = await window.sbMfaRespaldo($('lcod').value);
+    listo(btn);
+    if(rr.ok){ try{ window.sbSalir(); }catch(x){} return mfaConfigurarAviso(rr.quedan); }
+    return aviso('loginErr', rr.codigo === 'MFA_ESPERA' ? 'Too many tries. Wait 15 minutes and try again.'
+      : rr.codigo === 'SIN_CODIGOS' ? 'This account doesn\'t have backup codes.' : rr.codigo === 'RESPALDO_MAL' ? 'That backup code isn\'t right.'
+      : 'We couldn\'t check the code right now. Try again in a moment.');
+  }
+  const r = await window.sbMfaVerificar($('lcod').value);
+  if(r.ok){
+    S.token = r.token; S.user = r.user; guardarSesion(r.token, r.user);
+    mfaMostrar(false); entrar();
+  }else{
+    aviso('loginErr', r.codigo === 'MFA_FORMATO' ? 'Type the 6-digit code from your app.'
+      : r.codigo === 'MFA_MAL' ? 'That code isn\'t right. Type the newest code from your app.'
+      : r.codigo === 'DISABLED' ? (r.msg || 'Your user is disabled. Contact the administrator.')
+      : 'We couldn\'t sign you in right now. Try again in a moment.');
+    $('lcod').select();
+  }
+  listo(btn);
+});
+$('btnMfaOtra').addEventListener('click', () => { try{ if(window.sbSalir) window.sbSalir(); }catch(e){} mfaMostrar(false); });
 
 /* Google confirma por detrás el login rápido. Si acepta, su llave reemplaza a la
    de Supabase (y actualiza permisos). Si dice que no —contraseña cambiada o
@@ -964,6 +1026,7 @@ function salir(){
   $('vApp').classList.add('hidden');
   $('vLogin').classList.remove('hidden');
   $('lp').value = '';
+  if($('mfaForm')){ $('mfaForm').classList.add('hidden'); $('loginForm').classList.remove('hidden'); }   // (20 nov 2026)
   aviso('loginErr', '');
 }
 $('btnLogout').addEventListener('click', salir);
@@ -1410,7 +1473,7 @@ document.querySelectorAll('[data-eye]').forEach(b => b.addEventListener('click',
     if(window.sbListo && await window.sbListo && window.sb){
       const { data } = await window.sb.auth.getSession();
       if(S.token !== s.token) return;
-      if(!data || !data.session){
+      if(!data || !data.session || (window.sbMfaFalta && await window.sbMfaFalta()) || (window.sbMfaConfigurarFalta && await window.sbMfaConfigurarFalta())){   // (20 nov 2026) o falta el código del segundo paso
         salir();
         aviso('loginErr', 'Please sign in again to reconnect your apps.', 'warn');
         return;

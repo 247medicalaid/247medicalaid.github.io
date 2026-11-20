@@ -19,6 +19,10 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v405: Común — segundo paso: códigos de respaldo (8, de un solo uso), «Reset two-step sign-in» en la ficha de otro administrador
+     y configuración obligatoria al entrar después de un reset o de usar un código de respaldo (paso 182). -->
+<!-- v404: Común — segundo paso al entrar (código de una app) para administradores (paso 181): Settings → Two-step sign-in
+     para encenderlo; con él encendido, después de la contraseña se pide el código antes de abrir la parte de administrador. -->
 <!-- v403: Común — seguridad (paso 180): el agente ya no lee las reglas de pago ni los datos de la inscripción; lo poco que necesita
      (país, modo, funciones 24/7) llega por reloj_config_publica(). «Change password» del agente ahora manda un enlace a su correo
      (no se cambia la contraseña con la sesión abierta). -->
@@ -65,7 +69,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v403-202611201230">
+<meta name="app-build" content="v405-202611201610">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -97,6 +101,16 @@
 .apf-ic{display:inline-flex;vertical-align:-3px;margin-left:3px}
 .apf-ic svg{width:13px;height:13px;color:var(--brand-600)}
 @media (max-width:520px){ #seCampos{grid-template-columns:1fr} }
+/* (v404) Two-step sign-in */
+.mfa-alta{margin-top:12px;padding:14px;border:1px solid var(--line, #DCE6EA);border-radius:var(--radius-sm);background:var(--sand)}
+.mfa-pasos{margin:0 0 10px;padding-left:20px;font-size:13.5px;line-height:1.6}
+.mfa-clave{display:inline-block;font-size:12.5px;word-break:break-all;background:#fff;border:1px solid var(--line, #DCE6EA);border-radius:6px;padding:1px 6px}
+.mfa-qr img{display:block;width:180px;height:180px;background:#fff;border-radius:8px;padding:6px;margin:4px 0 12px}
+.mfa-fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mfa-codigos{display:grid;grid-template-columns:repeat(2,minmax(0,max-content));gap:6px 14px;margin:0 0 12px}
+.mfa-codigos code{font-size:14px;letter-spacing:.06em;background:#fff;border:1px solid var(--line, #DCE6EA);border-radius:6px;padding:3px 8px}
+.mfa-fila input.mfa-cod{width:120px;letter-spacing:.2em;font-size:16px;padding:8px 10px;border:1px solid var(--line, #DCE6EA);border-radius:8px}
+.mfa-fila input{width:120px;letter-spacing:.2em;font-size:16px;padding:8px 10px;border:1px solid var(--line, #DCE6EA);border-radius:8px}
 </style>
 <link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3687,6 +3701,16 @@ body.aw .aw-panel > .ventana .pie{position:sticky;bottom:-20px;background:var(--
           </div>
         </div>
 
+        <!-- PEOPLE · Two-step sign-in (v404, paso 181): cada administrador lo enciende para su propia cuenta -->
+        <div class="aj-pag" data-pag="seguridad">
+          <div class="ajuste aj-card" id="ajMfaBox">
+            <div class="aj-ct"><h2>Two-step sign-in</h2><span class="aj-pill" id="ajPillMfa"></span></div>
+            <p class="aj-desc">When it&rsquo;s on, signing in to your administrator account asks for your password and then a 6-digit code from an authenticator app on your phone (Google Authenticator, Microsoft Authenticator, Authy or 1Password). Someone who learns your password still can&rsquo;t get in. Each administrator turns it on for their own account.</p>
+            <div id="ajMfaCuerpo"></div>
+            <div class="aj-pie"><span class="nota" id="ajMfaEstado" role="status" aria-live="polite"></span></div>
+          </div>
+        </div>
+
         <!-- MORE · Plan & billing (v366, solo 247Punch): plan actual y planes disponibles -->
         <div class="aj-pag" data-pag="plan">
           <div class="ajuste aj-card" id="ajPlanBox">
@@ -5087,6 +5111,14 @@ const ENT = (txt, log) => { const f = m => { if(log) try{ console.warn('[' + MAR
 const TEC = (amable, paso) => { const f = m => tec(amable, 'Falta el paso SQL ' + paso + ' (' + String(m || '').slice(0, 200) + ')'); f.entero = true; return f; };
 /* Los mensajes de las funciones reloj_* de la base de datos vienen en español: aquí se pasan a inglés. */
 const SERVIDOR_EN = [
+  [/^Primero configura el segundo paso.*/, 'Set up two-step sign-in and sign in with your code first.'],   // (v405) segundo paso
+  [/^Esta cuenta no tiene códigos de respaldo\.?$/, 'This account doesn\'t have backup codes. Ask another administrator to reset two-step sign-in for you.'],
+  [/^Demasiados intentos.*/, 'Too many tries. Wait 15 minutes and try again.'],
+  [/^Solo un administrador puede (hacer|ver) esto\.?$/, 'Only an administrator can do this. If two-step sign-in is on for your account, sign in again with your code.'],
+  [/^Esa persona no es administradora.*/, 'That person isn\'t an administrator of this company.'],
+  [/^No puedes hacerlo con tu propia cuenta.*/, 'You can\'t do this for your own account: use one of your backup codes.'],
+  [/^Entra con tu código para apagarlo\.?$/, 'Sign in again with your code to turn it off.'],
+  [/^Ese código de respaldo no es correcto\.?$/, 'That backup code isn\'t right.'],
   [/^No tienes acceso a esta empresa\.?$/, 'You can’t make changes right now. If your company is being updated, try again in a couple of minutes.'],   // (v385)
   [/^Tu sesión no es válida.*/, PORTAL ? 'Your session is not valid. Sign in to the portal again.' : 'Your session is not valid. Sign in again.'],
   [/^Tu usuario aún no tiene reloj.*/, 'Your user doesn\'t have a time clock yet. Ask the administrator to add you.'],
@@ -6940,6 +6972,177 @@ function inactVigilar(ses){
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') revisar(); });
   window.addEventListener('focus', revisar);
 }
+/* (v404, paso 181) Segundo paso para administradores: un código de 6 dígitos de una app del celular (TOTP de Supabase).
+   La base exige el código (aal2) para todo lo de administrador a quien lo encendió; aquí solo se pide y se configura.
+   (v405, paso 182) Códigos de respaldo (8, de un solo uso), «Reset two-step sign-in» por otro administrador y, después de
+   un reset o de usar un código de respaldo, configuración obligatoria al entrar. */
+async function mfaEstado(){ try{ const { data } = await window.sb.auth.mfa.getAuthenticatorAssuranceLevel(); return data || null; }catch(e){ return null; } }
+async function mfaFalta(){ const d = await mfaEstado(); return !!(d && d.nextLevel === 'aal2' && d.currentLevel !== 'aal2'); }
+async function mfaFactor(){ const { data, error } = await window.sb.auth.mfa.listFactors(); if(error) throw error; return ((data && data.totp) || []).find(f => f.status === 'verified') || null; }
+async function mfaServidor(){ try{ return await q(sb.rpc('reloj_mfa_estado')); }catch(e){ return null; } }   // sin el paso 182: null
+// ¿Qué le falta a este administrador para entrar? 'codigo' | 'configurar' | null
+async function mfaQueFalta(){
+  if(await mfaFalta()) return 'codigo';
+  const s = await mfaServidor();
+  return s && s.requerido && !s.factor ? 'configurar' : null;
+}
+const mfaMsg = e => { const m = (e && e.message) || ''; return /invalid|expired|code|totp/i.test(m) ? 'That code isn\'t right. Type the newest code from your app.' : (m || 'Couldn\'t check the code. Try again.'); };
+async function mfaVerificar(factorId, code){
+  if(!/^\d{6}$/.test(code)) throw new Error('Type the 6-digit code from your app.');
+  const { error } = await window.sb.auth.mfa.challengeAndVerify({ factorId, code });
+  if(error) throw new Error(mfaMsg(error));
+}
+const MFA_PERDIDO = 'Lost your phone? Use one of your backup codes. Without them, ask another administrator to reset two-step sign-in for you' +
+  (INST.compartimentos ? ', or contact 247Punch support.' : '.');
+function pantallaMfa(modo){
+  const resp = modo === 'respaldo';
+  caja('<h1>' + (resp ? 'Use a backup code' : 'Enter your code') + '</h1><div class="sub">' + (resp
+      ? 'Type one of the backup codes you saved when you turned on two-step sign-in. It works once; then you&rsquo;ll set up your authenticator app again.'
+      : 'Two-step sign-in is on for this account. Open your authenticator app and type the 6-digit code for ' + esc(String(MARCA.nombre || MARCA.appName || 'Time Clock').replace(/[.\s]+$/, '')) + '.') + '</div>' +
+    '<form id="fMfa" novalidate><label class="campo"><span>' + (resp ? 'Backup code' : '6-digit code') + '</span><input id="mfaCod" ' +
+      (resp ? 'autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="11" placeholder="XXXXX-XXXXX"' : 'inputmode="numeric" autocomplete="one-time-code" maxlength="6"') + '></label>' +
+    '<div class="err" id="mfaErr" role="alert"></div><button class="btn btn-brand" id="mfaOk" type="submit">' + (resp ? 'Use backup code' : 'Verify') + '</button></form>' +
+    '<div class="enlaces"><button class="btn-link" type="button" id="mfaOtro">' + (resp ? 'Use my authenticator app' : 'Use a backup code') + '</button>' +
+    '<button class="btn-link" type="button" id="mfaSalir">Sign out</button></div>' +
+    (resp ? '' : '<div class="sub" style="margin-top:14px;font-size:12.5px">' + esc(MFA_PERDIDO) + '</div>'));
+  $('fMfa').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const b = $('mfaOk'); b.disabled = true; $('mfaErr').textContent = '';
+    try{
+      if(resp){
+        const r = await q(sb.rpc('reloj_mfa_usar_respaldo', { p_codigo:$('mfaCod').value }));
+        if(!r || !r.ok) throw new Error(enIngles((r && r.msg) || '') || 'That backup code isn\'t right.');
+        return pantallaMfaConfigurar('respaldo', r.quedan);
+      }
+      const f = await mfaFactor();
+      if(!f) return location.reload();
+      await mfaVerificar(f.id, $('mfaCod').value.replace(/\s+/g, ''));
+      location.reload();
+    }catch(e){ $('mfaErr').textContent = e.message || mfaMsg(e); b.disabled = false; $('mfaCod').select(); }
+  });
+  $('mfaOtro').addEventListener('click', () => pantallaMfa(resp ? '' : 'respaldo'));
+  $('mfaSalir').addEventListener('click', mfaSalir);
+  setTimeout(() => $('mfaCod') && $('mfaCod').focus(), 30);
+}
+async function mfaSalir(){ try{ await window.sb.auth.signOut({ scope:'local' }); }catch(e){} location.replace(location.pathname); }
+// Configuración obligatoria al entrar (después de un reset o de usar un código de respaldo)
+function pantallaMfaConfigurar(por, quedan){
+  caja('<h1>Set up two-step sign-in</h1><div class="sub">' + (por === 'respaldo'
+      ? 'Backup code accepted' + (quedan != null ? ' (' + Number(quedan) + ' left)' : '') + '. Now connect your authenticator app again.'
+      : 'Two-step sign-in needs to be set up again for your account (a backup code was used or an administrator reset it). Connect your authenticator app to continue.') + '</div>' +
+    '<div id="mfaAltaLogin"></div><div class="err" id="mfaErr" role="alert"></div>' +
+    '<div class="enlaces"><button class="btn-link" type="button" id="mfaSalir">Sign out</button></div>');
+  $('mfaSalir').addEventListener('click', mfaSalir);
+  mfaArmarAlta($('mfaAltaLogin'), $('mfaErr'), () => location.reload(), null);
+}
+// Paso a paso para conectar la app: QR, clave a mano y confirmar con un código; luego los códigos de respaldo
+async function mfaArmarAlta(box, est, alTerminar, alCancelar){
+  est.textContent = '';
+  box.innerHTML = '<p class="nota">Preparing…</p>';
+  let n = null;
+  try{
+    const { data:l } = await window.sb.auth.mfa.listFactors();   // se quitan las configuraciones que quedaron a medias
+    for(const x of ((l && l.all) || []).filter(x => x.status !== 'verified')){ try{ await window.sb.auth.mfa.unenroll({ factorId:x.id }); }catch(e){} }
+    const r = await window.sb.auth.mfa.enroll({ factorType:'totp', issuer:String(MARCA.nombre || MARCA.appName || 'Time Clock').slice(0, 60),
+      friendlyName:'Time Clock ' + new Date().toISOString().slice(0, 16).replace('T', ' ') });
+    if(r.error) throw r.error;
+    n = r.data;
+  }catch(e){ box.innerHTML = ''; est.textContent = e.message || 'Couldn\'t start it. Try again.'; if(alCancelar) alCancelar(); return; }
+  box.innerHTML = '<div class="mfa-alta">' +
+    '<ol class="mfa-pasos"><li>Open your authenticator app and add an account by <b>scanning this QR code</b>.</li>' +
+    '<li>Can&rsquo;t scan it? Choose &ldquo;enter a setup key&rdquo; and type: <code class="mfa-clave">' + esc(n.totp.secret) + '</code><br>' +
+      '<span style="font-size:12.5px;color:var(--muted,#5B6B7A)">Tip: add this same key to your password manager too, so a lost phone doesn&rsquo;t lock you out.</span></li>' +
+    '<li>Type the 6-digit code the app shows.</li></ol>' +
+    '<div class="mfa-qr"><img class="mfa-qr-img" alt="QR code for your authenticator app"></div>' +
+    '<div class="mfa-fila"><input class="mfa-cod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" aria-label="6-digit code">' +
+    '<button class="btn btn-ink btn-sm mfa-ok" type="button">Confirm</button>' + (alCancelar ? '<button class="btn btn-sm mfa-no" type="button">Cancel</button>' : '') + '</div></div>';
+  box.querySelector('.mfa-qr-img').src = n.totp.qr_code;
+  const cod = box.querySelector('.mfa-cod'), ok = box.querySelector('.mfa-ok');
+  cod.focus();
+  if(alCancelar) box.querySelector('.mfa-no').addEventListener('click', async () => { try{ await window.sb.auth.mfa.unenroll({ factorId:n.id }); }catch(e){} alCancelar(); });
+  const confirmarAlta = async () => {
+    ok.disabled = true; est.textContent = '';
+    try{ await mfaVerificar(n.id, cod.value.replace(/\s+/g, '')); }
+    catch(e){ est.textContent = e.message; ok.disabled = false; return; }
+    if(box.id === 'ajMfaAlta'){   // en Settings: ya está encendido mientras se muestran los códigos
+      const p = $('ajPillMfa'); if(p){ p.className = 'aj-pill ok'; p.textContent = 'On'; }
+      const fl = $('ajMfaCuerpo') && $('ajMfaCuerpo').querySelector('.aj-filas'); if(fl) fl.remove();
+    }
+    await mfaMostrarCodigos(box, est, alTerminar, true);
+  };
+  ok.addEventListener('click', confirmarAlta);
+  cod.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); confirmarAlta(); } });
+}
+// Códigos de respaldo nuevos: se muestran una sola vez
+async function mfaMostrarCodigos(box, est, alTerminar, recienEncendido){
+  let r = null;
+  try{ r = await q(sb.rpc('reloj_mfa_codigos_nuevos')); }
+  catch(e){   // sin el paso 182 todavía: sigue sin códigos de respaldo
+    if(recienEncendido){ toast('Two-step sign-in is on. Next time you sign in, have your phone at hand.'); return alTerminar(); }
+    est.textContent = e.message; return;
+  }
+  const cods = (r && r.codigos) || [];
+  box.innerHTML = '<div class="mfa-alta">' + (recienEncendido ? '<p style="margin:0 0 8px"><b>Two-step sign-in is on.</b></p>' : '') +
+    '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.55">Save these <b>backup codes</b> somewhere safe (print them or put them in your password manager). ' +
+    'If you lose your phone, each code lets you in once so you can set up your app again. We won&rsquo;t show them again.</p>' +
+    '<div class="mfa-codigos">' + cods.map(c => '<code>' + esc(c) + '</code>').join('') + '</div>' +
+    '<div class="mfa-fila"><button class="btn btn-sm mfa-copiar" type="button">Copy codes</button>' +
+    '<button class="btn btn-ink btn-sm mfa-listo" type="button">I saved them</button></div></div>';
+  box.querySelector('.mfa-copiar').addEventListener('click', async () => {
+    try{ await navigator.clipboard.writeText(cods.join('\n')); toast('Backup codes copied.'); }catch(e){ toast('Select the codes and copy them.', 'err'); }
+  });
+  box.querySelector('.mfa-listo').addEventListener('click', alTerminar);
+}
+async function mfaPintar(){
+  const c = $('ajMfaCuerpo'); if(!c) return;
+  const pill = (on) => { const p = $('ajPillMfa'); if(p){ p.className = 'aj-pill' + (on ? ' ok' : ''); p.textContent = on ? 'On' : 'Off'; } };
+  const est = $('ajMfaEstado'); est.textContent = '';
+  if(DEMO){ c.innerHTML = '<p class="nota">Not available in the demo.</p>'; pill(false); return; }
+  c.innerHTML = '<p class="nota">Checking…</p>';
+  let f = null;
+  try{ f = await mfaFactor(); }catch(e){ c.innerHTML = '<p class="nota">' + esc('Couldn\'t check it right now. Reload the page and try again.') + '</p>'; return; }
+  const srv = await mfaServidor();
+  S.mfaOn = !!f; pill(!!f);
+  const fila = (t, d, btn) => '<div class="aj-filas"><div class="aj-fila"><div class="aj-fl"><b>' + t + '</b><span>' + d + '</span></div><div class="aj-fr">' + btn + '</div></div></div>';
+  if(f){
+    const desde = f.created_at ? new Intl.DateTimeFormat('en-US', { month:'short', day:'numeric', year:'numeric' }).format(new Date(f.created_at)) : '';
+    c.innerHTML = fila('On for your account', (desde ? 'Since ' + esc(desde) + '. ' : '') + 'You&rsquo;ll be asked for a code each time you sign in.', '<button class="btn btn-sm" type="button" id="ajMfaQuitar">Turn off</button>') +
+      (srv ? fila('Backup codes', srv.codigos ? srv.codigos + ' of 8 left. Each one lets you in once if you lose your phone.' : 'You have none left. Get new ones so a lost phone doesn&rsquo;t lock you out.',
+        '<button class="btn btn-sm" type="button" id="ajMfaCodigos">Get new codes</button>') : '') + '<div id="ajMfaAlta"></div>';
+    $('ajMfaQuitar').addEventListener('click', async () => {
+      const ok = await confirmar('Turn off two-step sign-in?', 'Your account will be protected only by your password again, and your backup codes stop working.', 'Turn off', true);
+      if(!ok) return;
+      try{
+        if(srv) await q(sb.rpc('reloj_mfa_apagar'));
+        const { error } = await window.sb.auth.mfa.unenroll({ factorId:f.id }); if(error) throw error;
+        toast('Two-step sign-in is off.');
+      }catch(e){ est.textContent = /aal2|AAL2|assurance/i.test(e.message || '') ? 'Sign out and sign in again with your code, then try once more.' : (e.message || 'Couldn\'t turn it off.'); }
+      mfaPintar();
+    });
+    if($('ajMfaCodigos')) $('ajMfaCodigos').addEventListener('click', async () => {
+      if(srv.codigos){ const ok = await confirmar('Get new backup codes?', 'Your current backup codes will stop working.', 'Get new codes'); if(!ok) return; }
+      mfaMostrarCodigos($('ajMfaAlta'), est, () => mfaPintar(), false);
+    });
+  } else {
+    c.innerHTML = fila('Off', 'Only your password protects this account.', '<button class="btn btn-ink btn-sm" type="button" id="ajMfaActivar">Turn on</button>') + '<div id="ajMfaAlta"></div>';
+    $('ajMfaActivar').addEventListener('click', () => {
+      $('ajMfaActivar').disabled = true;
+      mfaArmarAlta($('ajMfaAlta'), est, () => mfaPintar(), () => mfaPintar());
+    });
+  }
+}
+const yoUsuario = () => String((S.yo && S.yo.usuario && (S.yo.usuario.username || S.yo.usuario.usuario)) || '');
+// (v405) Users: otro administrador le hace «Reset two-step sign-in» a un administrador que perdió el celular
+async function mfaResetDe(e, b){
+  const nom = String(e.nombre || '').split(/\s+/)[0] || 'They';
+  const ok = await confirmar('Reset two-step sign-in?', 'Use this if <b>' + esc(e.nombre || e.usuario) + '</b> lost their phone. ' +
+    'Their current authenticator stops working, and the next time ' + esc(nom) + ' signs in they&rsquo;ll set up two-step sign-in again before they can do anything as an administrator. Their password doesn&rsquo;t change.', 'Reset');
+  if(!ok) return;
+  const html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spin dark"></span> Resetting…';
+  try{ await q(sb.rpc('reloj_mfa_reset', { p_usuario:e.usuario })); toast('Done. Next time ' + nom + ' signs in, they’ll set up two-step sign-in again.'); }
+  catch(x){ if($('eErr')) $('eErr').textContent = x.message; else toast(x.message, 'err'); }
+  b.disabled = false; b.innerHTML = html;
+}
 async function inicio(){
   await asegurarSupabase();   // (v311) respaldo si jsdelivr no cargó
   const qs = new URLSearchParams(location.search), tok = qs.get('invite') || qs.get('reset');
@@ -6980,6 +7183,8 @@ async function inicio(){
     // (v354) Producto (sin portal): el administrador entra con su correo, igual que los agentes;
     // una vez que se sabe que es admin, la app lo trata como admin (no como agente).
     if(S.agente && yo.esAdmin && !PORTAL) S.agente = false;
+    if(yo.esAdmin && !DEMO){ const mf = await mfaQueFalta();   // (v404/v405) falta el código, o configurarlo de nuevo tras un reset
+      if(mf === 'codigo') return pantallaMfa(); if(mf === 'configurar') return pantallaMfaConfigurar('reset'); }
     if(GH_MUDADO && !yo.esAdmin && !ghExcepcion()) return ghMudado();   // (v395) con el portal pero sin ser administrador
     aplicarYo(yo);
     $('quienNom').textContent = yo.usuario.nombre || yo.usuario.username;
@@ -9862,10 +10067,12 @@ function pintarAccesoEmp(e){
   if(a.k === 'activa'){
     el.innerHTML = '<span class="t"><b>Active</b> · signs in with ' + esc(e.email) + (a.p.activado ? ' · since ' + esc(fechaCorta(a.p.activado)) : '') + '</span>' +
       '<span class="acc-btns"><button class="btn btn-ghost btn-sm" type="button" id="eReset" title="They forgot their password: email them a link to choose a new one">' + IC_LLAVE + 'Reset password</button>' +
-      '<button class="btn btn-ghost btn-sm" type="button" id="eSetup" title="Email them a link to set their password and sign in with this email (use it after changing their email)">' + IC_SOBRE + 'Send setup email</button></span>';
+      '<button class="btn btn-ghost btn-sm" type="button" id="eSetup" title="Email them a link to set their password and sign in with this email (use it after changing their email)">' + IC_SOBRE + 'Send setup email</button>' +
+      (a.p && a.p.rol === 'admin' && !DEMO && e.usuario !== yoUsuario() ? '<button class="btn btn-ghost btn-sm" type="button" id="eMfaReset" title="They lost their phone: make them set up two-step sign-in again next time they sign in">Reset two-step sign-in</button>' : '') + '</span>';
     const cambiado = () => e.email !== $('eEmail').value.trim().toLowerCase();
     $('eReset').addEventListener('click', () => { if(cambiado()) return $('eErr').textContent = 'Save the new email first.'; resetClave(e, $('eReset')); });
     $('eSetup').addEventListener('click', () => { if(cambiado()) return $('eErr').textContent = 'Save the new email first: the setup email goes out when you save.'; setupClave(e, $('eSetup')); });
+    if($('eMfaReset')) $('eMfaReset').addEventListener('click', () => mfaResetDe(e, $('eMfaReset')));   // (v405)
     return;
   }
   el.innerHTML = '<span class="t">' + (a.k === 'invitada' ? '<b>Invitation sent</b> ' + esc(fechaCorta(a.p.invitado)) + ' · waiting for them to create their password.'
@@ -11186,7 +11393,8 @@ const AJ_IC = {
   integ:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
   custom:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/>',
   avanzado:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-.6-.6-2.4z"/>',
-  plan:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'
+  plan:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+  seguridad:'<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/>'
 };
 const AJ_SEC = [
   { k:'inicio',    g:'',        t:'Overview',          d:'How the Time Clock is set up.', tono:'s' },
@@ -11194,6 +11402,7 @@ const AJ_SEC = [
   { k:'cuentas',   g:'Company', t:'Accounts',          d:'The clients, departments or teams your people work on.', tono:'b' },
   { k:'listas',    g:'Company', t:'Profile options',   d:'The choices people pick in their profile: department, ID type and bank.', tono:'b' },
   { k:'equipo',    g:'People',  t:'Roles & managers',  d:'General Manager, managers and supervisors.', tono:'v' },
+  { k:'seguridad', g:'People',  t:'Two-step sign-in',  d:'A code from an app on your phone each time you sign in, so a stolen password isn\'t enough.', tono:'v' },   // (v404, paso 181)
   { k:'tiempo',    g:'Time',    t:'Time tracking',     d:'Rounding, location, automatic clock out and the nightly absence check.', tono:'g' },
   { k:'ausencias', g:'Time',    t:'Time off',          d:'Absence types and who can make time off paid.', tono:'r' },
   { k:'nomina',    g:'Money',   t:'Payroll',           d:'Company country, local or international pay, exchange rates and withholdings.', tono:'a' },
@@ -11235,6 +11444,7 @@ function ajResumen(k){
         return [['Company', !S.reglasPago && !pagoCustom() && !paisOrigen() ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
       case 'plan': return planResumen();
+      case 'seguridad': return [['Your account', S.mfaOn === undefined ? '\u2026' : S.mfaOn ? ajPill('On', 'ok') : ajPill('Off', 'w')]];
       case 'custom': return [['Custom features', funcVisibles().length + ' on']];
     }
   }catch(e){}
@@ -11300,6 +11510,7 @@ function ajIr(k, opt){
   document.querySelectorAll('#vAjustes .aj-pag').forEach(p => p.classList.toggle('on', p.dataset.pag === s.k));
   document.querySelectorAll('#ajNavLista [data-ir]').forEach(a => { const on = a.dataset.ir === s.k; a.classList.toggle('on', on); if(on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   if(s.k === 'inicio') ajPintarResumen();
+  if(s.k === 'seguridad') mfaPintar();   // (v404)
   try{ localStorage.setItem('aj_sec', s.k); }catch(e){}
   if(!(opt && opt.sinScroll)){ const v = $('vAjustes'); const y = v.getBoundingClientRect().top + window.scrollY - 70; if(window.scrollY > y) window.scrollTo({ top:Math.max(0, y) }); }
 }

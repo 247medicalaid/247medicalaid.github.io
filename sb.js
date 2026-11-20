@@ -125,6 +125,9 @@
     try {
       var r = await window.sb.auth.signInWithPassword({ email: String(correo).trim().toLowerCase(), password: clave });
       if (r.error || !r.data.session) return { ok: false, codigo: /invalid/i.test((r.error && r.error.message) || '') ? 'SB_CLAVE' : 'SB_ERROR' };
+      // (20 nov 2026) Segundo paso encendido: falta el código antes de pedir la llave del portal (sbMfaVerificar).
+      if (await window.sbMfaFalta()) return { ok: false, codigo: 'MFA' };
+      if (await window.sbMfaConfigurarFalta()) return { ok: false, codigo: 'MFA_CONFIGURAR' };   // (v405) tras un reset
       var j = await window.sbCuentas('llave', {}, r.data.session.access_token);
       if (j && j.ok && j.token) return j;
       try { await window.sb.auth.signOut({ scope: 'local' }); } catch (e) {}
@@ -132,6 +135,45 @@
     } catch (e) {
       return { ok: false, codigo: 'SB_RED' };
     }
+  };
+  /* (20 nov 2026) Segundo paso (código de una app) para administradores — paso 181.
+     sbMfaFalta() → true si la cuenta tiene el segundo paso y la sesión todavía no puso el código.
+     sbMfaVerificar(codigo) → { ok:true, token, user } (la llave del portal) o { ok:false, codigo }. */
+  window.sbMfaFalta = async function () {
+    try {
+      var a = await window.sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      return !!(a && a.data && a.data.nextLevel === 'aal2' && a.data.currentLevel !== 'aal2');
+    } catch (e) { return false; }
+  };
+  /* (v405, paso 182) Tras un reset o un código de respaldo, la cuenta debe configurar el segundo paso otra vez
+     (eso se hace en el Time Clock). sbMfaRespaldo(codigo) usa un código de respaldo. */
+  window.sbMfaConfigurarFalta = async function () {
+    try {
+      var r = await window.sb.rpc('reloj_mfa_estado');
+      return !!(r && r.data && r.data.requerido && !r.data.factor);
+    } catch (e) { return false; }
+  };
+  window.sbMfaRespaldo = async function (codigo) {
+    try {
+      var r = await window.sb.rpc('reloj_mfa_usar_respaldo', { p_codigo: String(codigo || '') });
+      if (r.error) return { ok: false, codigo: /Demasiados/.test(r.error.message || '') ? 'MFA_ESPERA' : /no tiene c/.test(r.error.message || '') ? 'SIN_CODIGOS' : 'SB_ERROR' };
+      return r.data && r.data.ok ? { ok: true, quedan: r.data.quedan } : { ok: false, codigo: 'RESPALDO_MAL' };
+    } catch (e) { return { ok: false, codigo: 'SB_RED' }; }
+  };
+  window.sbMfaVerificar = async function (codigo) {
+    try {
+      var c = String(codigo || '').replace(/\s+/g, '');
+      if (!/^\d{6}$/.test(c)) return { ok: false, codigo: 'MFA_FORMATO' };
+      var l = await window.sb.auth.mfa.listFactors();
+      var f = ((l && l.data && l.data.totp) || []).filter(function (x) { return x.status === 'verified'; })[0];
+      if (!f) return { ok: false, codigo: 'SIN_FACTOR' };
+      var v = await window.sb.auth.mfa.challengeAndVerify({ factorId: f.id, code: c });
+      if (v.error) return { ok: false, codigo: 'MFA_MAL' };
+      var ses = (await window.sb.auth.getSession()).data.session;
+      var j = await window.sbCuentas('llave', {}, ses.access_token);
+      if (j && j.ok && j.token) return j;
+      return { ok: false, codigo: (j && j.codigo) || 'SIN_LLAVE', msg: j && j.msg };
+    } catch (e) { return { ok: false, codigo: 'SB_RED' }; }
   };
   /* Correo propio de la sesión de Supabase abierta (o null si es cuenta interna o no hay sesión). */
   window.sbCorreoDeSesion = async function () {
