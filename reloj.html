@@ -19,6 +19,9 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v399: 247Punch — el encabezado dice «24/7 Punch» y al lado el nombre de la empresa (pedido de Carlos). Pay & currency:
+     sin país guardado vale el país con que la empresa se inscribió (antes quedaba EE. UU./USD y salía como «sugerido» sin guardar);
+     ya no se marca «Unsaved changes» por eso. 24/7 sigue igual (no tiene inscripción web). -->
 <!-- v398: Común — Settings: el país sugerido de Pay & currency ya no saca «Unsaved changes» apenas se abre Settings; sale solo al entrar
      a Pay & currency (una vez). 247Punch — el encabezado muestra el nombre de la empresa al lado del logo de 247Punch (24/7 y empresas
      con logo propio siguen igual); el título de la pestaña conserva el nombre de la empresa cuando llegan avisos. -->
@@ -51,7 +54,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v398-202611200000">
+<meta name="app-build" content="v399-202611200100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -224,9 +227,14 @@ button,input,select{font:inherit;color:inherit}
 .marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700);white-space:nowrap}
 .marca{gap:0;cursor:default}
 .marca .txt.app{font-size:23px;letter-spacing:-.01em;line-height:1;margin-left:20px;padding-left:20px;border-left:2px solid var(--line)}
-.marca .txt.app.empresa{font-size:20px;max-width:min(42vw,420px);overflow:hidden;text-overflow:ellipsis}   /* (v398) nombre de la empresa */
-@media (max-width:700px){ .marca .txt.app.empresa{font-size:16px;flex:0 1 auto;min-width:0;max-width:none} }
-@media (max-width:600px){ .marca:has(.txt.app.empresa) > :not(.txt.app){display:none} .marca .txt.app.empresa{margin-left:0;padding-left:0;border-left:0} .marca .txt.app.empresa #appVer{display:none} }   /* celular: solo el nombre de la empresa */
+.marca .txt.emp{font-size:19px;font-weight:700;color:var(--text);line-height:1;margin-left:16px;padding-left:16px;border-left:2px solid var(--line);max-width:min(36vw,380px);overflow:hidden;text-overflow:ellipsis}   /* (v399) nombre de la empresa, al lado de «247Punch» */
+@media (max-width:700px){ .marca .txt.emp{font-size:15px;margin-left:10px;padding-left:10px;flex:0 1 auto;min-width:0;max-width:none} }
+@media (max-width:600px){   /* celular: sin el ícono; «24/7 Punch» arriba y la empresa debajo, en pequeño */
+  .marca:has(.txt.emp:not(.hidden)){flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
+  .marca:has(.txt.emp:not(.hidden)) > :not(.app):not(.emp){display:none}
+  .marca:has(.txt.emp:not(.hidden)) .txt.app{margin-left:0;padding-left:0;border-left:0;font-size:17px;line-height:1.05}
+  .marca:has(.txt.emp:not(.hidden)) #appVer{display:none}
+  .marca .txt.emp{font-size:12.5px;font-weight:600;color:var(--text-muted);margin-left:0;padding-left:0;border-left:0;line-height:1.2;max-width:100%;flex:none} }
 @media (max-width:700px){ .marca .txt.app{font-size:18px;margin-left:10px;padding-left:10px;flex:none;overflow:visible} div.marca img{height:24px;min-width:0;flex:0 1 auto;object-fit:contain;object-position:left} }
 .top .esp{flex:1}
 @media (max-width:600px){ .quien{display:none} .demo-tag{font-size:11px;padding:2px 7px} .top{gap:10px}
@@ -4479,11 +4487,13 @@ function aplicarMarca(){
     if(mi && !logo){ mi.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre || MARCA.appName })); }
     else if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
     const ma = document.querySelector('#marcaWeb .txt.app');
-    // (v398) 247Punch: con el logo del producto, al lado va el nombre de la empresa (antes repetía «247Punch» y la empresa no se veía).
-    // 24/7 (empresa fija, con su logo) y las empresas que subieron su propio logo siguen igual.
+    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? CHAT_NOMBRE : MARCA.appName;
+    // (v399) 247Punch: «247Punch» se queda y al lado va el nombre de la empresa (pedido de Carlos). 24/7 (empresa fija) y las
+    // empresas que subieron su propio logo (ya se ve quiénes son) siguen igual.
     const empTit = !soloChatPedido() && INST.compartimentos && !INST.empresaFija && !MARCA.logo && MARCA.nombre ? MARCA.nombre : '';
-    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? CHAT_NOMBRE : (empTit || MARCA.appName);
-    if(ma){ ma.classList.toggle('empresa', !!empTit); if(empTit) ma.title = empTit; else ma.removeAttribute('title'); }
+    let me = document.getElementById('marcaEmp');
+    if(empTit && !me && ma){ me = Object.assign(document.createElement('span'), { id:'marcaEmp', className:'txt emp' }); ma.after(me); }
+    if(me){ me.textContent = empTit; me.title = empTit; me.classList.toggle('hidden', !empTit); }
     const vars = Object.assign({}, _mcRamp(MARCA.brand, MARCA.accent), MARCA.colores || {});
     _MARCA_VARS.forEach(k => document.documentElement.style.removeProperty(k));
     for(const k in vars) document.documentElement.style.setProperty(k, vars[k]);
@@ -10002,7 +10012,7 @@ async function guardarPaisEmp(u){
   const nueva = epNuevaHist(); if(JSON.stringify(nueva) === JSON.stringify(EP.orig)) return;
   let base = S.reglasPago || {};
   if(!DEMO){ try{ const d = await q(sb.from('reloj_config').select('valor').eq('clave', 'pago')); if(d && d[0] && d[0].valor && typeof d[0].valor === 'object') base = d[0].valor; }catch(e){} }   // lo último guardado
-  const R = Object.assign({}, REGLAS_BASE, base), emp = histPago(R).emp;
+  const R = reglasDe(base), emp = histPago(R).emp;
   if(nueva.length) emp[u] = nueva; else delete emp[u];
   const v = Object.assign({}, R, { empPaisH:emp, empPais:{} });
   await api('guardarConfig', { clave:'pago', valor:v });
@@ -11130,7 +11140,7 @@ function ajResumen(k){
         return [['Absence types', String((typeof conceptosAus === 'function' ? conceptosAus() : []).length)], ['Can assign paid', n + (n === 1 ? ' role' : ' roles') + ' + admins']]; }
       case 'nomina': { const R = reglasPago(), cm = cfgMoneda(R), oc = cfgOT();
         const otR = oc.regla === 'ninguna' ? 'None' : (oc.regla === 'semanal' ? 'Weekly · ' + (oc.horas || 40) + ' h' : 'Daily · ' + (oc.horas ? oc.horas + ' h' : 'hours per day')) + ' · ' + oc.mult + '×';
-        return [['Company', !S.reglasPago && !pagoCustom() ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
+        return [['Company', !S.reglasPago && !pagoCustom() && !paisOrigen() ? ajPill('Not set', 'w') : paisNombre(R.pais) + ' · ' + cm.base],   /* (v380) */ ['Payroll', cm.intl ? 'International · ' + paisNombre(R.paisPago) + ' (' + cm.pagoDef + ')' : 'Local'], ['Overtime', otR], cm.intl && cm.pagoDef === 'COP' ? ['TRM rule', textoRegla('COP', R)] : ['Exchange', cm.intl ? textoRegla(cm.pagoDef, R) : 'None']]; }
       case 'integ': return [['Agent Monitor', monOn() ? ajPill('Connected', 'ok') : ajPill('Off')]];
       case 'plan': return planResumen();
       case 'custom': return [['Custom features', funcVisibles().length + ' on']];
@@ -11163,7 +11173,7 @@ function ajPasos(){
     { t:'At least one account', ok: n > 0, k:'cuentas' },
     { t:'General Manager', ok: !!S.gm, k:'equipo' },
     { t:'Absence types', ok: (typeof conceptosAus === 'function' ? conceptosAus() : []).length > 0, k:'ausencias' },
-    { t:'Pay & currency', ok: !!S.reglasPago, k:'nomina' }
+    { t:'Pay & currency', ok: !!S.reglasPago || !!paisOrigen(), k:'nomina' }
   ];
 }
 function ajPintarResumen(){
@@ -11198,7 +11208,6 @@ function ajIr(k, opt){
   document.querySelectorAll('#vAjustes .aj-pag').forEach(p => p.classList.toggle('on', p.dataset.pag === s.k));
   document.querySelectorAll('#ajNavLista [data-ir]').forEach(a => { const on = a.dataset.ir === s.k; a.classList.toggle('on', on); if(on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   if(s.k === 'inicio') ajPintarResumen();
-  if(s.k === 'nomina') ajSugerirPago();
   try{ localStorage.setItem('aj_sec', s.k); }catch(e){}
   if(!(opt && opt.sinScroll)){ const v = $('vAjustes'); const y = v.getBoundingClientRect().top + window.scrollY - 70; if(window.scrollY > y) window.scrollTo({ top:Math.max(0, y) }); }
 }
@@ -15581,11 +15590,15 @@ function pintarSolo247(){
 async function leerPagoGuardado(){
   let base = S.reglasPago || {};
   if(!DEMO){ try{ const d = await q(sb.from('reloj_config').select('valor').eq('clave', 'pago')); if(d && d[0] && d[0].valor && typeof d[0].valor === 'object') base = d[0].valor; }catch(e){} }
-  return Object.assign({}, REGLAS_BASE, base);
+  return reglasDe(base);
 }
 // (v335) modo/pais/paisPago: sin configurar se comporta como hasta ahora (empresa en EE. UU., pago internacional a Colombia).
 const REGLAS_BASE = Object.assign({ extra:0, tope:0, ica:0, pais:'US', modo:'local', paisPago:'US' }, INST.reglasPago || {}, { cuentasPais:{}, empPais:{}, reglasTasa:{} });
-const reglasPago = () => Object.assign({}, REGLAS_BASE, S.reglasPago || {});
+// (v399) sin país guardado en Pay & currency, vale el país con que la empresa se inscribió en 247Punch (antes quedaba EE. UU./USD
+// hasta que alguien guardara, y Settings lo mostraba como «sugerido» y sin guardar). 24/7 no tiene inscripción web: sigue igual.
+const pagoDeAlta = base => { if(base && base.pais) return {}; const o = paisOrigen(); return o ? { pais:o, paisPago:o } : {}; };
+const reglasDe = base => Object.assign({}, REGLAS_BASE, pagoDeAlta(base), base || {});
+const reglasPago = () => reglasDe(S.reglasPago);
 /* ══════════ (v335) PAÍSES Y MONEDAS ══════════
    La empresa tiene un país (moneda de las tarifas). El pago es LOCAL (todos en esa moneda, sin conversión) o
    INTERNACIONAL: cada persona se paga en el país de su cuenta (o el suyo propio, o el país por defecto). */
@@ -16545,21 +16558,14 @@ function xlsxPayRun(runs, nombreHoja){
 // Ajustes → Pay run: las reglas del dólar y el Rete ICA
 function pintarReglasPago(){ const R = reglasPago(); $('ajPagoExtra').value = R.extra; $('ajPagoTope').value = R.tope; $('ajPagoIca').value = R.ica; $('ajPagoEstado').textContent = '';
   const H = histPago(R);
-  AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, reglasTasa:R.reglasTasa || {}, h:H })); AJM.pend = {}; AJM.sugerido = false;
-  { const o = paisOrigen(); if(!S.reglasPago && o){ AJM.v.pais = o;   // (v380) aún sin guardar: se propone el país de la empresa
-      $('ajPagoEstado').textContent = 'Suggested: ' + paisNombre(o) + ' (' + monedaDePais(o) + '), where your company signed up. Choose your country and save.';
-      AJM.sugerido = true; ajSugerirPago(); } }   // (v398) queda como cambio sin guardar solo cuando la persona abre Pay & currency
+  AJM.v = JSON.parse(JSON.stringify({ pais:R.pais, modo:R.modo, reglasTasa:R.reglasTasa || {}, h:H })); AJM.pend = {};
+  { const o = paisOrigen(); if(!(S.reglasPago && S.reglasPago.pais) && o)   // (v399) el país de la inscripción ya cuenta: no queda «sin guardar»
+      $('ajPagoEstado').textContent = paisNombre(o) + ' (' + monedaDePais(o) + '), the country your company signed up with. Change it here if needed.'; }
   pintarMonedaAj(); ejemploReglas();
   if(!S.emps) api('empleados', {}).then(r => { S.emps = r; pintarMonedaAj(); }).catch(() => {}); }
 /* ══════════ (v335/v336) Settings → Pay & currency ══════════
    Cambiar el país de pago (por defecto, de una cuenta o de una persona) pide DESDE QUÉ QUINCENA vale: se guarda como historia. */
-const AJM = { v:null, pend:{}, sugerido:false, sugVisto:false };
-// (v398) el país propuesto (aún sin guardar) marca «Unsaved changes» solo al entrar a la página Pay & currency, y una sola vez:
-// antes salía la barra apenas se abría Settings, sin haber tocado nada; si la persona descarta, no vuelve a salir.
-function ajSugerirPago(){
-  if(!AJM.sugerido || AJM.sugVisto || !AJ.montado || AJ.sec !== 'nomina') return;
-  AJM.sugVisto = true; setTimeout(() => ajMarcarSucio($('ajPago')), 0);
-}
+const AJM = { v:null, pend:{} };
 const opcPaises = (sel, primera) => { const o = paisOrigen(), op = ([c, n, m]) => '<option value="' + c + '"' + (c === sel ? ' selected' : '') + '>' + esc(n) + ' (' + m + ')</option>';
   return (primera ? '<option value="">' + esc(primera) + '</option>' : '') +
     (o ? op(PAISES.find(p => p[0] === o)) + '<option disabled>──────────</option>' + PAISES.filter(p => p[0] !== o).map(op).join('') : PAISES.map(op).join('')); };   // (v380) el país de la empresa primero
