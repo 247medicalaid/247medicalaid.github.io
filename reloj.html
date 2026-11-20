@@ -19,6 +19,9 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v400: 247Punch — logo nuevo (opción 8 «Huella-reloj» del lienzo): símbolo de arcos de reloj, logotipo «24/7punch» en Manrope
+     con «TIME CLOCK · PAYROLL» debajo, en el encabezado y en la pantalla de entrada (MARCA.wordmark, solo el sitio de 247Punch).
+     Íconos de la app y de la pestaña nuevos. 24/7 y el chat siguen igual. -->
 <!-- v399: 247Punch — el encabezado dice «24/7 Punch» y al lado el nombre de la empresa (pedido de Carlos). Pay & currency:
      sin país guardado vale el país con que la empresa se inscribió (antes quedaba EE. UU./USD y salía como «sugerido» sin guardar);
      ya no se marca «Unsaved changes» por eso. 24/7 sigue igual (no tiene inscripción web). -->
@@ -54,7 +57,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v399-202611200100">
+<meta name="app-build" content="v400-202611201000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -227,6 +230,18 @@ button,input,select{font:inherit;color:inherit}
 .marca .txt{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--brand-700);white-space:nowrap}
 .marca{gap:0;cursor:default}
 .marca .txt.app{font-size:23px;letter-spacing:-.01em;line-height:1;margin-left:20px;padding-left:20px;border-left:2px solid var(--line)}
+/* (v400) logotipo «24/7punch» de 247Punch (Manrope, la carga el sitio de 247Punch) */
+.wm{display:flex;flex-direction:column;gap:5px;font-family:'Manrope',var(--font-display)}
+.wm-n{font-size:26px;font-weight:500;line-height:1;letter-spacing:-.04em;color:#172554}
+.wm-n b{font-weight:800}
+.wm-t{font-size:8.5px;font-weight:800;line-height:1;letter-spacing:.24em;color:#3554B4;padding-left:1px;white-space:nowrap}
+.marca.wm-marca img{height:42px}
+.marca .txt.app.wm-on{display:flex;align-items:center;gap:8px;margin-left:14px;padding-left:0;border-left:0}
+.acceso-marca.wm-marca{gap:12px}
+.acceso-marca.wm-marca img{height:46px}
+.acceso-marca.wm-marca .wm-n{font-size:28px;font-weight:500;color:#172554;font-family:'Manrope',var(--font-display)}
+.acceso-marca.wm-marca .wm-n b{font-weight:800}
+.acceso-marca.wm-marca .wm-t{font-size:9px;font-weight:800;color:#3554B4;font-family:'Manrope',var(--font-display)}
 .marca .txt.emp{font-size:19px;font-weight:700;color:var(--text);line-height:1;margin-left:16px;padding-left:16px;border-left:2px solid var(--line);max-width:min(36vw,380px);overflow:hidden;text-overflow:ellipsis}   /* (v399) nombre de la empresa, al lado de «247Punch» */
 @media (max-width:700px){ .marca .txt.emp{font-size:15px;margin-left:10px;padding-left:10px;flex:0 1 auto;min-width:0;max-width:none} }
 @media (max-width:600px){   /* celular: sin el ícono; «24/7 Punch» arriba y la empresa debajo, en pequeño */
@@ -234,6 +249,8 @@ button,input,select{font:inherit;color:inherit}
   .marca:has(.txt.emp:not(.hidden)) > :not(.app):not(.emp){display:none}
   .marca:has(.txt.emp:not(.hidden)) .txt.app{margin-left:0;padding-left:0;border-left:0;font-size:17px;line-height:1.05}
   .marca:has(.txt.emp:not(.hidden)) #appVer{display:none}
+  .marca:has(.txt.emp:not(.hidden)) .wm-n{font-size:18px}
+  .marca:has(.txt.emp:not(.hidden)) .wm-t{display:none}
   .marca .txt.emp{font-size:12.5px;font-weight:600;color:var(--text-muted);margin-left:0;padding-left:0;border-left:0;line-height:1.2;max-width:100%;flex:none} }
 @media (max-width:700px){ .marca .txt.app{font-size:18px;margin-left:10px;padding-left:10px;flex:none;overflow:visible} div.marca img{height:24px;min-width:0;flex:0 1 auto;object-fit:contain;object-position:left} }
 .top .esp{flex:1}
@@ -4479,6 +4496,13 @@ function _mcRamp(brand, accent){
     v['--accent-600'] = _mcRgb(c); v['--accent-500'] = _mcRgb(_mcMix(c, W, .12)); v['--accent-50'] = _mcRgb(_mcMix(c, W, .90)); }
   return v;
 }
+// (v400) el logotipo de 247Punch: «24/7» gruesa + «punch» y debajo «TIME CLOCK · PAYROLL»
+function wmNodo(wm){
+  const f = document.createDocumentFragment(), n = document.createElement('span'), b = document.createElement('b'), t = document.createElement('span');
+  n.className = 'wm-n'; b.textContent = String(wm.a || ''); n.append(b, String(wm.b || ''));
+  t.className = 'wm-t'; t.textContent = String(wm.tag || '');
+  f.append(n); if(wm.tag) f.append(t); return f;
+}
 function tituloMarca(){ return soloChatPedido() ? CHAT_NOMBRE : (MARCA.nombre ? MARCA.appName + ' \u00b7 ' + MARCA.nombre : MARCA.appName); }
 function aplicarMarca(){
   try{
@@ -4487,7 +4511,18 @@ function aplicarMarca(){
     if(mi && !logo){ mi.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre || MARCA.appName })); }
     else if(mi){ mi.removeAttribute('onerror'); mi.onerror = function(){ this.replaceWith(Object.assign(document.createElement('span'), { className:'txt', textContent:MARCA.nombre })); }; mi.src = logo; mi.alt = MARCA.nombre; }
     const ma = document.querySelector('#marcaWeb .txt.app');
-    if(ma && ma.firstChild && ma.firstChild.nodeType === 3) ma.firstChild.textContent = soloChatPedido() ? CHAT_NOMBRE : MARCA.appName;
+    // (v400) 247Punch: logotipo «24/7punch» + «TIME CLOCK · PAYROLL» (letra Manrope) en lugar del nombre en texto.
+    // Solo cuando la marca lo trae (MARCA.wordmark, lo pone el sitio de 247Punch); 24/7 y el chat siguen igual.
+    const wm = !soloChatPedido() && MARCA.wordmark && typeof MARCA.wordmark === 'object' ? MARCA.wordmark : null;
+    const tn = ma ? [...ma.childNodes].find(n => n.nodeType === 3) : null;
+    if(tn) tn.textContent = wm ? '' : (soloChatPedido() ? CHAT_NOMBRE : MARCA.appName);
+    if(ma){
+      let w = document.getElementById('marcaWm');
+      if(wm && !w){ w = document.createElement('span'); w.id = 'marcaWm'; w.className = 'wm'; ma.insertBefore(w, ma.firstChild); }
+      if(w){ w.textContent = ''; if(wm) w.append(wmNodo(wm)); w.classList.toggle('hidden', !wm); }
+      ma.classList.toggle('wm-on', !!wm);
+      if(ma.parentElement) ma.parentElement.classList.toggle('wm-marca', !!wm);
+    }
     // (v399) 247Punch: «247Punch» se queda y al lado va el nombre de la empresa (pedido de Carlos). 24/7 (empresa fija) y las
     // empresas que subieron su propio logo (ya se ve quiénes son) siguen igual.
     const empTit = !soloChatPedido() && INST.compartimentos && !INST.empresaFija && !MARCA.logo && MARCA.nombre ? MARCA.nombre : '';
@@ -6239,7 +6274,10 @@ const esCuentaPortal = ses => !!DOMINIO_SB && String(ses.user.email || '').endsW
 function caja(html){
   const v = $('velo'); if(v) v.remove();
   $('acceso').classList.remove('hidden');
-  $('accesoCaja').innerHTML = '<div class="acceso-marca"><img src="' + LOGO + '" alt="' + esc(MARCA.nombre) + '" onerror="this.remove()"><span>' + esc(soloChatPedido() ? 'Team chat' : MARCA.appName) + '</span></div>' + html;
+  const wmA = !soloChatPedido() && MARCA.wordmark && typeof MARCA.wordmark === 'object';   // (v400) logotipo de 247Punch
+  $('accesoCaja').innerHTML = '<div class="acceso-marca' + (wmA ? ' wm-marca' : '') + '"><img src="' + LOGO + '" alt="' + esc(MARCA.nombre || MARCA.appName) + '" onerror="this.remove()">'
+    + (wmA ? '<span class="wm"></span>' : '<span>' + esc(soloChatPedido() ? 'Team chat' : MARCA.appName) + '</span>') + '</div>' + html;
+  if(wmA){ const w = document.querySelector('#accesoCaja .acceso-marca .wm'); if(w) w.append(wmNodo(MARCA.wordmark)); }
 }
 // (v395 · Solo 24/7) En github.io el Time Clock es solo para administradores (desvincular del portal):
 // los demás pasan a timeclock.247medical-aid.com. La app de Windows vieja (1.0.6, ?app=win) sigue entrando mientras se actualiza.
