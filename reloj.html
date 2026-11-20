@@ -19,6 +19,9 @@
 <!-- v364: 247Punch — mudanza a base propia: Settings «Plan & database» (plan pago → Move to your own database), pantalla «Moving your company», la app entra a la base propia (destino guardado, punch_donde antes del login, enlaces con &p=). 24/7 sin cambios -->
 <!-- v365: 247Punch — un enlace de invitación o contraseña enviado ANTES de la mudanza sigue funcionando: lo atiende la base nueva y la app cambia de base -->
 <!-- v366: 247Punch — Settings «Plan & billing» con los planes (Free/Team/Business) y Upgrade; el cliente no ve nada de bases de datos: la mudanza corre sola en el servidor, aviso «Updating your account» y entra solo a la cuenta nueva sin contraseña -->
+<!-- v401: 247Punch — la vista de usuario muestra el logo nuevo (versión para fondo oscuro) y los fondos de la app toman los colores
+     del logo: menú y tarjetas oscuras en azul noche-índigo, Clock in en celeste, almuerzo en índigo, selección en celeste.
+     Va por variables (--sel-bg, --cta, --anillo…) con los valores de siempre por defecto: 24/7 no cambia. -->
 <!-- v400: 247Punch — logo nuevo (opción 8 «Huella-reloj» del lienzo): símbolo de arcos de reloj, logotipo «24/7punch» en Manrope
      con «TIME CLOCK · PAYROLL» debajo, en el encabezado y en la pantalla de entrada (MARCA.wordmark, solo el sitio de 247Punch).
      Íconos de la app y de la pestaña nuevos. 24/7 y el chat siguen igual. -->
@@ -57,7 +60,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v400-202611201000">
+<meta name="app-build" content="v401-202611201100">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -309,7 +312,7 @@ button,input,select{font:inherit;color:inherit}
 .tab svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .tab:hover{background:rgba(255,255,255,.07);color:#fff}
 .tab .ext{font-style:normal;font-size:.8em;opacity:.7;margin-left:3px}   /* (v394) se abre en pestaña nueva */
-.tab[aria-selected="true"]{background:rgba(23,169,222,.18);color:#fff;box-shadow:inset 3px 0 0 var(--accent-500)}
+.tab[aria-selected="true"]{background:var(--sel-bg,rgba(23,169,222,.18));color:#fff;box-shadow:inset 3px 0 0 var(--sel-barra,var(--accent-500))}
 .lateral .pie-lat{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
 .lateral .pie-lat a{text-decoration:none}
 .btn-menu{display:none;border:1px solid var(--line);background:var(--paper);border-radius:12px;width:42px;height:42px;
@@ -367,7 +370,7 @@ body[data-vista="pago"] #pyTabla .hoja tfoot td.nombre{z-index:3}
 .py-diffs-list .du{font-variant-numeric:tabular-nums;font-weight:600;min-width:84px;text-align:right;white-space:nowrap}
 .btn-xs{padding:3px 10px;font-size:12px;flex:none}
 .py-diffs-all{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.py-diffs-list .py-nuevo{font-style:normal;font-size:11px;background:#e6f4fa;color:#0A6A90;padding:1px 6px;border-radius:999px;margin-left:5px}
+.py-diffs-list .py-nuevo{font-style:normal;font-size:11px;background:var(--tinte,#e6f4fa);color:#0A6A90;padding:1px 6px;border-radius:999px;margin-left:5px}
 .py-diffs-list .rt .nada{color:var(--text-muted)}
 .py-diffs-list .rt b{color:var(--text)}
 @media (max-width:640px){ .py-diffs-list li{flex-wrap:wrap} .py-diffs-list .rt{flex-basis:100%;white-space:normal} }
@@ -469,7 +472,7 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
   .lateral .grupo{display:none}
   .lateral .grupo + .tab, .lateral .sep-riel{margin-top:10px}
   .tab{flex-direction:column;gap:5px;padding:10px 4px;font-size:11.5px;text-align:center;white-space:normal;line-height:1.15}
-  .tab[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--accent-500)}
+  .tab[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--sel-barra,var(--accent-500))}
 }
 @media (max-width:699px){
   .btn-menu.activo{display:inline-flex}
@@ -506,17 +509,17 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .esfera .acum{font-size:14px;color:#9FBECB}
 .esfera .acum b{color:#fff;font-weight:700}
 .esfera .anillo{position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
-  border:2px solid rgba(23,169,222,.18);pointer-events:none}
-.esfera .anillo::after{content:"";position:absolute;inset:26px;border-radius:50%;border:2px solid rgba(23,169,222,.10)}
+  border:2px solid var(--anillo,rgba(23,169,222,.18));pointer-events:none}
+.esfera .anillo::after{content:"";position:absolute;inset:26px;border-radius:50%;border:2px solid var(--anillo-2,rgba(23,169,222,.10))}
 
 .acciones{display:grid;gap:10px;margin:16px 0 8px}
 .marcar{width:100%;border:0;border-radius:999px;padding:20px 24px;font-family:var(--font-display);
-  font-weight:800;font-size:20px;letter-spacing:-.01em;cursor:pointer;color:#fff;background:var(--accent-500);
-  box-shadow:0 6px 18px rgba(237,50,55,.28);transition:background .15s,transform .1s}
-.marcar:hover:not(:disabled){background:var(--accent-600)}
+  font-weight:800;font-size:20px;letter-spacing:-.01em;cursor:pointer;color:#fff;background:var(--cta,var(--accent-500));
+  box-shadow:0 6px 18px var(--cta-sombra,rgba(237,50,55,.28));transition:background .15s,transform .1s}
+.marcar:hover:not(:disabled){background:var(--cta-h,var(--accent-600))}
 .marcar:active{transform:scale(.99)}
 .marcar:disabled{opacity:.55;cursor:wait}
-.marcar.alm{background:var(--brand-600);box-shadow:0 6px 18px rgba(14,134,180,.28)}
+.marcar.alm{background:var(--brand-600);box-shadow:0 6px 18px var(--alm-sombra,rgba(14,134,180,.28))}
 .marcar.alm:hover:not(:disabled){background:var(--brand-700)}
 .marcar-2{width:100%;padding:15px;font-size:16px}
 
@@ -785,7 +788,7 @@ main{max-width:1500px;margin:0 auto;padding:clamp(16px,3vw,28px) clamp(14px,4vw,
 .reloj .esfera .anillo::after{inset:15px}
 .reloj .acciones{gap:7px;margin:9px 0 3px}
 .reloj .acciones:has(.marcar-2){grid-template-columns:1fr 1fr}
-.reloj .marcar{padding:10px 15px;font-size:16px;box-shadow:0 3px 10px rgba(237,50,55,.2)}
+.reloj .marcar{padding:10px 15px;font-size:16px;box-shadow:0 3px 10px var(--cta-sombra,rgba(237,50,55,.2))}
 .reloj .marcar.alm{box-shadow:0 3px 10px rgba(14,134,180,.2)}
 .reloj .marcar-2{padding:10px 15px;font-size:16px}
 .reloj .cinta-box{padding:10px 13px 7px;margin-top:9px;border-radius:13px}
@@ -1628,7 +1631,7 @@ tr.cerrado td{background:#F6FAFC}
 .ve-hor-pie b{color:var(--text)}
 .ve-hor-nada{margin:0;color:#9DB0BA;font-size:13.5px}
 
-.ve-tag{background:#e6f4fa;color:#0A6A90;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px}
+.ve-tag{background:var(--tinte,#e6f4fa);color:#0A6A90;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px}
 .ve-notas{font-weight:400;white-space:pre-wrap;color:#33505E;line-height:1.5}
 .u-ver-nom{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
 .u-ver-nom:hover b{text-decoration:underline}
@@ -1827,7 +1830,7 @@ table.per{width:100%;border-collapse:collapse;font-size:13.5px}
 .cifra .st{font-size:13px;color:var(--text-muted);font-weight:500}
 button.cifra{font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,background .12s}
 button.cifra:hover{border-color:var(--brand-500)}
-button.cifra[aria-pressed="true"]{background:var(--text);border-color:var(--text)}
+button.cifra[aria-pressed="true"]{background:var(--cifra-on,var(--text));border-color:var(--cifra-on,var(--text))}
 button.cifra[aria-pressed="true"] b,button.cifra[aria-pressed="true"] .st{color:#fff}
 button.cifra[aria-pressed="true"] .st-fuera i,button.cifra[aria-pressed="true"] .st-sin i{border-color:rgba(255,255,255,.85)}
 button.cifra:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
@@ -1843,7 +1846,7 @@ button.cifra:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px
   border-radius:999px;padding:6px 13px;font:600 13px var(--font-body);cursor:pointer}
 .hoy-filtro button:hover{border-color:var(--brand-500)}
 .hoy-filtro button .n{font-variant-numeric:tabular-nums;color:var(--text-muted);font-weight:700}
-.hoy-filtro button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:#fff}
+.hoy-filtro button[aria-pressed="true"]{background:var(--cifra-on,var(--text));border-color:var(--cifra-on,var(--text));color:#fff}
 .hoy-filtro button[aria-pressed="true"] .n{color:#fff;opacity:.75}
 .hoy-filtro button:focus-visible{outline:2px solid var(--brand-500);outline-offset:2px}
 .cabecera{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:16px}
@@ -2202,12 +2205,21 @@ body.aw #vReloj .reloj-grid{display:grid !important;grid-template-columns:212px 
 .aw-menu{background:var(--ink-900);color:#C9DCE3;display:flex;flex-direction:column;padding:16px 10px 14px;min-height:0}
 .aw-marca{display:flex;align-items:center;gap:9px;padding:2px 8px 18px;color:#fff;font-family:var(--font-display);font-weight:800;font-size:17px;letter-spacing:-.01em}
 .aw-marca svg{width:30px;height:30px;flex:none}
-.aw-marca small{display:block;font-family:var(--font-body);font-weight:600;font-size:11px;letter-spacing:.08em;color:#7FA6B6;text-transform:uppercase}
+.aw-marca small{display:block;font-family:var(--font-body);font-weight:600;font-size:11px;letter-spacing:.08em;color:var(--ink-suave,#7FA6B6);text-transform:uppercase}
+/* (v401) logotipo de 247Punch en el menú oscuro de la vista de usuario */
+.aw-marca svg.aw-wm-ico{width:36px;height:36px}
+.aw-wm{display:flex;flex-direction:column;gap:4px;min-width:0}
+.aw-wm .wm-n{font-family:'Manrope',var(--font-display);font-size:21px;font-weight:500;line-height:1;letter-spacing:-.04em;color:#fff}
+.aw-wm .wm-n b{font-weight:800}
+.aw-wm .wm-t{font-family:'Manrope',var(--font-display);font-size:7px;font-weight:800;line-height:1;letter-spacing:.22em;color:#38BDF8;white-space:nowrap}
+body.aw.aw-web .aw-movil span.aw-movil-wm,body.aw .aw-movil span.aw-movil-wm{margin-left:0;font-family:'Manrope',var(--font-display);font-weight:500;font-size:21px;letter-spacing:-.04em;color:#fff}
+body.aw .aw-movil .aw-movil-wm b{font-weight:800;color:#fff}
+.aw-wm small{margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .aw-item{display:flex;align-items:center;gap:11px;width:100%;border:0;background:transparent;color:#C9DCE3;font:inherit;font-size:14.5px;font-weight:600;
   padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left;margin-bottom:2px}
 .aw-item svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .aw-item:hover{background:rgba(255,255,255,.07);color:#fff}
-.aw-item[aria-current="true"]{background:rgba(23,169,222,.18);color:#fff;box-shadow:inset 3px 0 0 var(--brand-500)}
+.aw-item[aria-current="true"]{background:var(--sel-bg,rgba(23,169,222,.18));color:#fff;box-shadow:inset 3px 0 0 var(--brand-500)}
 .aw-item b{margin-left:auto;background:var(--accent-500);color:#fff;border-radius:999px;font-size:11.5px;padding:1px 7px}
 .aw-sep{flex:1}
 .aw-yo{border-top:1px solid rgba(255,255,255,.1);padding:12px 12px 4px;font-size:13px;line-height:1.35}
@@ -2355,7 +2367,7 @@ body.aw .aw-panel > [data-aw="docs"] .pie{display:none}
 .aw-sub{display:flex;flex-direction:column;gap:1px;margin:0 0 6px 30px;border-left:1px solid rgba(255,255,255,.12);padding-left:6px}
 .aw-subitem{display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#AFC7D1;font:inherit;font-size:13px;font-weight:600;padding:6px 9px;border-radius:8px;cursor:pointer;text-align:left}
 .aw-subitem:hover{background:rgba(255,255,255,.07);color:#fff}
-.aw-subitem[aria-current="true"]{background:rgba(23,169,222,.18);color:#fff}
+.aw-subitem[aria-current="true"]{background:var(--sel-bg,rgba(23,169,222,.18));color:#fff}
 .aw-subitem span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aw-subitem b{background:var(--accent-500);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;line-height:17px}
 .md-resumen{display:flex;flex-direction:column;gap:8px}
@@ -2559,13 +2571,13 @@ body.aw-app .chat{height:calc(100vh - 200px)}
 #chatBuscar{margin:0 14px 8px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px}
 .chat-lista{flex:1;overflow:auto;padding:0 6px 8px}
 .chat-item{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:9px 8px;border-radius:10px;cursor:pointer}
-.chat-item:hover{background:var(--sand)}.chat-item.on{background:#E3F4FB}
+.chat-item:hover{background:var(--sand)}.chat-item.on{background:var(--tinte,#E3F4FB)}
 .chat-item:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:-2px}
 .chat-item-t{flex:1;min-width:0}.chat-item-t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-item-t small{display:block;font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-item.nuevo .chat-item-t b,.chat-item.nuevo .chat-item-t small{color:var(--text);font-weight:700}
 .chat-item-h{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11.5px;color:var(--text-muted);flex:none}
-.chat-n{background:#17A9DE;color:#fff;border-radius:999px;min-width:20px;padding:1px 6px;text-align:center;font-size:11.5px}
+.chat-n{background:var(--brand-500,#17A9DE);color:#fff;border-radius:999px;min-width:20px;padding:1px 6px;text-align:center;font-size:11.5px}
 .chat-av{width:38px;height:38px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13.5px;font-weight:700;letter-spacing:.02em}
 .chat-av.grp svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .chat-vacio-l{padding:18px 10px;text-align:center;color:var(--text-muted);font-size:14px}
@@ -2628,11 +2640,11 @@ body.aw[data-aw="chat"] .aw-panel > [data-aw="chat"]{display:block}
 }
 /* Avisos emergentes y alto del chat (v64) */
 .pop-caja{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:none;max-width:calc(100vw - 24px)}
-.pop{pointer-events:auto;display:flex;align-items:center;gap:12px;width:380px;max-width:100%;background:var(--paper);border:1px solid #9FD6EE;border-left:5px solid #17A9DE;border-radius:14px;
+.pop{pointer-events:auto;display:flex;align-items:center;gap:12px;width:380px;max-width:100%;background:var(--paper);border:1px solid var(--tinte-borde,#9FD6EE);border-left:5px solid var(--brand-500,#17A9DE);border-radius:14px;
   box-shadow:0 14px 40px rgba(11,34,51,.22);padding:12px 12px 12px 14px;opacity:0;transform:translateY(16px) scale(.98);transition:opacity .2s, transform .2s}
 .pop.on{opacity:1;transform:none}
 .pop .chat-av{width:40px;height:40px}
-.pop-ic{width:40px;height:40px;border-radius:50%;background:#E3F4FB;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pop-ic{width:40px;height:40px;border-radius:50%;background:var(--tinte,#E3F4FB);display:inline-flex;align-items:center;justify-content:center;flex:none}
 .pop-ic svg{width:22px;height:22px;fill:none;stroke:#0B6E99;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .pop-t{flex:1;min-width:0}.pop-t b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pop-t span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;color:var(--ink-700, #2B3B47)}
@@ -2677,12 +2689,12 @@ body.solochat-ag .aw-grupo.g1,body.solochat-ag .aw-grupo.g3{display:none !import
     .chat-lado-cab h2{display:none}.chat-lado-cab{justify-content:stretch}
     #chatNuevo{width:100%;justify-content:center}
     .chat-item-h{display:none}
-    .chat-item.nuevo .chat-item-t b::after{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#17A9DE;margin-left:5px;vertical-align:1px}
+    .chat-item.nuevo .chat-item-t b::after{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--brand-500,#17A9DE);margin-left:5px;vertical-align:1px}
     .chat-form{padding:8px}.chat-form-f{gap:6px}.chat-clip{padding:6px}
   }
 }
 /* v66: comunicado al que se llega desde el aviso */
-.upd-card.upd-foco{box-shadow:0 0 0 3px #17A9DE;transition:box-shadow .3s}
+.upd-card.upd-foco{box-shadow:0 0 0 3px var(--brand-500,#17A9DE);transition:box-shadow .3s}
 /* Borrar chats (v67) */
 .chat-del{color:var(--accent-600, #C62828)}
 .chat-borr-aviso{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px;background:#FDECEC;border-bottom:1px solid #F4B9BB;font-size:13.5px;color:#7A1F1F}
@@ -2716,16 +2728,16 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-rec-n{font-size:12.5px;color:var(--accent-600);background:var(--accent-50);padding:1px 8px;border-radius:999px;font-weight:600}
 .upd-rec-n.ok{color:#12805C;background:#E7F6EF}
 .upd-rec-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.upd-rec-on{font-size:12.5px;color:#0A6A90;background:#e6f4fa;padding:2px 9px;border-radius:999px;font-weight:600}
+.upd-rec-on{font-size:12.5px;color:#0A6A90;background:var(--tinte,#e6f4fa);padding:2px 9px;border-radius:999px;font-weight:600}
 .upd-rec-auto{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text-muted)}
 .upd-rec-auto input{padding:4px 6px}
 .upd-lista{display:flex;flex-direction:column;gap:12px;max-width:760px}
 .upd-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative}
-.upd-card.nuevo{border-color:#9FD6EE;box-shadow:inset 3px 0 0 #17A9DE}
+.upd-card.nuevo{border-color:var(--tinte-borde,#9FD6EE);box-shadow:inset 3px 0 0 var(--brand-500,#17A9DE)}
 .upd-card header{display:flex;gap:10px;align-items:flex-start}
 .upd-cab{flex:1;min-width:0}.upd-cab h3{font-size:16.5px;margin:0;line-height:1.3}
 .upd-cab small{display:block;color:var(--text-muted);font-size:12.5px;margin-top:2px}
-.upd-nuevo{display:inline-block;vertical-align:2px;font-size:11px;font-weight:700;background:#17A9DE;color:#fff;border-radius:999px;padding:1px 8px;margin-left:4px}
+.upd-nuevo{display:inline-block;vertical-align:2px;font-size:11px;font-weight:700;background:var(--brand-500,#17A9DE);color:#fff;border-radius:999px;padding:1px 8px;margin-left:4px}
 .upd-ag-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}.upd-ag-top .upd-ag-t{margin:0}
 .upd-origen{display:inline-block;font-weight:700;color:var(--brand-600,#17A9DE);font-size:11px;text-transform:uppercase;letter-spacing:.02em}
 .upd-card.upd-sent{border-left:3px solid var(--brand-600,#17A9DE)}
@@ -2758,7 +2770,7 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-reac .esp{flex:1}
 .upd-emo{border:1px solid transparent;background:var(--sand);border-radius:999px;padding:3px 9px;font-size:15px;line-height:1.3;cursor:pointer;display:inline-flex;align-items:center;gap:4px;opacity:.6}
 .upd-emo:hover,.upd-emo.con{opacity:1}.upd-emo b{font-size:12px;color:var(--text-muted)}
-.upd-emo.on{background:#E3F4FB;border-color:#9FD6EE;opacity:1}.upd-emo.on b{color:var(--brand-700, #1F4E79)}
+.upd-emo.on{background:var(--tinte,#E3F4FB);border-color:var(--tinte-borde,#9FD6EE);opacity:1}.upd-emo.on b{color:var(--brand-700, #1F4E79)}
 .upd-emo:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:1px}
 .upd-ver-coms{font-size:13px}
 .upd-coms{margin-top:10px;display:flex;flex-direction:column;gap:8px}
@@ -2769,7 +2781,7 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .upd-com-form{display:flex;gap:8px;align-items:flex-end}
 .upd-com-form textarea{flex:1;resize:vertical;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);font:inherit;font-size:14px}
 .upd-fila{all:unset;box-sizing:border-box;display:grid;grid-template-columns:1fr 190px 110px;gap:14px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;cursor:pointer}
-.upd-fila:hover{border-color:#9FD6EE}.upd-fila:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:2px}
+.upd-fila:hover{border-color:var(--tinte-borde,#9FD6EE)}.upd-fila:focus-visible{outline:2px solid var(--brand-700, #1F4E79);outline-offset:2px}
 .upd-fila-t{display:flex;gap:8px;align-items:flex-start;min-width:0;flex-wrap:wrap}.upd-fila-t b{font-size:15px}
 .upd-fila-t small{flex-basis:100%;color:var(--text-muted);font-size:12.5px}
 .upd-fila-l small,.upd-fila-n small{display:block;color:var(--text-muted);font-size:12.5px}
@@ -2782,11 +2794,11 @@ body[data-vista="mon"] .mon-marco{border-radius:12px 12px 0 0;border-bottom:0}
 .ue-ops .ue-auto input[type=number]{width:52px;padding:3px 6px}
 @media (max-width:700px){ .upd-fila-row{flex-wrap:wrap} .upd-recordar{width:100%;justify-content:center} }
 .upd-fila-n{text-align:right}
-.upd-barra{display:block;height:6px;border-radius:99px;background:var(--sand-2);overflow:hidden;margin-bottom:4px}.upd-barra i{display:block;height:100%;background:#17A9DE}
+.upd-barra{display:block;height:6px;border-radius:99px;background:var(--sand-2);overflow:hidden;margin-bottom:4px}.upd-barra i{display:block;height:100%;background:var(--brand-500,#17A9DE)}
 .upd-leidos{margin-top:16px}
 .upd-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:8px}
 .upd-tabs button{border:0;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--text-muted);padding:8px 10px;cursor:pointer;border-bottom:2px solid transparent}
-.upd-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:#17A9DE}
+.upd-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--brand-500,#17A9DE)}
 ul.upd-gente{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto}
 ul.upd-gente li{display:flex;justify-content:space-between;gap:10px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:14px}
 ul.upd-gente li small{color:var(--text-muted)}
@@ -2834,7 +2846,7 @@ ul.upd-gente li small{color:var(--text-muted)}
 .ue-gente{max-height:150px;overflow:auto}
 .ue-cuantos{margin:8px 0 0;font-size:14px}
 .ue-ops{display:flex;flex-wrap:wrap;gap:8px 20px}.ue-ops label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
-.upd-aviso{display:flex;align-items:center;gap:12px;background:#E3F4FB;border:1px solid #9FD6EE;border-radius:var(--radius);padding:10px 14px;margin:0 0 12px}
+.upd-aviso{display:flex;align-items:center;gap:12px;background:var(--tinte,#E3F4FB);border:1px solid var(--tinte-borde,#9FD6EE);border-radius:var(--radius);padding:10px 14px;margin:0 0 12px}
 .upd-aviso > svg{width:24px;height:24px;flex:none;fill:none;stroke:#0B6E99;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .upd-aviso > span{flex:1;min-width:0;font-size:13.5px;color:var(--ink-700, #2B3B47)}.upd-aviso b{display:block;font-size:14.5px;color:#0B4F6E}
 .upd-aviso .btn{flex:none}
@@ -4483,6 +4495,8 @@ const MARCA_DEFAULT = Object.assign({
 const MARCA = Object.assign({}, MARCA_DEFAULT, (window.MARCA || {}));
 const MARCA_BASE = Object.assign({}, MARCA);   // defaults + override del despliegue; la config del servidor se superpone
 const MARCA_COL_DEF = { brand:'#0E86B4', accent:'#C81F29' };   // colores de 24/7 (si se eligen estos, NO se re-tematiza)
+// (v401) 247Punch trae sus propios colores por defecto (los del logo): «Default colors» en Settings vuelve a esos
+try{ const mb = INST.marca || {}; if(/^#[0-9A-Fa-f]{6}$/.test(mb.brand || '')) MARCA_COL_DEF.brand = mb.brand; if(/^#[0-9A-Fa-f]{6}$/.test(mb.accent || '')) MARCA_COL_DEF.accent = mb.accent; }catch(e){}
 const _MARCA_VARS = ['--brand-700', '--brand-600', '--brand-500', '--brand-100', '--brand-50', '--accent-600', '--accent-500', '--accent-50'];
 function _mcHx(h){ h = String(h || '').replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
 function _mcRgb(a){ return '#' + a.map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join(''); }
@@ -4529,9 +4543,13 @@ function aplicarMarca(){
     let me = document.getElementById('marcaEmp');
     if(empTit && !me && ma){ me = Object.assign(document.createElement('span'), { id:'marcaEmp', className:'txt emp' }); ma.after(me); }
     if(me){ me.textContent = empTit; me.title = empTit; me.classList.toggle('hidden', !empTit); }
+    const awm = document.querySelector('.aw-menu > .aw-marca'); if(awm && typeof awMarcaHTML === 'function' && !soloChatPedido()) awm.innerHTML = awMarcaHTML();   // (v401)
+    const awt = document.querySelector('.aw-movil > b'); if(awt && typeof awMovilTit === 'function' && !soloChatPedido()) awt.innerHTML = awMovilTit();
     const vars = Object.assign({}, _mcRamp(MARCA.brand, MARCA.accent), MARCA.colores || {});
     _MARCA_VARS.forEach(k => document.documentElement.style.removeProperty(k));
-    for(const k in vars) document.documentElement.style.setProperty(k, vars[k]);
+    (window._marcaVarsPuestas || []).forEach(k => document.documentElement.style.removeProperty(k));   // (v401) también los colores extra de la marca anterior
+    window._marcaVarsPuestas = Object.keys(vars).filter(k => /^--[a-z0-9-]+$/.test(k));
+    for(const k of window._marcaVarsPuestas) document.documentElement.style.setProperty(k, vars[k]);
   }catch(e){}
 }
 function setMarca(cfg){
@@ -7041,9 +7059,7 @@ function appLayout(){
   const chat = $('chatAg'); chat.append($('chatApp')); chat.dataset.aw = 'chat'; chat.classList.remove('hidden');
   panel.append($('avisosAgente'), $('idAvisoAg'), $('updAvisoAg'), dia, ...(hor ? [hor] : []), upd, chat, per, sol, eqp, docs, perfil);
   const nav = document.createElement('nav'); nav.className = 'aw-menu'; nav.setAttribute('aria-label', 'Time Clock menu');
-  nav.innerHTML = '<div class="aw-marca"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>' +
-      '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>' +
-      '<div>' + esc(MARCA.appName) + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '') + '</div></div>' +
+  nav.innerHTML = '<div class="aw-marca">' + awMarcaHTML() + '</div>' +
     AW_MENU.map(([k, t, ic]) => '<button class="aw-item" type="button" data-awi="' + k + '">' + ic + '<span>' + t + '</span>' + (k === 'upd' ? '<b class="hidden" id="awUpdN"></b>' : k === 'chat' ? '<b class="hidden" id="awChatN"></b>' : k === 'sol' ? '<b class="hidden" id="awSolN"></b>' : k === 'equipo' ? '<b class="hidden" id="awEqN"></b>' : k === 'docs' ? '<b class="hidden" id="awDocsN"></b>' : k === 'perfil' ? '<b class="hidden" id="awPerfilN"></b>' : '') + '</button>' +
       (k === 'docs' ? '<div class="aw-sub hidden" id="awDocsSub" role="group" aria-label="Documents"></div>' : '')).join('') +
     '<button class="aw-item" type="button" id="awRefrescar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh</span></button>' +
@@ -7056,7 +7072,7 @@ function appLayout(){
   main.append(fijo, panel);
   // en el celular: barra con ☰ que abre el menú
   const movil = document.createElement('div'); movil.className = 'aw-movil';
-  movil.innerHTML = '<button class="aw-hamb" type="button" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b>Time Clock</b><span id="awMovNom"></span>';
+  movil.innerHTML = '<button class="aw-hamb" type="button" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b>' + awMovilTit() + '</b><span id="awMovNom"></span>';
   main.prepend(movil);
   const cortina = document.createElement('div'); cortina.className = 'aw-cortina';
   const dock = document.createElement('aside'); dock.className = 'aw-dock'; dock.id = 'awDock'; dock.setAttribute('aria-label', 'Chat');   // (v91) el chat al lado, en el navegador ancho
@@ -7135,6 +7151,26 @@ function appPanel(k){
   setTimeout(popPosicion, 50);
   const sub = $('awDocsSub'); if(sub) sub.classList.toggle('hidden', k !== 'docs');
   document.body.classList.remove('aw-menu-abierto');
+}
+// (v401) marca del menú de la vista de usuario. 247Punch (MARCA.wordmark): el símbolo nuevo en versión para fondo
+// oscuro, el logotipo «24/7punch» con «TIME CLOCK · PAYROLL» y el nombre de la empresa debajo. Si no, el reloj de siempre.
+function awMarcaHTML(){
+  const wm = !soloChatPedido() && MARCA.wordmark && typeof MARCA.wordmark === 'object' ? MARCA.wordmark : null;
+  if(wm) return '<svg class="aw-wm-ico" viewBox="5 5 110 110" aria-hidden="true">'
+    + '<circle cx="60" cy="60" r="50" fill="none" stroke="#38BDF8" stroke-width="8" stroke-linecap="round" stroke-dasharray="250 64" transform="rotate(-60 60 60)"/>'
+    + '<circle cx="60" cy="60" r="37" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-dasharray="180 52" transform="rotate(35 60 60)"/>'
+    + '<circle cx="60" cy="60" r="24" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-dasharray="110 41" transform="rotate(-140 60 60)"/>'
+    + '<path d="M60 60 V50 M60 60 L67 64" fill="none" stroke="#38BDF8" stroke-width="5" stroke-linecap="round"/></svg>'
+    + '<div class="aw-wm"><span class="wm-n"><b>' + esc(wm.a || '') + '</b>' + esc(wm.b || '') + '</span>' + (wm.tag ? '<span class="wm-t">' + esc(wm.tag) + '</span>' : '')
+    + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '') + '</div>';
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#0B2233" stroke="#17A9DE" stroke-width="5"/>'
+    + '<path d="M32 32V16M32 32l11 5" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="#E53935"/></svg>'
+    + '<div>' + esc(MARCA.appName) + (MARCA.nombre ? '<small>' + esc(MARCA.nombre) + '</small>' : '') + '</div>';
+}
+// (v401) barra de arriba en el celular: 247Punch muestra «24/7punch»; 24/7 sigue con «Time Clock»
+function awMovilTit(){
+  const wm = !soloChatPedido() && MARCA.wordmark && typeof MARCA.wordmark === 'object' ? MARCA.wordmark : null;
+  return wm ? '<span class="aw-movil-wm"><b>' + esc(wm.a || '') + '</b>' + esc(wm.b || '') + '</span>' : 'Time Clock';
 }
 // (v305) Agente dentro de la app «24/7 Chat»: el menú queda con Chat, Refresh y Sign out; títulos del chat.
 function awSoloChat(){
