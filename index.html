@@ -12,7 +12,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TimeClock">
+<meta name="apple-mobile-web-app-title" content="24/7 Portal">
+<script>
+/* (24 nov 2026 · Solo 24/7 · Fase 1) El Time Clock ya no se abre desde el portal: la app vieja (?goto=reloj) va directo a timeclock; el Chat, a chat. */
+(function(){ var q=location.search; if(/[?&]goto=reloj(\b|=|&|$)/.test(q)) location.replace(/[?&]solochat=1/.test(q) ? 'https://chat.247medical-aid.com/' : 'https://timeclock.247medical-aid.com/'); })();
+</script>
 <script>
 (function(){
   var app=false;
@@ -690,13 +694,8 @@ const AREAS = [
   { key:'sales',   titulo:'Sales' }
 ];
 const CATALOGO = [
-  /* Reloj: piloto, solo Carlos. Que ve cada uno (su reloj o la hoja de horas) lo decide el propio Reloj. */
-  { key:'reloj', titulo:'Time Track & Payroll', corto:'Time & Payroll', area:'ops', kicker:'Time & attendance',
-    color:'#0E86B4', color2:'#4CC2EC', url:'https://timeclock.247medical-aid.com/', nueva:true, soloUsuarios:['carloshtl75'],   // Al abrirlo a todos: todos:true
-    // (19 nov 2026 · Solo 24/7 · desvincular el portal de 247Punch) Abre el Time Clock en timeclock, en pestaña nueva (allí se entra con el correo).
-    // La app del celular (?goto=reloj) y el Chat siguen abriendo ./reloj.html por ahora.
-    desc:'Clock in, lunch and clock out, verified with PC activity. Timesheets by pay period.',
-    icon:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/>' },
+  /* (24 nov 2026 · Solo 24/7 · Fase 1) La tarjeta «Time Track & Payroll» se quitó: el Time Clock vive aparte en
+     https://timeclock.247medical-aid.com (y el Chat en https://chat.247medical-aid.com), sin pasar por el portal. */
   { key:'monitor', titulo:'Agent Pulse', corto:'Pulse', area:'ops', kicker:'Live activity',
     color:'#0F9D7A', color2:'#3FD3A6', url:'./monitor.html',
     desc:'Real-time agent activity: idle time, disconnections and monitor closures by account.',
@@ -995,28 +994,9 @@ function entrar(){
   irA('apps');
   if(/[?&]goto=reloj(\b|=|&|$)/.test(location.search)) irAReloj();
 }
-// (PWA TimeClock Admin) Abrir el Time Clock apenas la sesión de Supabase esté lista.
-let _yendoReloj = false;
-async function irAReloj(){
-  if(_yendoReloj) return; _yendoReloj = true;
-  try{
-    let ov = document.getElementById('gotoOverlay');
-    if(!ov){
-      ov = document.createElement('div'); ov.id = 'gotoOverlay';
-      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#04141F;color:#fff;font:600 15px Inter,system-ui,sans-serif';
-      ov.innerHTML = '<div style="width:34px;height:34px;border:3px solid rgba(255,255,255,.25);border-top-color:#17A9DE;border-radius:50%;animation:gspin 1s linear infinite"></div><div>Opening Time Clock…</div><style>@keyframes gspin{to{transform:rotate(360deg)}}</style>';
-      document.body.appendChild(ov);
-    }
-    // Esperar la sesión de Supabase (reloj.html la lee); hasta ~10 s.
-    let lista = false;
-    for(let i = 0; i < 50; i++){
-      try{ const { data } = await window.sb.auth.getSession(); if(data && data.session){ lista = true; break; } }catch(_){}
-      await new Promise(r => setTimeout(r, 200));
-    }
-    if(lista){ location.replace('./reloj.html' + (/[?&]solochat=1/.test(location.search) ? '?solochat=1' : '')); return; }
-    // Si no se pudo confirmar la sesión, quedarse en el portal (el usuario abre la baldosa).
-    if(ov) ov.remove(); _yendoReloj = false;
-  }catch(_){ _yendoReloj = false; const ov = document.getElementById('gotoOverlay'); if(ov) ov.remove(); }
+// (24 nov 2026 · Solo 24/7 · Fase 1) El Time Clock vive aparte: ?goto=reloj ya se desvía al cargar (arriba); esto es respaldo.
+function irAReloj(){
+  location.replace(/[?&]solochat=1/.test(location.search) ? 'https://chat.247medical-aid.com/' : 'https://timeclock.247medical-aid.com/');
 }
 
 function salir(){
