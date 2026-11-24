@@ -69,7 +69,7 @@
 <!-- v372: pruebas a fondo 16 nov — cuentas nuevas con color y código al guardar; aviso de día de más de 14 h; Supervisor/Account Manager en vez de «Agent»; mensajes de la base sin texto técnico; aviso si el correo ya es de otra empresa -->
 <!-- v371: mensajes de error para el cliente (sin «SQL step»; el detalle técnico va a la consola); «cambios sin guardar» y «quitar horario» usan la ventana de la app en vez del aviso del navegador -->
 <!-- v370: subidas a Storage reintentan una vez si falla algo pasajero; ubicación «se pide o no se pide» (apagada = nunca la pide); el Pay run incluye a toda persona activa aunque no tenga horas; «sign-in link» solo en las vistas previas de prueba -->
-<meta name="app-build" content="v406-202611201700">
+<meta name="app-build" content="v407-202611240800">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#04141F">
@@ -4511,6 +4511,81 @@ const HOSTS_RELOJ = INST.hosts || [];
 // (v368) una entrada que empieza con «.» acepta sus subdominios (vistas previas de 247Punch: <nombre>.247punch.pages.dev)
 const DEMO   = new URLSearchParams(location.search).has('demo') ||
   !HOSTS_RELOJ.some(h => h === location.hostname || (h.charAt(0) === '.' && location.hostname.endsWith(h)));
+/* (v407) Errores de la app (E3): un error que la persona no ve (o que solo ve como «algo salió mal») queda anotado en la base
+   (punch_anotar_error) para que el Super Manager se entere por correo (E4). Se anotan los errores de JavaScript, las promesas
+   que fallan sin que nadie las atienda, y las respuestas 5xx de la base y de las funciones del servidor. No se anotan los
+   cortes de internet (normales en un celular), ni los avisos de negocio («Solo un administrador», etc.).
+   Sin datos personales: se quitan correos, números largos y lo que va después de «?» o «#» en las direcciones.
+   Tope: 15 errores distintos por pestaña; se mandan juntos a los 4 s. Si la base aún no tiene la función, se apaga solo. */
+const ERRAPP = { vistos:new Set(), cola:[], t:null, n:0, apagado:false };
+function limpiarErr(t, max){
+  return String(t == null ? '' : t)
+    .replace(/[^\s@]+@[^\s@]+\.[A-Za-z]{2,}/g, '[correo]')
+    .replace(/(https?:\/\/[^\s?#'"]*)[?#][^\s'")]*/g, '$1')
+    .replace(/\b(eyJ[\w-]{10,}\.[\w-]+\.[\w-]+)\b/g, '[token]')
+    .replace(/\d{6,}/g, '[n]')
+    .replace(/\s+/g, ' ').trim().slice(0, max || 300);
+}
+function anotarError(tipo, mensaje, donde){
+  try{
+    if(DEMO || ERRAPP.apagado || !window.sb || typeof window.sb.schema !== 'function') return;
+    const msg = limpiarErr(mensaje, 300); if(!msg) return;
+    const dnd = limpiarErr(donde, 500);
+    if(/ResizeObserver loop|^Script error\.?$|Failed to fetch|NetworkError|Load failed|network connection|AbortError|The operation was aborted/i.test(msg)) return;
+    if(/(chrome|moz|safari)-extension:/i.test(dnd)) return;
+    const k = tipo + '|' + msg + '|' + dnd.split(' ')[0];
+    if(ERRAPP.vistos.has(k) || ERRAPP.n >= 15) return;
+    ERRAPP.vistos.add(k); ERRAPP.n++;
+    let pantalla = ''; try{ pantalla = String((typeof S !== 'undefined' && S && S.vista) || location.hash.slice(1) || '').slice(0, 40); }catch(e){}
+    const meta = document.querySelector('meta[name="app-build"]');
+    ERRAPP.cola.push({ tipo, mensaje:msg, donde:dnd, version:(meta && meta.content) || '', pantalla });
+    clearTimeout(ERRAPP.t); ERRAPP.t = setTimeout(mandarErrores, 4000);
+  }catch(e){}
+}
+async function mandarErrores(){
+  const lote = ERRAPP.cola.splice(0, 10); if(!lote.length || ERRAPP.apagado) return;
+  try{
+    const r = await window.sb.schema('public').rpc('punch_anotar_error', { p:lote });
+    if(r && r.error && /PGRST202|Could not find the function|404/i.test(String(r.error.code || '') + ' ' + String(r.error.message || ''))) ERRAPP.apagado = true;
+  }catch(e){}
+  if(ERRAPP.cola.length) ERRAPP.t = setTimeout(mandarErrores, 4000);
+}
+window.addEventListener('error', ev => {
+  try{
+    if(!ev || !ev.message) return;   // recursos que no cargan (imágenes): no son errores de la app
+    const pila = ev.error && ev.error.stack ? String(ev.error.stack).split('\n').slice(1, 3).join(' ') : '';
+    anotarError('js', ev.message, String(ev.filename || '').replace(/[?#].*$/, '').split('/').pop() + ':' + (ev.lineno || 0) + ':' + (ev.colno || 0) + ' ' + pila);
+  }catch(e){}
+});
+window.addEventListener('unhandledrejection', ev => {
+  try{
+    const r = ev && ev.reason;
+    anotarError('promesa', (r && (r.message || r.msg)) || r, r && r.stack ? String(r.stack).split('\n').slice(0, 3).join(' ') : '');
+  }catch(e){}
+});
+// Respuestas 5xx de la base (/rest/v1) y de las funciones del servidor (/functions/v1); nunca la propia anotación
+(function(){
+  try{
+    const f0 = window.fetch; if(typeof f0 !== 'function' || f0.__errApp) return;
+    const f1 = function(recurso, op){
+      const p = f0.apply(this, arguments);
+      try{
+        const u = String((recurso && recurso.url) || recurso || '');
+        if(/\/(rest|functions)\/v1\//.test(u) && u.indexOf('punch_anotar_error') < 0){
+          p.then(res => {
+            if(res && res.status >= 500){
+              const m = u.match(/\/functions\/v1\/([\w-]+)/) || u.match(/\/rpc\/([\w]+)/) || u.match(/\/rest\/v1\/([\w]+)/);
+              anotarError(u.indexOf('/functions/') >= 0 ? 'funcion' : 'base', (m ? m[1] : 'servidor') + ' respondió HTTP ' + res.status, '');
+            }
+          }, () => {});
+        }
+      }catch(e){}
+      return p;
+    };
+    f1.__errApp = true;
+    window.fetch = f1;
+  }catch(e){}
+})();
 // (v253) Marca y locale configurables. Un despliegue puede poner window.MARCA = {...} antes de este script;
 // lo que no defina, toma el valor de 24/7 por defecto. Así el TimeClock es genérico sin tocar el código.
 const MARCA_DEFAULT = Object.assign({
@@ -5093,7 +5168,9 @@ function reducirMonitor(j){
 /* ── conexión: leer, marcar y medir ── */
 function tiempo(nombre, t0){ const ms = Math.round(performance.now() - t0); TIEMPOS.push({ nombre, ms, en: Date.now() }); if(TIEMPOS.length > 60) TIEMPOS.shift(); window.__tiempos = TIEMPOS; return ms; }
 const seg = ms => (ms / 1000).toFixed(1) + ' s';
-async function q(p){ const { data, error } = await p; if(error){ if(/No tienes acceso a esta empresa/.test(error.message || '')) revisarPausa(); const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
+async function q(p){ const { data, error, status } = await p; if(error){ if(/No tienes acceso a esta empresa/.test(error.message || '')) revisarPausa();
+  if(status >= 500 || /^(XX|42|53|54|57|58|PGRST2)/.test(String(error.code || ''))) anotarError('base', (error.code ? error.code + ': ' : '') + (error.message || 'error'), 'HTTP ' + (status || 0));   // (v407)
+  const e = new Error(enIngles(error.message) || 'Database error.'); e.codigo = error.code; throw e; } return data; }
 // (v385) 247Punch: si la base deja de atender a la empresa (empieza la pausa de la mudanza), se muestra el aviso al momento
 function revisarPausa(){
   if(!INST.compartimentos || INST.destino || !S.comp || DEMO || S.revisandoPausa || (typeof $ === 'function' && $('actAviso'))) return;
