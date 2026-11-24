@@ -9,6 +9,9 @@
 //  2.8: cuando el servidor lo pide ("ubicar"), toma la ubicacion de Windows y la manda
 //  en el latido: durante el turno cada 30 min, o cada 5 si el equipo esta marcado perdido.
 //  2.9: sin cambios en el agente; el actualizador 2.9 instala la app 247 Time Clock (TimeTrack).
+//  2.14 (24 nov 2026, Fase 3): avisa si la persona trabaja en OTRO usuario de Windows (de la piloto 2.14)
+//  y ya NO hay atajo al Apps Script de Google: los latidos van solo a Supabase; si no responde,
+//  esperan en la cola. config.json ya no necesita "url".
 //  Si no hay internet, guarda los latidos y los envia cuando vuelva.
 //  Captura SOLO nombres de programa, nunca titulos de ventana ni paginas
 //  web, para no arrastrar datos de pacientes. El instalador lo compila
@@ -37,7 +40,7 @@ namespace Monitor247
 {
     static class Programa
     {
-        const string Version = "2.13";
+        const string Version = "2.14";
         // Etapa 5: los latidos van primero a Supabase, que los guarda al instante y
         // los reenvia al Apps Script. Si Supabase no responde, van directo al Apps
         // Script (la URL de config.json), como en las versiones anteriores.
@@ -70,6 +73,58 @@ namespace Monitor247
         static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")]
         static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        // ---------------- (2.14) Otra sesion de Windows en uso ----------------
+        // El agente solo ve el teclado y el mouse de SU sesion de Windows. Si la persona
+        // trabaja en otro usuario del mismo equipo (cambio rapido de usuario, otra cuenta
+        // abierta), esta sesion queda "desconectada" y todo parece inactividad. Aqui se
+        // detecta: la sesion propia NO esta activa y OTRA sesion si lo esta.
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        static extern bool WTSEnumerateSessions(IntPtr hServer, int reserved, int version, out IntPtr ppSessionInfo, out int count);
+        [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, int infoClass, out IntPtr buffer, out int bytes);
+        [DllImport("wtsapi32.dll")]
+        static extern void WTSFreeMemory(IntPtr memory);
+        [StructLayout(LayoutKind.Sequential)]
+        struct WTS_SESSION_INFO { public int SessionId; public IntPtr pWinStationName; public int State; }
+        const int WTS_ACTIVO = 0, WTS_USUARIO = 5;
+
+        static string UsuarioDeSesion(int id)
+        {
+            IntPtr buf; int n;
+            if (!WTSQuerySessionInformation(IntPtr.Zero, id, WTS_USUARIO, out buf, out n)) return "";
+            try { return Marshal.PtrToStringUni(buf) ?? ""; } finally { WTSFreeMemory(buf); }
+        }
+
+        // Devuelve el usuario de Windows de la OTRA sesion en uso, o "" si la sesion del agente es la activa
+        // (o si no se puede saber: ante la duda no se avisa nada).
+        static string OtraSesion()
+        {
+            try
+            {
+                int propia = Process.GetCurrentProcess().SessionId;
+                IntPtr lista; int cuantas;
+                if (!WTSEnumerateSessions(IntPtr.Zero, 0, 1, out lista, out cuantas)) return "";
+                bool propiaActiva = false; string otra = "";
+                try
+                {
+                    int tam = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                    for (int i = 0; i < cuantas; i++)
+                    {
+                        WTS_SESSION_INFO s = (WTS_SESSION_INFO)Marshal.PtrToStructure(new IntPtr(lista.ToInt64() + (long)i * tam), typeof(WTS_SESSION_INFO));
+                        if (s.State != WTS_ACTIVO) continue;
+                        if (s.SessionId == propia) { propiaActiva = true; continue; }
+                        string u = UsuarioDeSesion(s.SessionId);
+                        if (u.Length > 0 && otra.Length == 0) otra = u;
+                    }
+                }
+                finally { WTSFreeMemory(lista); }
+                if (propiaActiva || otra.Length == 0) return "";
+                if (string.Equals(otra, Environment.UserName, StringComparison.OrdinalIgnoreCase)) return "";
+                return otra;
+            }
+            catch { return ""; }
+        }
 
         static uint IdleSeconds()
         {
@@ -306,7 +361,7 @@ namespace Monitor247
             string cuenta = Json(txt, "cuenta");
             string apps = Json(txt, "app_telefono");
             string codigo = Json(txt, "codigo");   // (D.2) ID del usuario del Time Clock; viaja en el latido. Puede faltar en equipos viejos (queda vacio).
-            if (url.Length == 0 || token.Length == 0 || agente.Length == 0) { Log("ERROR: config.json incompleto"); return; }
+            if (token.Length == 0 || agente.Length == 0) { Log("ERROR: config.json incompleto"); return; }   // 2.14: "url" (Apps Script) ya no hace falta
 
             List<string> patrones = new List<string>();
             foreach (string a in apps.Split(','))
@@ -327,6 +382,7 @@ namespace Monitor247
             bool haceUbic = false;
             string ubicMotivo = "";
             int fallos = 0;
+            string ultimaOtra = "";   // (2.14) para dejar en el log solo los cambios
 
             while (true)
             {
@@ -346,8 +402,19 @@ namespace Monitor247
                     double lat, loss;
                     Latencia(out lat, out loss);
 
+                    // (2.14) Si la persona esta trabajando en OTRO usuario de Windows, se avisa en el latido.
+                    // El panel lo lee de «progActivo» (marca ~otraSesion:usuario), que el servidor ya guarda tal cual;
+                    // el campo «otraSesion» va aparte para cuando el servidor lo lea directo.
+                    string otra = OtraSesion();
+                    if (otra != ultimaOtra)
+                    {
+                        Log(otra.Length > 0 ? "Otra sesion de Windows en uso: '" + otra + "' (en esta sesion no se ve la actividad)"
+                                            : "La sesion de este agente vuelve a ser la que esta en uso");
+                        ultimaOtra = otra;
+                    }
+                    string progAct = otra.Length > 0 ? "~otraSesion:" + otra : ProgramaActivo();
                     string beat = ConstruirBeat(agente, cuenta, codigo, equipo, usuario, IdleSeconds(),
-                        AppAbierta(patrones), primerEnvio, ProgramaActivo(), ProgramasAbiertos(), lat, loss, mbps, ubic);
+                        AppAbierta(patrones), primerEnvio, progAct, ProgramasAbiertos(), lat, loss, mbps, ubic, otra);
                     File.AppendAllText(ColaFile, beat + "\r\n", Utf8);
                     primerEnvio = false;
 
@@ -525,7 +592,7 @@ namespace Monitor247
         }
 
         static string ConstruirBeat(string ag, string cu, string co, string eq, string us, uint idle, object app,
-            bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps, string ubic)
+            bool inicio, string progActivo, List<object[]> progs, double lat, double loss, double mbps, string ubic, string otraSesion)
         {
             int bat;
             string energia = Energia(out bat);
@@ -540,6 +607,7 @@ namespace Monitor247
             sb.Append("\"codigo\":\"").Append(Esc(co)).Append("\",");
             sb.Append("\"equipo\":\"").Append(Esc(eq)).Append("\",");
             sb.Append("\"usuario\":\"").Append(Esc(us)).Append("\",");
+            sb.Append("\"otraSesion\":\"").Append(Esc(otraSesion ?? "")).Append("\",");
             sb.Append("\"email\":\"").Append(Esc(CorreoWindows())).Append("\",");
             sb.Append("\"idle\":").Append(idle.ToString(CultureInfo.InvariantCulture)).Append(",");
             sb.Append("\"app\":").Append(appTxt).Append(",");
@@ -573,17 +641,8 @@ namespace Monitor247
         {
             // Con clave de equipo no hay atajo al Apps Script: si Supabase no responde,
             // los latidos esperan en la cola (el Apps Script no conoce las claves).
-            if (clave.Length > 0) return Enviar(SupabaseUrl, token, beats);
-            try { return Enviar(SupabaseUrl, token, beats); }
-            catch (Exception ex)
-            {
-                if ((DateTime.UtcNow - avisoRespaldo).TotalMinutes >= 30)
-                {
-                    Log("Supabase no respondio (" + ex.Message + "); se envia directo al Apps Script");
-                    avisoRespaldo = DateTime.UtcNow;
-                }
-                return Enviar(url, token, beats);
-            }
+            // 2.14: solo Supabase (sin Google). Si no responde, el lote se queda en la cola.
+            return Enviar(SupabaseUrl, token, beats);
         }
 
         // Devuelve el cuerpo de la respuesta del ultimo lote (para leer comandos del servidor).

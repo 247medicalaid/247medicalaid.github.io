@@ -11,6 +11,15 @@
 #  2.9: tambien instala y mantiene al dia la app "247 Time Clock" (TimeTrack)
 #  en los equipos de 24/7 Medical Aid, cuando version.json trae la seccion "tc"
 #  y este equipo esta incluido. Va aparte: si falla, el monitor no se toca.
+#  2.14 (24 nov 2026, Fase 3) - para no tener que entrar nunca al PC de un usuario:
+#   - Los archivos se bajan de timeclock.247medical-aid.com/agente/ (ya no de GitHub).
+#   - Un bloqueo VENCE: una version que fallo se reintenta a las 24 h, hasta 3 veces;
+#     despues queda bloqueada hasta que se publique otra o se pida desde el panel.
+#   - Pedir la actualizacion desde el panel tambien quita el bloqueo de esa version.
+#   - Una version recien instalada solo cuenta como fallida si, en los ciclos vigilados,
+#     habia alguien con sesion abierta e internet (antes contaba cualquier ciclo).
+#   - Cada ciclo deja estado\actualizador.json y lo manda al servidor (con la clave del
+#     equipo): version, bloqueos, observacion, desde cuando esta atrasado y el registro.
 # =====================================================================
 $ErrorActionPreference = 'Stop'
 
@@ -32,7 +41,17 @@ $LogFile      = Join-Path $Destino 'actualizar.log'
 $Exe          = Join-Path $Destino 'Monitor247.exe'
 $Ps1          = Join-Path $Destino 'monitor.ps1'
 $Tarea        = 'Monitor247_Agente'
-$BaseUrlFijo  = 'https://247medicalaid.github.io/agente/'
+$BaseUrlFijo  = 'https://timeclock.247medical-aid.com/agente/'
+$BaseVieja    = 'https://247medicalaid.github.io/agente/'   # 2.14: una clave vieja en config.json se traduce a la nueva
+$ActVersion   = '2.14'
+$SbUrl        = 'https://tftyyzoowctuhggwlgyt.supabase.co'
+$SbKey        = 'sb_publishable_6hyJ-BV6detLiBszteEolQ_SiWlD8d1'   # clave publicable (la misma de las paginas)
+$ReporteFile  = Join-Path $EstadoDir 'actualizador.json'
+$ReporteEnv   = Join-Path $Destino 'reporte-enviado.txt'
+$AtrasoFile   = Join-Path $Destino 'atrasado.txt'
+$PausaFile    = Join-Path $Destino 'pausa-vigilancia.txt'
+$BloqueoHoras = 24
+$BloqueoMax   = 3
 $MinutosRutina = 55      # en operacion normal, consultar una vez por hora
 # La vigilancia de una version recien instalada se cuenta en CICLOS, no en
 # minutos de reloj: este script corre cada 5 minutos, y solo corre si el equipo
@@ -93,6 +112,83 @@ function BuscarCsc {
     return $null
 }
 
+function AUtc([string]$t) { return [DateTime]::Parse($t, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal) }
+function Ahora { return [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+
+# Base de descarga: la de config.json ("actualizaciones", p. ej. el canal piloto) o la fija.
+# 2.14: si config.json todavia apunta a GitHub, se usa la misma ruta en timeclock.
+function BaseActualizaciones {
+    $base = $BaseUrlFijo
+    $cfgTxt = LeerTexto $ConfigFile
+    if ($cfgTxt) { try { $cfg = $cfgTxt | ConvertFrom-Json; if ($cfg.PSObject.Properties.Name -contains 'actualizaciones' -and $cfg.actualizaciones) { $base = [string]$cfg.actualizaciones } } catch { } }
+    if (-not $base.EndsWith('/')) { $base += '/' }
+    if ($base.StartsWith($BaseVieja)) { $base = $BaseUrlFijo + $base.Substring($BaseVieja.Length) }
+    return $base
+}
+
+# ---- Bloqueos (2.14) ----
+# bloqueo.txt: una linea por version, "<version>|<fecha UTC del ultimo fallo>|<fallos>".
+# Una linea vieja (solo la version, de antes de la 2.14) cuenta como 1 fallo antiguo: vence ya.
+function BloqueosLeer {
+    $h = [ordered]@{}
+    foreach ($l in ((LeerTexto $BloqueoFile) -split "`r?`n")) {
+        $l = $l.Trim(); if (-not $l) { continue }
+        $p = $l.Split('|')
+        $f = [DateTime]::MinValue; $n = 1
+        if ($p.Count -ge 2) { try { $f = AUtc $p[1] } catch { } }
+        if ($p.Count -ge 3) { [int]::TryParse($p[2], [ref]$n) | Out-Null }
+        $h[$p[0]] = @{ fecha = $f; n = $n }
+    }
+    return $h
+}
+function BloqueosGuardar($h) {
+    $l = @(); foreach ($k in $h.Keys) {
+        $f = '2000-01-01T00:00:00Z'; if ($h[$k].fecha -gt [DateTime]::MinValue) { $f = $h[$k].fecha.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+        $l += ($k + '|' + $f + '|' + $h[$k].n)
+    }
+    if ($l.Count) { EscribirTexto $BloqueoFile ($l -join "`r`n") } else { Remove-Item $BloqueoFile -Force -ErrorAction SilentlyContinue }
+}
+# '' = no bloqueada (o el bloqueo vencio); si no, el motivo para el registro
+function BloqueoActivo([string]$ver) {
+    $h = BloqueosLeer
+    if (-not $h.Contains($ver)) { return '' }
+    $b = $h[$ver]
+    if ($b.n -ge $BloqueoMax) { return "fallo $($b.n) veces; queda bloqueada hasta que se publique otra o se pida desde el panel" }
+    $faltan = $BloqueoHoras - ([DateTime]::UtcNow - $b.fecha).TotalHours
+    if ($faltan -gt 0) { return ("fallo {0} de {1}; se reintenta en {2:0.#} h" -f $b.n, $BloqueoMax, $faltan) }
+    return ''
+}
+function BloqueoQuitar([string]$ver) {
+    $h = BloqueosLeer
+    if ($h.Contains($ver)) { $h.Remove($ver); BloqueosGuardar $h; return $true }
+    return $false
+}
+function BloqueoSumar([string]$ver) {
+    $h = BloqueosLeer
+    $n = 1; if ($h.Contains($ver)) { $n = $h[$ver].n + 1 }
+    $h[$ver] = @{ fecha = [DateTime]::UtcNow; n = $n }
+    BloqueosGuardar $h
+    return $n
+}
+
+# ---- Condiciones reales para juzgar una version (2.14) ----
+# Alguien con sesion abierta (explorer.exe): el agente corre en la sesion del usuario.
+function HaySesion {
+    try { return [bool](@(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count) } catch { return $true }
+}
+# Internet hasta el servidor del Monitor: cualquier respuesta HTTP vale (aunque sea un error).
+function HayInternet {
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $req = [Net.HttpWebRequest]::Create($SbUrl + '/functions/v1/')
+        $req.Proxy = $null; $req.Method = 'GET'; $req.Timeout = 10000
+        $r = $req.GetResponse(); $r.Close(); return $true
+    } catch [Net.WebException] {
+        if ($_.Exception.Response) { try { $_.Exception.Response.Close() } catch { }; return $true }
+        return $false
+    } catch { return $false }
+}
+
 # ---------------------------------------------------------------------
 # 1) Verificar una actualizacion recien aplicada
 #    pendiente.txt = "<version>|<fecha UTC de la actualizacion>|<ciclos vigilados>"
@@ -108,6 +204,12 @@ function VerificarPendiente {
     $desde = [DateTime]::Parse($partes[1], [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
     $ciclos = 0
     if ($partes.Count -ge 3) { [int]::TryParse($partes[2], [ref]$ciclos) | Out-Null }
+    # 2.14: un ciclo sin nadie con sesion o sin internet no dice nada de la version: no se cuenta
+    if ($ciclos -ge $CiclosGracia -and -not ((HaySesion) -and (HayInternet))) {
+        if (-not (Test-Path $PausaFile)) { Log "Vigilancia de $ver en pausa: no hay sesion abierta o no hay internet (no cuenta como fallo)."; EscribirTexto $PausaFile (Ahora) }
+        return $true
+    }
+    if (Test-Path $PausaFile) { Remove-Item $PausaFile -Force -ErrorAction SilentlyContinue; Log "Vigilancia de $ver reanudada." }
     $ciclos = $ciclos + 1
     EscribirTexto $PendienteFil ($ver + '|' + $partes[1] + '|' + $ciclos)
     if ($ciclos -lt $CiclosGracia) { return $true }   # aun es pronto: se revisa en el proximo ciclo
@@ -127,6 +229,7 @@ function VerificarPendiente {
     if ($ok) {
         Log "Version $ver confirmada: el agente esta reportando."
         Remove-Item $PendienteFil -Force -ErrorAction SilentlyContinue
+        if (BloqueoQuitar $ver) { Log "Se quita el bloqueo anterior de $ver." }
         return $false
     }
     if ($ciclos -lt $CiclosVigila) { return $true }   # sigue en observacion
@@ -145,8 +248,10 @@ function Revertir([string]$verMala) {
         if (Test-Path $ps1Bk) { Copy-Item $ps1Bk $Ps1 -Force }
         $verBk = LeerTexto (Join-Path $RespaldoDir 'version.txt')
         if ($verBk) { EscribirTexto $VersionFile $verBk }
-        # No volver a instalar esa version hasta que se publique una mas nueva
-        Add-Content -Path $BloqueoFile -Value $verMala
+        # 2.14: el bloqueo vence a las 24 h (hasta 3 fallos); antes era para siempre
+        $n = BloqueoSumar $verMala
+        if ($n -ge $BloqueoMax) { Log "La version $verMala fallo $n veces: queda bloqueada hasta que se publique otra o se pida desde el panel." }
+        else { Log "La version $verMala queda en pausa $BloqueoHoras h (fallo $n de $BloqueoMax); despues se reintenta sola." }
         Remove-Item $PendienteFil -Force -ErrorAction SilentlyContinue
         ArrancarAgente
         Log "Restaurada la version $verBk."
@@ -161,10 +266,7 @@ function Revertir([string]$verMala) {
 function BuscarActualizacion {
     $cfgTxt = LeerTexto $ConfigFile
     if (-not $cfgTxt) { Log 'ERROR: no se encontro config.json'; return }
-    $cfg = $cfgTxt | ConvertFrom-Json
-    $base = $BaseUrlFijo
-    if ($cfg.PSObject.Properties.Name -contains 'actualizaciones' -and $cfg.actualizaciones) { $base = [string]$cfg.actualizaciones }
-    if (-not $base.EndsWith('/')) { $base += '/' }
+    $base = BaseActualizaciones
 
     $tmp = Join-Path $env:TEMP ('mon247_' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
@@ -176,10 +278,19 @@ function BuscarActualizacion {
         if (-not $man.version) { Log 'El archivo de versiones no trae version'; return }
 
         $actual = LeerTexto $VersionFile
-        if ($man.version -eq $actual) { return }
-        if ((LeerTexto $BloqueoFile) -split "`r?`n" -contains $man.version) {
-            Log "La version $($man.version) esta bloqueada (fallo antes); no se reinstala."
-            return
+        $script:verPublicada = [string]$man.version
+        # Bloqueos de versiones que ya no se publican no sirven de nada: se limpian
+        $hb = BloqueosLeer; $otras = @($hb.Keys | Where-Object { $_ -ne [string]$man.version })
+        if ($otras.Count) { foreach ($k in $otras) { $hb.Remove($k) }; BloqueosGuardar $hb }
+        if ($man.version -eq $actual) { Remove-Item $AtrasoFile -Force -ErrorAction SilentlyContinue; return }
+        # Desde cuando este equipo ve una version nueva sin tenerla (lo lee el servidor para avisar)
+        $atr = (LeerTexto $AtrasoFile).Split('|')
+        if ($atr[0] -ne [string]$man.version) { EscribirTexto $AtrasoFile (([string]$man.version) + '|' + (Ahora)) }
+        if ($script:forzado) {
+            if (BloqueoQuitar ([string]$man.version)) { Log "Pedida desde el panel: se quita el bloqueo de $($man.version) y se intenta de nuevo." }
+        } else {
+            $motivo = BloqueoActivo ([string]$man.version)
+            if ($motivo) { Log "La version $($man.version) no se instala por ahora: $motivo."; return }
         }
 
         $usaExe = Test-Path $Exe
@@ -191,6 +302,12 @@ function BuscarActualizacion {
                 $actNew = Join-Path $tmp 'actualizar.ps1'
                 Descargar ($base + 'actualizar.ps1') $actNew
                 if ((Hash $actNew) -ne ([string]$man.act).ToLower()) { Log 'La huella de actualizar.ps1 no coincide; se deja el actual.'; $actNew = $null }
+                # 2.14: un actualizador con errores de sintaxis dejaria al equipo sin actualizaciones: se revisa antes
+                if ($actNew) {
+                    $errs = $null; $tk = $null
+                    [void][System.Management.Automation.Language.Parser]::ParseFile($actNew, [ref]$tk, [ref]$errs)
+                    if ($errs -and @($errs).Count) { Log ('El actualizador nuevo tiene errores (' + @($errs)[0].Message + '); se deja el actual.'); $actNew = $null }
+                }
             } catch { Log "No se pudo bajar actualizar.ps1: $($_.Exception.Message)"; $actNew = $null }
         }
         $ps1New = Join-Path $tmp 'monitor.ps1'
@@ -228,7 +345,8 @@ function BuscarActualizacion {
         EscribirTexto $VersionFile ([string]$man.version)
         EscribirTexto $PendienteFil (([string]$man.version) + '|' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))
         ArrancarAgente
-        Log "Instalada la version $($man.version). Queda en observacion $CiclosVigila revisiones."
+                Log "Instalada la version $($man.version). Queda en observacion $CiclosVigila revisiones."
+        Remove-Item $AtrasoFile -Force -ErrorAction SilentlyContinue
     } catch {
         Log "No se pudo consultar/instalar la actualizacion: $($_.Exception.Message)"
     } finally {
@@ -334,10 +452,7 @@ function RevisarTimeClock([bool]$forzado) {
     }
     EscribirTexto $TcChequeo ([DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))
 
-    $base = $BaseUrlFijo
-    $cfgTxt = LeerTexto $ConfigFile
-    if ($cfgTxt) { try { $cfg = $cfgTxt | ConvertFrom-Json; if ($cfg.PSObject.Properties.Name -contains 'actualizaciones' -and $cfg.actualizaciones) { $base = [string]$cfg.actualizaciones } } catch { } }
-    if (-not $base.EndsWith('/')) { $base += '/' }
+    $base = BaseActualizaciones
 
     $ver = $null
     $abiertos = @()
@@ -487,6 +602,67 @@ function RevisarTimeClock([bool]$forzado) {
 }
 
 # ---------------------------------------------------------------------
+# 4) Reporte al servidor (2.14): lo que antes solo se veia entrando al PC.
+#    estado\actualizador.json + POST a la funcion monitor_equipo_reporte con la clave del equipo
+#    (la misma que usa el agente, cifrada para esta maquina). A lo mas cada 30 min, o al cambiar.
+# ---------------------------------------------------------------------
+function ClaveEquipo {
+    try {
+        $f = Join-Path $EstadoDir 'clave.dat'
+        if (-not (Test-Path $f)) { return '' }
+        Add-Type -AssemblyName System.Security
+        $ent = [Text.Encoding]::UTF8.GetBytes('Monitor247-clave-equipo')
+        $b = [Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($f), $ent, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+        $c = ([Text.Encoding]::UTF8.GetString($b)).Trim()
+        if ($c.StartsWith('eq_')) { return $c }
+    } catch { }
+    return ''
+}
+function ArmarReporte {
+    $bl = @(); $h = BloqueosLeer
+    foreach ($k in $h.Keys) {
+        $f = $null; if ($h[$k].fecha -gt [DateTime]::MinValue) { $f = $h[$k].fecha.ToString('yyyy-MM-ddTHH:mm:ssZ') }
+        $bl += [ordered]@{ v = $k; fallos = $h[$k].n; desde = $f; permanente = [bool]($h[$k].n -ge $BloqueoMax) }
+    }
+    $pend = $null; $p = (LeerTexto $PendienteFil).Split('|')
+    if ($p[0]) { $c = 0; if ($p.Count -ge 3) { [int]::TryParse($p[2], [ref]$c) | Out-Null }; $pend = [ordered]@{ v = $p[0]; desde = $(if ($p.Count -ge 2) { $p[1] } else { $null }); ciclos = $c; pausa = [bool](Test-Path $PausaFile) } }
+    $atr = $null; $a = (LeerTexto $AtrasoFile).Split('|')
+    if ($a[0] -and $a.Count -ge 2) { $atr = [ordered]@{ v = $a[0]; desde = $a[1] } }
+    $log = @(); try { if (Test-Path $LogFile) { $log = @(Get-Content $LogFile -Tail 12 -ErrorAction Stop | ForEach-Object { ([string]$_).Substring(0, [Math]::Min(220, ([string]$_).Length)) }) } } catch { }
+    $tcE = (LeerTexto $TcEstado).Split('|')
+    $tc = [ordered]@{ v = (LeerTexto $TcVerFile); estado = $(if ($tcE.Count -ge 3) { $tcE[2] } else { $null }); detalle = $(if ($tcE.Count -ge 4) { $tcE[3] } else { $null }); intentos = (LeerTexto $TcIntentos) }
+    return [ordered]@{
+        act = $ActVersion; v = (LeerTexto $VersionFile); publicada = $script:verPublicada
+        base = (BaseActualizaciones); ult_chequeo = (LeerTexto $UltChequeo)
+        bloqueadas = $bl; observacion = $pend; atrasado = $atr; tc = $tc; log = $log; hora = (Ahora)
+    }
+}
+function EnviarReporte {
+    try {
+        $rep = ArmarReporte
+        $json = $rep | ConvertTo-Json -Depth 6 -Compress
+        try { EscribirTexto $ReporteFile $json } catch { }
+        # Mismo contenido que lo ultimo enviado (sin la hora ni el registro) y hace menos de 30 min: no se manda
+        $sello = ($rep.v + '|' + $rep.publicada + '|' + (($rep.bloqueadas | ConvertTo-Json -Compress -Depth 4)) + '|' + (($rep.observacion | ConvertTo-Json -Compress)) + '|' + (($rep.atrasado | ConvertTo-Json -Compress)) + '|' + (($rep.tc | ConvertTo-Json -Compress)))
+        $prev = (LeerTexto $ReporteEnv).Split([char]0x1F)
+        if ($prev.Count -ge 2 -and $prev[1] -eq $sello) {
+            try { if (([DateTime]::UtcNow - (AUtc $prev[0])).TotalMinutes -lt 30) { return } } catch { }
+        }
+        $clave = ClaveEquipo
+        if (-not $clave) { return }   # sin clave aprobada no se puede identificar al equipo
+        $cuerpo = @{ p_clave = $clave; p_reporte = $rep } | ConvertTo-Json -Depth 7 -Compress
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $req = [Net.HttpWebRequest]::Create($SbUrl + '/rest/v1/rpc/monitor_equipo_reporte')
+        $req.Proxy = $null; $req.Method = 'POST'; $req.Timeout = 20000; $req.ContentType = 'application/json'
+        $req.Headers.Add('apikey', $SbKey); $req.Headers.Add('Authorization', 'Bearer ' + $SbKey)
+        $bytes = $Utf8.GetBytes($cuerpo); $req.ContentLength = $bytes.Length
+        $st = $req.GetRequestStream(); try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
+        $r = $req.GetResponse(); $r.Close()
+        EscribirTexto $ReporteEnv ((Ahora) + [char]0x1F + $sello)
+    } catch { }   # el reporte nunca frena al actualizador
+}
+
+# ---------------------------------------------------------------------
 # Ciclo
 # ---------------------------------------------------------------------
 $mutex = New-Object System.Threading.Mutex($false, 'Global\Monitor247_Actualizador')
@@ -494,6 +670,7 @@ try { $tengo = $mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexExcepti
 if (-not $tengo) { exit 0 }
 
 $script:forzado = $false
+$script:verPublicada = $null
 function CicloMonitor {
     $enObservacion = VerificarPendiente
     if ($enObservacion) { return }     # mientras se vigila una version nueva no se busca otra
@@ -537,4 +714,6 @@ try {
 }
 # 2.9: la app Time Clock va aparte; si algo falla aqui, el monitor ya quedo atendido arriba
 try { RevisarTimeClock $script:forzado } catch { Log "TimeClock: ERROR: $($_.Exception.Message)" }
+# 2.14: contarle al servidor como esta este equipo (nunca frena lo demas)
+try { EnviarReporte } catch { }
 try { $mutex.ReleaseMutex() } catch { }

@@ -8,11 +8,11 @@
 #  Compatible con Windows PowerShell 5.1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-$Version = '2.13'
-# Etapa 5: los latidos van primero a Supabase (los guarda al instante y los reenvia
-# al Apps Script). Si Supabase no responde, van directo al Apps Script de config.json.
+$Version = '2.14'
+# 2.14 (Fase 3): los latidos van solo a Supabase; ya no hay atajo al Apps Script de Google.
 $SupabaseUrl = 'https://tftyyzoowctuhggwlgyt.supabase.co/functions/v1/monitor-latido'
 $script:avisoRespaldo = [DateTime]::MinValue
+$script:ultimaOtra = ''
 
 $Base       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $Base 'config.json'
@@ -65,6 +65,37 @@ public static class Monitor247Win {
         lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
         if (!GetLastInputInfo(ref lii)) return 0;
         unchecked { return ((uint)Environment.TickCount - lii.dwTime) / 1000; }
+    }
+    // (2.14) Otra sesion de Windows en uso: la sesion de este agente NO esta activa y otra SI.
+    [DllImport("wtsapi32.dll", SetLastError = true)] static extern bool WTSEnumerateSessions(IntPtr h, int r, int v, out IntPtr lista, out int n);
+    [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool WTSQuerySessionInformation(IntPtr h, int id, int clase, out IntPtr buf, out int n);
+    [DllImport("wtsapi32.dll")] static extern void WTSFreeMemory(IntPtr p);
+    [StructLayout(LayoutKind.Sequential)] struct WTS_SESSION_INFO { public int SessionId; public IntPtr pWinStationName; public int State; }
+    static string UsuarioDeSesion(int id) {
+        IntPtr buf; int n;
+        if (!WTSQuerySessionInformation(IntPtr.Zero, id, 5, out buf, out n)) return "";
+        try { return Marshal.PtrToStringUni(buf) ?? ""; } finally { WTSFreeMemory(buf); }
+    }
+    public static string OtraSesion() {
+        try {
+            int propia = System.Diagnostics.Process.GetCurrentProcess().SessionId;
+            IntPtr lista; int cuantas;
+            if (!WTSEnumerateSessions(IntPtr.Zero, 0, 1, out lista, out cuantas)) return "";
+            bool propiaActiva = false; string otra = "";
+            try {
+                int tam = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                for (int i = 0; i < cuantas; i++) {
+                    WTS_SESSION_INFO s = (WTS_SESSION_INFO)Marshal.PtrToStructure(new IntPtr(lista.ToInt64() + (long)i * tam), typeof(WTS_SESSION_INFO));
+                    if (s.State != 0) continue;
+                    if (s.SessionId == propia) { propiaActiva = true; continue; }
+                    string u = UsuarioDeSesion(s.SessionId);
+                    if (u.Length > 0 && otra.Length == 0) otra = u;
+                }
+            } finally { WTSFreeMemory(lista); }
+            if (propiaActiva || otra.Length == 0) return "";
+            if (string.Equals(otra, Environment.UserName, StringComparison.OrdinalIgnoreCase)) return "";
+            return otra;
+        } catch { return ""; }
     }
     public static int ForegroundPid() {
         uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return (int)pid;
@@ -376,15 +407,8 @@ function Request-Actualizacion {
 function Send-Lote([object[]]$beats) {
     # Con clave de equipo no hay atajo al Apps Script: si Supabase no responde, los
     # latidos esperan en la cola (el Apps Script no conoce las claves).
-    if ($script:Clave) { return (Send-A $SupabaseUrl $beats) }
-    try { return (Send-A $SupabaseUrl $beats) }
-    catch {
-        if (((Get-Date).ToUniversalTime() - $script:avisoRespaldo).TotalMinutes -ge 30) {
-            Write-Log "Supabase no respondio ($($_.Exception.Message)); se envia directo al Apps Script"
-            $script:avisoRespaldo = (Get-Date).ToUniversalTime()
-        }
-        return (Send-A $cfg.url $beats)
-    }
+    # 2.14 (24 nov 2026, Fase 3): solo Supabase, sin Google. Si no responde, el lote se queda en la cola.
+    return (Send-A $SupabaseUrl $beats)
 }
 
 function Send-A([string]$destino, [object[]]$beats) {
@@ -435,13 +459,22 @@ while ($true) {
         $pant = [int][Monitor247Win]::Pantallas(); if ($pant -lt 0) { $pant = $null }
         $ener = [string][Monitor247Win]::Energia()
         $bat  = [int][Monitor247Win]::Bateria();  if ($bat -lt 0)  { $bat  = $null }
-        $pa   = Get-ProgActivo
+        # (2.14) Si la persona trabaja en OTRO usuario de Windows, se avisa (el panel lo lee de progActivo).
+        $otra = ''
+        try { $otra = [string][Monitor247Win]::OtraSesion() } catch { $otra = '' }
+        if ($otra -ne $script:ultimaOtra) {
+            if ($otra) { Write-Log "Otra sesion de Windows en uso: '$otra' (en esta sesion no se ve la actividad)" }
+            else { Write-Log 'La sesion de este agente vuelve a ser la que esta en uso' }
+            $script:ultimaOtra = $otra
+        }
+        $pa   = if ($otra) { '~otraSesion:' + $otra } else { Get-ProgActivo }
         $at   = Test-AppTelefono
         $pr   = @(Get-Programas)
 
         $beat = [ordered]@{
             id = [guid]::NewGuid().ToString('N'); ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
             agente = [string]$cfg.agente; cuenta = [string]$cfg.cuenta; codigo = [string]$cfg.codigo; equipo = $env:COMPUTERNAME; usuario = $env:USERNAME
+            otraSesion = $otra
             email = (Get-CorreoWindows)
             idle = $idle; app = $at; inicio = $primerEnvio; progActivo = $pa; lat = $lat; loss = $net.loss; mbps = $mbps
             pantallas = $pant; energia = $ener; bateria = $bat
